@@ -7,7 +7,7 @@
     <ContainerRegistry>registry.hub.docker.com</ContainerRegistry>
     <ContainerRepository>ninjatec/workouttrackerweb</ContainerRepository>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-
+    <platform>amd64</platform>
   </PropertyGroup>
 
 </Project>
