@@ -19,7 +19,7 @@ metadata:
   name: workouttracker
   namespace: web
 spec:
-  hostname: k8s.ninjatec.co.uk
-  prefix: /workouttracker/
+  hostname: wot.ninjatec.co.uk
+  prefix: /
   rewrite: "/"
   service: http://workouttracker:80
