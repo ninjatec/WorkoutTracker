@@ -15,10 +15,10 @@ spec:
       labels:
         app: workouttracker
     spec:
+      imagePullSecrets:
+      - name: regcred
       containers:
       - name: workouttracker
         image: ninjatec/workouttrackerweb:dev
         ports:
         - containerPort: 80
-      imagePullSecrets:
-      - name: regcred
