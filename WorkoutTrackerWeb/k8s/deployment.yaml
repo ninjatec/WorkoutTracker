@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workouttracker
+  namespace: web
+  labels:
+    app: workouttracker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: workouttracker
+  template:
+    metadata:
+      labels:
+        app: workouttracker
+    spec:
+      containers:
+      - name: workouttracker
+        image: ninjafit/workouttracker:dev
+        ports:
+        - containerPort: 80
