@@ -17,6 +17,6 @@ spec:
     spec:
       containers:
       - name: workouttracker
-        image: ninjafit/workouttracker:dev
+        image: ninjatec/workouttracker:dev
         ports:
         - containerPort: 80
