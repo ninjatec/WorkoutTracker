@@ -19,6 +19,6 @@ spec:
       - name: regcred
       containers:
       - name: workouttracker
-        image: ninjatec/workouttrackerweb:dev
+        image: ninjatec/workouttrackerweb:latest
         ports:
         - containerPort: 80
