@@ -14,4 +14,8 @@ dotnet aspnet-codegenerator razorpage -m Rep -dc WorkoutTrackerweb.Data.WorkoutT
 dotnet aspnet-codegenerator razorpage -m Set -dc WorkoutTrackerweb.Data.WorkoutTrackerWebContext -udl -outDir Pages/Sets --referenceScriptLibraries --databaseProvider sqlserver
 dotnet aspnet-codegenerator razorpage -m Settype -dc WorkoutTrackerweb.Data.WorkoutTrackerWebContext -udl -outDir Pages/Settypes --referenceScriptLibraries --databaseProvider sqlserver
 dotnet ef migrations add InitialCreate
+dotnet ef migrations add Settpe
+dotnet ef database update
 dotnet publish --os linux --arch x64 /t:PublishContainer
+dotnet ef database drop --force
+dotnet ef migrations add InitialCreate

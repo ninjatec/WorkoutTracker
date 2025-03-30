@@ -19,6 +19,7 @@ namespace WorkoutTrackerweb.Data
         public DbSet<WorkoutTrackerWeb.Models.Rep> Rep { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.aSet> aSet { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.User> User { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.Settype> Settype { get; set; } = default!;
 
     }
 }
