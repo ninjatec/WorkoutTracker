@@ -17,6 +17,7 @@ spec:
     spec:
       imagePullSecrets:
       - name: regcred
+      imagePullPolicy: Always
       containers:
       - name: workouttracker
         image: ninjatec/workouttrackerweb:latest
