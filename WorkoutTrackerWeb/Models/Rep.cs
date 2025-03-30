@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 
 namespace WorkoutTrackerWeb.Models
 {
-    public class Reps
+    public class Rep
     {
-        public int RepsId { get; set; }
+        public int RepId { get; set; }
         public float weight { get; set; } = 0;
         public int repnumber { get; set; } = 0;
         public bool success { get; set; } = true; //true = success, false = fail
