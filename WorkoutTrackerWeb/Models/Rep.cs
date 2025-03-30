@@ -12,12 +12,9 @@ namespace WorkoutTrackerWeb.Models
         public int repnumber { get; set; } = 0;
         public bool success { get; set; } = true; //true = success, false = fail
 
-        //fully defined relationships
-        public int? SessionId { get; set; }
-        public int? UserId { get; set; }
-        public int? ExcerciseId { get; set; }
-        public virtual required User User { get; set; }
-        public virtual required Session Session { get; set; }
-        public virtual required Excercise Excercise { get; set; } 
+        public User User { get; set; }
+        public Session Session { get; set; }
+        public Excercise Excercise { get; set; } 
+        public Set Set { get; set; }
     }
 }

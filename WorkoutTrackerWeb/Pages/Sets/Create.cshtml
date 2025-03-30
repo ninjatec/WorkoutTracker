@@ -7,38 +7,26 @@
         
         <h1>Create</h1>
         
-    <h4>aSet</h4>
+    <h4>Set</h4>
     <hr />
     <div class="row">
     <div class="col-md-4">
     <form method="post">
     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <div class="form-group">
-                <label asp-for="aSet.Description" class="control-label"></label>
-                <input asp-for="aSet.Description" class="form-control" />
-                <span asp-validation-for="aSet.Description" class="text-danger"></span>
+                <label asp-for="Set.Description" class="control-label"></label>
+                <input asp-for="Set.Description" class="form-control" />
+                <span asp-validation-for="Set.Description" class="text-danger"></span>
             </div>
             <div class="form-group">
-                <label asp-for="aSet.Notes" class="control-label"></label>
-                <input asp-for="aSet.Notes" class="form-control" />
-                <span asp-validation-for="aSet.Notes" class="text-danger"></span>
+                <label asp-for="Set.Notes" class="control-label"></label>
+                <input asp-for="Set.Notes" class="form-control" />
+                <span asp-validation-for="Set.Notes" class="text-danger"></span>
             </div>
             <div class="form-group form-check">
                 <label class="form-check-label">
-                    <input class="form-check-input" asp-for="aSet.Type" /> @Html.DisplayNameFor(model => model.aSet.Type)
+                    <input class="form-check-input" asp-for="Set.Type" /> @Html.DisplayNameFor(model => model.Set.Type)
                 </label>
-            </div>
-            <div class="form-group">
-                <label asp-for="aSet.SessionId" class="control-label"></label>
-                <select asp-for="aSet.SessionId" class ="form-control" asp-items="ViewBag.SessionId"></select>
-            </div>
-            <div class="form-group">
-                <label asp-for="aSet.UserId" class="control-label"></label>
-                <select asp-for="aSet.UserId" class ="form-control" asp-items="ViewBag.UserId"></select>
-            </div>
-            <div class="form-group">
-                <label asp-for="aSet.ExcerciseId" class="control-label"></label>
-                <select asp-for="aSet.ExcerciseId" class ="form-control" asp-items="ViewBag.ExcerciseId"></select>
             </div>
             <div class="form-group">
                 <input type="submit" value="Create" class="btn btn-primary" />

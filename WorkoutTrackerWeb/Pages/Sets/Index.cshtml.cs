@@ -19,14 +19,11 @@ namespace WorkoutTrackerWeb.Pages.Sets
             _context = context;
         }
 
-        public IList<aSet> aSet { get;set; } = default!;
+        public IList<Set> Set { get;set; } = default!;
 
         public async Task OnGetAsync()
         {
-            aSet = await _context.aSet
-                .Include(a => a.Excercise)
-                .Include(a => a.Session)
-                .Include(a => a.User).ToListAsync();
+            Set = await _context.Set.ToListAsync();
         }
     }
 }

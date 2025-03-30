@@ -36,8 +36,6 @@ namespace WorkoutTrackerWeb.Pages.Excercises
                 return NotFound();
             }
             Excercise = excercise;
-           ViewData["SessionId"] = new SelectList(_context.Session, "SessionId", "SessionId");
-           ViewData["UserId"] = new SelectList(_context.Set<User>(), "UserId", "UserId");
             return Page();
         }
 

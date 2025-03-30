@@ -23,9 +23,7 @@ namespace WorkoutTrackerWeb.Pages.Excercises
 
         public async Task OnGetAsync()
         {
-            Excercise = await _context.Excercise
-                .Include(e => e.Session)
-                .Include(e => e.User).ToListAsync();
+            Excercise = await _context.Excercise.ToListAsync();
         }
     }
 }

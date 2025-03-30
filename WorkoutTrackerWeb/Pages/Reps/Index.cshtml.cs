@@ -23,10 +23,7 @@ namespace WorkoutTrackerWeb.Pages.Reps
 
         public async Task OnGetAsync()
         {
-            Rep = await _context.Rep
-                .Include(r => r.Excercise)
-                .Include(r => r.Session)
-                .Include(r => r.User).ToListAsync();
+            Rep = await _context.Rep.ToListAsync();
         }
     }
 }

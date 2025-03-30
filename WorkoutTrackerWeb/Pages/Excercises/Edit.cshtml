@@ -16,21 +16,9 @@
             <input type="hidden" asp-for="Excercise.ExcerciseId" />
             <div class="form-group">
                 
-                <label asp-for="Excercise.Name" class="control-label"></label>
-                <input asp-for="Excercise.Name" class="form-control" />
-                <span asp-validation-for="Excercise.Name" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                
-                <label asp-for="Excercise.SessionId" class="control-label"></label>
-                <select asp-for="Excercise.SessionId" class="form-control" asp-items="ViewBag.SessionId"></select>
-                <span asp-validation-for="Excercise.SessionId" class="text-danger"></span>
-            </div>
-            <div class="form-group">
-                
-                <label asp-for="Excercise.UserId" class="control-label"></label>
-                <select asp-for="Excercise.UserId" class="form-control" asp-items="ViewBag.UserId"></select>
-                <span asp-validation-for="Excercise.UserId" class="text-danger"></span>
+                <label asp-for="Excercise.ExcerciseName" class="control-label"></label>
+                <input asp-for="Excercise.ExcerciseName" class="form-control" />
+                <span asp-validation-for="Excercise.ExcerciseName" class="text-danger"></span>
             </div>
             <div class="form-group">
                 <input type="submit" value="Save" class="btn btn-primary" />

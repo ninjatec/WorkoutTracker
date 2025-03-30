@@ -21,7 +21,7 @@ namespace WorkoutTrackerWeb.Pages.Sessions
 
         public IActionResult OnGet()
         {
-        ViewData["UserId"] = new SelectList(_context.Set<User>(), "UserId", "UserId");
+        ViewData["UserId"] = new SelectList(_context.User, "UserId", "UserId");
             return Page();
         }
 

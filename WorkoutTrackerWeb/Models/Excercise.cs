@@ -8,12 +8,10 @@ namespace WorkoutTrackerWeb.Models
     public class Excercise
     {
         public int ExcerciseId { get; set; }
-        public required string Name { get; set; }
-
-        //fully defined relationships
-        public int? SessionId { get; set; }
-        public int? UserId { get; set; }
-        public virtual required User User { get; set; }
-        public virtual required Session Session { get; set; }
+        public required string ExcerciseName { get; set; }
+        public User User { get; set; }
+        public Session Session { get; set; }
+        public ICollection<Set> Set { get; set; } 
+        public ICollection<Rep> Rep { get; set; }
     }
 }

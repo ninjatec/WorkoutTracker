@@ -1,7 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Security.Cryptography.Pkcs;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using Microsoft.Identity.Client;
 
 namespace WorkoutTrackerWeb.Models
 {
@@ -9,5 +14,10 @@ namespace WorkoutTrackerWeb.Models
     {
         public int UserId { get; set; }
         public required string Name { get; set; }    
+        public ICollection<Session> Session { get; set; }
+        public ICollection<Set> Set { get; set; } 
+        public ICollection<Excercise> Excercise { get; set; }
+        public ICollection<Rep> Rep { get; set; } 
+
     }
 }

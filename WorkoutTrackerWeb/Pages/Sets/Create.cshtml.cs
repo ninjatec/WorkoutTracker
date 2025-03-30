@@ -21,14 +21,11 @@ namespace WorkoutTrackerWeb.Pages.Sets
 
         public IActionResult OnGet()
         {
-        ViewData["ExcerciseId"] = new SelectList(_context.Excercise, "ExcerciseId", "ExcerciseId");
-        ViewData["SessionId"] = new SelectList(_context.Session, "SessionId", "SessionId");
-        ViewData["UserId"] = new SelectList(_context.Set<User>(), "UserId", "UserId");
             return Page();
         }
 
         [BindProperty]
-        public aSet aSet { get; set; } = default!;
+        public Set Set { get; set; } = default!;
 
         // For more information, see https://aka.ms/RazorPagesCRUD.
         public async Task<IActionResult> OnPostAsync()
@@ -38,7 +35,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
                 return Page();
             }
 
-            _context.aSet.Add(aSet);
+            _context.Set.Add(Set);
             await _context.SaveChangesAsync();
 
             return RedirectToPage("./Index");
