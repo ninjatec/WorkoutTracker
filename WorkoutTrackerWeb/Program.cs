@@ -7,8 +7,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddDbContext<WorkoutTrackerWebContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("WorkoutTrackerWebContext") ?? throw new InvalidOperationException("Connection string 'WorkoutTrackerWebContext' not found.")));
-builder.Services.AddDbContext<WorkoutTrackerContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("WorkoutTrackerContext") ?? throw new InvalidOperationException("Connection string 'WorkoutTrackerContext' not found.")));
 
 var app = builder.Build();
 

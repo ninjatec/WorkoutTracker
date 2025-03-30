@@ -28,7 +28,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
         }
 
         [BindProperty]
-        public Set Set { get; set; } = default!;
+        public aSet aSet { get; set; } = default!;
 
         // For more information, see https://aka.ms/RazorPagesCRUD.
         public async Task<IActionResult> OnPostAsync()
@@ -38,7 +38,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
                 return Page();
             }
 
-            _context.Set.Add(Set);
+            _context.aSet.Add(aSet);
             await _context.SaveChangesAsync();
 
             return RedirectToPage("./Index");

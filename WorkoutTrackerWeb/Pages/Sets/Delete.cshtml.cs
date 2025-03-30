@@ -20,7 +20,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
         }
 
         [BindProperty]
-        public Set Set { get; set; } = default!;
+        public aSet aSet { get; set; } = default!;
 
         public async Task<IActionResult> OnGetAsync(int? id)
         {
@@ -29,11 +29,11 @@ namespace WorkoutTrackerWeb.Pages.Sets
                 return NotFound();
             }
 
-            var set = await _context.Set.FirstOrDefaultAsync(m => m.SetId == id);
+            var aset = await _context.aSet.FirstOrDefaultAsync(m => m.aSetId == id);
 
-            if (set is not null)
+            if (aset is not null)
             {
-                Set = set;
+                aSet = aset;
 
                 return Page();
             }
@@ -48,11 +48,11 @@ namespace WorkoutTrackerWeb.Pages.Sets
                 return NotFound();
             }
 
-            var set = await _context.Set.FindAsync(id);
-            if (set != null)
+            var aset = await _context.aSet.FindAsync(id);
+            if (aset != null)
             {
-                Set = set;
-                _context.Set.Remove(Set);
+                aSet = aset;
+                _context.aSet.Remove(aSet);
                 await _context.SaveChangesAsync();
             }
 

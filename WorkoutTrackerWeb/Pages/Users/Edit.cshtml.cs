@@ -13,9 +13,9 @@ namespace WorkoutTrackerWeb.Pages.Users
 {
     public class EditModel : PageModel
     {
-        private readonly WorkoutTrackerweb.Data.WorkoutTrackerContext _context;
+        private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
 
-        public EditModel(WorkoutTrackerweb.Data.WorkoutTrackerContext context)
+        public EditModel(WorkoutTrackerweb.Data.WorkoutTrackerWebContext context)
         {
             _context = context;
         }

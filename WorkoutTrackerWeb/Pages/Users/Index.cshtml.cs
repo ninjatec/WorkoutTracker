@@ -12,9 +12,9 @@ namespace WorkoutTrackerWeb.Pages.Users
 {
     public class IndexModel : PageModel
     {
-        private readonly WorkoutTrackerweb.Data.WorkoutTrackerContext _context;
+        private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
 
-        public IndexModel(WorkoutTrackerweb.Data.WorkoutTrackerContext context)
+        public IndexModel(WorkoutTrackerweb.Data.WorkoutTrackerWebContext context)
         {
             _context = context;
         }

@@ -21,7 +21,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
         }
 
         [BindProperty]
-        public Set Set { get; set; } = default!;
+        public aSet aSet { get; set; } = default!;
 
         public async Task<IActionResult> OnGetAsync(int? id)
         {
@@ -30,12 +30,12 @@ namespace WorkoutTrackerWeb.Pages.Sets
                 return NotFound();
             }
 
-            var set =  await _context.Set.FirstOrDefaultAsync(m => m.SetId == id);
-            if (set == null)
+            var aset =  await _context.aSet.FirstOrDefaultAsync(m => m.aSetId == id);
+            if (aset == null)
             {
                 return NotFound();
             }
-            Set = set;
+            aSet = aset;
            ViewData["ExcerciseId"] = new SelectList(_context.Excercise, "ExcerciseId", "ExcerciseId");
            ViewData["SessionId"] = new SelectList(_context.Session, "SessionId", "SessionId");
            ViewData["UserId"] = new SelectList(_context.Set<User>(), "UserId", "UserId");
@@ -51,7 +51,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
                 return Page();
             }
 
-            _context.Attach(Set).State = EntityState.Modified;
+            _context.Attach(aSet).State = EntityState.Modified;
 
             try
             {
@@ -59,7 +59,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!SetExists(Set.SetId))
+                if (!aSetExists(aSet.aSetId))
                 {
                     return NotFound();
                 }
@@ -72,9 +72,9 @@ namespace WorkoutTrackerWeb.Pages.Sets
             return RedirectToPage("./Index");
         }
 
-        private bool SetExists(int id)
+        private bool aSetExists(int id)
         {
-            return _context.Set.Any(e => e.SetId == id);
+            return _context.aSet.Any(e => e.aSetId == id);
         }
     }
 }

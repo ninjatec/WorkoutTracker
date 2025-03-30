@@ -12,9 +12,9 @@ namespace WorkoutTrackerWeb.Pages.Users
 {
     public class DeleteModel : PageModel
     {
-        private readonly WorkoutTrackerweb.Data.WorkoutTrackerContext _context;
+        private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
 
-        public DeleteModel(WorkoutTrackerweb.Data.WorkoutTrackerContext context)
+        public DeleteModel(WorkoutTrackerweb.Data.WorkoutTrackerWebContext context)
         {
             _context = context;
         }

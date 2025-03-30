@@ -19,7 +19,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
             _context = context;
         }
 
-        public Set Set { get; set; } = default!;
+        public aSet aSet { get; set; } = default!;
 
         public async Task<IActionResult> OnGetAsync(int? id)
         {
@@ -28,11 +28,11 @@ namespace WorkoutTrackerWeb.Pages.Sets
                 return NotFound();
             }
 
-            var set = await _context.Set.FirstOrDefaultAsync(m => m.SetId == id);
+            var aset = await _context.aSet.FirstOrDefaultAsync(m => m.aSetId == id);
 
-            if (set is not null)
+            if (aset is not null)
             {
-                Set = set;
+                aSet = aset;
 
                 return Page();
             }

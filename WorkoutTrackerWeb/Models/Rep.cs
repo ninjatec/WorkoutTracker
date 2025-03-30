@@ -16,8 +16,8 @@ namespace WorkoutTrackerWeb.Models
         public int? SessionId { get; set; }
         public int? UserId { get; set; }
         public int? ExcerciseId { get; set; }
-        public virtual User User { get; set; }
-        public virtual Session Session { get; set; }
-        public virtual Excercise Excercise { get; set; } 
+        public virtual required User User { get; set; }
+        public virtual required Session Session { get; set; }
+        public virtual required Excercise Excercise { get; set; } 
     }
 }
