@@ -4,12 +4,6 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <ContainerRegistry>registry.hub.docker.com</ContainerRegistry>
-    <ContainerRepository>ninjatec/workouttrackerweb</ContainerRepository>
-    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-    <ContainerImageTag>latest</ContainerImageTag>
-    <platform>amd64</platform>
-    <Version>0.1.0.0</Version>
   </PropertyGroup>
 
 </Project>

@@ -1,0 +1,1 @@
+dotnet aspnet-codegenerator razorpage -m Excercise -dc WorkoutTrackerweb.Data.WorkoutTrackerwebContext -udl -outDir Pages/Excercise --referenceScriptLibraries --databaseProvider sqlserverß
