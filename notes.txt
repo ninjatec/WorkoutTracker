@@ -1,1 +1,16 @@
-dotnet aspnet-codegenerator razorpage -m Excercise -dc WorkoutTrackerweb.Data.WorkoutTrackerwebContext -udl -outDir Pages/Excercise --referenceScriptLibraries --databaseProvider sqlserverß
+dotnet tool uninstall --global dotnet-ef
+dotnet tool install dotnet-ef -g --allow-roll-forward
+dotnet tool uninstall --global dotnet-aspnet-codegenerator
+dotnet tool install dotnet-aspnet-codegenerator -g --allow-roll-forward
+dotnet add package Microsoft.EntityFrameworkCore.Design
+dotnet add package Microsoft.EntityFrameworkCore.SQLite
+dotnet add package Microsoft.VisualStudio.Web.CodeGeneration.Design
+dotnet add package Microsoft.EntityFrameworkCore.SqlServer
+dotnet add package Microsoft.EntityFrameworkCore.Tools
+dotnet aspnet-codegenerator razorpage -m User -dc WorkoutTrackerweb.Data.WorkoutTrackerContext -udl -outDir Pages/Users --referenceScriptLibraries --databaseProvider sqlserver
+dotnet aspnet-codegenerator razorpage -m Session -dc WorkoutTrackerweb.Data.WorkoutTrackerWebContext -udl -outDir Pages/Sessions --referenceScriptLibraries --databaseProvider sqlserver
+dotnet aspnet-codegenerator razorpage -m Excercise -dc WorkoutTrackerweb.Data.WorkoutTrackerWebContext -udl -outDir Pages/Excercises --referenceScriptLibraries --databaseProvider sqlserver
+dotnet aspnet-codegenerator razorpage -m Rep -dc WorkoutTrackerweb.Data.WorkoutTrackerWebContext -udl -outDir Pages/Reps --referenceScriptLibraries --databaseProvider sqlserver
+dotnet aspnet-codegenerator razorpage -m Set -dc WorkoutTrackerweb.Data.WorkoutTrackerWebContext -udl -outDir Pages/Sets --referenceScriptLibraries --databaseProvider sqlserver
+dotnet aspnet-codegenerator razorpage -m Settype -dc WorkoutTrackerweb.Data.WorkoutTrackerWebContext -udl -outDir Pages/Settypes --referenceScriptLibraries --databaseProvider sqlserver
+
