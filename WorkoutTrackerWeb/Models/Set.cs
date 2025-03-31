@@ -11,7 +11,7 @@ namespace WorkoutTrackerWeb.Models
         public string Description { get; set; } = "";
         public string Notes { get; set; } = "";
         public bool Type { get; set; } = false; //true = weight, false = time
-        public Excercise Excercise { get; set; }
+        public required Excercise Excercise { get; set; }
         public ICollection<Rep> Rep { get; set; } 
     }
 }
