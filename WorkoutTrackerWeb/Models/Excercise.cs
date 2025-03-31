@@ -9,9 +9,7 @@ namespace WorkoutTrackerWeb.Models
     {
         public int ExcerciseId { get; set; }
         public required string ExcerciseName { get; set; }
-        public User User { get; set; }
         public Session Session { get; set; }
         public ICollection<Set> Set { get; set; } 
-        public ICollection<Rep> Rep { get; set; }
     }
 }

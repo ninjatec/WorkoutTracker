@@ -11,10 +11,6 @@ namespace WorkoutTrackerWeb.Models
         public float weight { get; set; } = 0;
         public int repnumber { get; set; } = 0;
         public bool success { get; set; } = true; //true = success, false = fail
-
-        public User User { get; set; }
-        public Session Session { get; set; }
-        public Excercise Excercise { get; set; } 
         public Set Set { get; set; }
     }
 }

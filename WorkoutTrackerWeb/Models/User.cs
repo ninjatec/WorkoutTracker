@@ -15,9 +15,5 @@ namespace WorkoutTrackerWeb.Models
         public int UserId { get; set; }
         public required string Name { get; set; }    
         public ICollection<Session> Session { get; set; }
-        public ICollection<Set> Set { get; set; } 
-        public ICollection<Excercise> Excercise { get; set; }
-        public ICollection<Rep> Rep { get; set; } 
-
     }
 }
