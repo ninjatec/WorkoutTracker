@@ -14,6 +14,6 @@ namespace WorkoutTrackerWeb.Models
     {
         public int UserId { get; set; }
         public required string Name { get; set; }    
-        public ICollection<Session> Session { get; set; }
+        public ICollection<Session> Session { get; set; } = new List<Session>();
     }
 }
