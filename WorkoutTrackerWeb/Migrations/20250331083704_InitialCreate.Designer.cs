@@ -12,7 +12,7 @@ using WorkoutTrackerweb.Data;
 namespace WorkoutTrackerWeb.Migrations
 {
     [DbContext(typeof(WorkoutTrackerWebContext))]
-    [Migration("20250331061100_InitialCreate")]
+    [Migration("20250331083704_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />

@@ -1,3 +1,4 @@
+dotnet new webapp --auth Individual -uld -o WorkoutTrackerWeb
 dotnet tool uninstall --global dotnet-ef
 dotnet tool install dotnet-ef -g --allow-roll-forward
 dotnet tool uninstall --global dotnet-aspnet-codegenerator
@@ -15,7 +16,7 @@ dotnet aspnet-codegenerator razorpage -m Set -dc WorkoutTrackerweb.Data.WorkoutT
 dotnet aspnet-codegenerator razorpage -m Settype -dc WorkoutTrackerweb.Data.WorkoutTrackerWebContext -udl -outDir Pages/Settypes --referenceScriptLibraries --databaseProvider sqlserver
 dotnet ef migrations add InitialCreate
 dotnet ef migrations add Settpe
-dotnet ef database update
+dotnet ef database update --context WorkoutTrackerWebContext
 dotnet publish --os linux --arch x64 /t:PublishContainer
-dotnet ef database drop --force
+dotnet ef database drop --force --context WorkoutTrackerWebContext
 dotnet ef migrations add InitialCreate
