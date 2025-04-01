@@ -12,6 +12,6 @@ namespace WorkoutTrackerWeb.Models
         public required DateTime datetime { get; set; }
         public required int UserId { get; set; }
         public required User User { get; set; }
-        public ICollection<Excercise> Excercise { get; set; } = new List<Excercise>();
+        public ICollection<Excercise> Excercises { get; set; } = new List<Excercise>();
     }
 }
