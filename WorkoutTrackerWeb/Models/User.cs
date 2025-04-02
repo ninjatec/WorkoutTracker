@@ -7,12 +7,18 @@ using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using Microsoft.Identity.Client;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace WorkoutTrackerWeb.Models
 {
     public class User
     {
         public int UserId { get; set; }
+
+        [Required]
+        [StringLength(50)]
+        [Display(Name = "Name")]
         public required string Name { get; set; }    
         public ICollection<Session> Sessions { get; set; } = new List<Session>();
     }
