@@ -13,10 +13,10 @@ namespace WorkoutTrackerWeb.Models
         [Required]
         [StringLength(50)]
         [Display(Name = "Name")]
-        public required string Name { get; set; }
-        public required DateTime datetime { get; set; }
-        public required int UserId { get; set; }
-        public required User User { get; set; }
-        public ICollection<Excercise> Excercises { get; set; }
+        public string Name { get; set; }
+        public DateTime datetime { get; set; }
+        public int UserId { get; set; }
+        public User User { get; set; }
+        public ICollection<Excercise>? Excercises { get; set; }
     }
 }

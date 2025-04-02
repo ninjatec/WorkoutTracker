@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
+    <Nullable></Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>aspnet-WorkoutTrackerWeb-9e87d476-9b38-425e-8de1-18d836571a09</UserSecretsId>
     <ContainerRegistry>registry.hub.docker.com</ContainerRegistry>

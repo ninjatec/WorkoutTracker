@@ -13,7 +13,7 @@ namespace WorkoutTrackerWeb.Models
         public float weight { get; set; } = 0;
         public int repnumber { get; set; } = 0;
         public bool success { get; set; } = true; //true = success, false = fail
-        public required Set Sets { get; set; }
+        public Set Sets { get; set; }
 
     }
 }

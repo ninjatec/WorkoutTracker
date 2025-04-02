@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WorkoutTrackerweb.Data;
 
@@ -11,9 +12,11 @@ using WorkoutTrackerweb.Data;
 namespace WorkoutTrackerWeb.Migrations
 {
     [DbContext(typeof(WorkoutTrackerWebContext))]
-    partial class WorkoutTrackerWebContextModelSnapshot : ModelSnapshot
+    [Migration("20250402110115_SessionChanges2")]
+    partial class SessionChanges2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -31,9 +34,10 @@ namespace WorkoutTrackerWeb.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ExcerciseId"));
 
                     b.Property<string>("ExcerciseName")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("SessionsSessionId")
+                    b.Property<int>("SessionsSessionId")
                         .HasColumnType("int");
 
                     b.HasKey("ExcerciseId");
@@ -51,7 +55,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RepId"));
 
-                    b.Property<int?>("SetsSetId")
+                    b.Property<int>("SetsSetId")
                         .HasColumnType("int");
 
                     b.Property<int>("repnumber")
@@ -105,12 +109,14 @@ namespace WorkoutTrackerWeb.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SetId"));
 
                     b.Property<string>("Description")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int?>("ExcercisesExcerciseId")
+                    b.Property<int>("ExcercisesExcerciseId")
                         .HasColumnType("int");
 
                     b.Property<string>("Notes")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("Type")
@@ -132,9 +138,11 @@ namespace WorkoutTrackerWeb.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SettypeId"));
 
                     b.Property<string>("Description")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
+                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("SettypeId");
@@ -164,7 +172,9 @@ namespace WorkoutTrackerWeb.Migrations
                 {
                     b.HasOne("WorkoutTrackerWeb.Models.Session", "Sessions")
                         .WithMany("Excercises")
-                        .HasForeignKey("SessionsSessionId");
+                        .HasForeignKey("SessionsSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Sessions");
                 });
@@ -173,7 +183,9 @@ namespace WorkoutTrackerWeb.Migrations
                 {
                     b.HasOne("WorkoutTrackerWeb.Models.Set", "Sets")
                         .WithMany("Reps")
-                        .HasForeignKey("SetsSetId");
+                        .HasForeignKey("SetsSetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Sets");
                 });
@@ -193,7 +205,9 @@ namespace WorkoutTrackerWeb.Migrations
                 {
                     b.HasOne("WorkoutTrackerWeb.Models.Excercise", "Excercises")
                         .WithMany("Sets")
-                        .HasForeignKey("ExcercisesExcerciseId");
+                        .HasForeignKey("ExcercisesExcerciseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("Excercises");
                 });

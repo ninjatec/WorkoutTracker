@@ -5,6 +5,7 @@ using WorkoutTrackerWeb.Models;
 using WorkoutTrackerweb.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace WorkoutTrackerWeb.Pages.Sessions
 {
@@ -28,13 +29,13 @@ namespace WorkoutTrackerWeb.Pages.Sessions
         public Session Session { get; set; }
         public async Task<IActionResult> OnPostAsync()
         {
-            var emptySession = new Session
-            {
-                Name = string.Empty, // Provide a default or meaningful value
-                datetime = DateTime.Now, // Provide a default or meaningful value
-                User = new User { Name = "DefaultUserName" }, // Initialize with a new User object and set the required Name property
-                UserId = 1 // Set a default UserId or handle it as per your logic
-            };
+            var emptySession = new Session();
+            //{
+            //    Name = string.Empty, // Provide a default or meaningful value
+            //    datetime = DateTime.Now, // Provide a default or meaningful value
+            //    User = new User { Name = "DefaultUserName" }, // Initialize with a new User object and set the required Name property
+            //    UserId = 1 // Set a default UserId or handle it as per your logic
+            //};
 
             if (await TryUpdateModelAsync<Session>(
                  emptySession,
@@ -48,6 +49,7 @@ namespace WorkoutTrackerWeb.Pages.Sessions
 
             if (!ModelState.IsValid)
             {
+                PopulateUserNameDropDownList(_context);
                 return Page();
             }
 
