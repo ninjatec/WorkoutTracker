@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerweb.Data;
 
@@ -19,23 +20,49 @@ namespace WorkoutTrackerWeb.Pages.Reps
             _context = context;
         }
 
-        public IActionResult OnGet()
+        [BindProperty]
+        public List<Rep> Reps { get; set; } = new List<Rep>();
+        
+        public Set Set { get; set; }
+
+        public async Task<IActionResult> OnGetAsync(int? setId)
         {
+            if (setId == null)
+            {
+                return NotFound();
+            }
+
+            Set = await _context.Set
+                .Include(s => s.Exercise)
+                .FirstOrDefaultAsync(m => m.SetId == setId);
+
+            if (Set == null)
+            {
+                return NotFound();
+            }
+
+            // Initialize the reps based on NumberReps
+            for (int i = 0; i < Set.NumberReps; i++)
+            {
+                Reps.Add(new Rep { repnumber = i + 1 });
+            }
+
             return Page();
         }
 
-        [BindProperty]
-        public Rep Rep { get; set; } = default!;
-
-        // For more information, see https://aka.ms/RazorPagesCRUD.
-        public async Task<IActionResult> OnPostAsync()
+        public async Task<IActionResult> OnPostAsync(int setId)
         {
             if (!ModelState.IsValid)
             {
                 return Page();
             }
 
-            _context.Rep.Add(Rep);
+            foreach (var rep in Reps)
+            {
+                rep.Sets = await _context.Set.FindAsync(setId);
+                _context.Rep.Add(rep);
+            }
+
             await _context.SaveChangesAsync();
 
             return RedirectToPage("./Index");
