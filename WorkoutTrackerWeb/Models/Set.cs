@@ -12,8 +12,10 @@ namespace WorkoutTrackerWeb.Models
         public int SetId { get; set; }
         public string Description { get; set; } = "";
         public string Notes { get; set; } = "";
-        public bool Type { get; set; } = false; //true = weight, false = time
-        public Excercise Excercises { get; set; }
+        public int SettypeId { get; set; }  // Foreign key for Settype
+        public Settype Settype { get; set; }  // Navigation property
+        public int ExerciseId { get; set; }  // Foreign key for Exercise
+        public Excercise Exercise { get; set; }  // Navigation property
         public ICollection<Rep> Reps { get; set; } = new List<Rep>();
     }
 }

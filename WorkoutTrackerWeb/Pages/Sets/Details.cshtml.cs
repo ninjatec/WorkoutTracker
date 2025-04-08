@@ -28,12 +28,14 @@ namespace WorkoutTrackerWeb.Pages.Sets
                 return NotFound();
             }
 
-            var set = await _context.Set.FirstOrDefaultAsync(m => m.SetId == id);
-
+            var set = await _context.Set
+                .Include(s => s.Exercise)
+                .Include(s => s.Settype)
+                .FirstOrDefaultAsync(m => m.SetId == id);
+                
             if (set is not null)
             {
                 Set = set;
-
                 return Page();
             }
 

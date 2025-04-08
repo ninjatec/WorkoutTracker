@@ -20,7 +20,10 @@
                 @Html.DisplayNameFor(model => model.Set[0].Notes)
             </th>
             <th>
-                @Html.DisplayNameFor(model => model.Set[0].Type)
+                Set Type
+            </th>
+            <th>
+                Exercise
             </th>
             <th></th>
         </tr>
@@ -35,7 +38,10 @@
                 @Html.DisplayFor(modelItem => item.Notes)
             </td>
             <td>
-                @Html.DisplayFor(modelItem => item.Type)
+                @Html.DisplayFor(modelItem => item.Settype.Name)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Exercise.ExcerciseName)
             </td>
             <td>
                 <a asp-page="./Edit" asp-route-id="@item.SetId">Edit</a> |

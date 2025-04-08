@@ -11,7 +11,7 @@ using WorkoutTrackerweb.Data;
 
 namespace WorkoutTrackerWeb.Pages.Sets
 {
-    public class EditModel : PageModel
+    public class EditModel : SetInputPageModel
     {
         private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
 
@@ -30,43 +30,50 @@ namespace WorkoutTrackerWeb.Pages.Sets
                 return NotFound();
             }
 
-            var set =  await _context.Set.FirstOrDefaultAsync(m => m.SetId == id);
+            var set = await _context.Set
+                .Include(s => s.Settype)
+                .Include(s => s.Exercise)
+                .FirstOrDefaultAsync(m => m.SetId == id);
+
             if (set == null)
             {
                 return NotFound();
             }
+
             Set = set;
+            PopulateSettypeNameDropDownList(_context, Set.SettypeId);
+            PopulateExerciseNameDropDownList(_context, Set.ExerciseId);
             return Page();
         }
 
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more information, see https://aka.ms/RazorPagesCRUD.
-        public async Task<IActionResult> OnPostAsync()
+        public async Task<IActionResult> OnPostAsync(int? id)
         {
             if (!ModelState.IsValid)
             {
+                PopulateSettypeNameDropDownList(_context, Set.SettypeId);
+                PopulateExerciseNameDropDownList(_context, Set.ExerciseId);
                 return Page();
             }
 
-            _context.Attach(Set).State = EntityState.Modified;
+            var setToUpdate = await _context.Set.FindAsync(id);
 
-            try
+            if (setToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            if (await TryUpdateModelAsync<Set>(
+                setToUpdate,
+                "Set",
+                s => s.Description, s => s.Notes, s => s.SettypeId, s => s.ExerciseId))
             {
                 await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!SetExists(Set.SetId))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                return RedirectToPage("./Index");
             }
 
-            return RedirectToPage("./Index");
+            PopulateSettypeNameDropDownList(_context, setToUpdate.SettypeId);
+            PopulateExerciseNameDropDownList(_context, setToUpdate.ExerciseId);
+            return Page();
         }
 
         private bool SetExists(int id)

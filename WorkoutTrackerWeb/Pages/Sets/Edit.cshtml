@@ -15,22 +15,28 @@
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <input type="hidden" asp-for="Set.SetId" />
             <div class="form-group">
-                
                 <label asp-for="Set.Description" class="control-label"></label>
                 <input asp-for="Set.Description" class="form-control" />
                 <span asp-validation-for="Set.Description" class="text-danger"></span>
             </div>
             <div class="form-group">
-                
                 <label asp-for="Set.Notes" class="control-label"></label>
                 <input asp-for="Set.Notes" class="form-control" />
                 <span asp-validation-for="Set.Notes" class="text-danger"></span>
             </div>
-            <div class="form-group form-check">
-                
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="Set.Type" /> @Html.DisplayNameFor(model => model.Set.Type)
-                </label>
+            <div class="form-group">
+                <label asp-for="Set.SettypeId" class="control-label">Set Type</label>
+                <select asp-for="Set.SettypeId" class="form-control" asp-items="@Model.SettypeNameSL">
+                    <option value="">--- Select Set Type ---</option>
+                </select>
+                <span asp-validation-for="Set.SettypeId" class="text-danger" />
+            </div>
+            <div class="form-group">
+                <label asp-for="Set.ExerciseId" class="control-label">Exercise</label>
+                <select asp-for="Set.ExerciseId" class="form-control" asp-items="@Model.ExerciseNameSL">
+                    <option value="">--- Select Exercise ---</option>
+                </select>
+                <span asp-validation-for="Set.ExerciseId" class="text-danger" />
             </div>
             <div class="form-group">
                 <input type="submit" value="Save" class="btn btn-primary" />

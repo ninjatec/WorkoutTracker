@@ -23,7 +23,10 @@ namespace WorkoutTrackerWeb.Pages.Sets
 
         public async Task OnGetAsync()
         {
-            Set = await _context.Set.ToListAsync();
+            Set = await _context.Set
+                .Include(s => s.Exercise)
+                .Include(s => s.Settype)
+                .ToListAsync();
         }
     }
 }
