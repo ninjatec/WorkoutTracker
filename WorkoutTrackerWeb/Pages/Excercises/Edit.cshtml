@@ -7,7 +7,7 @@
 
 <h1>Edit</h1>
 
-<h4>Excercise</h4>
+<h4>Exercise</h4>
 <hr />
 <div class="row">
     <div class="col-md-4">
@@ -15,10 +15,16 @@
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <input type="hidden" asp-for="Excercise.ExcerciseId" />
             <div class="form-group">
-                
                 <label asp-for="Excercise.ExcerciseName" class="control-label"></label>
                 <input asp-for="Excercise.ExcerciseName" class="form-control" />
                 <span asp-validation-for="Excercise.ExcerciseName" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Excercise.SessionId" class="control-label">Session</label>
+                <select asp-for="Excercise.SessionId" class="form-control" asp-items="@Model.SessionNameSL">
+                    <option value="">--- Select Session ---</option>
+                </select>
+                <span asp-validation-for="Excercise.SessionId" class="text-danger" />
             </div>
             <div class="form-group">
                 <input type="submit" value="Save" class="btn btn-primary" />

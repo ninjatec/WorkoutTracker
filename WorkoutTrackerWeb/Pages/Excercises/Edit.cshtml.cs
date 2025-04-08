@@ -11,7 +11,7 @@ using WorkoutTrackerweb.Data;
 
 namespace WorkoutTrackerWeb.Pages.Excercises
 {
-    public class EditModel : PageModel
+    public class EditModel : SessionNamePageModel
     {
         private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
 
@@ -30,43 +30,46 @@ namespace WorkoutTrackerWeb.Pages.Excercises
                 return NotFound();
             }
 
-            var excercise =  await _context.Excercise.FirstOrDefaultAsync(m => m.ExcerciseId == id);
+            var excercise = await _context.Excercise
+                .Include(e => e.Session)
+                .FirstOrDefaultAsync(m => m.ExcerciseId == id);
+
             if (excercise == null)
             {
                 return NotFound();
             }
+
             Excercise = excercise;
+            PopulateSessionNameDropDownList(_context, Excercise.SessionId);
             return Page();
         }
 
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more information, see https://aka.ms/RazorPagesCRUD.
-        public async Task<IActionResult> OnPostAsync()
+        public async Task<IActionResult> OnPostAsync(int? id)
         {
             if (!ModelState.IsValid)
             {
+                PopulateSessionNameDropDownList(_context, Excercise.SessionId);
                 return Page();
             }
 
-            _context.Attach(Excercise).State = EntityState.Modified;
+            var exerciseToUpdate = await _context.Excercise.FindAsync(id);
 
-            try
+            if (exerciseToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            if (await TryUpdateModelAsync<Excercise>(
+                exerciseToUpdate,
+                "Excercise",
+                e => e.ExcerciseName, e => e.SessionId))
             {
                 await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!ExcerciseExists(Excercise.ExcerciseId))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                return RedirectToPage("./Index");
             }
 
-            return RedirectToPage("./Index");
+            PopulateSessionNameDropDownList(_context, exerciseToUpdate.SessionId);
+            return Page();
         }
 
         private bool ExcerciseExists(int id)

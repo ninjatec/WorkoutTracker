@@ -10,7 +10,7 @@ using WorkoutTrackerweb.Data;
 
 namespace WorkoutTrackerWeb.Pages.Excercises
 {
-    public class CreateModel : PageModel
+    public class CreateModel : SessionNamePageModel
     {
         private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
 
@@ -21,23 +21,23 @@ namespace WorkoutTrackerWeb.Pages.Excercises
 
         public IActionResult OnGet()
         {
+            PopulateSessionNameDropDownList(_context);
             return Page();
         }
 
         [BindProperty]
         public Excercise Excercise { get; set; } = default!;
 
-        // For more information, see https://aka.ms/RazorPagesCRUD.
         public async Task<IActionResult> OnPostAsync()
         {
             if (!ModelState.IsValid)
             {
+                PopulateSessionNameDropDownList(_context);
                 return Page();
             }
 
             _context.Excercise.Add(Excercise);
             await _context.SaveChangesAsync();
-
             return RedirectToPage("./Index");
         }
     }

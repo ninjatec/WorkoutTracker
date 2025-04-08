@@ -1,22 +1,29 @@
 @page
 @model WorkoutTrackerWeb.Pages.Excercises.CreateModel
 
-        @{
-        ViewData["Title"] = "Create";
-        }
-        
-        <h1>Create</h1>
-        
-    <h4>Excercise</h4>
-    <hr />
-    <div class="row">
+@{
+    ViewData["Title"] = "Create";
+}
+
+<h1>Create</h1>
+
+<h4>Exercise</h4>
+<hr />
+<div class="row">
     <div class="col-md-4">
-    <form method="post">
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <form method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <div class="form-group">
                 <label asp-for="Excercise.ExcerciseName" class="control-label"></label>
                 <input asp-for="Excercise.ExcerciseName" class="form-control" />
                 <span asp-validation-for="Excercise.ExcerciseName" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Excercise.SessionId" class="control-label">Session</label>
+                <select asp-for="Excercise.SessionId" class="form-control" asp-items="@Model.SessionNameSL">
+                    <option value="">--- Select Session ---</option>
+                </select>
+                <span asp-validation-for="Excercise.SessionId" class="text-danger" />
             </div>
             <div class="form-group">
                 <input type="submit" value="Create" class="btn btn-primary" />
@@ -26,7 +33,7 @@
 </div>
 
 <div>
-    <a asp-page="Index">Back to List</a>
+    <a asp-page="./Index">Back to List</a>
 </div>
 
 @section Scripts {

@@ -11,7 +11,8 @@ namespace WorkoutTrackerWeb.Models
     {
         public int ExcerciseId { get; set; }
         public string ExcerciseName { get; set; }
-        public Session Sessions { get; set; }
+        public int SessionId { get; set; }  // This matches the existing column in the database
+        public Session Session { get; set; }
         public ICollection<Set> Sets { get; set; } = new List<Set>();
     }
 }

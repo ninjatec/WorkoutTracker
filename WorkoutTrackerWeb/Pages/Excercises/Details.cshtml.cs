@@ -28,12 +28,13 @@ namespace WorkoutTrackerWeb.Pages.Excercises
                 return NotFound();
             }
 
-            var excercise = await _context.Excercise.FirstOrDefaultAsync(m => m.ExcerciseId == id);
+            var excercise = await _context.Excercise
+                .Include(e => e.Session)
+                .FirstOrDefaultAsync(m => m.ExcerciseId == id);
 
             if (excercise is not null)
             {
                 Excercise = excercise;
-
                 return Page();
             }
 
