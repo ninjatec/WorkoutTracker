@@ -30,6 +30,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
 
             var set = await _context.Set
                 .Include(s => s.Exercise)
+                    .ThenInclude(e => e.Session)
                 .Include(s => s.Settype)
                 .FirstOrDefaultAsync(m => m.SetId == id);
                 

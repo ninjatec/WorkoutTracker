@@ -25,6 +25,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
         {
             Set = await _context.Set
                 .Include(s => s.Exercise)
+                    .ThenInclude(e => e.Session)
                 .Include(s => s.Settype)
                 .ToListAsync();
         }
