@@ -25,6 +25,11 @@
                 <span asp-validation-for="Set.Notes" class="text-danger"></span>
             </div>
             <div class="form-group">
+                <label asp-for="Set.NumberReps" class="control-label">Number of Reps</label>
+                <input asp-for="Set.NumberReps" class="form-control" type="number" min="0" />
+                <span asp-validation-for="Set.NumberReps" class="text-danger"></span>
+            </div>
+            <div class="form-group">
                 <label asp-for="Set.SettypeId" class="control-label">Set Type</label>
                 <select asp-for="Set.SettypeId" class="form-control" asp-items="@Model.SettypeNameSL">
                     <option value="">--- Select Set Type ---</option>

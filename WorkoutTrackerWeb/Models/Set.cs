@@ -16,6 +16,7 @@ namespace WorkoutTrackerWeb.Models
         public Settype Settype { get; set; }  // Navigation property
         public int ExerciseId { get; set; }  // Foreign key for Exercise
         public Excercise Exercise { get; set; }  // Navigation property
+        public int NumberReps { get; set; } = 0;  // Number of reps in the set
         public ICollection<Rep> Reps { get; set; } = new List<Rep>();
     }
 }

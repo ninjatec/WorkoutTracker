@@ -65,7 +65,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
             if (await TryUpdateModelAsync<Set>(
                 setToUpdate,
                 "Set",
-                s => s.Description, s => s.Notes, s => s.SettypeId, s => s.ExerciseId))
+                s => s.Description, s => s.Notes, s => s.SettypeId, s => s.ExerciseId, s => s.NumberReps))
             {
                 await _context.SaveChangesAsync();
                 return RedirectToPage("./Index");

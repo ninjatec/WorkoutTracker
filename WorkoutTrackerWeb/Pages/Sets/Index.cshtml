@@ -2,10 +2,10 @@
 @model WorkoutTrackerWeb.Pages.Sets.IndexModel
 
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Sets";
 }
 
-<h1>Index</h1>
+<h1>Sets</h1>
 
 <p>
     <a asp-page="Create">Create New</a>
@@ -20,10 +20,13 @@
                 @Html.DisplayNameFor(model => model.Set[0].Notes)
             </th>
             <th>
-                Set Type
+                @Html.DisplayNameFor(model => model.Set[0].NumberReps)
             </th>
             <th>
-                Exercise
+                @Html.DisplayNameFor(model => model.Set[0].Exercise)
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.Set[0].Settype)
             </th>
             <th></th>
         </tr>
@@ -38,10 +41,13 @@
                 @Html.DisplayFor(modelItem => item.Notes)
             </td>
             <td>
-                @Html.DisplayFor(modelItem => item.Settype.Name)
+                @Html.DisplayFor(modelItem => item.NumberReps)
             </td>
             <td>
                 @Html.DisplayFor(modelItem => item.Exercise.ExcerciseName)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Settype.Name)
             </td>
             <td>
                 <a asp-page="./Edit" asp-route-id="@item.SetId">Edit</a> |
