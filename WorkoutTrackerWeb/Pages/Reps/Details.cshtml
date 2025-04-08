@@ -12,6 +12,18 @@
     <hr />
     <dl class="row">
         <dt class="col-sm-2">
+            Session
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Rep.Sets.Exercise.Session.Name)
+        </dd>
+        <dt class="col-sm-2">
+            Exercise
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Rep.Sets.Exercise.ExcerciseName)
+        </dd>
+        <dt class="col-sm-2">
             @Html.DisplayNameFor(model => model.Rep.weight)
         </dt>
         <dd class="col-sm-10">

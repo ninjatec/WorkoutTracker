@@ -29,7 +29,11 @@ namespace WorkoutTrackerWeb.Pages.Reps
                 return NotFound();
             }
 
-            var rep = await _context.Rep.FirstOrDefaultAsync(m => m.RepId == id);
+            var rep = await _context.Rep
+                .Include(r => r.Sets)
+                    .ThenInclude(s => s.Exercise)
+                        .ThenInclude(e => e.Session)
+                .FirstOrDefaultAsync(m => m.RepId == id);
 
             if (rep is not null)
             {
