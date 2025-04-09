@@ -7,16 +7,23 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace WorkoutTrackerWeb.Pages.Sessions
 {
+    [Authorize]
     public class DeleteModel : PageModel
     {
-        private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
+        private readonly WorkoutTrackerWebContext _context;
+        private readonly UserService _userService;
 
-        public DeleteModel(WorkoutTrackerweb.Data.WorkoutTrackerWebContext context)
+        public DeleteModel(
+            WorkoutTrackerWebContext context,
+            UserService userService)
         {
             _context = context;
+            _userService = userService;
         }
 
         [BindProperty]
@@ -29,16 +36,25 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 return NotFound();
             }
 
-            var session = await _context.Session.FirstOrDefaultAsync(m => m.SessionId == id);
-
-            if (session is not null)
+            // Get current user
+            var currentUserId = await _userService.GetCurrentUserIdAsync();
+            if (currentUserId == null)
             {
-                Session = session;
-
-                return Page();
+                return Challenge();
             }
 
-            return NotFound();
+            // Get session with ownership check
+            var session = await _context.Session
+                .Include(s => s.User)
+                .FirstOrDefaultAsync(m => m.SessionId == id && m.UserId == currentUserId);
+
+            if (session == null)
+            {
+                return NotFound();
+            }
+            
+            Session = session;
+            return Page();
         }
 
         public async Task<IActionResult> OnPostAsync(int? id)
@@ -48,13 +64,25 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 return NotFound();
             }
 
-            var session = await _context.Session.FindAsync(id);
-            if (session != null)
+            // Get current user
+            var currentUserId = await _userService.GetCurrentUserIdAsync();
+            if (currentUserId == null)
             {
-                Session = session;
-                _context.Session.Remove(Session);
-                await _context.SaveChangesAsync();
+                return Challenge();
             }
+
+            // Get session with ownership check
+            var session = await _context.Session.FirstOrDefaultAsync(
+                s => s.SessionId == id && s.UserId == currentUserId);
+                
+            if (session == null)
+            {
+                return NotFound();
+            }
+
+            Session = session;
+            _context.Session.Remove(Session);
+            await _context.SaveChangesAsync();
 
             return RedirectToPage("./Index");
         }

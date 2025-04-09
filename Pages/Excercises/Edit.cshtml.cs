@@ -8,16 +8,23 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace WorkoutTrackerWeb.Pages.Excercises
 {
+    [Authorize]
     public class EditModel : SessionNamePageModel
     {
-        private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
+        private readonly WorkoutTrackerWebContext _context;
+        private readonly UserService _userService;
 
-        public EditModel(WorkoutTrackerweb.Data.WorkoutTrackerWebContext context)
+        public EditModel(
+            WorkoutTrackerWebContext context,
+            UserService userService)
         {
             _context = context;
+            _userService = userService;
         }
 
         [BindProperty]
@@ -30,17 +37,31 @@ namespace WorkoutTrackerWeb.Pages.Excercises
                 return NotFound();
             }
 
-            var excercise = await _context.Excercise
-                .Include(e => e.Session)
-                .FirstOrDefaultAsync(m => m.ExcerciseId == id);
+            // Get current user ID
+            var currentUserId = await _userService.GetCurrentUserIdAsync();
+            if (currentUserId == null)
+            {
+                return Challenge();
+            }
 
-            if (excercise == null)
+            // Get exercise with ownership check via Session
+            var exercise = await _context.Excercise
+                .Include(e => e.Session)
+                .ThenInclude(s => s.User)
+                .FirstOrDefaultAsync(m => 
+                    m.ExcerciseId == id && 
+                    m.Session.UserId == currentUserId);
+
+            if (exercise == null)
             {
                 return NotFound();
             }
 
-            Excercise = excercise;
-            PopulateSessionNameDropDownList(_context, Excercise.SessionId);
+            Excercise = exercise;
+            
+            // Only show sessions belonging to current user
+            await PopulateSessionNameDropDownListAsync(_context, _userService, Excercise.SessionId);
+            
             return Page();
         }
 
@@ -48,28 +69,61 @@ namespace WorkoutTrackerWeb.Pages.Excercises
         {
             if (!ModelState.IsValid)
             {
-                PopulateSessionNameDropDownList(_context, Excercise.SessionId);
+                await PopulateSessionNameDropDownListAsync(_context, _userService, Excercise.SessionId);
                 return Page();
             }
 
-            var exerciseToUpdate = await _context.Excercise.FindAsync(id);
+            // Get current user ID
+            var currentUserId = await _userService.GetCurrentUserIdAsync();
+            if (currentUserId == null)
+            {
+                return Challenge();
+            }
+
+            // Verify the selected session belongs to the current user
+            var sessionBelongsToUser = await _context.Session
+                .AnyAsync(s => s.SessionId == Excercise.SessionId && s.UserId == currentUserId);
+
+            if (!sessionBelongsToUser)
+            {
+                ModelState.AddModelError(string.Empty, "You can only use your own sessions.");
+                await PopulateSessionNameDropDownListAsync(_context, _userService, Excercise.SessionId);
+                return Page();
+            }
+
+            // Get the exercise with ownership check
+            var exerciseToUpdate = await _context.Excercise
+                .Include(e => e.Session)
+                .FirstOrDefaultAsync(e => 
+                    e.ExcerciseId == id && 
+                    e.Session.UserId == currentUserId);
 
             if (exerciseToUpdate == null)
             {
                 return NotFound();
             }
 
-            if (await TryUpdateModelAsync<Excercise>(
-                exerciseToUpdate,
-                "Excercise",
-                e => e.ExcerciseName, e => e.SessionId))
+            // Update only allowed fields
+            exerciseToUpdate.ExcerciseName = Excercise.ExcerciseName;
+            exerciseToUpdate.SessionId = Excercise.SessionId;
+            
+            try
             {
                 await _context.SaveChangesAsync();
-                return RedirectToPage("./Index");
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!ExcerciseExists(Excercise.ExcerciseId))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
             }
 
-            PopulateSessionNameDropDownList(_context, exerciseToUpdate.SessionId);
-            return Page();
+            return RedirectToPage("./Index");
         }
 
         private bool ExcerciseExists(int id)

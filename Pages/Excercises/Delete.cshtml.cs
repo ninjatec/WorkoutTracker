@@ -7,16 +7,23 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace WorkoutTrackerWeb.Pages.Excercises
 {
+    [Authorize]
     public class DeleteModel : PageModel
     {
-        private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
+        private readonly WorkoutTrackerWebContext _context;
+        private readonly UserService _userService;
 
-        public DeleteModel(WorkoutTrackerweb.Data.WorkoutTrackerWebContext context)
+        public DeleteModel(
+            WorkoutTrackerWebContext context,
+            UserService userService)
         {
             _context = context;
+            _userService = userService;
         }
 
         [BindProperty]
@@ -29,16 +36,28 @@ namespace WorkoutTrackerWeb.Pages.Excercises
                 return NotFound();
             }
 
-            var excercise = await _context.Excercise.FirstOrDefaultAsync(m => m.ExcerciseId == id);
-
-            if (excercise is not null)
+            // Get current user ID
+            var currentUserId = await _userService.GetCurrentUserIdAsync();
+            if (currentUserId == null)
             {
-                Excercise = excercise;
-
-                return Page();
+                return Challenge();
             }
 
-            return NotFound();
+            // Get exercise with ownership check via Session
+            var excercise = await _context.Excercise
+                .Include(e => e.Session)
+                .ThenInclude(s => s.User)
+                .FirstOrDefaultAsync(m => 
+                    m.ExcerciseId == id && 
+                    m.Session.UserId == currentUserId);
+
+            if (excercise == null)
+            {
+                return NotFound();
+            }
+
+            Excercise = excercise;
+            return Page();
         }
 
         public async Task<IActionResult> OnPostAsync(int? id)
@@ -48,13 +67,28 @@ namespace WorkoutTrackerWeb.Pages.Excercises
                 return NotFound();
             }
 
-            var excercise = await _context.Excercise.FindAsync(id);
-            if (excercise != null)
+            // Get current user ID
+            var currentUserId = await _userService.GetCurrentUserIdAsync();
+            if (currentUserId == null)
             {
-                Excercise = excercise;
-                _context.Excercise.Remove(Excercise);
-                await _context.SaveChangesAsync();
+                return Challenge();
             }
+
+            // Get exercise with ownership check via Session
+            var excercise = await _context.Excercise
+                .Include(e => e.Session)
+                .FirstOrDefaultAsync(e => 
+                    e.ExcerciseId == id && 
+                    e.Session.UserId == currentUserId);
+
+            if (excercise == null)
+            {
+                return NotFound();
+            }
+
+            Excercise = excercise;
+            _context.Excercise.Remove(Excercise);
+            await _context.SaveChangesAsync();
 
             return RedirectToPage("./Index");
         }

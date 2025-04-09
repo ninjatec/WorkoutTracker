@@ -5,23 +5,32 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace WorkoutTrackerWeb.Pages.Excercises
 {
+    [Authorize]
     public class CreateModel : SessionNamePageModel
     {
-        private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
+        private readonly WorkoutTrackerWebContext _context;
+        private readonly UserService _userService;
 
-        public CreateModel(WorkoutTrackerweb.Data.WorkoutTrackerWebContext context)
+        public CreateModel(
+            WorkoutTrackerWebContext context,
+            UserService userService)
         {
             _context = context;
+            _userService = userService;
         }
 
-        public IActionResult OnGet()
+        public async Task<IActionResult> OnGetAsync()
         {
-            PopulateSessionNameDropDownList(_context);
+            // Populate dropdown with only current user's sessions
+            await PopulateSessionNameDropDownListAsync(_context, _userService);
             return Page();
         }
 
@@ -32,7 +41,19 @@ namespace WorkoutTrackerWeb.Pages.Excercises
         {
             if (!ModelState.IsValid)
             {
-                PopulateSessionNameDropDownList(_context);
+                await PopulateSessionNameDropDownListAsync(_context, _userService);
+                return Page();
+            }
+
+            // Verify the selected session belongs to the current user
+            var currentUserId = await _userService.GetCurrentUserIdAsync();
+            var sessionBelongsToUser = await _context.Session
+                .AnyAsync(s => s.SessionId == Excercise.SessionId && s.UserId == currentUserId);
+                
+            if (!sessionBelongsToUser)
+            {
+                ModelState.AddModelError(string.Empty, "You can only add exercises to your own sessions.");
+                await PopulateSessionNameDropDownListAsync(_context, _userService);
                 return Page();
             }
 

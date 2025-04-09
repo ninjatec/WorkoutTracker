@@ -8,16 +8,21 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace WorkoutTrackerWeb.Pages.Sessions
 {
+    [Authorize]
     public class EditModel : PageModel
     {
-        private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
+        private readonly WorkoutTrackerWebContext _context;
+        private readonly UserService _userService;
 
-        public EditModel(WorkoutTrackerweb.Data.WorkoutTrackerWebContext context)
+        public EditModel(WorkoutTrackerWebContext context, UserService userService)
         {
             _context = context;
+            _userService = userService;
         }
 
         [BindProperty]
@@ -30,29 +35,60 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 return NotFound();
             }
 
-            var session =  await _context.Session.FirstOrDefaultAsync(m => m.SessionId == id);
+            // Get the current user
+            var currentUserId = await _userService.GetCurrentUserIdAsync();
+            if (currentUserId == null)
+            {
+                return Challenge();
+            }
+
+            // Get the session with ownership check
+            var session = await _context.Session
+                .Include(s => s.User)
+                .FirstOrDefaultAsync(m => m.SessionId == id && m.UserId == currentUserId);
+
             if (session == null)
             {
                 return NotFound();
             }
+            
             Session = session;
-           ViewData["UserId"] = new SelectList(_context.User, "UserId", "UserId");
             return Page();
         }
 
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more information, see https://aka.ms/RazorPagesCRUD.
         public async Task<IActionResult> OnPostAsync()
         {
+            // Get the current user
+            var currentUserId = await _userService.GetCurrentUserIdAsync();
+            if (currentUserId == null)
+            {
+                return Challenge();
+            }
+
+            // Verify ownership
+            var sessionToUpdate = await _context.Session
+                .FirstOrDefaultAsync(s => s.SessionId == Session.SessionId && s.UserId == currentUserId);
+
+            if (sessionToUpdate == null)
+            {
+                return NotFound();
+            }
+
             if (!ModelState.IsValid)
             {
                 return Page();
             }
 
-            _context.Attach(Session).State = EntityState.Modified;
+            // Ensure UserId isn't changed
+            Session.UserId = currentUserId.Value;
 
             try
             {
+                // Update only allowed fields
+                sessionToUpdate.Name = Session.Name;
+                sessionToUpdate.datetime = Session.datetime;
+                // UserId is preserved from the original record
+                
                 await _context.SaveChangesAsync();
             }
             catch (DbUpdateConcurrencyException)

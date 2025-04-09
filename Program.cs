@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Data;
 using Microsoft.Extensions.DependencyInjection;
 using WorkoutTrackerweb.Data;
+using Microsoft.AspNetCore.Http;
+using WorkoutTrackerWeb.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +17,13 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
     .AddEntityFrameworkStores<ApplicationDbContext>();
 builder.Services.AddRazorPages();
+
+// Add HttpContextAccessor for user identity access
+builder.Services.AddHttpContextAccessor();
+
+// Register our UserService
+builder.Services.AddScoped<UserService>();
+
 builder.Services.AddDbContext<WorkoutTrackerWebContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("WorkoutTrackerWebContext") ?? throw new InvalidOperationException("Connection string 'WorkoutTrackerWebContext' not found.")));
 
@@ -27,19 +36,19 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
-    // app.UseExceptionHandler("/Error");
+    app.UseExceptionHandler("/Error");
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapStaticAssets();
-app.MapRazorPages()
-   .WithStaticAssets();
+app.MapRazorPages();
 
 app.Run();

@@ -19,7 +19,12 @@ namespace WorkoutTrackerWeb.Models
         [Required]
         [StringLength(50)]
         [Display(Name = "Name")]
-        public string Name { get; set; }    
+        public string Name { get; set; }
+        
+        // Link to ASP.NET Identity User
+        [StringLength(450)]
+        public string? IdentityUserId { get; set; }
+        
         public ICollection<Session> Sessions { get; set; } = new List<Session>();
     }
 }
