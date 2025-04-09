@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace WorkoutTrackerWeb.Models
 {
@@ -16,7 +17,7 @@ namespace WorkoutTrackerWeb.Models
         
         public int? SetsSetId { get; set; }
         [ForeignKey("SetsSetId")]
+        [DeleteBehavior(DeleteBehavior.Cascade)]
         public Set Sets { get; set; }
-
     }
 }

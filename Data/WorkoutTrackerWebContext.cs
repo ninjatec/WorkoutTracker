@@ -60,6 +60,13 @@ namespace WorkoutTrackerweb.Data
             // Reps are filtered by the current user (via Set -> Exercise -> Session)
             modelBuilder.Entity<Rep>()
                 .HasQueryFilter(r => _currentUserId == null || r.Sets.Exercise.Session.User.IdentityUserId == _currentUserId);
+
+            // Configure cascade delete for Rep-Set relationship
+            modelBuilder.Entity<Set>()
+                .HasMany(s => s.Reps)
+                .WithOne(r => r.Sets)
+                .HasForeignKey(r => r.SetsSetId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }
