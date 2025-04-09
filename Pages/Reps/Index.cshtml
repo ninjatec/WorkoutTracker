@@ -15,7 +15,7 @@
         <ul class="dropdown-menu" aria-labelledby="createRepDropdown">
             @foreach (var set in Model.AvailableSets)
             {
-                <li><a class="dropdown-item" asp-page="Create" asp-route-setId="@set.SetId">For @set.Exercise.ExcerciseName (Set @set.SetId)</a></li>
+                <li><a class="dropdown-item" asp-page="Create" asp-route-setId="@set.SetId">For @set.Exercise.ExcerciseName (@set.Exercise.Session.Name)</a></li>
             }
         </ul>
     </div>
