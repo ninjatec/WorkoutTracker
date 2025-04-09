@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/WorkoutTracker.sln",
+                "${workspaceFolder}/WorkoutTrackerWeb.sln",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary;ForceNoAlign"
             ],
@@ -19,7 +19,7 @@
             "type": "process",
             "args": [
                 "publish",
-                "${workspaceFolder}/WorkoutTracker.sln",
+                "${workspaceFolder}/WorkoutTrackerWeb.sln",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary;ForceNoAlign"
             ],
@@ -33,7 +33,7 @@
                 "watch",
                 "run",
                 "--project",
-                "${workspaceFolder}/WorkoutTracker.sln"
+                "${workspaceFolder}/WorkoutTrackerWeb.sln"
             ],
             "problemMatcher": "$msCompile"
         },
@@ -44,14 +44,14 @@
                 "build"
             ],
             "dockerBuild": {
-                "tag": "workouttracker:dev",
+                "tag": "workouttrackerweb:dev",
                 "target": "base",
-                "dockerfile": "${workspaceFolder}/WorkoutTrackerWeb/Dockerfile",
+                "dockerfile": "${workspaceFolder}/Dockerfile",
                 "context": "${workspaceFolder}",
                 "pull": true
             },
             "netCore": {
-                "appProject": "${workspaceFolder}/WorkoutTrackerWeb/WorkoutTrackerWeb.csproj"
+                "appProject": "${workspaceFolder}/WorkoutTrackerWeb.csproj"
             }
         },
         {
@@ -61,8 +61,8 @@
                 "build"
             ],
             "dockerBuild": {
-                "tag": "workouttracker:latest",
-                "dockerfile": "${workspaceFolder}/WorkoutTrackerWeb/Dockerfile",
+                "tag": "workouttrackerweb:latest",
+                "dockerfile": "${workspaceFolder}/Dockerfile",
                 "context": "${workspaceFolder}",
                 "platform": {
                     "os": "linux",
@@ -71,7 +71,7 @@
                 "pull": true
             },
             "netCore": {
-                "appProject": "${workspaceFolder}/WorkoutTrackerWeb/WorkoutTrackerWeb.csproj"
+                "appProject": "${workspaceFolder}/WorkoutTrackerWeb.csproj"
             }
         },
         {
@@ -82,7 +82,7 @@
             ],
             "dockerRun": {},
             "netCore": {
-                "appProject": "${workspaceFolder}/WorkoutTrackerWeb/WorkoutTrackerWeb.csproj",
+                "appProject": "${workspaceFolder}/WorkoutTrackerWeb.csproj",
                 "enableDebugging": true
             }
         },
@@ -94,7 +94,7 @@
             ],
             "dockerRun": {},
             "netCore": {
-                "appProject": "${workspaceFolder}/WorkoutTrackerWeb/WorkoutTrackerWeb.csproj"
+                "appProject": "${workspaceFolder}/WorkoutTrackerWeb.csproj"
             }
         }
     ]
