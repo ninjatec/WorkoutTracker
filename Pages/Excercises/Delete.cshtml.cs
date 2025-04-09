@@ -74,9 +74,11 @@ namespace WorkoutTrackerWeb.Pages.Excercises
                 return Challenge();
             }
 
-            // Get exercise with ownership check via Session
+            // Get exercise with ownership check via Session and include related Sets
             var excercise = await _context.Excercise
                 .Include(e => e.Session)
+                .Include(e => e.Sets)
+                    .ThenInclude(s => s.Reps)
                 .FirstOrDefaultAsync(e => 
                     e.ExcerciseId == id && 
                     e.Session.UserId == currentUserId);
@@ -86,6 +88,10 @@ namespace WorkoutTrackerWeb.Pages.Excercises
                 return NotFound();
             }
 
+            // First, delete any Reps associated with the Sets of this Exercise
+            // (the actual deletion will be handled by the cascade delete)
+            
+            // Then, delete the Exercise
             Excercise = excercise;
             _context.Excercise.Remove(Excercise);
             await _context.SaveChangesAsync();
