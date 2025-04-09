@@ -13,6 +13,9 @@ namespace WorkoutTrackerWeb.Models
         public float weight { get; set; } = 0;
         public int repnumber { get; set; } = 0;
         public bool success { get; set; } = true; //true = success, false = fail
+        
+        public int? SetsSetId { get; set; }
+        [ForeignKey("SetsSetId")]
         public Set Sets { get; set; }
 
     }

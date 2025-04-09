@@ -2,14 +2,25 @@
 @model WorkoutTrackerWeb.Pages.Reps.IndexModel
 
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Reps";
 }
 
-<h1>Index</h1>
+<h1>Reps</h1>
 
 <p>
-    <a asp-page="Create">Create New</a>
+    <div class="dropdown">
+        <button class="btn btn-primary dropdown-toggle" type="button" id="createRepDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            Create New Rep
+        </button>
+        <ul class="dropdown-menu" aria-labelledby="createRepDropdown">
+            @foreach (var set in Model.AvailableSets)
+            {
+                <li><a class="dropdown-item" asp-page="Create" asp-route-setId="@set.SetId">For @set.Exercise.ExcerciseName (Set @set.SetId)</a></li>
+            }
+        </ul>
+    </div>
 </p>
+
 <table class="table">
     <thead>
         <tr>

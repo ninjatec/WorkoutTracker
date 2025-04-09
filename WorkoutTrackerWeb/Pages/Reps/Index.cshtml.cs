@@ -20,6 +20,7 @@ namespace WorkoutTrackerWeb.Pages.Reps
         }
 
         public IList<Rep> Rep { get;set; } = default!;
+        public IList<Set> AvailableSets { get; set; } = default!;
 
         public async Task OnGetAsync()
         {
@@ -27,6 +28,11 @@ namespace WorkoutTrackerWeb.Pages.Reps
                 .Include(r => r.Sets)
                     .ThenInclude(s => s.Exercise)
                         .ThenInclude(e => e.Session)
+                .ToListAsync();
+
+            AvailableSets = await _context.Set
+                .Include(s => s.Exercise)
+                .OrderBy(s => s.SetId)
                 .ToListAsync();
         }
     }
