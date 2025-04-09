@@ -20,14 +20,74 @@ namespace WorkoutTrackerWeb.Pages.Sets
         }
 
         public IList<Set> Set { get;set; } = default!;
+        public string SessionSort { get; set; }
+        public string ExerciseSort { get; set; }
+        public string SetTypeSort { get; set; }
+        public string DescriptionSort { get; set; }
+        public string NotesSort { get; set; }
+        public string NumberRepsSort { get; set; }
+        public string CurrentSort { get; set; }
+        public string CurrentFilter { get; set; }
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(string sortOrder)
         {
-            Set = await _context.Set
+            // Set up sorting parameters
+            CurrentSort = sortOrder;
+            SessionSort = string.IsNullOrEmpty(sortOrder) ? "session_desc" : "";
+            ExerciseSort = sortOrder == "exercise" ? "exercise_desc" : "exercise";
+            SetTypeSort = sortOrder == "settype" ? "settype_desc" : "settype";
+            DescriptionSort = sortOrder == "description" ? "description_desc" : "description";
+            NotesSort = sortOrder == "notes" ? "notes_desc" : "notes";
+            NumberRepsSort = sortOrder == "reps" ? "reps_desc" : "reps";
+
+            // Get the data
+            IQueryable<Set> setsIQ = _context.Set
                 .Include(s => s.Exercise)
                     .ThenInclude(e => e.Session)
-                .Include(s => s.Settype)
-                .ToListAsync();
+                .Include(s => s.Settype);
+
+            // Apply sorting based on selected column
+            switch (sortOrder)
+            {
+                case "session_desc":
+                    setsIQ = setsIQ.OrderByDescending(s => s.Exercise.Session.Name);
+                    break;
+                case "exercise":
+                    setsIQ = setsIQ.OrderBy(s => s.Exercise.ExcerciseName);
+                    break;
+                case "exercise_desc":
+                    setsIQ = setsIQ.OrderByDescending(s => s.Exercise.ExcerciseName);
+                    break;
+                case "settype":
+                    setsIQ = setsIQ.OrderBy(s => s.Settype.Name);
+                    break;
+                case "settype_desc":
+                    setsIQ = setsIQ.OrderByDescending(s => s.Settype.Name);
+                    break;
+                case "description":
+                    setsIQ = setsIQ.OrderBy(s => s.Description);
+                    break;
+                case "description_desc":
+                    setsIQ = setsIQ.OrderByDescending(s => s.Description);
+                    break;
+                case "notes":
+                    setsIQ = setsIQ.OrderBy(s => s.Notes);
+                    break;
+                case "notes_desc":
+                    setsIQ = setsIQ.OrderByDescending(s => s.Notes);
+                    break;
+                case "reps":
+                    setsIQ = setsIQ.OrderBy(s => s.NumberReps);
+                    break;
+                case "reps_desc":
+                    setsIQ = setsIQ.OrderByDescending(s => s.NumberReps);
+                    break;
+                default:
+                    setsIQ = setsIQ.OrderBy(s => s.Exercise.Session.Name);
+                    break;
+            }
+
+            Set = await setsIQ.ToListAsync();
         }
         
         public async Task<IActionResult> OnGetDuplicateAsync(int? id)

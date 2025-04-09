@@ -14,24 +14,28 @@
     <thead>
         <tr>
             <th>
-                Session
+                <a asp-page="./Index" asp-route-sortOrder="@Model.SessionSort">Session</a>
             </th>
             <th>
-                Exercise
+                <a asp-page="./Index" asp-route-sortOrder="@Model.ExerciseSort">Exercise</a>
             </th>
             <th>
-                Set Type
+                <a asp-page="./Index" asp-route-sortOrder="@Model.SetTypeSort">Set Type</a>
             </th>
             <th>
-                @Html.DisplayNameFor(model => model.Set[0].Description)
+                <a asp-page="./Index" asp-route-sortOrder="@Model.DescriptionSort">
+                    @Html.DisplayNameFor(model => model.Set[0].Description)
+                </a>
             </th>
             <th>
-                @Html.DisplayNameFor(model => model.Set[0].Notes)
+                <a asp-page="./Index" asp-route-sortOrder="@Model.NotesSort">
+                    @Html.DisplayNameFor(model => model.Set[0].Notes)
+                </a>
             </th>
             <th>
-                Number of Reps
+                <a asp-page="./Index" asp-route-sortOrder="@Model.NumberRepsSort">Number of Reps</a>
             </th>
-            <th></th>
+            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
@@ -65,3 +69,23 @@
 }
     </tbody>
 </table>
+
+@section Scripts {
+    <script>
+        // Add some visual indication of sorted columns
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const sortOrder = urlParams.get('sortOrder');
+            if (sortOrder) {
+                const headers = document.querySelectorAll('th a');
+                headers.forEach(header => {
+                    const href = header.getAttribute('href');
+                    if (href.includes(sortOrder)) {
+                        header.style.fontWeight = 'bold';
+                        header.style.color = '#0366d6';
+                    }
+                });
+            }
+        });
+    </script>
+}
