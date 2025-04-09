@@ -1,2 +1,2 @@
-Create Rep page not working
 Details of Sessions should show sets
+Enable Auth interaction to only show data linked to logged in user
