@@ -40,6 +40,24 @@ namespace WorkoutTrackerWeb.Pages.Sets
 
             _context.Set.Add(Set);
             await _context.SaveChangesAsync();
+
+            // Automatically create Rep records based on NumberReps
+            if (Set.NumberReps > 0)
+            {
+                for (int i = 0; i < Set.NumberReps; i++)
+                {
+                    var rep = new Rep 
+                    { 
+                        SetsSetId = Set.SetId,
+                        repnumber = i + 1,
+                        weight = 0,
+                        success = true
+                    };
+                    _context.Rep.Add(rep);
+                }
+                await _context.SaveChangesAsync();
+            }
+
             return RedirectToPage("./Index");
         }
     }

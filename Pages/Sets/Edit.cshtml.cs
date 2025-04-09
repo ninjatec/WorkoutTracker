@@ -55,18 +55,60 @@ namespace WorkoutTrackerWeb.Pages.Sets
                 return Page();
             }
 
-            var setToUpdate = await _context.Set.FindAsync(id);
+            var setToUpdate = await _context.Set
+                .Include(s => s.Reps)
+                .FirstOrDefaultAsync(m => m.SetId == id);
 
             if (setToUpdate == null)
             {
                 return NotFound();
             }
 
+            // Store original number of reps for comparison
+            int originalNumberReps = setToUpdate.NumberReps;
+
             if (await TryUpdateModelAsync<Set>(
                 setToUpdate,
                 "Set",
                 s => s.Description, s => s.Notes, s => s.SettypeId, s => s.ExerciseId, s => s.NumberReps))
             {
+                // If NumberReps has changed, update the Rep records
+                if (originalNumberReps != setToUpdate.NumberReps)
+                {
+                    // Get the current reps for this set
+                    var currentReps = await _context.Rep
+                        .Where(r => r.SetsSetId == setToUpdate.SetId)
+                        .OrderBy(r => r.repnumber)
+                        .ToListAsync();
+
+                    int currentRepCount = currentReps.Count;
+
+                    // If NumberReps increased, add more Rep records
+                    if (setToUpdate.NumberReps > currentRepCount)
+                    {
+                        for (int i = currentRepCount; i < setToUpdate.NumberReps; i++)
+                        {
+                            var rep = new Rep
+                            {
+                                SetsSetId = setToUpdate.SetId,
+                                repnumber = i + 1,
+                                weight = 0,
+                                success = true
+                            };
+                            _context.Rep.Add(rep);
+                        }
+                    }
+                    // If NumberReps decreased, remove excess Rep records
+                    else if (setToUpdate.NumberReps < currentRepCount)
+                    {
+                        var repsToRemove = currentReps
+                            .OrderByDescending(r => r.repnumber)
+                            .Take(currentRepCount - setToUpdate.NumberReps);
+
+                        _context.Rep.RemoveRange(repsToRemove);
+                    }
+                }
+
                 await _context.SaveChangesAsync();
                 return RedirectToPage("./Index");
             }
