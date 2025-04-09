@@ -58,7 +58,8 @@
             <td>
                 <a asp-page="./Edit" asp-route-id="@item.SetId">Edit</a> |
                 <a asp-page="./Details" asp-route-id="@item.SetId">Details</a> |
-                <a asp-page="./Delete" asp-route-id="@item.SetId">Delete</a>
+                <a asp-page="./Delete" asp-route-id="@item.SetId">Delete</a> |
+                <a asp-page-handler="Duplicate" asp-route-id="@item.SetId">Duplicate</a>
             </td>
         </tr>
 }
