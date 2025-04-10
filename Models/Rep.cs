@@ -11,7 +11,10 @@ namespace WorkoutTrackerWeb.Models
     public class Rep
     {
         public int RepId { get; set; }
-        public float weight { get; set; } = 0;
+        
+        [Column(TypeName = "decimal(6, 2)")]
+        public decimal weight { get; set; } = 0;
+        
         public int repnumber { get; set; } = 0;
         public bool success { get; set; } = true; //true = success, false = fail
         

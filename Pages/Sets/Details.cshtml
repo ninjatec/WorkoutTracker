@@ -15,7 +15,7 @@
             Session
         </dt>
         <dd class="col-sm-10">
-            @Html.DisplayFor(model => model.Set.Exercise.Session.Name)
+            @Html.DisplayFor(model => model.Set.Session.Name)
         </dd>
         <dt class="col-sm-2">
             @Html.DisplayNameFor(model => model.Set.Description)
@@ -36,10 +36,16 @@
             @Html.DisplayFor(model => model.Set.NumberReps)
         </dd>
         <dt class="col-sm-2">
-            Exercise
+            Weight (kg)
         </dt>
         <dd class="col-sm-10">
-            @Html.DisplayFor(model => model.Set.Exercise.ExcerciseName)
+            @Html.DisplayFor(model => model.Set.Weight)
+        </dd>
+        <dt class="col-sm-2">
+            Exercise Type
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Set.ExerciseType.Name)
         </dd>
         <dt class="col-sm-2">
             Set Type

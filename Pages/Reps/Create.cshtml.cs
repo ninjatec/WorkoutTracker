@@ -33,7 +33,8 @@ namespace WorkoutTrackerWeb.Pages.Reps
             }
 
             Set = await _context.Set
-                .Include(s => s.Exercise)
+                .Include(s => s.ExerciseType)
+                .Include(s => s.Session)
                 .FirstOrDefaultAsync(m => m.SetId == setId);
 
             if (Set == null)
@@ -41,10 +42,14 @@ namespace WorkoutTrackerWeb.Pages.Reps
                 return NotFound();
             }
 
-            // Initialize the reps based on NumberReps
+            // Initialize the reps based on NumberReps with the correct weight
             for (int i = 0; i < Set.NumberReps; i++)
             {
-                Reps.Add(new Rep { repnumber = i + 1 });
+                Reps.Add(new Rep { 
+                    repnumber = i + 1,
+                    weight = Set.Weight, // Use the weight from the Set
+                    success = true
+                });
             }
 
             return Page();

@@ -23,7 +23,7 @@ namespace WorkoutTrackerweb.Data
 
         public DbSet<WorkoutTrackerWeb.Models.User> User { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Session> Session { get; set; } = default!;
-        public DbSet<WorkoutTrackerWeb.Models.Excercise> Excercise { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.ExerciseType> ExerciseType { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Rep> Rep { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Set> Set { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Settype> Settype { get; set; } = default!;
@@ -49,17 +49,13 @@ namespace WorkoutTrackerweb.Data
             modelBuilder.Entity<Session>()
                 .HasQueryFilter(s => _currentUserId == null || s.User.IdentityUserId == _currentUserId);
 
-            // Exercises are filtered by the current user (via Session)
-            modelBuilder.Entity<Excercise>()
-                .HasQueryFilter(e => _currentUserId == null || e.Session.User.IdentityUserId == _currentUserId);
-
-            // Sets are filtered by the current user (via Exercise -> Session)
+            // Sets are directly filtered by the current user (via Session)
             modelBuilder.Entity<Set>()
-                .HasQueryFilter(s => _currentUserId == null || s.Exercise.Session.User.IdentityUserId == _currentUserId);
+                .HasQueryFilter(s => _currentUserId == null || s.Session.User.IdentityUserId == _currentUserId);
 
-            // Reps are filtered by the current user (via Set -> Exercise -> Session)
+            // Reps are filtered by the current user (via Set -> Session)
             modelBuilder.Entity<Rep>()
-                .HasQueryFilter(r => _currentUserId == null || r.Sets.Exercise.Session.User.IdentityUserId == _currentUserId);
+                .HasQueryFilter(r => _currentUserId == null || r.Sets.Session.User.IdentityUserId == _currentUserId);
 
             // Configure cascade delete for Rep-Set relationship
             modelBuilder.Entity<Set>()
@@ -67,6 +63,18 @@ namespace WorkoutTrackerweb.Data
                 .WithOne(r => r.Sets)
                 .HasForeignKey(r => r.SetsSetId)
                 .OnDelete(DeleteBehavior.Cascade);
+            
+            // Configure the relationship between Set and ExerciseType
+            modelBuilder.Entity<Set>()
+                .HasOne(s => s.ExerciseType)
+                .WithMany(e => e.Sets)
+                .HasForeignKey(s => s.ExerciseTypeId);
+                
+            // Configure the relationship between Set and Session
+            modelBuilder.Entity<Set>()
+                .HasOne(s => s.Session)
+                .WithMany(s => s.Sets)
+                .HasForeignKey(s => s.SessionId);
         }
     }
 }

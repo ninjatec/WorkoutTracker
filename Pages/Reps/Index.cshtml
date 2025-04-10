@@ -15,7 +15,7 @@
         <ul class="dropdown-menu" aria-labelledby="createRepDropdown">
             @foreach (var set in Model.AvailableSets)
             {
-                <li><a class="dropdown-item" asp-page="Create" asp-route-setId="@set.SetId">For @set.Exercise.ExcerciseName (@set.Exercise.Session.Name)</a></li>
+                <li><a class="dropdown-item" asp-page="Create" asp-route-setId="@set.SetId">For @set.ExerciseType.Name (@set.Session.Name)</a></li>
             }
         </ul>
     </div>
@@ -28,7 +28,7 @@
                 Session
             </th>
             <th>
-                Exercise
+                Exercise Type
             </th>
             <th>
                 @Html.DisplayNameFor(model => model.Rep[0].weight)
@@ -46,10 +46,10 @@
 @foreach (var item in Model.Rep) {
         <tr>
             <td>
-                @Html.DisplayFor(modelItem => item.Sets.Exercise.Session.Name)
+                @Html.DisplayFor(modelItem => item.Sets.Session.Name)
             </td>
             <td>
-                @Html.DisplayFor(modelItem => item.Sets.Exercise.ExcerciseName)
+                @Html.DisplayFor(modelItem => item.Sets.ExerciseType.Name)
             </td>
             <td>
                 @Html.DisplayFor(modelItem => item.weight)

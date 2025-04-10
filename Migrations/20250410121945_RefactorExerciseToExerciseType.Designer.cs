@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WorkoutTrackerweb.Data;
 
@@ -11,9 +12,11 @@ using WorkoutTrackerweb.Data;
 namespace WorkoutTrackerWeb.Migrations
 {
     [DbContext(typeof(WorkoutTrackerWebContext))]
-    partial class WorkoutTrackerWebContextModelSnapshot : ModelSnapshot
+    [Migration("20250410121945_RefactorExerciseToExerciseType")]
+    partial class RefactorExerciseToExerciseType
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,6 +24,27 @@ namespace WorkoutTrackerWeb.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Excercise", b =>
+                {
+                    b.Property<int>("ExcerciseId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ExcerciseId"));
+
+                    b.Property<string>("ExcerciseName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SessionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ExcerciseId");
+
+                    b.HasIndex("SessionId");
+
+                    b.ToTable("Excercise");
+                });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.ExerciseType", b =>
                 {
@@ -104,6 +128,9 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("ExcerciseId")
+                        .HasColumnType("int");
+
                     b.Property<int>("ExerciseTypeId")
                         .HasColumnType("int");
 
@@ -123,6 +150,8 @@ namespace WorkoutTrackerWeb.Migrations
                         .HasColumnType("decimal(5,2)");
 
                     b.HasKey("SetId");
+
+                    b.HasIndex("ExcerciseId");
 
                     b.HasIndex("ExerciseTypeId");
 
@@ -174,6 +203,17 @@ namespace WorkoutTrackerWeb.Migrations
                     b.ToTable("User");
                 });
 
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Excercise", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Session", "Session")
+                        .WithMany()
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Session");
+                });
+
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Rep", b =>
                 {
                     b.HasOne("WorkoutTrackerWeb.Models.Set", "Sets")
@@ -197,6 +237,10 @@ namespace WorkoutTrackerWeb.Migrations
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Set", b =>
                 {
+                    b.HasOne("WorkoutTrackerWeb.Models.Excercise", null)
+                        .WithMany("Sets")
+                        .HasForeignKey("ExcerciseId");
+
                     b.HasOne("WorkoutTrackerWeb.Models.ExerciseType", "ExerciseType")
                         .WithMany("Sets")
                         .HasForeignKey("ExerciseTypeId")
@@ -220,6 +264,11 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Navigation("Session");
 
                     b.Navigation("Settype");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Excercise", b =>
+                {
+                    b.Navigation("Sets");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.ExerciseType", b =>

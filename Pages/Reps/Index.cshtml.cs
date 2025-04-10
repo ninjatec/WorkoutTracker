@@ -26,12 +26,14 @@ namespace WorkoutTrackerWeb.Pages.Reps
         {
             Rep = await _context.Rep
                 .Include(r => r.Sets)
-                    .ThenInclude(s => s.Exercise)
-                        .ThenInclude(e => e.Session)
+                    .ThenInclude(s => s.Session)
+                .Include(r => r.Sets)
+                    .ThenInclude(s => s.ExerciseType)
                 .ToListAsync();
 
             AvailableSets = await _context.Set
-                .Include(s => s.Exercise)
+                .Include(s => s.ExerciseType)
+                .Include(s => s.Session)
                 .OrderBy(s => s.SetId)
                 .ToListAsync();
         }

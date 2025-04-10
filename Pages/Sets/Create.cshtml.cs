@@ -7,22 +7,26 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Services;
 
 namespace WorkoutTrackerWeb.Pages.Sets
 {
     public class CreateModel : SetInputPageModel
     {
         private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
+        private readonly UserService _userService;
 
-        public CreateModel(WorkoutTrackerweb.Data.WorkoutTrackerWebContext context)
+        public CreateModel(
+            WorkoutTrackerweb.Data.WorkoutTrackerWebContext context,
+            UserService userService)
         {
             _context = context;
+            _userService = userService;
         }
 
-        public IActionResult OnGet()
+        public async Task<IActionResult> OnGetAsync()
         {
-            PopulateSettypeNameDropDownList(_context);
-            PopulateExerciseNameDropDownList(_context);
+            await PopulateDropDownListsAsync(_context, _userService);
             return Page();
         }
 
@@ -33,8 +37,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
         {
             if (!ModelState.IsValid)
             {
-                PopulateSettypeNameDropDownList(_context);
-                PopulateExerciseNameDropDownList(_context);
+                await PopulateDropDownListsAsync(_context, _userService);
                 return Page();
             }
 
@@ -50,7 +53,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
                     { 
                         SetsSetId = Set.SetId,
                         repnumber = i + 1,
-                        weight = 0,
+                        weight = Set.Weight, // Use the Set's weight for each rep
                         success = true
                     };
                     _context.Rep.Add(rep);

@@ -8,16 +8,21 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Services;
 
 namespace WorkoutTrackerWeb.Pages.Sets
 {
     public class EditModel : SetInputPageModel
     {
         private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
+        private readonly UserService _userService;
 
-        public EditModel(WorkoutTrackerweb.Data.WorkoutTrackerWebContext context)
+        public EditModel(
+            WorkoutTrackerweb.Data.WorkoutTrackerWebContext context,
+            UserService userService)
         {
             _context = context;
+            _userService = userService;
         }
 
         [BindProperty]
@@ -32,7 +37,8 @@ namespace WorkoutTrackerWeb.Pages.Sets
 
             var set = await _context.Set
                 .Include(s => s.Settype)
-                .Include(s => s.Exercise)
+                .Include(s => s.ExerciseType)
+                .Include(s => s.Session)
                 .FirstOrDefaultAsync(m => m.SetId == id);
 
             if (set == null)
@@ -41,8 +47,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
             }
 
             Set = set;
-            PopulateSettypeNameDropDownList(_context, Set.SettypeId);
-            PopulateExerciseNameDropDownList(_context, Set.ExerciseId);
+            await PopulateDropDownListsAsync(_context, _userService, Set.ExerciseTypeId, Set.SettypeId, Set.SessionId);
             return Page();
         }
 
@@ -50,8 +55,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
         {
             if (!ModelState.IsValid)
             {
-                PopulateSettypeNameDropDownList(_context, Set.SettypeId);
-                PopulateExerciseNameDropDownList(_context, Set.ExerciseId);
+                await PopulateDropDownListsAsync(_context, _userService, Set.ExerciseTypeId, Set.SettypeId, Set.SessionId);
                 return Page();
             }
 
@@ -66,11 +70,15 @@ namespace WorkoutTrackerWeb.Pages.Sets
 
             // Store original number of reps for comparison
             int originalNumberReps = setToUpdate.NumberReps;
+            
+            // Store original weight for comparison
+            decimal originalWeight = setToUpdate.Weight;
 
             if (await TryUpdateModelAsync<Set>(
                 setToUpdate,
                 "Set",
-                s => s.Description, s => s.Notes, s => s.SettypeId, s => s.ExerciseId, s => s.NumberReps))
+                s => s.Description, s => s.Notes, s => s.SettypeId, s => s.ExerciseTypeId, 
+                s => s.SessionId, s => s.NumberReps, s => s.Weight))
             {
                 // If NumberReps has changed, update the Rep records
                 if (originalNumberReps != setToUpdate.NumberReps)
@@ -92,7 +100,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
                             {
                                 SetsSetId = setToUpdate.SetId,
                                 repnumber = i + 1,
-                                weight = 0,
+                                weight = setToUpdate.Weight, // Use updated weight value
                                 success = true
                             };
                             _context.Rep.Add(rep);
@@ -108,13 +116,24 @@ namespace WorkoutTrackerWeb.Pages.Sets
                         _context.Rep.RemoveRange(repsToRemove);
                     }
                 }
+                // If Weight has changed but NumberReps hasn't, update all the Rep weights to match
+                else if (originalWeight != setToUpdate.Weight)
+                {
+                    var currentReps = await _context.Rep
+                        .Where(r => r.SetsSetId == setToUpdate.SetId)
+                        .ToListAsync();
+                        
+                    foreach (var rep in currentReps)
+                    {
+                        rep.weight = setToUpdate.Weight;
+                    }
+                }
 
                 await _context.SaveChangesAsync();
                 return RedirectToPage("./Index");
             }
 
-            PopulateSettypeNameDropDownList(_context, setToUpdate.SettypeId);
-            PopulateExerciseNameDropDownList(_context, setToUpdate.ExerciseId);
+            await PopulateDropDownListsAsync(_context, _userService, setToUpdate.ExerciseTypeId, setToUpdate.SettypeId, setToUpdate.SessionId);
             return Page();
         }
 

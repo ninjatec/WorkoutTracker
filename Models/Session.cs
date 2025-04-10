@@ -17,6 +17,6 @@ namespace WorkoutTrackerWeb.Models
         public DateTime datetime { get; set; }
         public int UserId { get; set; }
         public User User { get; set; }
-        public ICollection<Excercise>? Excercises { get; set; }
+        public ICollection<Set>? Sets { get; set; }
     }
 }
