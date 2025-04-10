@@ -24,6 +24,23 @@ builder.Services.AddHttpContextAccessor();
 // Register our UserService
 builder.Services.AddScoped<UserService>();
 
+// Configure distributed SQL Server cache for session state
+builder.Services.AddDistributedSqlServerCache(options =>
+{
+    options.ConnectionString = connectionString;
+    options.SchemaName = "dbo";
+    options.TableName = "SessionCache";
+});
+
+// Configure session with a timeout and make it essential
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30); // Session timeout
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true; // Make the session cookie essential
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // Use secure cookies in production
+});
+
 builder.Services.AddDbContext<WorkoutTrackerWebContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("WorkoutTrackerWebContext") ?? throw new InvalidOperationException("Connection string 'WorkoutTrackerWebContext' not found.")));
 
@@ -45,6 +62,9 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
+
+// Enable session before authentication middleware
+app.UseSession();
 
 app.UseAuthentication();
 app.UseAuthorization();
