@@ -44,8 +44,6 @@ namespace WorkoutTrackerWeb.Pages.Reps
             return Page();
         }
 
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more information, see https://aka.ms/RazorPagesCRUD.
         public async Task<IActionResult> OnPostAsync()
         {
             if (!ModelState.IsValid)
@@ -53,7 +51,21 @@ namespace WorkoutTrackerWeb.Pages.Reps
                 return Page();
             }
 
-            _context.Attach(Rep).State = EntityState.Modified;
+            // Get the existing rep to preserve its relationships
+            var repToUpdate = await _context.Rep
+                .Include(r => r.Sets)
+                .FirstOrDefaultAsync(r => r.RepId == Rep.RepId);
+
+            if (repToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            // Update only the editable properties while preserving the relationship
+            repToUpdate.weight = Rep.weight;
+            repToUpdate.repnumber = Rep.repnumber;
+            repToUpdate.success = Rep.success;
+            // SetsSetId is preserved from the original record
 
             try
             {
