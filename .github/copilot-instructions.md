@@ -21,3 +21,5 @@ isn't enough to answer the question.
 - Fully implement all requested functionality.
 - Leave NO todo’s, placeholders or missing pieces.
 - add context to dotnet ef commands
+- Downtime is Okay
+- Data can be lost
