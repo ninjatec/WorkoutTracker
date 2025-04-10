@@ -1,5 +1,9 @@
 #  Statement of Works
 
+##
+
+[ ] Enable email for new user registration
+
 ## Refactor Excercises
 
 [x] Add ExcerciseTypes table, this will have two fields ID and Name
