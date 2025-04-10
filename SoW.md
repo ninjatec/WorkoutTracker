@@ -4,6 +4,10 @@
 
 [ ] Enable email for new user registration
 
+[ ] Add Sorting and Filtering to Sets pages
+
+[ ] Add Sorting and Filtering to Reps pages
+
 ## Refactor Excercises
 
 [x] Add ExcerciseTypes table, this will have two fields ID and Name
