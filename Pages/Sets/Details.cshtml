@@ -61,6 +61,52 @@
         </dd>
     </dl>
 </div>
+
+@if (Model.Set.Reps != null && Model.Set.Reps.Any())
+{
+    <div class="mt-4">
+        <h4>Reps</h4>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Rep #</th>
+                    <th>Weight (kg)</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var rep in Model.Set.Reps.OrderBy(r => r.repnumber))
+                {
+                    <tr>
+                        <td>@rep.repnumber</td>
+                        <td>@rep.weight</td>
+                        <td>
+                            @if (rep.success)
+                            {
+                                <span class="badge bg-success">Success</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger">Failed</span>
+                            }
+                        </td>
+                        <td>
+                            <a asp-page="/Reps/Edit" asp-route-id="@rep.RepId" class="btn btn-sm btn-primary">Edit</a>
+                            <a asp-page="/Reps/Details" asp-route-id="@rep.RepId" class="btn btn-sm btn-secondary">Details</a>
+                            <a asp-page="/Reps/Delete" asp-route-id="@rep.RepId" class="btn btn-sm btn-danger">Delete</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <div class="alert alert-info mt-4">No reps recorded for this set yet.</div>
+}
+
 <div>
     <a asp-page="./Edit" asp-route-id="@Model.Set.SetId">Edit</a> |
     <a asp-page="/Reps/Create" asp-route-setId="@Model.Set.SetId" class="btn btn-primary">Add Reps</a> |

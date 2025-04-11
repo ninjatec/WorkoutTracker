@@ -32,6 +32,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
                 .Include(s => s.Session)
                 .Include(s => s.ExerciseType)
                 .Include(s => s.Settype)
+                .Include(s => s.Reps.OrderBy(r => r.repnumber))
                 .FirstOrDefaultAsync(m => m.SetId == id);
                 
             if (set is not null)

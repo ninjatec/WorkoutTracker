@@ -40,9 +40,15 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 return Challenge(); // Redirect to login if not authenticated
             }
 
-            // Get the session with ownership check
+            // Get the session with ownership check and include Sets and Reps
             var session = await _context.Session
                 .Include(s => s.User)
+                .Include(s => s.Sets)
+                    .ThenInclude(set => set.ExerciseType)
+                .Include(s => s.Sets)
+                    .ThenInclude(set => set.Settype)
+                .Include(s => s.Sets)
+                    .ThenInclude(set => set.Reps.OrderBy(r => r.repnumber))
                 .FirstOrDefaultAsync(m => m.SessionId == id && m.UserId == currentUserId);
 
             if (session == null)
