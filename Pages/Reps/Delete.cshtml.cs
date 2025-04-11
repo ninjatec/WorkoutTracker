@@ -34,6 +34,8 @@ namespace WorkoutTrackerWeb.Pages.Reps
                     .ThenInclude(s => s.Session)
                 .Include(r => r.Sets)
                     .ThenInclude(s => s.ExerciseType)
+                .Include(r => r.Sets)
+                    .ThenInclude(s => s.Settype)
                 .FirstOrDefaultAsync(m => m.RepId == id);
 
             if (rep is not null)

@@ -10,7 +10,7 @@
 
 [x] Add the Dession Date and Time to the Reps pages in the format dd/mm/yy hh:mm
 
-[ ] Add the Set Type to the Reps Pages
+[ ] Add the selected Type of set from the Sets table to the Reps Pages
 
 [ ] Add the Session name to the Rep Pages
 

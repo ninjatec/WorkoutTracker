@@ -35,6 +35,7 @@ namespace WorkoutTrackerWeb.Pages.Reps
             Set = await _context.Set
                 .Include(s => s.ExerciseType)
                 .Include(s => s.Session)
+                .Include(s => s.Settype)
                 .FirstOrDefaultAsync(m => m.SetId == setId);
 
             if (Set == null)

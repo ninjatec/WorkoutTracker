@@ -34,6 +34,9 @@
                 <a asp-page="./Index" asp-route-sortOrder="@Model.ExerciseSort">Exercise Type</a>
             </th>
             <th>
+                <a asp-page="./Index" asp-route-sortOrder="@Model.SetTypeSort">Set Type</a>
+            </th>
+            <th>
                 <a asp-page="./Index" asp-route-sortOrder="@Model.WeightSort">
                     @Html.DisplayNameFor(model => model.Rep[0].weight)
                 </a>
@@ -62,6 +65,9 @@
             </td>
             <td>
                 @Html.DisplayFor(modelItem => item.Sets.ExerciseType.Name)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Sets.Settype.Name)
             </td>
             <td>
                 @Html.DisplayFor(modelItem => item.weight)

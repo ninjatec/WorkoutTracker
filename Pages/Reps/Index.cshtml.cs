@@ -25,6 +25,7 @@ namespace WorkoutTrackerWeb.Pages.Reps
         public string SessionSort { get; set; }
         public string SessionDateTimeSort { get; set; }
         public string ExerciseSort { get; set; }
+        public string SetTypeSort { get; set; }
         public string WeightSort { get; set; }
         public string RepNumberSort { get; set; }
         public string SuccessSort { get; set; }
@@ -37,6 +38,7 @@ namespace WorkoutTrackerWeb.Pages.Reps
             SessionSort = string.IsNullOrEmpty(sortOrder) ? "session_desc" : "";
             SessionDateTimeSort = sortOrder == "datetime" ? "datetime_desc" : "datetime";
             ExerciseSort = sortOrder == "exercise" ? "exercise_desc" : "exercise";
+            SetTypeSort = sortOrder == "settype" ? "settype_desc" : "settype";
             WeightSort = sortOrder == "weight" ? "weight_desc" : "weight";
             RepNumberSort = sortOrder == "repnumber" ? "repnumber_desc" : "repnumber";
             SuccessSort = sortOrder == "success" ? "success_desc" : "success";
@@ -45,7 +47,9 @@ namespace WorkoutTrackerWeb.Pages.Reps
                 .Include(r => r.Sets)
                     .ThenInclude(s => s.Session)
                 .Include(r => r.Sets)
-                    .ThenInclude(s => s.ExerciseType);
+                    .ThenInclude(s => s.ExerciseType)
+                .Include(r => r.Sets)
+                    .ThenInclude(s => s.Settype);
                     
             // Apply sorting based on selected column
             switch (sortOrder)
@@ -64,6 +68,12 @@ namespace WorkoutTrackerWeb.Pages.Reps
                     break;
                 case "exercise_desc":
                     repsIQ = repsIQ.OrderByDescending(r => r.Sets.ExerciseType.Name);
+                    break;
+                case "settype":
+                    repsIQ = repsIQ.OrderBy(r => r.Sets.Settype.Name);
+                    break;
+                case "settype_desc":
+                    repsIQ = repsIQ.OrderByDescending(r => r.Sets.Settype.Name);
                     break;
                 case "weight":
                     repsIQ = repsIQ.OrderBy(r => r.weight);
@@ -93,6 +103,7 @@ namespace WorkoutTrackerWeb.Pages.Reps
             AvailableSets = await _context.Set
                 .Include(s => s.ExerciseType)
                 .Include(s => s.Session)
+                .Include(s => s.Settype)
                 .OrderBy(s => s.SetId)
                 .ToListAsync();
         }
