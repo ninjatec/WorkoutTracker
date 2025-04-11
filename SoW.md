@@ -10,7 +10,11 @@
 
 [x] Add the Dession Date and Time to the Reps pages in the format dd/mm/yy hh:mm
 
+[ ] Add the Set Type to the Reps Pages
+
 [ ] Add the Session name to the Rep Pages
+
+[ ] Display Reps in a Table
 
 [ ] Add Sorting and Filtering to Sets pages
 
@@ -42,6 +46,6 @@
 
 ## Documentation
 
-[ ] Update readme file sumerising the functionality of the project
+[x] Update readme file sumerising the functionality of the project
 
-[ ] Create an inventory.md file
+[x] Create an inventory.md file
