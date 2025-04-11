@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using MailKit.Net.Smtp;
+using MailKit.Security;
 using MimeKit;
 using Microsoft.Extensions.Options;
 
@@ -33,7 +34,13 @@ namespace WorkoutTrackerWeb.Services.Email
                 mimeMessage.Body = builder.ToMessageBody();
                 
                 using var client = new SmtpClient();
-                await client.ConnectAsync(_emailSettings.MailServer, _emailSettings.MailPort, _emailSettings.UseSsl);
+                
+                // Use StartTls for port 587 as required by Office 365
+                SecureSocketOptions secureOption = _emailSettings.MailPort == 587 
+                    ? SecureSocketOptions.StartTls 
+                    : _emailSettings.UseSsl ? SecureSocketOptions.SslOnConnect : SecureSocketOptions.None;
+                
+                await client.ConnectAsync(_emailSettings.MailServer, _emailSettings.MailPort, secureOption);
                 
                 if (!string.IsNullOrEmpty(_emailSettings.UserName))
                 {
