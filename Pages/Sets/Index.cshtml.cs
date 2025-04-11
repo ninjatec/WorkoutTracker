@@ -30,8 +30,14 @@ namespace WorkoutTrackerWeb.Pages.Sets
         public string WeightSort { get; set; }
         public string CurrentSort { get; set; }
         public string CurrentFilter { get; set; }
+        
+        [BindProperty(SupportsGet = true)]
+        public string SearchString { get; set; }
+        
+        [BindProperty(SupportsGet = true)]
+        public string FilterType { get; set; }
 
-        public async Task OnGetAsync(string sortOrder)
+        public async Task OnGetAsync(string sortOrder, string currentFilter, string searchString, string filterType)
         {
             // Set up sorting parameters
             CurrentSort = sortOrder;
@@ -43,12 +49,60 @@ namespace WorkoutTrackerWeb.Pages.Sets
             NotesSort = sortOrder == "notes" ? "notes_desc" : "notes";
             NumberRepsSort = sortOrder == "reps" ? "reps_desc" : "reps";
             WeightSort = sortOrder == "weight" ? "weight_desc" : "weight";
+            
+            // Handle search/filter parameters
+            if (searchString != null)
+            {
+                // New search, reset page
+                CurrentFilter = searchString;
+            }
+            else
+            {
+                searchString = currentFilter;
+            }
+            
+            // Store filter values for view
+            CurrentFilter = searchString;
+            FilterType = filterType;
+            SearchString = searchString;
 
             // Get the data
             IQueryable<Set> setsIQ = _context.Set
                 .Include(s => s.Session)
                 .Include(s => s.ExerciseType)
                 .Include(s => s.Settype);
+                
+            // Apply filtering
+            if (!string.IsNullOrEmpty(searchString))
+            {
+                switch (filterType)
+                {
+                    case "session":
+                        setsIQ = setsIQ.Where(s => s.Session.Name.Contains(searchString));
+                        break;
+                    case "exercise":
+                        setsIQ = setsIQ.Where(s => s.ExerciseType.Name.Contains(searchString));
+                        break;
+                    case "settype":
+                        setsIQ = setsIQ.Where(s => s.Settype.Name.Contains(searchString));
+                        break;
+                    case "description":
+                        setsIQ = setsIQ.Where(s => s.Description.Contains(searchString));
+                        break;
+                    case "notes":
+                        setsIQ = setsIQ.Where(s => s.Notes.Contains(searchString));
+                        break;
+                    default:
+                        // Default search across multiple fields
+                        setsIQ = setsIQ.Where(s => 
+                            s.Session.Name.Contains(searchString) ||
+                            s.ExerciseType.Name.Contains(searchString) ||
+                            s.Settype.Name.Contains(searchString) ||
+                            s.Description.Contains(searchString) ||
+                            s.Notes.Contains(searchString));
+                        break;
+                }
+            }
 
             // Apply sorting based on selected column
             switch (sortOrder)

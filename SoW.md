@@ -16,9 +16,9 @@
 
 [x] Display Reps in a Table
 
-[ ] Add Sorting and Filtering to Sets pages
+[x] Add Sorting and Filtering to Sets pages
 
-[ ] Add Sorting and Filtering to Reps pages
+[x] Add Sorting and Filtering to Reps pages
 
 ## Refactor Excercises
 
