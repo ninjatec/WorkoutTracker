@@ -25,21 +25,30 @@
     <thead>
         <tr>
             <th>
-                Session
+                <a asp-page="./Index" asp-route-sortOrder="@Model.SessionSort">Session</a>
             </th>
             <th>
-                Exercise Type
+                <a asp-page="./Index" asp-route-sortOrder="@Model.SessionDateTimeSort">Session Date/Time</a>
             </th>
             <th>
-                @Html.DisplayNameFor(model => model.Rep[0].weight)
+                <a asp-page="./Index" asp-route-sortOrder="@Model.ExerciseSort">Exercise Type</a>
             </th>
             <th>
-                @Html.DisplayNameFor(model => model.Rep[0].repnumber)
+                <a asp-page="./Index" asp-route-sortOrder="@Model.WeightSort">
+                    @Html.DisplayNameFor(model => model.Rep[0].weight)
+                </a>
             </th>
             <th>
-                @Html.DisplayNameFor(model => model.Rep[0].success)
+                <a asp-page="./Index" asp-route-sortOrder="@Model.RepNumberSort">
+                    @Html.DisplayNameFor(model => model.Rep[0].repnumber)
+                </a>
             </th>
-            <th></th>
+            <th>
+                <a asp-page="./Index" asp-route-sortOrder="@Model.SuccessSort">
+                    @Html.DisplayNameFor(model => model.Rep[0].success)
+                </a>
+            </th>
+            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
@@ -47,6 +56,9 @@
         <tr>
             <td>
                 @Html.DisplayFor(modelItem => item.Sets.Session.Name)
+            </td>
+            <td>
+                @item.Sets.Session.datetime.ToString("dd/MM/yy HH:mm")
             </td>
             <td>
                 @Html.DisplayFor(modelItem => item.Sets.ExerciseType.Name)
@@ -69,3 +81,23 @@
 }
     </tbody>
 </table>
+
+@section Scripts {
+    <script>
+        // Add some visual indication of sorted columns
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const sortOrder = urlParams.get('sortOrder');
+            if (sortOrder) {
+                const headers = document.querySelectorAll('th a');
+                headers.forEach(header => {
+                    const href = header.getAttribute('href');
+                    if (href.includes(sortOrder)) {
+                        header.style.fontWeight = 'bold';
+                        header.style.color = '#0366d6';
+                    }
+                });
+            }
+        });
+    </script>
+}

@@ -1,8 +1,16 @@
 #  Statement of Works
 
-##
+## Email Setup
 
 [x] Enable email for new user registration
+
+## UI Tweaks
+
+[x] Add the Session Date and Time to the Sets pages in the format dd/mm/yy hh:mm
+
+[x] Add the Dession Date and Time to the Reps pages in the format dd/mm/yy hh:mm
+
+[ ] Add the Session name to the Rep Pages
 
 [ ] Add Sorting and Filtering to Sets pages
 
@@ -31,3 +39,9 @@
 [x] Add weight field to Sets.
 
 [x] Add code to copy the weight value from a set to reps as they are created
+
+## Documentation
+
+[ ] Update readme file sumerising the functionality of the project
+
+[ ] Create an inventory.md file

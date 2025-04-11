@@ -17,6 +17,9 @@
                 <a asp-page="./Index" asp-route-sortOrder="@Model.SessionSort">Session</a>
             </th>
             <th>
+                <a asp-page="./Index" asp-route-sortOrder="@Model.SessionDateTimeSort">Session Date/Time</a>
+            </th>
+            <th>
                 <a asp-page="./Index" asp-route-sortOrder="@Model.ExerciseSort">Exercise Type</a>
             </th>
             <th>
@@ -46,6 +49,9 @@
         <tr>
             <td>
                 @Html.DisplayFor(modelItem => item.Session.Name)
+            </td>
+            <td>
+                @item.Session.datetime.ToString("dd/MM/yy HH:mm")
             </td>
             <td>
                 @Html.DisplayFor(modelItem => item.ExerciseType.Name)

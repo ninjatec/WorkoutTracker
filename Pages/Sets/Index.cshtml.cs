@@ -21,6 +21,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
 
         public IList<Set> Set { get;set; } = default!;
         public string SessionSort { get; set; }
+        public string SessionDateTimeSort { get; set; }
         public string ExerciseSort { get; set; }
         public string SetTypeSort { get; set; }
         public string DescriptionSort { get; set; }
@@ -35,6 +36,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
             // Set up sorting parameters
             CurrentSort = sortOrder;
             SessionSort = string.IsNullOrEmpty(sortOrder) ? "session_desc" : "";
+            SessionDateTimeSort = sortOrder == "datetime" ? "datetime_desc" : "datetime";
             ExerciseSort = sortOrder == "exercise" ? "exercise_desc" : "exercise";
             SetTypeSort = sortOrder == "settype" ? "settype_desc" : "settype";
             DescriptionSort = sortOrder == "description" ? "description_desc" : "description";
@@ -53,6 +55,12 @@ namespace WorkoutTrackerWeb.Pages.Sets
             {
                 case "session_desc":
                     setsIQ = setsIQ.OrderByDescending(s => s.Session.Name);
+                    break;
+                case "datetime":
+                    setsIQ = setsIQ.OrderBy(s => s.Session.datetime);
+                    break;
+                case "datetime_desc":
+                    setsIQ = setsIQ.OrderByDescending(s => s.Session.datetime);
                     break;
                 case "exercise":
                     setsIQ = setsIQ.OrderBy(s => s.ExerciseType.Name);
