@@ -5,6 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 using WorkoutTrackerweb.Data;
 using Microsoft.AspNetCore.Http;
 using WorkoutTrackerWeb.Services;
+using WorkoutTrackerWeb.Services.Email;
+using Microsoft.AspNetCore.Identity.UI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,8 +16,25 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
+// Configure Identity to require confirmed account and customizable password requirements
+builder.Services.AddDefaultIdentity<IdentityUser>(options => 
+{
+    options.SignIn.RequireConfirmedAccount = true;
+    options.SignIn.RequireConfirmedEmail = true;
+    options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireNonAlphanumeric = true;
+    options.Password.RequiredLength = 8;
+})
     .AddEntityFrameworkStores<ApplicationDbContext>();
+
+// Configure email service
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddTransient<IEmailService, EmailService>();
+// Register adapter to make our email service compatible with Identity
+builder.Services.AddTransient<IEmailSender, EmailSenderAdapter>();
+
 builder.Services.AddRazorPages();
 
 // Add HttpContextAccessor for user identity access

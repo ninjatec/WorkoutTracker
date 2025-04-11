@@ -2,7 +2,7 @@
 
 ##
 
-[ ] Enable email for new user registration
+[x] Enable email for new user registration
 
 [ ] Add Sorting and Filtering to Sets pages
 
