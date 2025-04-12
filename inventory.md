@@ -26,6 +26,7 @@ WorkoutTracker is a fitness tracking application built with ASP.NET Core, using 
 | `appsettings.Development.json` | Development-specific settings |
 | `Program.cs` | Application startup and service configuration |
 | `WorkoutTrackerWeb.csproj` | Project file with dependencies |
+| `.NET User Secrets` | Development secrets storage (connection strings, sensitive configuration) |
 
 ### Deployment Files
 
@@ -35,6 +36,7 @@ WorkoutTracker is a fitness tracking application built with ASP.NET Core, using 
 | `docker-compose.yml` | Multi-container definition for development |
 | `docker-compose.debug.yml` | Container configuration for debugging |
 | `/k8s/*` | Kubernetes deployment manifests |
+| `/k8s/secrets.yaml` | Kubernetes secrets for production deployments |
 
 ## Data Model
 
@@ -123,6 +125,11 @@ The application uses Entity Framework Core Code-First approach with SQL Server. 
 - ASP.NET Core Identity with email confirmation
 - Custom UserService for current user management
 
+### Configuration Management
+- Development: .NET User Secrets for local settings
+- Production: Kubernetes Secrets for configuration
+- Environment variables in deployment for sensitive information
+
 ### UI Components
 - Razor Pages with view models
 - Bootstrap styling
@@ -131,3 +138,4 @@ The application uses Entity Framework Core Code-First approach with SQL Server. 
 ### Deployment
 - Docker containerization
 - Kubernetes-ready configuration
+- Secret management using Kubernetes secrets

@@ -5,4 +5,5 @@ resources:
   - namespace.yaml
   - service.yaml
   - regcred.yaml
+  - secrets.yaml
 

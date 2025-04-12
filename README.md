@@ -65,8 +65,15 @@ The application includes Docker support for containerized deployment with:
 - Docker Compose configuration for development and production
 - Kubernetes manifests for orchestrated deployment
 
+### Secrets Management
+- Development: User Secrets for local development (dotnet user-secrets)
+- Production: Kubernetes Secrets for sensitive configuration in production
+- Connection strings and email configuration stored securely outside of source code
+
 ## Recent Updates
 
+- Migrated connection strings and email settings to user secrets for development
+- Added Kubernetes secrets for production deployment
 - Added email verification for user registration
 - Weight tracking for sets and reps
 - Refactored exercise tracking to use exercise types
