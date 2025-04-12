@@ -1,0 +1,45 @@
+@page
+@model WorkoutTrackerWeb.Pages.Reps.EditModel
+
+@{
+    ViewData["Title"] = "Edit";
+}
+
+<h1>Edit</h1>
+
+<h4>Rep for @Model.Rep.Sets.Session.Name (@Model.Rep.Sets.ExerciseType.Name - @Model.Rep.Sets.Settype.Name)</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input type="hidden" asp-for="Rep.RepId" />
+            <div class="form-group">
+                <label asp-for="Rep.weight" class="control-label"></label>
+                <input asp-for="Rep.weight" class="form-control" type="number" step="0.25" min="0" />
+                <span asp-validation-for="Rep.weight" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Rep.repnumber" class="control-label"></label>
+                <input asp-for="Rep.repnumber" class="form-control" />
+                <span asp-validation-for="Rep.repnumber" class="text-danger"></span>
+            </div>
+            <div class="form-group form-check">
+                <label class="form-check-label">
+                    <input class="form-check-input" asp-for="Rep.success" /> @Html.DisplayNameFor(model => model.Rep.success)
+                </label>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Save" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-page="./Index">Back to List</a>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

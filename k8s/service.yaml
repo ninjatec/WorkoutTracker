@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: workouttracker
+  namespace: web
+spec:
+  selector:
+    app: workouttracker
+  type: ClusterIP
+  ports:
+    - name: httpport
+      port: 80
+      targetPort: 8080
+
+---
+apiVersion: getambassador.io/v3alpha1
+kind: Mapping
+metadata:
+  name: workouttracker
+  namespace: web
+spec:
+  hostname: wot.ninjatec.co.uk
+  prefix: /
+  rewrite: "/"
+  service: http://workouttracker:80

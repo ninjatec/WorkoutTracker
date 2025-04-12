@@ -1,0 +1,19 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome</h1>
+@if (User.Identity.IsAuthenticated)
+    {
+        <p>Workout Management</p>
+        <p>Sessions <a href="/Sessions/Index/">Sessions</a>.</p>
+        <p>Sets <a href="/Sets/Index/">Sets</a>.</p>
+        <p>Reps <a href="/Reps/Index/">Reps</a>.</p>
+        <p>Type Management</p>
+        <p>Exercise Types <a href="/ExerciseTypes/Index/">Exercise Types</a>.</p>
+        <p>Set Types <a href="/SetTypes/Index/">Set Types</a>.</p>
+    }
+</div>

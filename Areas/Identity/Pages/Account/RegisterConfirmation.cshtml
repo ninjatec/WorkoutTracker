@@ -1,0 +1,47 @@
+﻿@page
+@model RegisterConfirmationModel
+@{
+    ViewData["Title"] = "Registration Confirmation";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h3>@ViewData["Title"]</h3>
+                </div>
+                <div class="card-body">
+                    <h4>Thanks for signing up!</h4>
+                    
+                    @if (Model.DisplayConfirmAccountLink)
+                    {
+                        <div class="alert alert-info">
+                            <p>
+                                <strong>Email verification link (Development Only)</strong>
+                            </p>
+                            <p>
+                                <a id="confirm-link" href="@Model.EmailConfirmationUrl">Click here to confirm your account</a>
+                            </p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-success">
+                            <p>
+                                <strong>Please check your email to confirm your account.</strong>
+                            </p>
+                            <p>
+                                We've sent a confirmation link to <strong>@Model.Email</strong>. Please check your inbox (and spam folder) and click the link to activate your account.
+                            </p>
+                            <p>
+                                Your account won't be active until you confirm your email address.
+                            </p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

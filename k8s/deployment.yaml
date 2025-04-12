@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workouttracker
+  namespace: web
+  labels:
+    app: workouttracker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: workouttracker
+  template:
+    metadata:
+      labels:
+        app: workouttracker
+    spec:
+      imagePullSecrets:
+      - name: regcred
+      imagePullPolicy: Always
+      containers:
+      - name: workouttracker
+        image: ninjatec/workouttrackerweb:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: ConnectionStrings__DefaultConnection
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: ConnectionStrings__DefaultConnection
+        - name: ConnectionStrings__WorkoutTrackerWebContext
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: ConnectionStrings__WorkoutTrackerWebContext
+        - name: EmailSettings__MailServer
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__MailServer
+        - name: EmailSettings__MailPort
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__MailPort
+        - name: EmailSettings__SenderName
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__SenderName
+        - name: EmailSettings__SenderEmail
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__SenderEmail
+        - name: EmailSettings__UserName
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__UserName
+        - name: EmailSettings__Password
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__Password
+        - name: EmailSettings__UseSsl
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__UseSsl
+        # Add ASPNETCORE_ENVIRONMENT to make sure we're running in Production
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Production"

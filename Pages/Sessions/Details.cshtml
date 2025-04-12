@@ -1,0 +1,124 @@
+@page
+@model WorkoutTrackerWeb.Pages.Sessions.DetailsModel
+
+@{
+    ViewData["Title"] = "Session Details";
+}
+
+<h1>Session Details</h1>
+
+<div>
+    <dl class="row">
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.Session.Name)
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Session.Name)
+        </dd>
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.Session.datetime)
+        </dt>
+        <dd class="col-sm-10">
+            @Model.Session.datetime.ToString("dd/MM/yy HH:mm")
+        </dd>
+        <dt class="col-sm-2">
+            User
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Session.User.Name)
+        </dd>
+    </dl>
+</div>
+
+@if (Model.Session.Sets != null && Model.Session.Sets.Any())
+{
+    <div class="mt-4">
+        <h3>Sets</h3>
+        <div class="accordion" id="setsAccordion">
+            @foreach (var set in Model.Session.Sets.OrderBy(s => s.ExerciseType.Name))
+            {
+                <div class="accordion-item">
+                    <h2 class="accordion-header" id="heading-@set.SetId">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                data-bs-target="#collapse-@set.SetId" aria-expanded="false" aria-controls="collapse-@set.SetId">
+                            <strong>@set.ExerciseType.Name</strong> - @set.Settype.Name - @set.NumberReps reps - @set.Weight kg
+                        </button>
+                    </h2>
+                    <div id="collapse-@set.SetId" class="accordion-collapse collapse" aria-labelledby="heading-@set.SetId" data-bs-parent="#setsAccordion">
+                        <div class="accordion-body">
+                            <div class="row mb-3">
+                                <div class="col">
+                                    <strong>Description:</strong> @(string.IsNullOrEmpty(set.Description) ? "None" : set.Description)
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col">
+                                    <strong>Notes:</strong> @(string.IsNullOrEmpty(set.Notes) ? "None" : set.Notes)
+                                </div>
+                            </div>
+                            
+                            @if (set.Reps != null && set.Reps.Any())
+                            {
+                                <h5>Reps</h5>
+                                <table class="table table-sm table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Rep #</th>
+                                            <th>Weight (kg)</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var rep in set.Reps.OrderBy(r => r.repnumber))
+                                        {
+                                            <tr>
+                                                <td>@rep.repnumber</td>
+                                                <td>@rep.weight</td>
+                                                <td>
+                                                    @if (rep.success)
+                                                    {
+                                                        <span class="badge bg-success">Success</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-danger">Failed</span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <a asp-page="/Reps/Edit" asp-route-id="@rep.RepId" class="btn btn-sm btn-primary">Edit</a>
+                                                    <a asp-page="/Reps/Delete" asp-route-id="@rep.RepId" class="btn btn-sm btn-danger">Delete</a>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+                            else
+                            {
+                                <div class="alert alert-info">No reps recorded for this set yet.</div>
+                            }
+                            
+                            <div class="mt-2">
+                                <a asp-page="/Sets/Edit" asp-route-id="@set.SetId" class="btn btn-sm btn-primary">Edit Set</a>
+                                <a asp-page="/Sets/Details" asp-route-id="@set.SetId" class="btn btn-sm btn-secondary">Set Details</a>
+                                <a asp-page="/Reps/Create" asp-route-setId="@set.SetId" class="btn btn-sm btn-success">Add Reps</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="alert alert-info mt-4">No sets recorded for this session yet.</div>
+}
+
+<div class="mt-4">
+    <a asp-page="/Sets/Create" asp-route-sessionId="@Model.Session.SessionId" class="btn btn-success">Add Set</a>
+    <a asp-page="./Edit" asp-route-id="@Model.Session.SessionId" class="btn btn-primary">Edit Session</a>
+    <a asp-page="./Delete" asp-route-id="@Model.Session.SessionId" class="btn btn-danger">Delete</a>
+    <a asp-page="./Index" class="btn btn-secondary">Back to List</a>
+</div>
