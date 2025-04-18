@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Workout Tracker (Shared)</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" />
+    <link rel="stylesheet" href="~/css/shared.css" />
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap4.min.css" />
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+            <div class="container">
+                <a class="navbar-brand" asp-controller="Shared" asp-action="Index">Workout Tracker (Shared)</a>
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-controller="Shared" asp-action="Index">Sessions</a>
+                        </li>
+                        @if (ViewBag.ShareToken != null && ViewBag.ShareToken.AllowReportAccess)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Shared" asp-action="Reports">Reports</a>
+                            </li>
+                        }
+                        @if (ViewBag.ShareToken != null && ViewBag.ShareToken.AllowCalculatorAccess)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Shared" asp-action="Calculator">Calculator</a>
+                            </li>
+                        }
+                    </ul>
+                    @if (ViewBag.ShareToken != null)
+                    {
+                        <div class="token-info">
+                            <span class="token-expiry @(ViewBag.ShareToken.DaysUntilExpiration < 3 ? "expiring-soon" : "")">
+                                @if (ViewBag.ShareToken.DaysUntilExpiration > 0)
+                                {
+                                    <span>Expires in @ViewBag.ShareToken.DaysUntilExpiration days</span>
+                                }
+                                else if (ViewBag.ShareToken.HoursUntilExpiration > 0)
+                                {
+                                    <span class="expiring-soon">Expires in @ViewBag.ShareToken.HoursUntilExpiration hours</span>
+                                }
+                                else
+                                {
+                                    <span class="expiring-soon">Expires in @ViewBag.ShareToken.MinutesUntilExpiration minutes</span>
+                                }
+                            </span>
+                            @if (ViewBag.ShareToken.MaxAccessCount.HasValue)
+                            {
+                                <span class="access-count @(ViewBag.ShareToken.RemainingAccesses < 3 ? "expiring-soon" : "")">
+                                    @ViewBag.ShareToken.RemainingAccesses of @ViewBag.ShareToken.MaxAccessCount accesses left
+                                </span>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container">
+        @if (ViewBag.UserName != null)
+        {
+            <div class="shared-info mb-3">
+                <div class="alert alert-info">
+                    You are viewing workout data shared by <strong>@ViewBag.UserName</strong>
+                </div>
+            </div>
+        }
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            &copy; 2025 - Workout Tracker - <a asp-controller="Shared" asp-action="Privacy">Privacy</a>
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    
+    <!-- DataTables JS -->
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap4.min.js"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

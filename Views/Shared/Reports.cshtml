@@ -1,0 +1,176 @@
+@{
+    ViewData["Title"] = "Workout Reports";
+    Layout = "_SharedLayout";
+}
+
+<h1>Workout Reports</h1>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <span class="stat-value">@ViewBag.TotalSessions</span>
+        <span class="stat-label">Total Sessions</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-value">@ViewBag.TotalSets</span>
+        <span class="stat-label">Total Sets</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-value">@ViewBag.TotalReps</span>
+        <span class="stat-label">Total Reps</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-value">@ViewBag.SuccessReps</span>
+        <span class="stat-label">Successful Reps</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-value">@ViewBag.FailedReps</span>
+        <span class="stat-label">Failed Reps</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-value">@(Math.Round((double)ViewBag.SuccessReps / ViewBag.TotalReps * 100, 1))%</span>
+        <span class="stat-label">Success Rate</span>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Top Exercises</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="exerciseChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Rep Success Rate</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="repSuccessChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Workout Distribution</h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 300px;">
+                    <canvas id="workoutDistribution"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Exercise usage chart
+            const exerciseCtx = document.getElementById('exerciseChart').getContext('2d');
+            const exerciseData = @Html.Raw(Json.Serialize(ViewBag.ExerciseUsage));
+            
+            const exerciseChart = new Chart(exerciseCtx, {
+                type: 'bar',
+                data: {
+                    labels: exerciseData.map(e => e.ExerciseName),
+                    datasets: [{
+                        label: 'Number of Sets',
+                        data: exerciseData.map(e => e.Count),
+                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Rep success rate chart
+            const repSuccessCtx = document.getElementById('repSuccessChart').getContext('2d');
+            
+            const repSuccessChart = new Chart(repSuccessCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Successful', 'Failed'],
+                    datasets: [{
+                        data: [@ViewBag.SuccessReps, @ViewBag.FailedReps],
+                        backgroundColor: [
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(255, 99, 132, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(255, 99, 132, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+            
+            // Create dummy data for workout distribution (by day of week)
+            // In a real app, this would come from the server 
+            const workoutDistCtx = document.getElementById('workoutDistribution').getContext('2d');
+            const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            // Generate some random data for demo purposes
+            const workoutCounts = daysOfWeek.map(() => Math.floor(Math.random() * 10));
+            
+            const workoutDistChart = new Chart(workoutDistCtx, {
+                type: 'radar',
+                data: {
+                    labels: daysOfWeek,
+                    datasets: [{
+                        label: 'Workout Frequency',
+                        data: workoutCounts,
+                        backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                        borderColor: 'rgba(153, 102, 255, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(153, 102, 255, 1)',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: {
+                                display: true
+                            },
+                            suggestedMin: 0
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+}

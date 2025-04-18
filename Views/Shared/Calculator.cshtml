@@ -1,0 +1,195 @@
+@{
+    ViewData["Title"] = "Workout Calculator";
+    Layout = "_SharedLayout";
+}
+
+<h1>Workout Calculator</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">One Rep Max (1RM) Calculator</h5>
+            </div>
+            <div class="card-body">
+                <div class="calculator-form">
+                    <div class="mb-3">
+                        <label for="weight" class="form-label">Weight Lifted (kg)</label>
+                        <input type="number" class="form-control" id="weight" min="0" step="0.5">
+                    </div>
+                    <div class="mb-3">
+                        <label for="reps" class="form-label">Reps Performed</label>
+                        <input type="number" class="form-control" id="reps" min="1" max="20" value="1">
+                    </div>
+                    <div class="mb-3">
+                        <label for="formula" class="form-label">Calculation Formula</label>
+                        <select class="form-select" id="formula">
+                            <option value="brzycki">Brzycki</option>
+                            <option value="epley">Epley</option>
+                            <option value="lander">Lander</option>
+                            <option value="lombardi">Lombardi</option>
+                            <option value="mayhew">Mayhew et al.</option>
+                            <option value="oconner">O'Conner et al.</option>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-primary" id="calculateBtn">Calculate</button>
+                </div>
+                
+                <div id="result" class="mt-4" style="display: none;">
+                    <div class="alert alert-success">
+                        <h5 class="mb-2">Your Estimated One Rep Max:</h5>
+                        <div class="display-4 text-center" id="oneRepMax">0 kg</div>
+                    </div>
+                    
+                    <h5 class="mt-4">Percentage-Based Training Weights</h5>
+                    <table class="table table-striped result-table">
+                        <thead>
+                            <tr>
+                                <th>Percentage</th>
+                                <th>Weight (kg)</th>
+                                <th>Typical Use</th>
+                            </tr>
+                        </thead>
+                        <tbody id="percentageTable">
+                            <!-- Will be filled by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">About 1RM Calculation</h5>
+            </div>
+            <div class="card-body">
+                <p>The One-Rep Max (1RM) is the maximum amount of weight you can lift for a single repetition of an exercise. It's commonly used to:</p>
+                <ul>
+                    <li>Measure strength gains over time</li>
+                    <li>Determine appropriate training loads (percentages of 1RM)</li>
+                    <li>Compare relative strength between individuals</li>
+                </ul>
+                
+                <h6 class="mt-4">Formula Descriptions:</h6>
+                <dl class="row">
+                    <dt class="col-sm-3">Brzycki</dt>
+                    <dd class="col-sm-9">Weight × (36 / (37 - reps))</dd>
+                    
+                    <dt class="col-sm-3">Epley</dt>
+                    <dd class="col-sm-9">Weight × (1 + 0.0333 × reps)</dd>
+                    
+                    <dt class="col-sm-3">Lander</dt>
+                    <dd class="col-sm-9">Weight / (1.013 - 0.0267123 × reps)</dd>
+                    
+                    <dt class="col-sm-3">Lombardi</dt>
+                    <dd class="col-sm-9">Weight × reps<sup>0.1</sup></dd>
+                    
+                    <dt class="col-sm-3">Mayhew</dt>
+                    <dd class="col-sm-9">Weight / (0.522 + 0.419 × e<sup>(-0.055 × reps)</sup>)</dd>
+                    
+                    <dt class="col-sm-3">O'Conner</dt>
+                    <dd class="col-sm-9">Weight × (1 + 0.025 × reps)</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const calculateBtn = document.getElementById('calculateBtn');
+            const weightInput = document.getElementById('weight');
+            const repsInput = document.getElementById('reps');
+            const formulaSelect = document.getElementById('formula');
+            const resultDiv = document.getElementById('result');
+            const oneRepMaxDiv = document.getElementById('oneRepMax');
+            const percentageTable = document.getElementById('percentageTable');
+            
+            calculateBtn.addEventListener('click', function() {
+                const weight = parseFloat(weightInput.value);
+                const reps = parseInt(repsInput.value);
+                const formula = formulaSelect.value;
+                
+                if (isNaN(weight) || weight <= 0) {
+                    alert('Please enter a valid weight');
+                    return;
+                }
+                
+                if (isNaN(reps) || reps < 1 || reps > 20) {
+                    alert('Please enter a valid number of reps (1-20)');
+                    return;
+                }
+                
+                const oneRepMax = calculateOneRepMax(weight, reps, formula);
+                oneRepMaxDiv.textContent = oneRepMax.toFixed(1) + ' kg';
+                
+                // Show the result section
+                resultDiv.style.display = 'block';
+                
+                // Generate percentage table
+                generatePercentageTable(oneRepMax);
+            });
+            
+            function calculateOneRepMax(weight, reps, formula) {
+                if (reps === 1) return weight; // If already doing 1 rep, that's the 1RM
+                
+                switch (formula) {
+                    case 'brzycki':
+                        return weight * (36 / (37 - reps));
+                    case 'epley':
+                        return weight * (1 + 0.0333 * reps);
+                    case 'lander':
+                        return weight / (1.013 - 0.0267123 * reps);
+                    case 'lombardi':
+                        return weight * Math.pow(reps, 0.1);
+                    case 'mayhew':
+                        return weight / (0.522 + 0.419 * Math.exp(-0.055 * reps));
+                    case 'oconner':
+                        return weight * (1 + 0.025 * reps);
+                    default:
+                        return weight * (1 + 0.0333 * reps); // Default to Epley
+                }
+            }
+            
+            function generatePercentageTable(oneRepMax) {
+                percentageTable.innerHTML = '';
+                
+                const percentages = [
+                    { percent: 95, use: 'Strength (1-3 reps)' },
+                    { percent: 90, use: 'Strength (4-5 reps)' },
+                    { percent: 85, use: 'Strength/Power (5-6 reps)' },
+                    { percent: 80, use: 'Strength/Power (6-8 reps)' },
+                    { percent: 75, use: 'Power/Hypertrophy (8-10 reps)' },
+                    { percent: 70, use: 'Hypertrophy (10-12 reps)' },
+                    { percent: 65, use: 'Hypertrophy (12-15 reps)' },
+                    { percent: 60, use: 'Hypertrophy/Endurance (15+ reps)' },
+                    { percent: 50, use: 'Endurance/Warmup' },
+                    { percent: 40, use: 'Warmup' }
+                ];
+                
+                percentages.forEach(item => {
+                    const row = document.createElement('tr');
+                    
+                    const percentCell = document.createElement('td');
+                    percentCell.textContent = item.percent + '%';
+                    
+                    const weightCell = document.createElement('td');
+                    const calcWeight = (oneRepMax * item.percent / 100).toFixed(1);
+                    weightCell.textContent = calcWeight + ' kg';
+                    
+                    const useCell = document.createElement('td');
+                    useCell.textContent = item.use;
+                    
+                    row.appendChild(percentCell);
+                    row.appendChild(weightCell);
+                    row.appendChild(useCell);
+                    
+                    percentageTable.appendChild(row);
+                });
+            }
+        });
+    </script>
+}

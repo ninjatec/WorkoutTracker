@@ -27,6 +27,9 @@ WorkoutTracker is a fitness tracking application built with ASP.NET Core, using 
 | `/ViewComponents` | Reusable UI components including VersionInfo |
 | `/Middleware` | Custom middleware including VersionLoggingMiddleware |
 | `/scripts` | Build and deployment automation scripts |
+| `/Attributes` | Custom attributes including ShareTokenAuthorizeAttribute |
+| `/Extensions` | Extension methods including ShareTokenExtensions |
+| `/Views/Shared` | Shared views, including those for workout sharing |
 
 ### Configuration Files
 
@@ -294,7 +297,65 @@ The application uses Entity Framework Core Code-First approach with SQL Server. 
    - User-specific token management
    - Cache invalidation for token updates, deletions, and revocations
 
+### Shared Workout Views
+
+1. Controller Architecture:
+   - `SharedController`: Web controller for user-facing shared workout pages
+     - Renders read-only views of workout history with token-based authentication
+     - Handles anonymous access via token validation
+     - Implements cookie-based token persistence for session navigation
+     - Provides granular permission control for different features
+
+   - `SharedWorkoutController`: API controller for shared workout data
+     - REST API endpoints for accessing workout data via tokens
+     - Protected with `ShareTokenAuthorize` attribute
+     - Includes session, set, and rep data endpoints
+     - Provides exercise and set type metadata endpoints
+
+2. View Components:
+   - Custom layout (`_SharedLayout.cshtml`) for shared access views
+     - Simplified navigation with permission-based visibility
+     - Token information display with expiration countdown
+     - Usage tracking information for tokens with limits
+     - Visual status indicators for remaining access time
+
+   - Content Views:
+     - Session listing with responsive card layout
+     - Detailed session view with exercise breakdown
+     - Reports dashboard with statistics and charts
+     - One-Rep Max calculator with exercise selection
+     - Custom error views for access control scenarios
+
+3. Key Features:
+   - Anonymous access via secure tokens
+   - Read-only views of workout data
+   - Session navigation with breadcrumbs
+   - Visual exercise categorization by set type
+   - Detailed rep tracking with success/failure indicators
+   - Statistical reports with Chart.js visualizations
+   - Token status information with visual indicators
+   - Session-specific or account-wide data access
+   - Cookie-based token persistence with secure configuration
+   - Custom styling with dedicated shared.css
+
+4. Security Implementation:
+   - IP-based token validation tracking
+   - Token validation on every request
+   - Permission-based feature access control
+   - Short-lived secure HTTP-only cookies
+   - Sanitized user information display
+   - Rate-limited access validation
+
+5. User Experience:
+   - Mobile-responsive design for all views
+   - Visual exercise categorization
+   - Interactive charts for performance metrics
+   - Rep success/failure visual indicators
+   - Contextual information about shared content
+   - Cross-device compatibility with secure token sharing
+
 ### Strength Calculation
+
 1. One Rep Max Calculator uses seven scientific formulas to estimate maximum strength:
    - Brzycki: weight × (36 / (37 - reps))
    - Epley: weight × (1 + 0.0333 × reps)

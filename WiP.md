@@ -44,12 +44,33 @@
 - Updated documentation in README.md and inventory.md
 - Updated SoW.md to mark completed tasks
 
+### 7. Shared Workout Controllers & Views
+- Created `SharedController` for rendering user-facing views:
+  - Implemented session listing page for shared workouts
+  - Added detailed session view with sets and reps
+  - Created read-only reports page for shared access
+- Created `SharedWorkoutController` for API access:
+  - Added REST endpoints for shared workout data
+  - Implemented permission-based access control
+  - Protected all endpoints with `ShareTokenAuthorize` attribute
+- Implemented token validation for all shared access
+- Added cookie-based token persistence for better UX
+- Created custom `_SharedLayout.cshtml` with token status display
+
+### 8. Read-Only Reports Implementation
+- Created dedicated read-only reports view for shared access
+- Implemented permission checking for reports access
+- Added visualization components with Chart.js
+- Created filtered data access for shared reports
+- Implemented exercise performance metrics for shared view
+- Added success/failure tracking visualization
+
 ## Next Steps
 
-### 1. Read-Only Views for Shared Workout Data
-- Create controllers and views for shared workout history
-- Implement read-only reports page for shared access 
-- Add 1RM calculator view for shared access
+### 1. 1RM Calculator for Shared Access
+- Implement read-only 1RM calculator view
+- Add permission checking for calculator access
+- Create exercise selection for shared calculator
 
 ### 2. User Management UI
 - Create UI for users to manage shared access tokens
@@ -75,3 +96,5 @@
 - Cache invalidation occurs on token update, delete and revoke operations
 - Permission checks provide granular access control for different features
 - IP tracking enables security auditing and rate limiting by client
+- Cookie-based token persistence improves user experience during navigation
+- Reports view uses the same visualization components as the main application but with read-only data

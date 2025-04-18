@@ -1,0 +1,34 @@
+@model ShareTokenValidationResponse
+@{
+    ViewData["Title"] = "Invalid Token";
+    Layout = "_SharedLayout";
+}
+
+<div class="invalid-token-container">
+    <i class="bi bi-exclamation-triangle"></i>
+    <h2>Invalid Access Token</h2>
+    <p>The share token you're using is not valid. This could be because it has expired, was revoked, or has reached its maximum number of uses.</p>
+    
+    @if (Model != null)
+    {
+        <div class="alert alert-warning">
+            <strong>Error:</strong> @Model.Message
+        </div>
+
+        @if (Model.ShareToken != null && Model.ShareToken.ExpiresAt.HasValue && Model.ShareToken.ExpiresAt.Value < DateTime.UtcNow)
+        {
+            <div class="text-muted">
+                <p>This token expired on @Model.ShareToken.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")</p>
+            </div>
+        }
+        
+        @if (Model.ShareToken != null && Model.ShareToken.MaxAccessCount.HasValue && Model.ShareToken.AccessCount >= Model.ShareToken.MaxAccessCount.Value)
+        {
+            <div class="text-muted">
+                <p>This token has reached its maximum number of uses (@Model.ShareToken.MaxAccessCount).</p>
+            </div>
+        }
+    }
+    
+    <p class="mt-4">Please contact the person who shared this data with you for a new access token.</p>
+</div>

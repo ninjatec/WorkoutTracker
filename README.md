@@ -13,6 +13,10 @@ Production Site running on wot.ninjatec.co.uk
   - Time-limited access with automatic expiration
   - Session-specific or account-wide sharing options
   - User control to revoke access at any time
+  - Read-only reports for shared workout data
+  - Cookie-based token persistence for better navigation
+  - IP-based security and rate limiting
+  - Permission-based feature access control
 
 - **User Authentication**: Secure login and registration using ASP.NET Core Identity with email confirmation
 - **Admin Dashboard**: Comprehensive admin dashboard with system metrics, user statistics, and quick actions
