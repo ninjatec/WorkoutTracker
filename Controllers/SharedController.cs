@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using WorkoutTrackerWeb.Data;
+using WorkoutTrackerweb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services;
 using WorkoutTrackerWeb.Extensions;
@@ -11,6 +11,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
 using System;
 using Microsoft.AspNetCore.Authorization;
+using WorkoutTrackerWeb.Dtos;
 
 namespace WorkoutTrackerWeb.Controllers
 {
@@ -120,7 +121,7 @@ namespace WorkoutTrackerWeb.Controllers
             // Get sets for this session
             var sets = await _context.Set
                 .Include(s => s.ExerciseType)
-                .Include(s => s.SetType)
+                .Include(s => s.Settype)
                 .Where(s => s.SessionId == id)
                 .OrderBy(s => s.SetId)
                 .ToListAsync();
@@ -129,7 +130,7 @@ namespace WorkoutTrackerWeb.Controllers
 
             // Get reps for all sets
             var reps = await _context.Rep
-                .Where(r => sets.Select(s => s.SetId).Contains(r.SetsSetId))
+                .Where(r => sets.Select(s => s.SetId).ToList().Contains((int)r.SetsSetId))
                 .ToListAsync();
 
             // Group reps by set
@@ -183,10 +184,10 @@ namespace WorkoutTrackerWeb.Controllers
 
             // Get rep counts (success vs failure)
             var reps = await _context.Rep
-                .Where(r => sets.Select(s => s.SetId).Contains(r.SetsSetId))
+                .Where(r => sets.Select(s => s.SetId).ToList().Contains((int)r.SetsSetId))
                 .ToListAsync();
 
-            ViewBag.TotalReps = reps.Count;
+            ViewBag.TotalReps = reps.Count();
             ViewBag.SuccessReps = reps.Count(r => r.success);
             ViewBag.FailedReps = reps.Count(r => !r.success);
 
@@ -243,7 +244,17 @@ namespace WorkoutTrackerWeb.Controllers
         private async Task<ShareTokenValidationResponse> ValidateTokenFromRequest(string tokenParam = null)
         {
             // Try to get token from various sources
-            string token = tokenParam ?? HttpContext.GetShareToken();
+            string token = tokenParam;
+            
+            // If no token provided in parameter, try to get from context
+            if (string.IsNullOrEmpty(token))
+            {
+                var shareToken = HttpContext.GetShareToken();
+                if (shareToken != null)
+                {
+                    token = shareToken.Token;
+                }
+            }
             
             if (string.IsNullOrEmpty(token))
             {
@@ -255,7 +266,7 @@ namespace WorkoutTrackerWeb.Controllers
             }
 
             // Validate the token and increment access count
-            var validationResponse = await _shareTokenService.ValidateAndIncrementTokenUsage(token);
+            var validationResponse = await _shareTokenService.ValidateTokenAsync(token);
             
             // If valid, store in a cookie for convenient page navigation
             if (validationResponse.IsValid)

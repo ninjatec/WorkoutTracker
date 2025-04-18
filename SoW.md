@@ -21,10 +21,11 @@
    - [x] Design and implement ShareToken model with expiry and access controls
    - [x] Create API endpoints for generating and managing share tokens
    - [x] Implement secure token validation mechanism
- - [ ] Develop read-only views for shared workout data
+ - [x] Develop read-only views for shared workout data
    - [x] Create dedicated controllers and views for shared workout history
    - [x] Implement read-only reports page for shared access
-   - [ ] Add 1RM calculator view for shared access
+   - [x] Add 1RM calculator view for shared access
+   - [x] Fix type conversion issues in shared controllers
  - [ ] Add user management for shared access
    - [ ] Create UI for users to manage shared access tokens
    - [ ] Implement ability to revoke access at any time

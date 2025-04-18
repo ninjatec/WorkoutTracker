@@ -4,12 +4,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using WorkoutTrackerWeb.Attributes;
-using WorkoutTrackerWeb.Data;
+using WorkoutTrackerweb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
 using System;
+using WorkoutTrackerWeb.Dtos;
 
 namespace WorkoutTrackerWeb.Controllers
 {
@@ -117,7 +118,7 @@ namespace WorkoutTrackerWeb.Controllers
             // Get sets for this session
             var sets = await _context.Set
                 .Include(s => s.ExerciseType)
-                .Include(s => s.SetType)
+                .Include(s => s.Settype)
                 .Where(s => s.SessionId == id)
                 .OrderBy(s => s.SetId)
                 .ToListAsync();
@@ -179,9 +180,9 @@ namespace WorkoutTrackerWeb.Controllers
 
         [HttpGet("set-types")]
         [ShareTokenAuthorize("SessionAccess")]
-        public async Task<ActionResult<IEnumerable<SetType>>> GetSetTypes()
+        public async Task<ActionResult<IEnumerable<Settype>>> GetSetTypes()
         {
-            var setTypes = await _context.SetType
+            var setTypes = await _context.Settype
                 .OrderBy(s => s.Name)
                 .ToListAsync();
 
@@ -199,7 +200,7 @@ namespace WorkoutTrackerWeb.Controllers
                 return Unauthorized();
             }
 
-            // Get session count
+            // Get total sessions count
             int totalSessions = await _context.Session
                 .Where(s => s.UserId == tokenData.UserId)
                 .CountAsync();
@@ -210,14 +211,14 @@ namespace WorkoutTrackerWeb.Controllers
                 .Where(s => s.Session.UserId == tokenData.UserId)
                 .ToListAsync();
 
-            int totalSets = sets.Count;
+            int totalSets = sets.Count();
 
             var setIds = sets.Select(s => s.SetId).ToList();
             var reps = await _context.Rep
-                .Where(r => setIds.Contains(r.SetsSetId))
+                .Where(r => setIds.Contains((int)r.SetsSetId))
                 .ToListAsync();
 
-            int totalReps = reps.Count;
+            int totalReps = reps.Count();
             int successReps = reps.Count(r => r.success);
             int failedReps = totalReps - successReps;
 

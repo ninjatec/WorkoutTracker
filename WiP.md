@@ -56,6 +56,7 @@
 - Implemented token validation for all shared access
 - Added cookie-based token persistence for better UX
 - Created custom `_SharedLayout.cshtml` with token status display
+- Fixed type conversion issues between nullable and non-nullable types in data queries
 
 ### 8. Read-Only Reports Implementation
 - Created dedicated read-only reports view for shared access
