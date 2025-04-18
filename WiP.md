@@ -66,19 +66,43 @@
 - Implemented exercise performance metrics for shared view
 - Added success/failure tracking visualization
 
+### 9. User Management Interface
+- Created `ShareTokens.cshtml` and `ShareTokens.cshtml.cs` in Account/Manage area
+- Implemented user interface for token management with:
+  - Token listing with status indicators (active, expired, revoked)
+  - Token creation form with configurable settings:
+    - Expiration period selection (1-365 days)
+    - Session-specific or account-wide sharing option
+    - Optional usage limits with maximum access count
+    - Granular permission controls for various features
+    - Custom naming and description fields
+  - Token management actions:
+    - View token details with shareable link
+    - Copy-to-clipboard functionality for easy sharing
+    - Edit token settings (permissions, expiry, limits)
+    - Revoke tokens without deletion (maintains history)
+    - Permanently delete tokens
+  - Visual status indicators for token information:
+    - Color-coded status badges
+    - Expiration countdown display
+    - Usage statistics with remaining uses counter
+    - Permission indicators for feature access
+- Added `_StatusMessage.cshtml` partial view for user feedback
+- Extended `UserService` with `GetUserSessionsAsync` method for session dropdown
+- Updated account management navigation to include Share Tokens page
+- Implemented security features:
+  - Secure URL generation with scheme and host
+  - User validation for token ownership
+  - Confirmation dialogs for destructive actions
+
 ## Next Steps
 
-### 2. User Management UI
-- Create UI for users to manage shared access tokens
-- Implement token creation, revocation, and monitoring interfaces
-- Add expiry date selection for temporary sharing
-
-### 3. Guest Access
+### 2. Guest Access
 - Create anonymous access mechanism
 - Implement session tracking for guest users
 - Add conversion path from guest to registered user
 
-### 5. Final Documentation
+### 3. Final Documentation
 - Create user guide for workout data sharing
 - Update API documentation with new endpoints
 
@@ -90,3 +114,6 @@
 - IP tracking enables security auditing and rate limiting by client
 - Cookie-based token persistence improves user experience during navigation
 - Reports view uses the same visualization components as the main application but with read-only data
+- User interface leverages Bootstrap modals for management actions
+- No AJAX is used in the token management UI for simplified interaction
+- Session dropdown provides quick selection for session-specific sharing

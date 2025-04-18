@@ -43,10 +43,9 @@ namespace WorkoutTrackerWeb.Services
                     .Include(st => st.Session)
                     .Where(st => st.UserId == userId)
                     .OrderByDescending(st => st.CreatedAt)
-                    .Select(st => MapToDto(st))
                     .ToListAsync();
 
-                return shareTokens;
+                return shareTokens.Select(st => MapToDto(st)).ToList();
             }
             catch (Exception ex)
             {
@@ -302,7 +301,7 @@ namespace WorkoutTrackerWeb.Services
             return token;
         }
 
-        private ShareTokenDto MapToDto(ShareToken shareToken)
+        private static ShareTokenDto MapToDto(ShareToken shareToken)
         {
             if (shareToken == null) return null;
             

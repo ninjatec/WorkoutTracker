@@ -24,7 +24,7 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Create New Share Token</h5>
-                        <button class="btn btn-sm btn-primary" type="button" data-toggle="collapse" data-target="#collapseNewToken">
+                        <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNewToken">
                             <i class="bi bi-plus-circle"></i> Create Token
                         </button>
                     </div>
@@ -63,22 +63,22 @@
                                         </div>
                                         <div class="form-group">
                                             <label>Permissions</label>
-                                            <div class="custom-control custom-checkbox">
-                                                <input asp-for="CreateTokenInput.AllowSessionAccess" class="custom-control-input" />
-                                                <label asp-for="CreateTokenInput.AllowSessionAccess" class="custom-control-label"></label>
+                                            <div class="form-check">
+                                                <input asp-for="CreateTokenInput.AllowSessionAccess" class="form-check-input" />
+                                                <label asp-for="CreateTokenInput.AllowSessionAccess" class="form-check-label"></label>
                                             </div>
-                                            <div class="custom-control custom-checkbox">
-                                                <input asp-for="CreateTokenInput.AllowReportAccess" class="custom-control-input" />
-                                                <label asp-for="CreateTokenInput.AllowReportAccess" class="custom-control-label"></label>
+                                            <div class="form-check">
+                                                <input asp-for="CreateTokenInput.AllowReportAccess" class="form-check-input" />
+                                                <label asp-for="CreateTokenInput.AllowReportAccess" class="form-check-label"></label>
                                             </div>
-                                            <div class="custom-control custom-checkbox">
-                                                <input asp-for="CreateTokenInput.AllowCalculatorAccess" class="custom-control-input" />
-                                                <label asp-for="CreateTokenInput.AllowCalculatorAccess" class="custom-control-label"></label>
+                                            <div class="form-check">
+                                                <input asp-for="CreateTokenInput.AllowCalculatorAccess" class="form-check-input" />
+                                                <label asp-for="CreateTokenInput.AllowCalculatorAccess" class="form-check-label"></label>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="form-group text-right">
+                                <div class="form-group text-end">
                                     <button type="submit" class="btn btn-success">Create Token</button>
                                 </div>
                             </form>
@@ -128,7 +128,7 @@
                                                     }
                                                     @if (token.SessionId.HasValue)
                                                     {
-                                                        <br /><span class="badge badge-info">Session: @token.SessionName</span>
+                                                        <br /><span class="badge bg-info">Session: @token.SessionName</span>
                                                     }
                                                 </td>
                                                 <td>@token.CreatedAt.ToString("g")</td>
@@ -150,25 +150,25 @@
                                                 <td>
                                                     @if (token.IsValid)
                                                     {
-                                                        <span class="badge badge-success">Active</span>
+                                                        <span class="badge bg-success">Active</span>
                                                     }
                                                     else
                                                     {
                                                         if (!token.IsActive)
                                                         {
-                                                            <span class="badge badge-secondary">Revoked</span>
+                                                            <span class="badge bg-secondary">Revoked</span>
                                                         }
                                                         else if (token.ExpiresAt <= DateTime.UtcNow)
                                                         {
-                                                            <span class="badge badge-warning">Expired</span>
+                                                            <span class="badge bg-warning">Expired</span>
                                                         }
                                                         else if (token.HasUsageLimits && token.RemainingUses <= 0)
                                                         {
-                                                            <span class="badge badge-info">Usage limit reached</span>
+                                                            <span class="badge bg-info">Usage limit reached</span>
                                                         }
                                                         else
                                                         {
-                                                            <span class="badge badge-danger">Invalid</span>
+                                                            <span class="badge bg-danger">Invalid</span>
                                                         }
                                                     }
                                                 </td>
@@ -215,29 +215,29 @@
                                                 <td>
                                                     <div class="btn-group">
                                                         <button type="button" class="btn btn-sm btn-info" 
-                                                                data-toggle="modal" 
-                                                                data-target="#tokenModal-@token.Id" 
+                                                                data-bs-toggle="modal" 
+                                                                data-bs-target="#tokenModal-@token.Id" 
                                                                 title="View Token">
                                                             <i class="bi bi-eye"></i>
                                                         </button>
                                                         <button type="button" class="btn btn-sm btn-primary" 
-                                                                data-toggle="modal" 
-                                                                data-target="#editModal-@token.Id" 
+                                                                data-bs-toggle="modal" 
+                                                                data-bs-target="#editModal-@token.Id" 
                                                                 title="Edit">
                                                             <i class="bi bi-pencil"></i>
                                                         </button>
                                                         @if (token.IsActive)
                                                         {
                                                             <button type="button" class="btn btn-sm btn-warning" 
-                                                                    data-toggle="modal" 
-                                                                    data-target="#revokeModal-@token.Id" 
+                                                                    data-bs-toggle="modal" 
+                                                                    data-bs-target="#revokeModal-@token.Id" 
                                                                     title="Revoke">
                                                                 <i class="bi bi-ban"></i>
                                                             </button>
                                                         }
                                                         <button type="button" class="btn btn-sm btn-danger" 
-                                                                data-toggle="modal" 
-                                                                data-target="#deleteModal-@token.Id" 
+                                                                data-bs-toggle="modal" 
+                                                                data-bs-target="#deleteModal-@token.Id" 
                                                                 title="Delete">
                                                             <i class="bi bi-trash"></i>
                                                         </button>
@@ -249,9 +249,7 @@
                                                             <div class="modal-content">
                                                                 <div class="modal-header">
                                                                     <h5 class="modal-title">Share Token</h5>
-                                                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                                                        <span aria-hidden="true">&times;</span>
-                                                                    </button>
+                                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                                 </div>
                                                                 <div class="modal-body">
                                                                     <p>Share this link with others to give them access to your workout data:</p>
@@ -259,12 +257,10 @@
                                                                         <input type="text" class="form-control" id="tokenValue-@token.Id" 
                                                                               value="@($"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}/Shared/Index?token={token.Token}")" 
                                                                               readonly>
-                                                                        <div class="input-group-append">
-                                                                            <button class="btn btn-outline-secondary" type="button" 
-                                                                                    onclick="copyToken('@token.Id')">
-                                                                                <i class="bi bi-clipboard"></i> Copy
-                                                                            </button>
-                                                                        </div>
+                                                                        <button class="btn btn-outline-secondary" type="button" 
+                                                                                onclick="copyToken('@token.Id')">
+                                                                            <i class="bi bi-clipboard"></i> Copy
+                                                                        </button>
                                                                     </div>
                                                                     <div class="form-group">
                                                                         <label>Token</label>
@@ -273,7 +269,7 @@
                                                                     </div>
                                                                 </div>
                                                                 <div class="modal-footer">
-                                                                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -286,9 +282,7 @@
                                                                 <form method="post" asp-page-handler="Update">
                                                                     <div class="modal-header">
                                                                         <h5 class="modal-title">Edit Share Token</h5>
-                                                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                                                            <span aria-hidden="true">&times;</span>
-                                                                        </button>
+                                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                                     </div>
                                                                     <div class="modal-body">
                                                                         <input type="hidden" name="EditTokenInput.Id" value="@token.Id" />
@@ -321,25 +315,25 @@
                                                                         
                                                                         <div class="form-group">
                                                                             <label>Permissions</label>
-                                                                            <div class="custom-control custom-checkbox">
-                                                                                <input type="checkbox" class="custom-control-input" id="EditTokenInput_AllowSessionAccess_@token.Id" 
+                                                                            <div class="form-check">
+                                                                                <input type="checkbox" class="form-check-input" id="EditTokenInput_AllowSessionAccess_@token.Id" 
                                                                                        name="EditTokenInput.AllowSessionAccess" @(token.AllowSessionAccess ? "checked" : "")>
-                                                                                <label class="custom-control-label" for="EditTokenInput_AllowSessionAccess_@token.Id">Allow access to sessions</label>
+                                                                                <label class="form-check-label" for="EditTokenInput_AllowSessionAccess_@token.Id">Allow access to sessions</label>
                                                                             </div>
-                                                                            <div class="custom-control custom-checkbox">
-                                                                                <input type="checkbox" class="custom-control-input" id="EditTokenInput_AllowReportAccess_@token.Id" 
+                                                                            <div class="form-check">
+                                                                                <input type="checkbox" class="form-check-input" id="EditTokenInput_AllowReportAccess_@token.Id" 
                                                                                        name="EditTokenInput.AllowReportAccess" @(token.AllowReportAccess ? "checked" : "")>
-                                                                                <label class="custom-control-label" for="EditTokenInput_AllowReportAccess_@token.Id">Allow access to reports</label>
+                                                                                <label class="form-check-label" for="EditTokenInput_AllowReportAccess_@token.Id">Allow access to reports</label>
                                                                             </div>
-                                                                            <div class="custom-control custom-checkbox">
-                                                                                <input type="checkbox" class="custom-control-input" id="EditTokenInput_AllowCalculatorAccess_@token.Id" 
+                                                                            <div class="form-check">
+                                                                                <input type="checkbox" class="form-check-input" id="EditTokenInput_AllowCalculatorAccess_@token.Id" 
                                                                                        name="EditTokenInput.AllowCalculatorAccess" @(token.AllowCalculatorAccess ? "checked" : "")>
-                                                                                <label class="custom-control-label" for="EditTokenInput_AllowCalculatorAccess_@token.Id">Allow access to calculator</label>
+                                                                                <label class="form-check-label" for="EditTokenInput_AllowCalculatorAccess_@token.Id">Allow access to calculator</label>
                                                                             </div>
                                                                         </div>
                                                                     </div>
                                                                     <div class="modal-footer">
-                                                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                                                                         <button type="submit" class="btn btn-primary">Save Changes</button>
                                                                     </div>
                                                                 </form>
@@ -353,9 +347,7 @@
                                                             <div class="modal-content">
                                                                 <div class="modal-header">
                                                                     <h5 class="modal-title">Revoke Token</h5>
-                                                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                                                        <span aria-hidden="true">&times;</span>
-                                                                    </button>
+                                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                                 </div>
                                                                 <div class="modal-body">
                                                                     <p>Are you sure you want to revoke this share token? The token will no longer be valid, and anyone using it will lose access to your workout data.</p>
@@ -364,7 +356,7 @@
                                                                 <div class="modal-footer">
                                                                     <form method="post" asp-page-handler="Revoke">
                                                                         <input type="hidden" name="id" value="@token.Id" />
-                                                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                                                                         <button type="submit" class="btn btn-warning">Revoke Token</button>
                                                                     </form>
                                                                 </div>
@@ -378,9 +370,7 @@
                                                             <div class="modal-content">
                                                                 <div class="modal-header">
                                                                     <h5 class="modal-title">Delete Token</h5>
-                                                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                                                                        <span aria-hidden="true">&times;</span>
-                                                                    </button>
+                                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                                                 </div>
                                                                 <div class="modal-body">
                                                                     <p>Are you sure you want to permanently delete this share token? The token will be completely removed from the system.</p>
@@ -389,7 +379,7 @@
                                                                 <div class="modal-footer">
                                                                     <form method="post" asp-page-handler="Delete">
                                                                         <input type="hidden" name="id" value="@token.Id" />
-                                                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                                                                         <button type="submit" class="btn btn-danger">Delete Token</button>
                                                                     </form>
                                                                 </div>

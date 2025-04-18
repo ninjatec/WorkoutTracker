@@ -34,10 +34,19 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-page="/Reports/Index">Reports</a>
                         </li>
-                                                <li class="nav-item"></li>
+                        <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-page="/Calculator/OneRepMax">1RM Calculator</a>
                         </li>
-                        <li class="nav-item">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-dark" href="#" id="sharingDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-share"></i> Sharing
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="sharingDropdown">
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Account/Manage/ShareTokens">Manage Share Tokens</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Help/Sharing">How Sharing Works</a></li>
+                            </ul>
+                        </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle text-dark" href="#" id="dataDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 Data
@@ -50,6 +59,7 @@
                                 <li><a class="dropdown-item text-danger" asp-page="/Account/DeleteWorkoutData">Delete All Workout Data</a></li>
                             </ul>
                         </li>
+                        <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-page="/Feedback/Create">Feedback</a>
                         </li>
                         <li class="nav-item">

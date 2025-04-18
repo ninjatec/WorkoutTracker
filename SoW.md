@@ -26,10 +26,10 @@
    - [x] Implement read-only reports page for shared access
    - [x] Add 1RM calculator view for shared access
    - [x] Fix type conversion issues in shared controllers
- - [ ] Add user management for shared access
-   - [ ] Create UI for users to manage shared access tokens
-   - [ ] Implement ability to revoke access at any time
-   - [ ] Add optional expiry date/time for temporary sharing
+ - [x] Add user management for shared access
+   - [x] Create UI for users to manage shared access tokens
+   - [x] Implement ability to revoke access at any time
+   - [x] Add optional expiry date/time for temporary sharing
  - [ ] Build guest access functionality
    - [ ] Create anonymous access mechanism with proper security controls
    - [ ] Implement session tracking for guest users
