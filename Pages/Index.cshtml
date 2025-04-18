@@ -1,0 +1,43 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center">
+    <h1 class="display-4 mb-4" style="color: var(--primary-color);">Welcome</h1>
+    
+    @if (User.Identity.IsAuthenticated)
+    {
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Workout Management</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item"><a href="/Sessions/Index/" class="btn btn-primary btn-sm">Manage Workouts</a></li>
+                            <li class="list-group-item"><a href="/Reports/Index/" class="btn btn-primary btn-sm">Reports</a></li>
+                            <li class="list-group-item"><a href="/Calculator/OneRepMax" class="btn btn-primary btn-sm">1RM Calculator</a></li>
+                            
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Data Management</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item"><a href="/ExerciseTypes/Index/" class="btn btn-primary btn-sm">Exercise Types</a></li>
+                            <li class="list-group-item"><a href="/SetTypes/Index/" class="btn btn-primary btn-sm">Set Types</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>

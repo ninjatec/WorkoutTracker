@@ -1,0 +1,36 @@
+---
+apiVersion: getambassador.io/v3alpha1
+kind: Host
+metadata:
+  name: wot.ninjatec.co.uk
+  namespace: emissary
+spec:
+  hostname: wot.ninjatec.co.uk
+  acmeProvider:
+    authority: none
+  requestPolicy:
+    insecure:
+      action: Route # Allow HTTP traffic from Cloudflare instead of redirecting
+  tlsSecret:
+    name: ambassador-certs
+
+---
+apiVersion: getambassador.io/v3alpha1
+kind: TLSContext
+metadata:
+  name: tls-context-wot
+  namespace: emissary
+spec:
+  alpn_protocols: h2,http/1.1
+  hosts:
+  - wot.ninjatec.co.uk
+  secret: ambassador-certs.emissary
+  secret_namespacing: true
+  min_tls_version: v1.2
+  
+---
+apiVersion: getambassador.io/v3alpha1
+kind: KubernetesEndpointResolver
+metadata:
+  name: kubernetes-endpoint
+  namespace: emissary

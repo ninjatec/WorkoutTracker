@@ -1,0 +1,119 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workouttracker
+  namespace: web
+  labels:
+    app: workouttracker
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: workouttracker
+  template:
+    metadata:
+      labels:
+        app: workouttracker
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8080"
+    spec:
+      imagePullSecrets:
+      - name: regcred
+      containers:
+      - name: workout-tracker
+        image: ninjatec/workout-tracker:1.2.0.1
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "250m"
+          limits:
+            memory: "1024Mi"
+            cpu: "2000m"
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 12
+          timeoutSeconds: 3
+        env:
+        - name: DOTNET_ENVIRONMENT
+          value: "Production"
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Production"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: HANGFIRE_WORKER_COUNT
+          value: "4"
+        - name: ConnectionStrings__DefaultConnection
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: ConnectionStrings__DefaultConnection
+        - name: ConnectionStrings__WorkoutTrackerWebContext
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: ConnectionStrings__WorkoutTrackerWebContext
+        - name: ConnectionStrings__Redis
+          value: "redis.web.svc.cluster.local:6379"
+        - name: EmailSettings__MailServer
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__MailServer
+        - name: EmailSettings__MailPort
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__MailPort
+        - name: EmailSettings__SenderName
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__SenderName
+        - name: EmailSettings__SenderEmail
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__SenderEmail
+        - name: EmailSettings__UserName
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__UserName
+        - name: EmailSettings__Password
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__Password
+        - name: EmailSettings__UseSsl
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__UseSsl

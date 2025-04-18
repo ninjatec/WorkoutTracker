@@ -1,0 +1,117 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Workout Tracker Web</title>
+    <script type="importmap"></script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/WorkoutTrackerWeb.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-dark border-bottom box-shadow mb-3">
+            <div class="container-fluid">
+                <a class="navbar-brand" asp-area="" asp-page="/Index">
+                    <img src="~/images/Logo_Without_Words.png" alt="Workout Tracker Logo" class="navbar-logo" />
+                    Workout Tracker Web
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-page="/Index">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-page="/Sessions/Index">Workouts</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-page="/Reports/Index">Reports</a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle text-dark" href="#" id="dataDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Data
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="dataDropdown">
+                                <li><a class="dropdown-item" asp-page="/DataPortability/Export">Export Data</a></li>
+                                <li><a class="dropdown-item" asp-page="/DataPortability/Import">Import Data</a></li>
+                                <li><a class="dropdown-item" asp-page="/DataPortability/ImportTrainAI">Import from TrainAI</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" asp-page="/Account/DeleteWorkoutData">Delete All Workout Data</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-page="/Calculator/OneRepMax">1RM Calculator</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-page="/Feedback/Create">Feedback</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-page="/Help/Index">
+                                <i class="bi bi-question-circle"></i> Help
+                            </a>
+                        </li>
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-shield-lock"></i> Admin
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                                    <li><a class="dropdown-item" asp-area="Admin" asp-page="/Index">Dashboard</a></li>
+                                    <li><a class="dropdown-item" asp-area="Admin" asp-page="/Users/Index">User Management</a></li>
+                                    <li><a class="dropdown-item" asp-area="Admin" asp-page="/Feedback/Index">Feedback Management</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/BackgroundJobs/Index">Background Jobs</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" asp-area="Admin" asp-controller="Versions" asp-action="Index">Version Management</a></li>
+                                    <li><a class="dropdown-item" href="#">System Settings</a></li>
+                                </ul>
+                            </li>
+                        }
+                    </ul>
+                    <partial name="_LoginPartial" />
+                </div>
+            </div>
+        </nav>
+    </header>
+    
+    <div class="container">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-light mt-5">
+        <div class="container-fluid py-3">
+            <div class="row">
+                <div class="col-md-6">
+                    <img src="~/images/Logo_With_words.png" alt="Workout Tracker Logo" class="footer-logo" />
+                    &copy; 2025 - Ninjatec - <a asp-area="" asp-page="/Privacy" class="text-light">Privacy</a>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="footer-links">
+                        <a asp-page="/Help/Index" class="text-light">Help Center</a> |
+                        <a asp-page="/Help/FAQ" class="text-light">FAQs</a> |
+                        <a asp-page="/Help/Glossary" class="text-light">Glossary</a> |
+                        <a asp-page="/Help/VideoTutorials" class="text-light">Video Tutorials</a> |
+                        @await Component.InvokeAsync("VersionInfo")
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

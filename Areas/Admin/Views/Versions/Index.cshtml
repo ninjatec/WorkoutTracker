@@ -1,0 +1,61 @@
+@model IEnumerable<WorkoutTrackerWeb.Models.AppVersion>
+
+@{
+    ViewData["Title"] = "Version Management";
+    Layout = "~/Areas/Admin/Views/Shared/_AdminLayout.cshtml";
+}
+
+<div class="container mt-4">
+    <h1>Version Management</h1>
+
+    <p>
+        <a asp-action="Create" class="btn btn-primary">Create New Version</a>
+    </p>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Version History</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Version</th>
+                            <th>Description</th>
+                            <th>Release Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var item in Model) {
+                        <tr>
+                            <td>@item.GetVersionString()</td>
+                            <td>@item.Description</td>
+                            <td>@item.ReleaseDate.ToString("yyyy-MM-dd")</td>
+                            <td>
+                                @if (item.IsCurrent) {
+                                    <span class="badge badge-success">Current</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <a asp-action="Details" asp-route-id="@item.VersionId" class="btn btn-sm btn-info">
+                                        <i class="bi bi-info-circle"></i> Details
+                                    </a>
+                                    @if (!item.IsCurrent) {
+                                        <a asp-action="SetCurrent" asp-route-id="@item.VersionId" class="btn btn-sm btn-primary">
+                                            <i class="bi bi-check-circle"></i> Set as Current
+                                        </a>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

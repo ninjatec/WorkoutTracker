@@ -1,0 +1,20 @@
+@model WorkoutTrackerWeb.Models.AppVersion
+
+@if (Model != null)
+{
+    <span class="text-muted">
+        <a href="/Version/History" class="text-muted" title="View Version History">Version @Model.GetVersionString()</a>
+        @if (User.IsInRole("Admin"))
+        {
+            <a href="/Admin/Versions" class="text-muted small ml-1" title="Manage versions">
+                <i class="bi bi-gear"></i>
+            </a>
+        }
+    </span>
+}
+else
+{
+    <span class="text-muted">
+        <a href="/Version/History" class="text-muted" title="View Version History">Version 0.0.0.0</a>
+    </span>
+}

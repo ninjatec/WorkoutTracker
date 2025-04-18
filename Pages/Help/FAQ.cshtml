@@ -1,0 +1,116 @@
+@page
+@model WorkoutTrackerWeb.Pages.Help.FAQModel
+@{
+    ViewData["Title"] = "Frequently Asked Questions";
+}
+
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="./Index">Help Center</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Frequently Asked Questions</li>
+        </ol>
+    </nav>
+
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>Frequently Asked Questions</h1>
+            <p class="lead">Find answers to common questions about using the Workout Tracker.</p>
+        </div>
+        <div class="col-md-4">
+            <form asp-page="./Search" method="get" class="mb-4">
+                <div class="input-group">
+                    <input type="text" name="query" class="form-control" placeholder="Search for answers...">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit">Search</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- FAQ Categories -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="list-group sticky-top" style="top: 20px;">
+                @foreach (var category in Model.FaqCategories)
+                {
+                    <a href="#@category.Key.ToLower().Replace(" ", "-")" 
+                       class="list-group-item list-group-item-action">
+                        @category.Key
+                    </a>
+                }
+            </div>
+        </div>
+
+        <div class="col-md-9">
+            @foreach (var category in Model.FaqCategories)
+            {
+                <section id="@category.Key.ToLower().Replace(" ", "-")" class="mb-5">
+                    <h2 class="mb-4">@category.Key</h2>
+                    <div class="accordion" id="accordion-@(category.Key.ToLower().Replace(" ", "-"))">
+                        @foreach (var (question, answer, index) in category.Value.Select((item, i) => (item.question, item.answer, i)))
+                        {
+                            <div class="card mb-2">
+                                <div class="card-header" id="heading-@category.Key.ToLower().Replace(" ", "-")-@index">
+                                    <h5 class="mb-0">
+                                        <button class="btn btn-link btn-block text-left" type="button" 
+                                                data-toggle="collapse" 
+                                                data-target="#collapse-@category.Key.ToLower().Replace(" ", "-")-@index" 
+                                                aria-expanded="@(index == 0 ? "true" : "false")" 
+                                                aria-controls="collapse-@category.Key.ToLower().Replace(" ", "-")-@index">
+                                            @question
+                                        </button>
+                                    </h5>
+                                </div>
+
+                                <div id="collapse-@category.Key.ToLower().Replace(" ", "-")-@index" 
+                                     class="collapse @(index == 0 ? "show" : "")" 
+                                     aria-labelledby="heading-@category.Key.ToLower().Replace(" ", "-")-@index" 
+                                     data-parent="#accordion-@(category.Key.ToLower().Replace(" ", "-"))">
+                                    <div class="card-body">
+                                        @Html.Raw(answer)
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </section>
+            }
+        </div>
+    </div>
+
+    <!-- Still need help? -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-light mb-4">
+                <div class="card-body text-center">
+                    <h3>Still Have Questions?</h3>
+                    <p class="mb-4">If you couldn't find the answer to your question, please reach out to our support team.</p>
+                    <a asp-page="/Feedback" class="btn btn-primary">Contact Support</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Smooth scrolling for FAQ category links
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.list-group-item').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    
+                    const targetId = this.getAttribute('href').substring(1);
+                    const targetElement = document.getElementById(targetId);
+                    
+                    window.scrollTo({
+                        top: targetElement.offsetTop - 20,
+                        behavior: 'smooth'
+                    });
+                });
+            });
+        });
+    </script>
+}

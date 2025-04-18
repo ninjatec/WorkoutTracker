@@ -1,0 +1,20 @@
+@page
+@model WorkoutTrackerWeb.Pages.BackgroundJobs.IndexModel
+@{
+    ViewData["Title"] = "Background Jobs";
+}
+
+<div class="container">
+    <h1 class="mt-4 mb-3">Background Jobs Dashboard</h1>
+    
+    @if (!User.IsInRole("Admin"))
+    {
+        <div class="alert alert-danger mb-4">
+            <h4>Access Denied</h4>
+            <p>You need administrator rights to access the Background Jobs dashboard.</p>
+            <p>Please contact your system administrator if you require access to this feature.</p>
+        </div>
+        
+        <a href="/" class="btn btn-primary">Return to Home</a>
+    }
+</div>

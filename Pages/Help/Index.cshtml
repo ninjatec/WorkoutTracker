@@ -1,0 +1,143 @@
+@page
+@model WorkoutTrackerWeb.Pages.Help.IndexModel
+@{
+    ViewData["Title"] = "Help Center";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <h1>Help Center</h1>
+            <p class="lead">Find answers to common questions and learn how to get the most out of your workout tracker.</p>
+            
+            <!-- Search box -->
+            <form asp-page="./Search" method="get" class="mb-4">
+                <div class="input-group">
+                    <input type="text" name="query" class="form-control" placeholder="Search for help..." aria-label="Search">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit">Search</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Featured articles -->
+    @if (Model.FeaturedArticles.Any())
+    {
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2>Featured Articles</h2>
+                <div class="row">
+                    @foreach (var article in Model.FeaturedArticles.Take(3))
+                    {
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <a asp-page="./Article" asp-route-id="@article.Id" asp-route-slug="@article.Slug">@article.Title</a>
+                                    </h5>
+                                    <p class="card-text">@article.ShortDescription</p>
+                                </div>
+                                <div class="card-footer">
+                                    <small class="text-muted">@article.Category.Name</small>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Help categories -->
+    <div class="row">
+        <div class="col-12">
+            <h2>Browse Help Topics</h2>
+            <div class="row">
+                @foreach (var category in Model.RootCategories)
+                {
+                    <div class="col-md-4 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <i class="@category.IconClass"></i>
+                                    <a asp-page="./Category" asp-route-id="@category.Id" asp-route-slug="@category.Slug">@category.Name</a>
+                                </h5>
+                                <p class="card-text">@category.Description</p>
+                                @if (category.Articles?.Any() == true)
+                                {
+                                    <ul class="list-unstyled">
+                                        @foreach (var article in category.Articles.OrderBy(a => a.DisplayOrder).Take(3))
+                                        {
+                                            <li>
+                                                <i class="bi bi-file-text"></i>
+                                                <a asp-page="./Article" asp-route-id="@article.Id" asp-route-slug="@article.Slug">@article.Title</a>
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick links -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Getting Started Guide</h5>
+                    <p class="card-text">New to Workout Tracker? Learn the basics and set up your first workout session.</p>
+                    <a asp-page="./Category" asp-route-slug="getting-started" class="btn btn-primary">Get Started</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Workout Terminology</h5>
+                    <p class="card-text">Explore our glossary of workout and fitness terms to understand the terminology used throughout the app.</p>
+                    <a asp-page="./Glossary" class="btn btn-primary">View Glossary</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Video Tutorials</h5>
+                    <p class="card-text">Watch step-by-step video guides on how to use the key features.</p>
+                    <a asp-page="./VideoTutorials" class="btn btn-primary">Watch Videos</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Frequently Asked Questions</h5>
+                    <p class="card-text">Find answers to common questions about the Workout Tracker.</p>
+                    <a asp-page="./FAQ" class="btn btn-primary">View FAQs</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contact support -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Can't find what you're looking for?</h5>
+                    <p class="card-text">Our support team is here to help you with any questions.</p>
+                    <a asp-page="/Feedback" class="btn btn-outline-primary">Contact Support</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

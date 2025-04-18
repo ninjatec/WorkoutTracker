@@ -1,0 +1,163 @@
+@page
+@model WorkoutTrackerWeb.Pages.Version.HistoryModel
+@{
+    ViewData["Title"] = "Version History";
+}
+
+<div class="container mt-4">
+    <h1>Version History</h1>
+    <p class="lead">This page displays the history of application versions, from newest to oldest.</p>
+
+    @if (Model.CurrentVersion != null)
+    {
+        <div class="card border-success mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Current Version: @Model.CurrentVersion.GetVersionString()</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h4>@Model.CurrentVersion.Description</h4>
+                        <p class="text-muted">Released on @Model.CurrentVersion.ReleaseDate.ToString("d MMMM yyyy")</p>
+                        
+                        @if (!string.IsNullOrEmpty(Model.CurrentVersion.ReleaseNotes))
+                        {
+                            <div class="mt-2">
+                                <h5>Release Notes:</h5>
+                                <pre class="release-notes">@Model.CurrentVersion.ReleaseNotes</pre>
+                            </div>
+                        }
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h5>Version Details</h5>
+                                <ul class="list-unstyled">
+                                    <li><strong>Major:</strong> @Model.CurrentVersion.Major</li>
+                                    <li><strong>Minor:</strong> @Model.CurrentVersion.Minor</li>
+                                    <li><strong>Patch:</strong> @Model.CurrentVersion.Patch</li>
+                                    <li><strong>Build:</strong> @Model.CurrentVersion.BuildNumber</li>
+                                    @if (!string.IsNullOrEmpty(Model.CurrentVersion.GitCommitHash))
+                                    {
+                                        <li><strong>Git Commit:</strong> <code class="small">@Model.CurrentVersion.GitCommitHash</code></li>
+                                    }
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Version History</h5>
+        </div>
+        <div class="card-body">
+            @if (Model.VersionHistory != null && Model.VersionHistory.Any())
+            {
+                <div class="timeline">
+                    @foreach (var version in Model.VersionHistory)
+                    {
+                        <div class="timeline-item @(version.IsCurrent ? "current" : "")">
+                            <div class="timeline-marker @(version.IsCurrent ? "bg-success" : "")"></div>
+                            <div class="timeline-content">
+                                <h4 class="timeline-title">
+                                    @version.GetVersionString() - @version.Description
+                                    @if (version.IsCurrent)
+                                    {
+                                        <span class="badge badge-success ml-2">Current</span>
+                                    }
+                                </h4>
+                                <p class="timeline-date">Released on @version.ReleaseDate.ToString("d MMMM yyyy")</p>
+                                
+                                @if (!string.IsNullOrEmpty(version.GitCommitHash))
+                                {
+                                    <p class="small text-muted">Git Commit: <code>@version.GitCommitHash</code></p>
+                                }
+                                
+                                @if (!string.IsNullOrEmpty(version.ReleaseNotes))
+                                {
+                                    <div class="release-notes-collapse">
+                                        <button class="btn btn-sm btn-outline-primary" type="button" 
+                                                data-toggle="collapse" data-target="#notes-@version.VersionId">
+                                            Show Release Notes <i class="bi bi-chevron-down"></i>
+                                        </button>
+                                        <div class="collapse mt-2" id="notes-@version.VersionId">
+                                            <pre class="release-notes">@version.ReleaseNotes</pre>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    No version history available yet.
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .release-notes {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 0.25rem;
+        white-space: pre-wrap;
+        font-size: 14px;
+    }
+    
+    .timeline {
+        position: relative;
+        padding-left: 40px;
+    }
+    
+    .timeline::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 19px;
+        height: 100%;
+        width: 2px;
+        background: #e9ecef;
+    }
+    
+    .timeline-item {
+        position: relative;
+        margin-bottom: 30px;
+    }
+    
+    .timeline-marker {
+        position: absolute;
+        left: -40px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #6c757d;
+    }
+    
+    .timeline-content {
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .timeline-title {
+        margin-bottom: 5px;
+    }
+    
+    .timeline-date {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-bottom: 10px;
+    }
+    
+    .timeline-item.current .timeline-marker {
+        background: #28a745;
+    }
+</style>

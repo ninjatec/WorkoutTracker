@@ -1,0 +1,248 @@
+@{
+    ViewData["Title"] = "Background Jobs Dashboard";
+}
+
+<div class="container">
+    <h1 class="mt-4 mb-4">Background Jobs Dashboard</h1>
+    
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-primary text-white mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Processing</h5>
+                    <p class="card-text display-4">@(ViewBag.Statistics != null ? ViewBag.Statistics.Processing : 0)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-info text-white mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Enqueued</h5>
+                    <p class="card-text display-4">@(ViewBag.Statistics != null ? ViewBag.Statistics.Enqueued : 0)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-secondary text-white mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Scheduled</h5>
+                    <p class="card-text display-4">@(ViewBag.Statistics != null ? ViewBag.Statistics.Scheduled : 0)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-success text-white mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Succeeded</h5>
+                    <p class="card-text display-4">@(ViewBag.Statistics != null ? ViewBag.Statistics.Succeeded : 0)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-danger text-white mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Failed</h5>
+                    <p class="card-text display-4">@(ViewBag.Statistics != null ? ViewBag.Statistics.Failed : 0)</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-dark text-white mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Deleted</h5>
+                    <p class="card-text display-4">@(ViewBag.Statistics != null ? ViewBag.Statistics.Deleted : 0)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Jobs</h5>
+                    <a href="@Url.Action("JobHistory")" class="btn btn-sm btn-outline-primary">View All Jobs</a>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.RecentJobs != null && ViewBag.RecentJobs.Count > 0)
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Method</th>
+                                        <th>Arguments</th>
+                                        <th>Created</th>
+                                        <th>State</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var job in ViewBag.RecentJobs)
+                                    {
+                                        string state = "Unknown";
+                                        string badgeClass = "bg-secondary";
+                                        
+                                        // Determine job state using type checking
+                                        var jobValue = job.Value;
+                                        var jobType = jobValue.GetType().Name;
+                                        
+                                        if (jobType == "SucceededJobDto")
+                                        {
+                                            state = "Succeeded";
+                                            badgeClass = "bg-success";
+                                        }
+                                        else if (jobType == "FailedJobDto")
+                                        {
+                                            state = "Failed";
+                                            badgeClass = "bg-danger";
+                                        }
+                                        else if (jobType == "ProcessingJobDto")
+                                        {
+                                            state = "Processing";
+                                            badgeClass = "bg-primary";
+                                        }
+                                        
+                                        <tr>
+                                            <td><code>@job.Key.Substring(0, Math.Min(job.Key.Length, 8))</code></td>
+                                            <td>@job.Value.Job.Method.Name</td>
+                                            <td>
+                                                @if (job.Value.Job.Args != null && job.Value.Job.Args.Length > 0)
+                                                {
+                                                    <small>
+                                                    @{
+                                                        var args = job.Value.Job.Args;
+                                                        var displayArgs = new List<string>();
+                                                        foreach (var arg in args.Take(2))
+                                                        {
+                                                            displayArgs.Add(arg != null ? arg.ToString() : "null");
+                                                        }
+                                                        @Html.Raw(string.Join(", ", displayArgs))
+                                                    }
+                                                    </small>
+                                                    @if (job.Value.Job.Args.Length > 2)
+                                                    {
+                                                        <small>...</small>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <small class="text-muted">No arguments</small>
+                                                }
+                                            </td>
+                                            <td>
+                                                <small>
+                                                    @{
+                                                        DateTime createdDate = DateTime.MinValue;
+                                                        var dateProperty = job.Value.GetType().GetProperty("CreatedAt");
+                                                        if (dateProperty != null)
+                                                        {
+                                                            var dateValue = dateProperty.GetValue(job.Value);
+                                                            if (dateValue is DateTime dt)
+                                                            {
+                                                                createdDate = dt;
+                                                            }
+                                                        }
+                                                        
+                                                        @(createdDate != DateTime.MinValue 
+                                                            ? createdDate.ToLocalTime().ToString("g") 
+                                                            : "Unknown")
+                                                    }
+                                                </small>
+                                            </td>
+                                            <td><span class="badge @badgeClass">@state</span></td>
+                                            <td>
+                                                <a href="@Url.Action("Details", new { id = job.Key })" class="btn btn-sm btn-outline-info">Details</a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-light">No recent jobs found.</div>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Server Status</h5>
+                </div>
+                <div class="card-body">
+                    <p>
+                        <i class="fas fa-server"></i> Servers: <span class="badge bg-info">@(ViewBag.ServerCount ?? 0) active</span>
+                    </p>
+                    <p>
+                        <i class="fas fa-list"></i> Queues: <span class="badge bg-info">@(ViewBag.QueueCount ?? 0) active</span>
+                    </p>
+                    <a href="@Url.Action("ServerStatus")" class="btn btn-outline-primary">View Server Details</a>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Create Job</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="EnqueueJob" method="post">
+                        <div class="mb-3">
+                            <label class="form-label">Job Type</label>
+                            <select name="jobType" class="form-select">
+                                <option value="ImportTrainAI">Process Import</option>
+                                <option value="GenerateReport">Generate Report</option>
+                                <option value="DataCleanup">Database Cleanup</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Parameters (Optional)</label>
+                            <input type="text" name="jobData" class="form-control" placeholder="Job parameters (JSON)">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Queue Job</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Advanced Options</h5>
+                </div>
+                <div class="card-body">
+                    <p>For more advanced monitoring options, you can access the Hangfire dashboard.</p>
+                    <a href="/hangfire" class="btn btn-primary" target="_blank">Open Hangfire Dashboard</a>
+                    <div class="alert alert-warning mt-3">
+                        <small>Note: The Hangfire dashboard requires admin privileges.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+}

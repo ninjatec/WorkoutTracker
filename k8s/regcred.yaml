@@ -1,0 +1,19 @@
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: regcred
+  namespace: web
+spec:
+  refreshInterval: 1m
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: regcred
+    creationPolicy: Owner
+  data:
+  - secretKey: .dockerconfigjson
+    remoteRef:
+      key: secrets/regcred
+      property: .dockerconfigjson

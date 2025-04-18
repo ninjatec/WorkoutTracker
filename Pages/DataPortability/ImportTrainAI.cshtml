@@ -1,0 +1,522 @@
+@page
+@model WorkoutTrackerWeb.Pages.DataPortability.ImportTrainAIModel
+@{
+    ViewData["Title"] = "Import TrainAI Workout Data";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Import from TrainAI CSV</h5>
+                <form method="post" enctype="multipart/form-data" class="mt-3" id="importForm">
+                    <div class="form-group">
+                        <label asp-for="ImportFile" class="control-label">CSV File</label>
+                        <input asp-for="ImportFile" class="form-control" type="file" accept=".csv" />
+                        <span asp-validation-for="ImportFile" class="text-danger"></span>
+                    </div>
+
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary" id="importButton">Import</button>
+                        <a asp-page="./Index" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(Model.Message))
+        {
+            <div class="alert @(Model.Success ? "alert-success" : "alert-danger")" role="alert">
+                @Model.Message
+            </div>
+        }
+        
+        <!-- Modern progress tracking UI -->
+        <div id="progressSection" class="card mb-4 @(string.IsNullOrEmpty(Model.JobId) ? "d-none" : "")">
+            <div class="card-body">
+                <h5 class="card-title" id="progressStatus">Import in progress...</h5>
+                <div class="progress mb-3">
+                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-info" 
+                         role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%">
+                        0%
+                    </div>
+                </div>
+                <div id="progressDetails" class="small text-muted"></div>
+                <div id="errorMessage" class="alert alert-danger mt-3 d-none"></div>
+                
+                <div class="mt-3">
+                    <p class="text-info">
+                        <i class="fa fa-info-circle"></i>
+                        The import is running in the background. You can leave this page if you wish.
+                    </p>
+                    <div id="connectionStatus" class="badge bg-success">Connected</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legacy progress UI - kept for backward compatibility -->
+        <div id="importProgress" class="card mb-4 d-none">
+            <div class="card-body">
+                <h5 class="card-title">Import Progress</h5>
+                <div class="progress mb-3">
+                    <div class="progress-bar" role="progressbar" style="width: 0%;" 
+                         aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                </div>
+                <div class="small">
+                    <div id="workoutProgress">Processing workout: <span>0</span> of <span>0</span></div>
+                    <div id="currentWorkout"></div>
+                    <div id="currentExercise"></div>
+                    <div id="repProgress">Processed reps: <span>0</span> of <span>0</span></div>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.Success && Model.ImportedItems.Any())
+        {
+            <div class="card">
+                <div class="card-header">
+                    Import Summary
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        @foreach (var item in Model.ImportedItems)
+                        {
+                            <li class="list-group-item">@item</li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        }
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Import Instructions</h5>
+                <p>To import your TrainAI workout data:</p>
+                <ol>
+                    <li>Export your workout data from TrainAI as a CSV file</li>
+                    <li>Click "Choose File" and select the CSV file</li>
+                    <li>Click "Import" to start the import process</li>
+                </ol>
+                <p class="mb-0"><strong>Note:</strong> The import process will:</p>
+                <ul>
+                    <li>Create new exercise types if they don't exist</li>
+                    <li>Import all workouts as separate sessions</li>
+                    <li>Preserve set and rep information</li>
+                    <li>Track rest times between sets</li>
+                </ul>
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle"></i> Large imports now run as background jobs and won't time out.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script src="~/lib/microsoft/signalr/dist/signalr.min.js"></script>
+    <style>
+        .importing {
+            cursor: wait !important;
+        }
+        #connectionStatus {
+            display: inline-block;
+            padding: 0.3rem 0.6rem;
+            font-size: 0.75rem;
+        }
+        #connectionStatus.connected {
+            background-color: var(--bs-success);
+        }
+        #connectionStatus.disconnected {
+            background-color: var(--bs-danger);
+        }
+        #connectionStatus.reconnecting {
+            background-color: var(--bs-warning);
+        }
+    </style>
+
+    <script>
+        // Get form and button elements
+        const form = document.getElementById('importForm');
+        const importButton = document.getElementById('importButton');
+        const progressSection = document.getElementById('progressSection');
+        const progressBar = document.getElementById('progressBar');
+        const progressStatus = document.getElementById('progressStatus');
+        const progressDetails = document.getElementById('progressDetails');
+        const errorMessage = document.getElementById('errorMessage');
+        const connectionStatus = document.getElementById('connectionStatus');
+        
+        // Get legacy elements
+        const legacyProgressSection = document.getElementById('importProgress');
+        
+        // SignalR connection state tracking
+        let isConnected = false;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        let jobRegistered = false;
+        let jobStatusCheckInterval;
+        
+        // Connect to SignalR hub
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/importProgressHub", {
+                skipNegotiation: false,
+                transport: signalR.HttpTransportType.WebSockets | 
+                           signalR.HttpTransportType.ServerSentEvents | 
+                           signalR.HttpTransportType.LongPolling
+            })
+            .withAutomaticReconnect([0, 1000, 2000, 5000, 10000, 30000])
+            .configureLogging(signalR.LogLevel.Warning)
+            .build();
+        
+        // Track connection state changes
+        connection.onreconnecting((error) => {
+            console.warn("SignalR reconnecting due to error:", error);
+            connectionStatus.textContent = "Reconnecting...";
+            connectionStatus.className = "badge reconnecting bg-warning";
+            isConnected = false;
+            reconnectAttempts++;
+            
+            // Don't hide the progress section - the job is still running even if we lose connection
+            if (reconnectAttempts > maxReconnectAttempts) {
+                connectionStatus.textContent = "Connection Lost";
+                connectionStatus.className = "badge disconnected bg-danger";
+                errorMessage.textContent = "Lost connection to server and couldn't reconnect. Your import is still running. The page will check status periodically.";
+                errorMessage.classList.remove('d-none');
+                
+                // Start polling for job status since we can't get realtime updates
+                startJobStatusPolling();
+            }
+        });
+        
+        connection.onreconnected((connectionId) => {
+            console.log("SignalR reconnected with ID:", connectionId);
+            connectionStatus.textContent = "Connected";
+            connectionStatus.className = "badge connected bg-success";
+            isConnected = true;
+            reconnectAttempts = 0;
+            
+            // Hide any previous connection errors
+            if (errorMessage.textContent.includes("connection")) {
+                errorMessage.classList.add('d-none');
+            }
+            
+            // Re-register for job updates if we have a job ID
+            const jobId = "@Model.JobId";
+            if (jobId && !jobRegistered) {
+                registerForJobUpdates(jobId);
+            }
+            
+            // Clear the polling interval if we're reconnected
+            clearJobStatusPolling();
+        });
+        
+        connection.onclose((error) => {
+            console.error("SignalR connection closed", error);
+            connectionStatus.textContent = "Disconnected";
+            connectionStatus.className = "badge disconnected bg-danger";
+            isConnected = false;
+            
+            // Show error only if we have an active job
+            const jobId = "@Model.JobId";
+            if (jobId && !progressBar.classList.contains('bg-success')) {
+                errorMessage.textContent = "Lost connection to server. Your import is still running. The page will check status periodically.";
+                errorMessage.classList.remove('d-none');
+                
+                // Start polling for job status
+                startJobStatusPolling();
+            }
+        });
+
+        // Handle new-style progress updates
+        connection.on("ReceiveProgress", (progress) => {
+            console.log("ReceiveProgress:", progress);
+            
+            // Show progress section
+            progressSection.classList.remove('d-none');
+            
+            // Update progress bar
+            const percent = progress.percentComplete || 0;
+            progressBar.style.width = `${percent}%`;
+            progressBar.setAttribute('aria-valuenow', percent);
+            progressBar.textContent = `${percent}%`;
+            
+            // Update status text
+            progressStatus.textContent = progress.status || "Processing...";
+            
+            // Update details
+            if (progress.details) {
+                progressDetails.textContent = progress.details;
+                if (progress.processedItems && progress.totalItems) {
+                    progressDetails.textContent += ` (${progress.processedItems} of ${progress.totalItems} items)`;
+                }
+            }
+            
+            // Handle error
+            if (progress.status === "Error" && progress.errorMessage) {
+                errorMessage.textContent = progress.errorMessage;
+                errorMessage.classList.remove('d-none');
+                progressBar.classList.remove('bg-info');
+                progressBar.classList.add('bg-danger');
+                importButton.disabled = false;
+                importButton.textContent = "Import";
+                document.body.classList.remove('importing');
+                
+                // Clear any status polling
+                clearJobStatusPolling();
+            }
+            
+            // Handle completion
+            if (progress.status === "Completed") {
+                progressBar.classList.remove('bg-info');
+                progressBar.classList.add('bg-success');
+                importButton.disabled = false;
+                importButton.textContent = "Import";
+                document.body.classList.remove('importing');
+                
+                // Clear any status polling
+                clearJobStatusPolling();
+                
+                // Refresh page after 3 seconds to show import summary
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+            }
+        });
+
+        // Support legacy progress updates for backward compatibility
+        connection.on("UpdateProgress", (progress) => {
+            console.log("UpdateProgress:", progress);
+            
+            // Show progress UI
+            legacyProgressSection.classList.remove("d-none");
+            
+            const progressElement = legacyProgressSection.querySelector(".progress-bar");
+            progressElement.style.width = progress.percentComplete + "%";
+            progressElement.setAttribute("aria-valuenow", progress.percentComplete);
+            progressElement.textContent = progress.percentComplete + "%";
+            
+            const workoutProgress = document.querySelector("#workoutProgress");
+            workoutProgress.querySelectorAll("span")[0].textContent = progress.workoutProgress;
+            workoutProgress.querySelectorAll("span")[1].textContent = progress.totalWorkouts;
+            
+            document.querySelector("#currentWorkout").textContent = 
+                `Current Workout: ${progress.currentWorkout}`;
+            
+            document.querySelector("#currentExercise").textContent = 
+                progress.currentExercise ? `Current Exercise: ${progress.currentExercise}` : "";
+                
+            const repProgress = document.querySelector("#repProgress");
+            repProgress.querySelectorAll("span")[0].textContent = progress.processedReps;
+            repProgress.querySelectorAll("span")[1].textContent = progress.totalReps;
+
+            // If progress is complete, remove the waiting cursor and re-enable the button
+            if (progress.percentComplete === 100) {
+                document.body.classList.remove('importing');
+                importButton.disabled = false;
+                importButton.innerHTML = 'Import';
+                clearJobStatusPolling();
+            }
+        });
+        
+        // Helper function to register for job updates
+        function registerForJobUpdates(jobId) {
+            if (!jobId || !isConnected) return;
+            
+            console.log("Attempting to register for updates on job:", jobId);
+            
+            connection.invoke("RegisterForJobUpdates", jobId)
+                .then(() => {
+                    console.log("Successfully registered for updates on job:", jobId);
+                    jobRegistered = true;
+                    
+                    // Also show the progress section since we're monitoring a job
+                    progressSection.classList.remove('d-none');
+                })
+                .catch(err => {
+                    console.error("Error registering for job updates:", err);
+                    // Try again later if we're still connected
+                    if (isConnected) {
+                        setTimeout(() => registerForJobUpdates(jobId), 3000);
+                    }
+                });
+        }
+        
+        // Function to start polling for job status updates when SignalR is not available
+        function startJobStatusPolling() {
+            // Clear any existing interval
+            clearJobStatusPolling();
+            
+            const jobId = "@Model.JobId";
+            if (!jobId) return;
+            
+            console.log("Starting job status polling for job:", jobId);
+            
+            // Poll every 5 seconds
+            jobStatusCheckInterval = setInterval(() => {
+                checkJobStatus(jobId);
+            }, 5000);
+        }
+        
+        // Function to clear job status polling
+        function clearJobStatusPolling() {
+            if (jobStatusCheckInterval) {
+                clearInterval(jobStatusCheckInterval);
+                jobStatusCheckInterval = null;
+            }
+        }
+        
+        // Function to check job status via AJAX when SignalR is not available
+        function checkJobStatus(jobId) {
+            if (!jobId) return;
+            
+            console.log("Checking job status for:", jobId);
+            
+            // Make a simple AJAX request to check job status
+            fetch(`/api/jobstatus/${jobId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Job status response:", data);
+                    
+                    if (data.state) {
+                        // Update UI based on job state
+                        if (data.state === "Succeeded") {
+                            // Job completed successfully
+                            progressBar.classList.remove('bg-info');
+                            progressBar.classList.add('bg-success');
+                            progressStatus.textContent = "Import completed successfully";
+                            progressBar.style.width = "100%";
+                            progressBar.setAttribute('aria-valuenow', 100);
+                            progressBar.textContent = "100%";
+                            
+                            // Refresh the page to show results
+                            window.location.reload();
+                        } 
+                        else if (data.state === "Failed") {
+                            // Job failed
+                            progressBar.classList.remove('bg-info');
+                            progressBar.classList.add('bg-danger');
+                            progressStatus.textContent = "Import failed";
+                            
+                            if (data.errorMessage) {
+                                errorMessage.textContent = data.errorMessage;
+                                errorMessage.classList.remove('d-none');
+                            }
+                            
+                            // Clear the interval since we have a final state
+                            clearJobStatusPolling();
+                        }
+                        else if (data.state === "Processing" || data.state === "Scheduled" || data.state === "Enqueued") {
+                            // Job is still in progress
+                            progressStatus.textContent = `Import in progress (Status: ${data.state})`;
+                            
+                            // Keep the poll running
+                        }
+                        else {
+                            // Unknown state
+                            progressStatus.textContent = `Import status: ${data.state}`;
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error("Error checking job status:", error);
+                    // Don't stop polling on errors, just try again next time
+                });
+        }
+        
+        // Start the connection and register for job updates if needed
+        function startConnection() {
+            console.log("Starting SignalR connection...");
+            
+            connection.start()
+                .then(() => {
+                    console.log("SignalR connected!");
+                    connectionStatus.textContent = "Connected";
+                    connectionStatus.className = "badge connected bg-success";
+                    isConnected = true;
+                    reconnectAttempts = 0;
+                    
+                    // Register for job updates if we have a job ID
+                    const jobId = "@Model.JobId";
+                    if (jobId && !jobRegistered) {
+                        registerForJobUpdates(jobId);
+                    }
+                })
+                .catch(err => {
+                    console.error("SignalR Connection Error: ", err);
+                    connectionStatus.textContent = "Connection Failed";
+                    connectionStatus.className = "badge disconnected bg-danger";
+                    
+                    // If we have a job ID, start polling as fallback
+                    const jobId = "@Model.JobId";
+                    if (jobId) {
+                        startJobStatusPolling();
+                    }
+                    
+                    // Try to reconnect after a delay
+                    setTimeout(startConnection, 5000);
+                });
+        }
+
+        // Add form submit handler
+        form.addEventListener('submit', function(e) {
+            // Add waiting cursor to body
+            document.body.classList.add('importing');
+            // Disable the import button
+            importButton.disabled = true;
+            importButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Importing...';
+            
+            // Show progress section immediately
+            progressSection.classList.remove('d-none');
+            progressStatus.textContent = "Submitting import...";
+            progressDetails.textContent = "Preparing to upload file and start background job";
+        });
+
+        // Show progress section if we have a job ID (background job is running)
+        @if (!string.IsNullOrEmpty(Model.JobId))
+        {
+            <text>
+            progressSection.classList.remove('d-none');
+            
+            // Update initial progress based on job state
+            const jobState = "@Model.JobState";
+            if (jobState === "Processing" || jobState === "Scheduled" || jobState === "Enqueued") {
+                progressStatus.textContent = `Import in progress (Status: ${jobState})`;
+                progressBar.classList.add('bg-info');
+                progressBar.classList.add('progress-bar-animated');
+                progressBar.classList.add('progress-bar-striped');
+            }
+            else if (jobState === "Succeeded") {
+                progressStatus.textContent = "Import completed successfully";
+                progressBar.classList.remove('bg-info');
+                progressBar.classList.add('bg-success');
+                progressBar.style.width = "100%";
+                progressBar.setAttribute('aria-valuenow', 100);
+                progressBar.textContent = "100%";
+            }
+            else if (jobState === "Failed") {
+                progressStatus.textContent = "Import failed";
+                progressBar.classList.remove('bg-info');
+                progressBar.classList.add('bg-danger');
+                const errorMsg = document.createElement('div');
+                errorMsg.textContent = "The import job failed. Check logs for details.";
+                errorMsg.classList.add('alert', 'alert-danger', 'mt-3');
+                progressSection.querySelector('.card-body').appendChild(errorMsg);
+            }
+            </text>
+        }
+        
+        // Start the connection when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM loaded, starting SignalR connection");
+            startConnection();
+        });
+    </script>
+}

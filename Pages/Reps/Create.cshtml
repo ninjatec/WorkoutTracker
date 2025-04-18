@@ -1,0 +1,53 @@
+@page "{setId:int}"
+@model WorkoutTrackerWeb.Pages.Reps.CreateModel
+
+@{
+    ViewData["Title"] = "Create Reps";
+}
+
+<h1>Create Reps for @Model.Set.Session.Name - @Model.Set.ExerciseType.Name (@Model.Set.Settype.Name)</h1>
+
+<h4>Enter @Model.Set.NumberReps Reps</h4>
+<hr />
+<div class="row">
+    <div class="col-md-12">
+        <form method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Rep Number</th>
+                        <th>Weight (kg)</th>
+                        <th>Completed Successfully?</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < Model.Reps.Count; i++)
+                    {
+                        <tr>
+                            <td>
+                                @(i + 1)
+                                <input type="hidden" asp-for="Reps[i].repnumber" value="@(i + 1)" />
+                            </td>
+                            <td>
+                                <input asp-for="Reps[i].weight" class="form-control" type="number" step="0.25" min="0" />
+                                <span asp-validation-for="Reps[i].weight" class="text-danger"></span>
+                            </td>
+                            <td>
+                                <input asp-for="Reps[i].success" type="checkbox" checked="checked" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <div class="form-group">
+                <input type="submit" value="Create" class="btn btn-primary" />
+                <a asp-page="/Sets/Details" asp-route-id="@Model.Set.SetId" class="btn btn-secondary">Back to Set</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

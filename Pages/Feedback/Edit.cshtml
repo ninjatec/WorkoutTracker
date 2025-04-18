@@ -1,0 +1,127 @@
+@page
+@model WorkoutTrackerWeb.Pages.Feedback.EditModel
+
+@{
+    ViewData["Title"] = "Edit Feedback";
+}
+
+<div class="container">
+    <h1>Update Feedback</h1>
+
+    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+    {
+        <div class="alert @(Model.IsSuccess ? "alert-success" : "alert-danger")">
+            @Model.StatusMessage
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-8">
+            <form method="post">
+                <input type="hidden" asp-for="Feedback.FeedbackId" />
+                <input type="hidden" asp-for="Feedback.UserId" />
+                <input type="hidden" asp-for="Feedback.SubmissionDate" />
+                
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Feedback Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label asp-for="Feedback.Type" class="form-label"></label>
+                            </div>
+                            <div class="col-md-9">
+                                <select asp-for="Feedback.Type" asp-items="Model.FeedbackTypeOptions" class="form-select"></select>
+                                <span asp-validation-for="Feedback.Type" class="text-danger"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label asp-for="Feedback.Status" class="form-label"></label>
+                            </div>
+                            <div class="col-md-9">
+                                <select asp-for="Feedback.Status" asp-items="Model.FeedbackStatusOptions" class="form-select"></select>
+                                <span asp-validation-for="Feedback.Status" class="text-danger"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label asp-for="Feedback.Subject" class="form-label"></label>
+                            </div>
+                            <div class="col-md-9">
+                                <input asp-for="Feedback.Subject" class="form-control" />
+                                <span asp-validation-for="Feedback.Subject" class="text-danger"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label asp-for="Feedback.ContactEmail" class="form-label"></label>
+                            </div>
+                            <div class="col-md-9">
+                                <input asp-for="Feedback.ContactEmail" class="form-control" />
+                                <span asp-validation-for="Feedback.ContactEmail" class="text-danger"></span>
+                                <small class="form-text text-muted">Contact email for the user who submitted the feedback.</small>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label asp-for="Feedback.Message" class="form-label"></label>
+                            </div>
+                            <div class="col-md-9">
+                                <textarea asp-for="Feedback.Message" class="form-control" rows="6"></textarea>
+                                <span asp-validation-for="Feedback.Message" class="text-danger"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <label asp-for="Feedback.AdminNotes" class="form-label"></label>
+                            </div>
+                            <div class="col-md-9">
+                                <textarea asp-for="Feedback.AdminNotes" class="form-control" rows="4"></textarea>
+                                <span asp-validation-for="Feedback.AdminNotes" class="text-danger"></span>
+                                <small class="form-text text-muted">Internal notes about this feedback (not visible to users).</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Save Changes
+                    </button>
+                    <a asp-page="./Details" asp-route-id="@Model.Feedback.FeedbackId" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Submission Info</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Submitted On:</strong> @Model.Feedback.SubmissionDate.ToString("dd/MM/yyyy HH:mm")</p>
+                    
+                    @if (Model.Feedback.User != null)
+                    {
+                        <p><strong>Submitted By:</strong> @Model.Feedback.User.Name</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

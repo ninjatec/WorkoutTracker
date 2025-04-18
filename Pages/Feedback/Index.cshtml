@@ -1,0 +1,242 @@
+@page
+@model WorkoutTrackerWeb.Pages.Feedback.IndexModel
+@using WorkoutTrackerWeb.Models
+
+@{
+    ViewData["Title"] = "Feedback Management";
+}
+
+<div class="container">
+    <h1>Feedback Management</h1>
+    
+    <p>
+        <a class="btn btn-success" asp-page="Create">
+            <i class="bi bi-plus-circle"></i> Submit New Feedback
+        </a>
+    </p>
+    
+    <div class="mb-3">
+        <form method="get">
+            <div class="row g-2">
+                <div class="col-md-3">
+                    <select asp-for="CurrentFilter" asp-items="Model.StatusFilterOptions" class="form-select">
+                        <option value="">-- All Statuses --</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select asp-for="TypeFilter" asp-items="Model.TypeFilterOptions" class="form-select">
+                        <option value="">-- All Types --</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <div class="input-group">
+                        <input type="text" asp-for="SearchString" class="form-control" placeholder="Search subject or message...">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search"></i> Search
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <a asp-page="./Index" class="btn btn-outline-secondary w-100">Clear</a>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    @if (Model.Feedback?.Any() ?? false)
+    {
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>
+                            <a asp-page="./Index" asp-route-sortOrder="@Model.SubjectSort" 
+                               asp-route-currentFilter="@Model.CurrentFilter"
+                               asp-route-typeFilter="@Model.TypeFilter"
+                               asp-route-searchString="@Model.SearchString">
+                                @Html.DisplayNameFor(model => model.Feedback[0].Subject)
+                            </a>
+                        </th>
+                        <th>
+                            <a asp-page="./Index" asp-route-sortOrder="@Model.TypeSort" 
+                               asp-route-currentFilter="@Model.CurrentFilter"
+                               asp-route-typeFilter="@Model.TypeFilter"
+                               asp-route-searchString="@Model.SearchString">
+                                Type
+                            </a>
+                        </th>
+                        <th>
+                            <a asp-page="./Index" asp-route-sortOrder="@Model.DateSort" 
+                               asp-route-currentFilter="@Model.CurrentFilter"
+                               asp-route-typeFilter="@Model.TypeFilter"
+                               asp-route-searchString="@Model.SearchString">
+                                Date
+                            </a>
+                        </th>
+                        <th>
+                            <a asp-page="./Index" asp-route-sortOrder="@Model.StatusSort" 
+                               asp-route-currentFilter="@Model.CurrentFilter"
+                               asp-route-typeFilter="@Model.TypeFilter"
+                               asp-route-searchString="@Model.SearchString">
+                                Status
+                            </a>
+                        </th>
+                        <th>Contact</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Feedback)
+                    {
+                        <tr>
+                            <td>
+                                @Html.DisplayFor(modelItem => item.Subject)
+                            </td>
+                            <td>
+                                <span class="badge @GetTypeBadgeClass(item.Type)">
+                                    @item.Type.ToString()
+                                </span>
+                            </td>
+                            <td>
+                                @item.SubmissionDate.ToString("dd/MM/yyyy HH:mm")
+                            </td>
+                            <td>
+                                <span class="badge @GetStatusBadgeClass(item.Status)">
+                                    @item.Status.ToString()
+                                </span>
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(item.ContactEmail))
+                                {
+                                    <a href="mailto:@item.ContactEmail">@item.ContactEmail</a>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">No contact provided</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <a asp-page="./Details" asp-route-id="@item.FeedbackId" class="btn btn-sm btn-info">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
+                                    <a asp-page="./Edit" asp-route-id="@item.FeedbackId" class="btn btn-sm btn-primary">
+                                        <i class="bi bi-pencil"></i> Update
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="d-flex justify-content-center">
+            <nav>
+                <ul class="pagination">
+                    @{
+                        var prevDisabled = !Model.Feedback.HasPreviousPage ? "disabled" : "";
+                        var nextDisabled = !Model.Feedback.HasNextPage ? "disabled" : "";
+                    }
+                    <li class="page-item @prevDisabled">
+                        <a asp-page="./Index" 
+                           asp-route-pageIndex="1"
+                           asp-route-sortOrder="@Model.CurrentSort"
+                           asp-route-currentFilter="@Model.CurrentFilter"
+                           asp-route-typeFilter="@Model.TypeFilter"
+                           asp-route-searchString="@Model.SearchString"
+                           class="page-link">
+                            First
+                        </a>
+                    </li>
+                    <li class="page-item @prevDisabled">
+                        <a asp-page="./Index" 
+                           asp-route-pageIndex="@(Model.Feedback.PageIndex - 1)"
+                           asp-route-sortOrder="@Model.CurrentSort"
+                           asp-route-currentFilter="@Model.CurrentFilter"
+                           asp-route-typeFilter="@Model.TypeFilter"
+                           asp-route-searchString="@Model.SearchString"
+                           class="page-link">
+                            Previous
+                        </a>
+                    </li>
+                    @for (var i = Math.Max(1, Model.Feedback.PageIndex - 2); i <= Math.Min(Model.Feedback.TotalPages, Model.Feedback.PageIndex + 2); i++)
+                    {
+                        <li class="page-item @(i == Model.Feedback.PageIndex ? "active" : "")">
+                            <a asp-page="./Index" 
+                               asp-route-pageIndex="@i"
+                               asp-route-sortOrder="@Model.CurrentSort"
+                               asp-route-currentFilter="@Model.CurrentFilter"
+                               asp-route-typeFilter="@Model.TypeFilter"
+                               asp-route-searchString="@Model.SearchString"
+                               class="page-link">
+                                @i
+                            </a>
+                        </li>
+                    }
+                    <li class="page-item @nextDisabled">
+                        <a asp-page="./Index" 
+                           asp-route-pageIndex="@(Model.Feedback.PageIndex + 1)"
+                           asp-route-sortOrder="@Model.CurrentSort"
+                           asp-route-currentFilter="@Model.CurrentFilter"
+                           asp-route-typeFilter="@Model.TypeFilter"
+                           asp-route-searchString="@Model.SearchString"
+                           class="page-link">
+                            Next
+                        </a>
+                    </li>
+                    <li class="page-item @nextDisabled">
+                        <a asp-page="./Index" 
+                           asp-route-pageIndex="@Model.Feedback.TotalPages"
+                           asp-route-sortOrder="@Model.CurrentSort"
+                           asp-route-currentFilter="@Model.CurrentFilter"
+                           asp-route-typeFilter="@Model.TypeFilter"
+                           asp-route-searchString="@Model.SearchString"
+                           class="page-link">
+                            Last
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+        
+        <div class="text-center mt-2">
+            <p>
+                Page @Model.Feedback.PageIndex of @Model.Feedback.TotalPages 
+                (Total items: @Model.Feedback.TotalCount)
+            </p>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <h4 class="alert-heading">No feedback found</h4>
+            <p>No feedback entries match your current filter criteria.</p>
+        </div>
+    }
+</div>
+
+@functions {
+    string GetTypeBadgeClass(FeedbackType type)
+    {
+        return type switch
+        {
+            FeedbackType.BugReport => "bg-danger",
+            FeedbackType.FeatureRequest => "bg-primary",
+            FeedbackType.Question => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+
+    string GetStatusBadgeClass(FeedbackStatus status)
+    {
+        return status switch
+        {
+            FeedbackStatus.New => "bg-warning",
+            FeedbackStatus.InProgress => "bg-primary",
+            FeedbackStatus.Completed => "bg-success",
+            FeedbackStatus.Rejected => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+}

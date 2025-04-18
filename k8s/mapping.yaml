@@ -1,0 +1,21 @@
+apiVersion: getambassador.io/v3alpha1
+kind: Mapping
+metadata:
+  name: workouttracker
+  namespace: web
+spec:
+  hostname: wot.ninjatec.co.uk
+  prefix: /
+  service: workouttracker.web:80
+  timeout_ms: 500000
+  idle_timeout_ms: 500000
+  connect_timeout_ms: 500000
+  allow_upgrade:
+  - websocket
+  - spdy/3.1
+  resolver: kubernetes-endpoint
+  load_balancer:
+    policy: ring_hash
+    cookie:
+      name: emissary-sticky-cookie
+      ttl: 7200s

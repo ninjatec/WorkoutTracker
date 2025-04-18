@@ -1,0 +1,70 @@
+@page
+@model WorkoutTrackerWeb.Pages.Feedback.CreateModel
+
+@{
+    ViewData["Title"] = "Submit Feedback";
+}
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h2 class="mb-0">Submit Feedback</h2>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+                    {
+                        <div class="alert @(Model.IsSuccess ? "alert-success" : "alert-danger")">
+                            @Model.StatusMessage
+                        </div>
+                    }
+                    
+                    <p>
+                        We value your feedback! Please use this form to report bugs, suggest features, or provide general feedback.
+                        Your input helps us improve the Workout Tracker application.
+                    </p>
+                    
+                    <form method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                        
+                        <div class="form-group mb-3">
+                            <label asp-for="FeedbackInput.Type" class="control-label"></label>
+                            <select asp-for="FeedbackInput.Type" class="form-select" asp-items="Model.FeedbackTypeOptions"></select>
+                            <span asp-validation-for="FeedbackInput.Type" class="text-danger"></span>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label asp-for="FeedbackInput.Subject" class="control-label"></label>
+                            <input asp-for="FeedbackInput.Subject" class="form-control" />
+                            <span asp-validation-for="FeedbackInput.Subject" class="text-danger"></span>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label asp-for="FeedbackInput.Message" class="control-label"></label>
+                            <textarea asp-for="FeedbackInput.Message" class="form-control" rows="6"></textarea>
+                            <span asp-validation-for="FeedbackInput.Message" class="text-danger"></span>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label asp-for="FeedbackInput.ContactEmail" class="control-label"></label>
+                            <input asp-for="FeedbackInput.ContactEmail" class="form-control" />
+                            <small class="form-text text-muted">Optional. Provide your email if you'd like us to follow up with you.</small>
+                            <span asp-validation-for="FeedbackInput.ContactEmail" class="text-danger"></span>
+                        </div>
+                        
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-send"></i> Submit Feedback
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

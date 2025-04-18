@@ -1,0 +1,129 @@
+@page
+@model WorkoutTrackerWeb.Pages.Help.GlossaryModel
+@{
+    ViewData["Title"] = "Workout Terminology Glossary";
+}
+
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="./Index">Help Center</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Workout Terminology</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8">
+            <h1>Workout Terminology Glossary</h1>
+            <p class="lead">Understanding workout and fitness terminology used throughout the app.</p>
+        </div>
+        <div class="col-md-4">
+            <form asp-page="./Search" method="get" class="mb-4">
+                <div class="input-group">
+                    <input type="text" name="query" class="form-control" placeholder="Search glossary...">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit">Search</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Categories filter -->
+    @if (Model.Categories.Any())
+    {
+        <div class="mb-4">
+            <h5>Filter by Category:</h5>
+            <div class="btn-group btn-group-sm flex-wrap" role="group">
+                <a asp-page="./Glossary" class="btn @(string.IsNullOrEmpty(Model.SelectedCategory) ? "btn-primary" : "btn-outline-secondary")">
+                    All Terms
+                </a>
+                @foreach (var category in Model.Categories)
+                {
+                    <a asp-page="./Glossary" asp-route-category="@category" 
+                       class="btn @(Model.SelectedCategory == category ? "btn-primary" : "btn-outline-secondary")">
+                        @category
+                    </a>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Alphabet navigation -->
+    <div class="mb-4 glossary-alphabet">
+        <div class="d-flex flex-wrap justify-content-center">
+            @foreach (var letter in Model.Alphabet)
+            {
+                <a href="#letter-@letter" class="px-2 py-1 text-center">@letter</a>
+            }
+        </div>
+    </div>
+
+    <!-- Terms grouped by first letter -->
+    @foreach (var letterGroup in Model.GlossaryTerms.GroupBy(t => t.Term[0].ToString().ToUpper()))
+    {
+        <section id="letter-@letterGroup.Key" class="mb-4">
+            <h2 class="border-bottom pb-2">@letterGroup.Key</h2>
+            <dl class="row">
+                @foreach (var term in letterGroup)
+                {
+                    <dt class="col-md-3 font-weight-bold">@term.Term</dt>
+                    <dd class="col-md-9">
+                        <p>@term.Definition</p>
+                        @if (!string.IsNullOrEmpty(term.Example))
+                        {
+                            <p class="font-italic text-muted">Example: @term.Example</p>
+                        }
+                        @if (term.RelatedTerms?.Any() == true)
+                        {
+                            <p class="small">
+                                <strong>See also:</strong>
+                                @foreach (var relatedTerm in term.RelatedTerms)
+                                {
+                                    <a href="#" class="badge badge-light mr-1">@relatedTerm.Term</a>
+                                }
+                            </p>
+                        }
+                    </dd>
+                }
+            </dl>
+        </section>
+    }
+
+    @if (!Model.GlossaryTerms.Any())
+    {
+        <div class="alert alert-info">
+            @if (string.IsNullOrEmpty(Model.SelectedCategory))
+            {
+                <p>No glossary terms found.</p>
+            }
+            else
+            {
+                <p>No glossary terms found in the category "@Model.SelectedCategory".</p>
+            }
+        </div>
+    }
+</div>
+
+@section Styles {
+    <style>
+        .glossary-alphabet a {
+            font-size: 1.2rem;
+            min-width: 30px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        
+        .glossary-alphabet a:hover {
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        @* Using this approach to avoid Razor trying to interpret @media as a directive *@
+        @("@media print {")
+            .glossary-alphabet, .breadcrumb, .btn, form, .footer {
+                display: none !important;
+            }
+        @("}")
+    </style>
+}

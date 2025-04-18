@@ -1,0 +1,229 @@
+@page "{id:int}/{slug?}"
+@model WorkoutTrackerWeb.Pages.Help.ArticleModel
+@{
+    ViewData["Title"] = Model.Article?.Title ?? "Help Article";
+}
+
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="./Index">Help Center</a></li>
+            <li class="breadcrumb-item">
+                <a asp-page="./Category" asp-route-id="@Model.Article?.Category.Id" asp-route-slug="@Model.Article?.Category.Slug">
+                    @Model.Article?.Category.Name
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">@Model.Article?.Title</li>
+        </ol>
+    </nav>
+
+    @if (Model.Article == null)
+    {
+        <div class="alert alert-warning">
+            Article not found. <a asp-page="./Index">Return to Help Center</a>.
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <!-- Article content -->
+            <div class="col-md-8">
+                <div class="mb-4">
+                    <h1>@Model.Article.Title</h1>
+                    <div class="text-muted small mb-3">
+                        Last updated: @Model.Article.LastModifiedDate.ToString("MMMM d, yyyy")
+                        @if (!string.IsNullOrEmpty(Model.Article.Version))
+                        {
+                            <span class="ml-2">• Version: @Model.Article.Version</span>
+                        }
+                    </div>
+
+                    <div class="mb-2">
+                        @if (Model.Article.IsPrintable)
+                        {
+                            <button onclick="window.print()" class="btn btn-sm btn-outline-secondary mr-2">
+                                <i class="bi bi-printer"></i> Print
+                            </button>
+                        }
+                        <button onclick="sharePage()" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-share"></i> Share
+                        </button>
+                    </div>
+                </div>
+
+                @if (Model.Article.HasVideo)
+                {
+                    <div class="embed-responsive embed-responsive-16by9 mb-4">
+                        <iframe class="embed-responsive-item" src="@Model.Article.VideoUrl" 
+                                allowfullscreen title="@Model.Article.Title video"></iframe>
+                    </div>
+                }
+
+                <div class="article-content mb-5">
+                    @Html.Raw(Model.Article.Content)
+                </div>
+
+                <!-- Was this helpful? -->
+                <div class="card bg-light mb-4">
+                    <div class="card-body">
+                        <h5>Was this article helpful?</h5>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-success btn-sm" onclick="rateArticle(true)">
+                                <i class="bi bi-hand-thumbs-up"></i> Yes
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="rateArticle(false)">
+                                <i class="bi bi-hand-thumbs-down"></i> No
+                            </button>
+                        </div>
+                        <div id="feedback-form" class="mt-3 d-none">
+                            <textarea id="feedback-text" class="form-control mb-2" 
+                                      placeholder="How can we improve this article?"></textarea>
+                            <button class="btn btn-primary btn-sm" onclick="submitFeedback()">Submit Feedback</button>
+                        </div>
+                        <div id="feedback-thanks" class="mt-3 d-none">
+                            <div class="alert alert-success">Thank you for your feedback!</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-md-4">
+                @if (Model.Article.RelatedArticles?.Any() == true)
+                {
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Related Articles</h5>
+                        </div>
+                        <div class="list-group list-group-flush">
+                            @foreach (var relatedArticle in Model.Article.RelatedArticles)
+                            {
+                                <a asp-page="./Article" asp-route-id="@relatedArticle.Id" 
+                                   asp-route-slug="@relatedArticle.Slug"
+                                   class="list-group-item list-group-item-action">
+                                    @relatedArticle.Title
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <!-- Tags -->
+                @if (!string.IsNullOrEmpty(Model.Article.Tags))
+                {
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Tags</h5>
+                        </div>
+                        <div class="card-body">
+                            @foreach (var tag in Model.Article.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                            {
+                                <a asp-page="./Search" asp-route-query="@tag.Trim()" 
+                                   class="badge badge-secondary mr-1 mb-1">@tag.Trim()</a>
+                            }
+                        </div>
+                    </div>
+                }
+
+                <!-- Get more help -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Need More Help?</h5>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <a asp-page="./FAQ" class="list-group-item list-group-item-action">
+                            <i class="bi bi-question-circle"></i> Frequently Asked Questions
+                        </a>
+                        <a asp-page="./VideoTutorials" class="list-group-item list-group-item-action">
+                            <i class="bi bi-play-circle"></i> Video Tutorials
+                        </a>
+                        <a asp-page="./Glossary" class="list-group-item list-group-item-action">
+                            <i class="bi bi-book"></i> Workout Terminology
+                        </a>
+                        <a asp-page="/Feedback" class="list-group-item list-group-item-action">
+                            <i class="bi bi-chat-dots"></i> Contact Support
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        function rateArticle(isHelpful) {
+            fetch(`/api/help/ratearticle?id=@Model.Article?.Id&helpful=${isHelpful}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!isHelpful) {
+                document.getElementById('feedback-form').classList.remove('d-none');
+            } else {
+                document.getElementById('feedback-thanks').classList.remove('d-none');
+            }
+        }
+        
+        function submitFeedback() {
+            const feedback = document.getElementById('feedback-text').value;
+            
+            fetch('/api/help/articlefeedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    articleId: @Model.Article?.Id,
+                    feedback: feedback
+                })
+            });
+            
+            document.getElementById('feedback-form').classList.add('d-none');
+            document.getElementById('feedback-thanks').classList.remove('d-none');
+        }
+        
+        function sharePage() {
+            if (navigator.share) {
+                navigator.share({
+                    title: '@Model.Article?.Title',
+                    text: '@Model.Article?.ShortDescription',
+                    url: window.location.href
+                })
+                .catch(console.error);
+            } else {
+                // Fallback for browsers that don't support the Web Share API
+                const dummy = document.createElement('input');
+                document.body.appendChild(dummy);
+                dummy.value = window.location.href;
+                dummy.select();
+                document.execCommand('copy');
+                document.body.removeChild(dummy);
+                
+                alert('Link copied to clipboard!');
+            }
+        }
+    </script>
+}
+
+@section Styles {
+    <style>
+        .article-content img {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        @* Using this approach to avoid Razor trying to interpret @media as a directive *@
+        @("@media print {")
+            .breadcrumb, .btn, .card, .footer {
+                display: none !important;
+            }
+            
+            .article-content {
+                font-size: 14px;
+            }
+        @("}")
+    </style>
+}

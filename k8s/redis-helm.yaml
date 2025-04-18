@@ -1,0 +1,108 @@
+# Redis Helm Deployment Configuration
+# This file contains configuration for deploying Redis with Sentinel via Helm
+
+# Redis values configuration for use with:
+# helm install redis bitnami/redis -f redis-helm.yaml -n web
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-helm-values
+  namespace: web
+data:
+  redis-values.yaml: |
+    global:
+      storageClass: ""
+      
+    architecture: replication
+    auth:
+      enabled: false
+      sentinel: false
+    
+    master:
+      persistence:
+        enabled: true
+        size: 1Gi
+      resources:
+        requests:
+          memory: 64Mi
+          cpu: 100m
+        limits:
+          memory: 256Mi
+          cpu: 500m
+      
+    replica:
+      replicaCount: 2
+      persistence:
+        enabled: true
+        size: 1Gi
+      resources:
+        requests:
+          memory: 64Mi
+          cpu: 100m
+        limits:
+          memory: 256Mi
+          cpu: 500m
+    
+    sentinel:
+      enabled: true
+      quorum: 2
+      resources:
+        requests:
+          memory: 32Mi
+          cpu: 50m
+        limits:
+          memory: 128Mi
+          cpu: 100m
+          
+    # Redis metrics via Prometheus exporter
+    metrics:
+      enabled: true
+      serviceMonitor:
+        enabled: false # Set to true if you're using Prometheus Operator
+---
+# Installation steps documented in ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-helm-instructions
+  namespace: web
+data:
+  instructions.txt: |
+    # Redis High Availability with Sentinel via Helm
+    
+    ## Installation Steps:
+    
+    1. Add the Bitnami Helm repository:
+       ```bash
+       helm repo add bitnami https://charts.bitnami.com/bitnami
+       helm repo update
+       ```
+    
+    2. Install Redis with the provided configuration:
+       ```bash
+       helm install redis bitnami/redis -f redis-values.yaml -n web
+       ```
+    
+    3. Verify the deployment:
+       ```bash
+       kubectl get pods -l app.kubernetes.io/name=redis -n web
+       ```
+    
+    ## Accessing Redis:
+    
+    - Redis master service: redis-master.web.svc.cluster.local:6379
+    - Redis replicas service: redis-replicas.web.svc.cluster.local:6379
+    - Redis sentinel service: redis-headless.web.svc.cluster.local:26379
+    
+    ## Configuration Update:
+    
+    To update the configuration:
+    ```bash
+    helm upgrade redis bitnami/redis -f redis-values.yaml -n web
+    ```
+    
+    ## Notes:
+    - Authentication is disabled for simplicity
+    - Metrics are enabled via Prometheus exporter
+    - Sentinel is configured with quorum of 2
+    - Persistent storage is enabled for both master and replicas

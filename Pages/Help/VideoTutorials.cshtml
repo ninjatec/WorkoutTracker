@@ -1,0 +1,128 @@
+@page
+@model WorkoutTrackerWeb.Pages.Help.VideoTutorialsModel
+@{
+    ViewData["Title"] = "Video Tutorials";
+}
+
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="./Index">Help Center</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Video Tutorials</li>
+        </ol>
+    </nav>
+
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1>Video Tutorials</h1>
+            <p class="lead">Watch step-by-step guides to learn how to use the Workout Tracker efficiently.</p>
+        </div>
+        <div class="col-md-4">
+            <form asp-page="./Search" method="get" class="mb-4">
+                <div class="input-group">
+                    <input type="text" name="query" class="form-control" placeholder="Search tutorials...">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit">Search</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Category filters -->
+    <div class="mb-4">
+        <div class="btn-group btn-group-sm" role="group">
+            <button type="button" class="btn btn-primary filter-btn" data-filter="all">All</button>
+            @foreach (var category in Model.VideoCategories)
+            {
+                <button type="button" class="btn btn-outline-secondary filter-btn" 
+                        data-filter="@category.ToLower().Replace(" ", "-")">@category</button>
+            }
+        </div>
+    </div>
+
+    <!-- Video grid -->
+    <div class="row">
+        @foreach (var video in Model.Videos)
+        {
+            <div class="col-md-6 mb-4 video-item" data-category="@video.Category.ToLower().Replace(" ", "-")">
+                <div class="card h-100">
+                    <div class="embed-responsive embed-responsive-16by9">
+                        <iframe class="embed-responsive-item" src="@video.EmbedUrl"
+                                allowfullscreen title="@video.Title video"></iframe>
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">@video.Title</h5>
+                        <p class="card-text">@video.Description</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">Duration: @video.Duration</small>
+                            <span class="badge badge-secondary">@video.Category</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- No videos message -->
+    <div id="no-videos-message" class="alert alert-info d-none">
+        No videos match the selected category. Try selecting a different category.
+    </div>
+
+    <!-- Need additional help -->
+    <div class="mt-5 mb-4">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                <h3>Need More Help?</h3>
+                <p>If you prefer text-based instructions, check out our detailed guides or contact our support team.</p>
+                <div>
+                    <a asp-page="./FAQ" class="btn btn-outline-primary m-1">Frequently Asked Questions</a>
+                    <a asp-page="./Glossary" class="btn btn-outline-primary m-1">Workout Terminology</a>
+                    <a asp-page="/Feedback" class="btn btn-primary m-1">Contact Support</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Filter functionality
+            const filterButtons = document.querySelectorAll('.filter-btn');
+            const videoItems = document.querySelectorAll('.video-item');
+            const noVideosMessage = document.getElementById('no-videos-message');
+            
+            filterButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Update active button
+                    filterButtons.forEach(btn => btn.classList.remove('btn-primary', 'active'));
+                    filterButtons.forEach(btn => btn.classList.add('btn-outline-secondary'));
+                    this.classList.remove('btn-outline-secondary');
+                    this.classList.add('btn-primary', 'active');
+                    
+                    const filterValue = this.getAttribute('data-filter');
+                    
+                    let visibleCount = 0;
+                    
+                    // Show/hide videos based on filter
+                    videoItems.forEach(item => {
+                        if (filterValue === 'all' || item.getAttribute('data-category') === filterValue) {
+                            item.style.display = '';
+                            visibleCount++;
+                        } else {
+                            item.style.display = 'none';
+                        }
+                    });
+                    
+                    // Show/hide no videos message
+                    if (visibleCount === 0) {
+                        noVideosMessage.classList.remove('d-none');
+                    } else {
+                        noVideosMessage.classList.add('d-none');
+                    }
+                });
+            });
+        });
+    </script>
+}

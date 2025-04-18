@@ -1,0 +1,117 @@
+@page
+@model WorkoutTrackerWeb.Pages.Help.SearchModel
+@{
+    ViewData["Title"] = "Search Help";
+}
+
+<div class="container mt-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-page="./Index">Help Center</a></li>
+            <li class="breadcrumb-item active" aria-current="page">Search Results</li>
+        </ol>
+    </nav>
+
+    <h1>Search Help</h1>
+
+    <!-- Search box -->
+    <form method="get" class="my-4">
+        <div class="input-group">
+            <input type="text" name="query" class="form-control" placeholder="Search for help..." 
+                   value="@Model.SearchQuery" required aria-label="Search">
+            <div class="input-group-append">
+                <button class="btn btn-primary" type="submit">Search</button>
+            </div>
+        </div>
+    </form>
+
+    @if (!string.IsNullOrEmpty(Model.SearchQuery))
+    {
+        <h2>Results for "@Model.SearchQuery"</h2>
+
+        <ul class="nav nav-tabs mb-3" id="searchTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="articles-tab" data-toggle="tab" data-target="#articles"
+                        type="button" role="tab" aria-controls="articles" aria-selected="true">
+                    Articles (@Model.Articles.Count)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="glossary-tab" data-toggle="tab" data-target="#glossary"
+                        type="button" role="tab" aria-controls="glossary" aria-selected="false">
+                    Glossary Terms (@Model.GlossaryTerms.Count)
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="searchTabsContent">
+            <div class="tab-pane fade show active" id="articles" role="tabpanel" aria-labelledby="articles-tab">
+                @if (!Model.Articles.Any())
+                {
+                    <div class="alert alert-info">No help articles match your search.</div>
+                }
+                else
+                {
+                    <div class="list-group mb-4">
+                        @foreach (var article in Model.Articles)
+                        {
+                            <a asp-page="./Article" asp-route-id="@article.Id" asp-route-slug="@article.Slug"
+                               class="list-group-item list-group-item-action">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-1">@article.Title</h5>
+                                    <span class="badge badge-secondary">@article.Category.Name</span>
+                                </div>
+                                <p class="mb-1">@article.ShortDescription</p>
+                                <small class="text-muted">
+                                    Last updated: @article.LastModifiedDate.ToString("MMM d, yyyy")
+                                </small>
+                            </a>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="tab-pane fade" id="glossary" role="tabpanel" aria-labelledby="glossary-tab">
+                @if (!Model.GlossaryTerms.Any())
+                {
+                    <div class="alert alert-info">No glossary terms match your search.</div>
+                }
+                else
+                {
+                    <div class="list-group mb-4">
+                        @foreach (var term in Model.GlossaryTerms)
+                        {
+                            <div class="list-group-item">
+                                <h5 class="mb-1">@term.Term</h5>
+                                <p class="mb-1">@term.Definition</p>
+                                @if (!string.IsNullOrEmpty(term.Example))
+                                {
+                                    <p class="small text-muted">Example: @term.Example</p>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            Enter a search term above to find help articles and glossary terms.
+        </div>
+    }
+
+    <!-- Related searches (hardcoded examples) -->
+    <div class="mt-4">
+        <h3>Popular Searches</h3>
+        <div class="d-flex flex-wrap">
+            <a asp-page="./Search" asp-route-query="new workout" class="badge badge-light mr-2 mb-2 p-2">New Workout</a>
+            <a asp-page="./Search" asp-route-query="create session" class="badge badge-light mr-2 mb-2 p-2">Create Session</a>
+            <a asp-page="./Search" asp-route-query="add sets" class="badge badge-light mr-2 mb-2 p-2">Add Sets</a>
+            <a asp-page="./Search" asp-route-query="track progress" class="badge badge-light mr-2 mb-2 p-2">Track Progress</a>
+            <a asp-page="./Search" asp-route-query="exercise types" class="badge badge-light mr-2 mb-2 p-2">Exercise Types</a>
+            <a asp-page="./Search" asp-route-query="one rep max" class="badge badge-light mr-2 mb-2 p-2">One Rep Max</a>
+        </div>
+    </div>
+</div>

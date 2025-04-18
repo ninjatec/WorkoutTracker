@@ -1,0 +1,256 @@
+:root {
+  --primary-color: #465A65;     /* Steel blue-gray */
+  --primary-dark: #2C3E50;      /* Dark steel blue */
+  --primary-light: #78909C;     /* Light steel blue */
+  --secondary-color: #607D8B;   /* Another steel blue shade */
+  --accent-color: #90A4AE;      /* Lighter steel blue */
+  --background-light: #ECEFF1;  /* Very light gray with blue tint */
+  --text-dark: #263238;         /* Very dark steel */
+  --text-light: #FAFAFA;        /* Off-white */
+  --error-color: #CF6679;       /* Muted red for errors */
+  --success-color: #80CBC4;     /* Muted teal for success */
+}
+
+html {
+  font-size: 14px;
+  position: relative;
+  min-height: 100%;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem var(--primary-dark);
+}
+
+body {
+  margin-bottom: 60px;
+  background-color: var(--background-light);
+  color: var(--text-dark);
+}
+
+/* Container styling */
+.container {
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+  border-radius: 5px;
+  padding: 1.5rem;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Exception for containers in navbar and footer */
+.navbar .container-fluid,
+.navbar .container,
+footer .container-fluid,
+footer .container {
+  background-color: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0 15px;
+}
+
+/* Navigation styling */
+.navbar {
+  background-image: linear-gradient(to bottom, #546E7A, #455A64) !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.navbar-brand {
+  color: var(--text-light) !important;
+  font-weight: bold;
+}
+
+.nav-link {
+  color: var(--text-light) !important;
+}
+
+.nav-link:hover {
+  color: var(--text-light) !important;
+  text-decoration: underline;
+}
+
+/* Footer styling */
+.footer {
+  background-image: linear-gradient(to bottom, #455A64, #37474F);
+  box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
+  border-top: 1px solid var(--primary-dark);
+}
+
+/* Button styling */
+.btn-primary {
+  background-image: linear-gradient(to bottom, var(--primary-color), var(--primary-dark));
+  border-color: var(--primary-dark);
+  color: var(--text-light);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+}
+
+.btn-primary:hover {
+  background-image: linear-gradient(to bottom, var(--primary-dark), #263238);
+  border-color: var(--primary-dark);
+  color: var(--text-light);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+}
+
+.btn-danger {
+  background-color: var(--error-color);
+  border-color: var(--error-color);
+}
+
+.btn-success {
+  background-color: var(--success-color);
+  border-color: var(--success-color);
+}
+
+/* Card and container styling */
+.card {
+  background-color: white;
+  border-radius: 5px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  margin-bottom: 1rem;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+}
+
+/* Style for text-center sections */
+.text-center {
+  padding: 1.5rem;
+  background-color: white;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Card header styling */
+.card-header {
+  background-image: linear-gradient(to right, var(--primary-color), var(--primary-dark));
+  color: var(--text-light);
+}
+
+/* Table styling */
+table {
+  background-color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+  background-color: var(--primary-light);
+}
+
+.table thead {
+  background-image: linear-gradient(to bottom, var(--primary-color), var(--primary-dark));
+  color: var(--text-light);
+}
+
+.table thead a {
+  color: var(--text-light);
+}
+
+.table thead a:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+
+/* Original code for form controls */
+.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
+  color: var(--secondary-color);
+  text-align: end;
+}
+
+.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
+  text-align: start;
+}
+
+/* Logo styling */
+.navbar-logo {
+  height: 40px;
+  margin-right: 10px;
+}
+
+.footer-logo {
+  height: 30px;
+  margin-right: 5px;
+}
+
+/* Badge styling */
+.badge-success {
+  background-color: var(--primary-dark);
+  color: var(--text-light);
+}
+
+.badge-danger {
+  background-color: var(--error-color);
+  color: var(--text-light);
+}
+
+/* Additional modern UI enhancements */
+.btn {
+  border-radius: 4px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+}
+
+.btn-accent {
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
+  color: var(--text-dark);
+}
+
+.btn-accent:hover {
+  background-color: #3dbdb5;
+  border-color: #3dbdb5;
+}
+
+.btn-secondary {
+  background-color: var(--secondary-color);
+  border-color: var(--secondary-color);
+  color: var(--text-light);
+}
+
+.btn-secondary:hover {
+  background-color: #e55c5c;
+  border-color: #e55c5c;
+}
+
+.table {
+  border-radius: 5px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+}
+
+.page-item.active .page-link {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.page-link {
+  color: var(--primary-dark);
+}
+
+.form-control {
+  border-color: #90A4AE;
+  background-color: #FAFAFA;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+}
+
+.form-control:focus {
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 0.2rem rgba(70, 90, 101, 0.25);
+}
+
+/* Improve accessibility with focus indicators */
+a:focus, button:focus {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}

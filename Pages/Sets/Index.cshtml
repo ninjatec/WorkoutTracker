@@ -1,0 +1,143 @@
+@page
+@model WorkoutTrackerWeb.Pages.Sets.IndexModel
+
+@{
+    ViewData["Title"] = "Sets";
+}
+
+<h1>Sets</h1>
+
+<p>
+    <a asp-page="Create" class="btn btn-primary mb-3">Create New</a>
+</p>
+
+<div class="row mb-3">
+    <div class="col-md-8">
+        <form asp-page="./Index" method="get" class="form-inline">
+            <div class="form-group mr-2">
+                <label for="FilterType" class="mr-2">Filter by:</label>
+                <select name="FilterType" id="FilterType" class="form-control mr-2">
+                    <option value="">All Fields</option>
+                    <option value="session" selected="@(Model.FilterType == "session")">Session</option>
+                    <option value="exercise" selected="@(Model.FilterType == "exercise")">Exercise Type</option>
+                    <option value="settype" selected="@(Model.FilterType == "settype")">Set Type</option>
+                    <option value="description" selected="@(Model.FilterType == "description")">Description</option>
+                    <option value="notes" selected="@(Model.FilterType == "notes")">Notes</option>
+                </select>
+            </div>
+            <div class="form-group mr-2">
+                <input type="text" name="SearchString" value="@Model.CurrentFilter" placeholder="Search..." class="form-control" />
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">Search</button>
+                @if (!string.IsNullOrEmpty(Model.CurrentFilter))
+                {
+                    <a asp-page="./Index" class="btn btn-secondary ml-2">Clear</a>
+                }
+            </div>
+            <input type="hidden" name="sortOrder" value="@Model.CurrentSort" />
+        </form>
+    </div>
+</div>
+
+<table class="table table-striped table-hover">
+    <thead>
+        <tr>
+            <th>
+                <a asp-page="./Index" asp-route-sortOrder="@Model.SessionSort" asp-route-currentFilter="@Model.CurrentFilter" asp-route-filterType="@Model.FilterType">Session</a>
+            </th>
+            <th>
+                <a asp-page="./Index" asp-route-sortOrder="@Model.SessionDateTimeSort" asp-route-currentFilter="@Model.CurrentFilter" asp-route-filterType="@Model.FilterType">Session Date/Time</a>
+            </th>
+            <th>
+                <a asp-page="./Index" asp-route-sortOrder="@Model.ExerciseSort" asp-route-currentFilter="@Model.CurrentFilter" asp-route-filterType="@Model.FilterType">Exercise Type</a>
+            </th>
+            <th>
+                <a asp-page="./Index" asp-route-sortOrder="@Model.SetTypeSort" asp-route-currentFilter="@Model.CurrentFilter" asp-route-filterType="@Model.FilterType">Set Type</a>
+            </th>
+            <th>
+                <a asp-page="./Index" asp-route-sortOrder="@Model.DescriptionSort" asp-route-currentFilter="@Model.CurrentFilter" asp-route-filterType="@Model.FilterType">
+                    @Html.DisplayNameFor(model => model.Set[0].Description)
+                </a>
+            </th>
+            <th>
+                <a asp-page="./Index" asp-route-sortOrder="@Model.NotesSort" asp-route-currentFilter="@Model.CurrentFilter" asp-route-filterType="@Model.FilterType">
+                    @Html.DisplayNameFor(model => model.Set[0].Notes)
+                </a>
+            </th>
+            <th>
+                <a asp-page="./Index" asp-route-sortOrder="@Model.NumberRepsSort" asp-route-currentFilter="@Model.CurrentFilter" asp-route-filterType="@Model.FilterType">Number of Reps</a>
+            </th>
+            <th>
+                <a asp-page="./Index" asp-route-sortOrder="@Model.WeightSort" asp-route-currentFilter="@Model.CurrentFilter" asp-route-filterType="@Model.FilterType">Weight (kg)</a>
+            </th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+@if (Model.Set.Any()) {
+    @foreach (var item in Model.Set) {
+        <tr>
+            <td>
+                @Html.DisplayFor(modelItem => item.Session.Name)
+            </td>
+            <td>
+                @item.Session.datetime.ToString("dd/MM/yy HH:mm")
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.ExerciseType.Name)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Settype.Name)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Description)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Notes)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.NumberReps)
+            </td>
+            <td>
+                @Html.DisplayFor(modelItem => item.Weight)
+            </td>
+            <td>
+                <a asp-page="./Edit" asp-route-id="@item.SetId">Edit</a> |
+                <a asp-page="./Details" asp-route-id="@item.SetId">Details</a> |
+                <a asp-page="./Delete" asp-route-id="@item.SetId">Delete</a> |
+                <a asp-page-handler="Duplicate" asp-route-id="@item.SetId">Duplicate</a>
+            </td>
+        </tr>
+    }
+} else {
+    <tr>
+        <td colspan="9" class="text-center">No sets found matching your criteria.</td>
+    </tr>
+}
+    </tbody>
+</table>
+
+@section Scripts {
+    <script>
+        // Add some visual indication of sorted columns
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const sortOrder = urlParams.get('sortOrder');
+            if (sortOrder) {
+                const headers = document.querySelectorAll('th a');
+                headers.forEach(header => {
+                    const href = header.getAttribute('href');
+                    if (href && href.includes(sortOrder)) {
+                        header.style.fontWeight = 'bold';
+                        header.style.color = 'var(--light-steel-dark)';
+                    }
+                });
+            }
+            
+            // Set the selected value in the filter dropdown
+            const filterType = urlParams.get('FilterType') || '';
+            document.getElementById('FilterType').value = filterType;
+        });
+    </script>
+}
