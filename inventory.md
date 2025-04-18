@@ -299,6 +299,56 @@ The application uses Entity Framework Core Code-First approach with SQL Server. 
    - User-specific token management
    - Cache invalidation for token updates, deletions, and revocations
 
+### Share Token Management UI
+
+1. User Interface Components:
+   - Account management section with ShareTokens page
+   - List of user's active share tokens with status indicators
+   - Create token form with permission controls and expiration settings
+   - Token management actions (view, edit, revoke, delete)
+   - Token usage statistics with visual indicators
+   - Secure token sharing with copy-to-clipboard functionality
+   - Modal-based interactions for token management
+
+2. Core Pages and Components:
+   - `Pages/Account/Manage/ShareTokens.cshtml`: Main Razor Page for token management
+   - `Pages/Account/Manage/ShareTokens.cshtml.cs`: Page model with token operations
+   - `Pages/Shared/_StatusMessage.cshtml`: Status notification partial view
+   - Integration with Account Management navigation
+
+3. Features and Workflows:
+   - Token creation with configurable settings:
+     - Expiration period (1-365 days)
+     - Session-specific or account-wide sharing
+     - Optional usage limits
+     - Granular permission controls for features
+     - Custom naming and description
+   - Token management:
+     - View generated link with copy functionality
+     - Edit existing token settings
+     - Extend token expiration
+     - Update permissions and access controls
+     - Revoke tokens without deletion (maintains history)
+     - Permanently delete tokens
+   - Visual status indicators:
+     - Active/inactive status badges
+     - Expiration countdown
+     - Usage statistics with remaining uses
+     - Permission indicators for feature access
+   - Security features:
+     - Secure URL generation with scheme and host
+     - User validation for token ownership
+     - Confirmation for destructive actions
+
+4. Technology Implementation:
+   - Bootstrap modals for management actions
+   - Client-side copy-to-clipboard functionality
+   - Form validation with data annotations
+   - AJAX-free design for simplified interaction
+   - Session dropdown for session-specific sharing
+   - Integration with existing ShareTokenService
+   - Custom form models for create/edit operations
+
 ### Shared Workout Views
 
 1. Controller Architecture:

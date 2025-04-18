@@ -17,6 +17,10 @@ Production Site running on wot.ninjatec.co.uk
   - Cookie-based token persistence for better navigation
   - IP-based security and rate limiting
   - Permission-based feature access control
+  - User interface for creating and managing share tokens
+  - Token usage statistics with remaining uses display
+  - Visual indicators for token status and expiration
+  - Bulk token management with filtering options
 
 - **User Authentication**: Secure login and registration using ASP.NET Core Identity with email confirmation
 - **Admin Dashboard**: Comprehensive admin dashboard with system metrics, user statistics, and quick actions

@@ -7,6 +7,8 @@ using WorkoutTrackerweb.Data;
 using WorkoutTrackerWeb.Models;
 using System.Security.Claims;
 using Microsoft.Extensions.Caching.Memory;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace WorkoutTrackerWeb.Services
 {
@@ -126,6 +128,20 @@ namespace WorkoutTrackerWeb.Services
             }
             
             return user?.UserId;
+        }
+
+        // Get a specific user's sessions (limited to a certain count)
+        public async Task<List<Session>> GetUserSessionsAsync(int userId, int limit = 20)
+        {
+            // Get the most recent sessions for this user
+            var sessions = await _context.Session
+                .Where(s => s.UserId == userId)
+                .OrderByDescending(s => s.datetime)
+                .Take(limit)
+                .AsNoTracking()
+                .ToListAsync();
+                
+            return sessions;
         }
     }
 }
