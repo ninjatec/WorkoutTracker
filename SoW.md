@@ -20,7 +20,7 @@
  - [ ] Create shared workout link system
    - [x] Design and implement ShareToken model with expiry and access controls
    - [x] Create API endpoints for generating and managing share tokens
-   - [ ] Implement secure token validation mechanism
+   - [x] Implement secure token validation mechanism
  - [ ] Develop read-only views for shared workout data
    - [ ] Create dedicated controllers and views for shared workout history
    - [ ] Implement read-only reports page for shared access

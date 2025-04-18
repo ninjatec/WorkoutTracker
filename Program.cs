@@ -308,6 +308,10 @@ builder.Services.AddScoped<LoginHistoryService>();
 // Register ShareTokenService for workout sharing
 builder.Services.AddScoped<IShareTokenService, ShareTokenService>();
 
+// Register token validation services
+builder.Services.AddSingleton<ITokenRateLimiter, TokenRateLimiter>();
+builder.Services.AddScoped<ITokenValidationService, TokenValidationService>();
+
 // Register VersionService for version management
 builder.Services.AddScoped<IVersionService, VersionService>();
 

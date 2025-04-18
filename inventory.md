@@ -260,6 +260,7 @@ The application uses Entity Framework Core Code-First approach with SQL Server. 
    - GET /api/ShareToken/{id} - Get specific token (authenticated)
    - POST /api/ShareToken - Create new token (authenticated)
    - POST /api/ShareToken/validate - Validate token (anonymous)
+   - GET /api/ShareToken/validate/{permission} - Validate token permission (anonymous)
    - PUT /api/ShareToken/{id} - Update token (authenticated)
    - DELETE /api/ShareToken/{id} - Delete token (authenticated)
    - POST /api/ShareToken/{id}/revoke - Revoke token (authenticated)
@@ -271,14 +272,27 @@ The application uses Entity Framework Core Code-First approach with SQL Server. 
    - Row-level security with user filtering
    - Validated request models with data annotations
    - Comprehensive error handling and logging
+   - Rate limiting with token bucket algorithm for brute force protection
+   - Distributed caching for token validation to reduce database load
+   - IP address tracking and filtering for security audit
+   - Custom `ShareTokenAuthorize` attribute for controller/action protection
 
-4. Service capabilities:
+4. Validation infrastructure:
+   - `TokenRateLimiter`: Implements token bucket algorithm for rate limiting
+   - `TokenValidationService`: Centralized validation with caching and security
+   - `ShareTokenAuthorizeAttribute`: Authorization filter for controllers
+   - `ShareTokenExtensions`: Helper extension methods for HttpContext
+   - Multiple token acquisition methods (query, header, cookie)
+   - Granular permission validation for different access types
+   
+5. Service capabilities:
    - Token generation with configurable expiry
    - Session-specific or account-wide sharing
    - Granular feature access controls
    - Access count tracking and limiting
    - Token revocation (soft deletion)
    - User-specific token management
+   - Cache invalidation for token updates, deletions, and revocations
 
 ### Strength Calculation
 1. One Rep Max Calculator uses seven scientific formulas to estimate maximum strength:

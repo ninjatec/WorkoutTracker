@@ -17,15 +17,18 @@ namespace WorkoutTrackerWeb.Controllers
     public class ShareTokenController : ControllerBase
     {
         private readonly IShareTokenService _shareTokenService;
+        private readonly ITokenValidationService _tokenValidationService;
         private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger<ShareTokenController> _logger;
 
         public ShareTokenController(
             IShareTokenService shareTokenService,
+            ITokenValidationService tokenValidationService,
             WorkoutTrackerWebContext context,
             ILogger<ShareTokenController> logger)
         {
             _shareTokenService = shareTokenService;
+            _tokenValidationService = tokenValidationService;
             _context = context;
             _logger = logger;
         }
@@ -93,13 +96,60 @@ namespace WorkoutTrackerWeb.Controllers
                     return BadRequest("Token is required");
                 }
 
-                var result = await _shareTokenService.ValidateTokenAsync(request.Token);
-                return Ok(result);
+                // Get client IP for rate limiting purposes
+                string ipAddress = GetClientIpAddress();
+                
+                // Use the enhanced validation service
+                var (isValid, validationResult) = await _tokenValidationService.ValidateTokenAsync(request.Token, ipAddress);
+                
+                if (!isValid)
+                {
+                    // For security reasons, we still return a 200 response with detailed information
+                    // This avoids leaking information through status codes (which is better for brute force attacks)
+                    return Ok(validationResult);
+                }
+
+                // Log successful validations for security audit
+                _logger.LogInformation(
+                    "Token validation successful: TokenID={TokenId}, IP={IpAddress}, UserID={UserId}, SessionId={SessionId}",
+                    validationResult.ShareToken.Id,
+                    ipAddress,
+                    validationResult.ShareToken.UserId,
+                    validationResult.ShareToken.SessionId);
+                
+                return Ok(validationResult);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error validating share token");
                 return StatusCode(500, "An error occurred while validating the share token");
+            }
+        }
+
+        // GET: api/ShareToken/validate/{permission}
+        [HttpGet("validate/{permission}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<bool>> ValidatePermission(string permission, [FromQuery] string token)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(token))
+                {
+                    return BadRequest("Token is required");
+                }
+
+                if (string.IsNullOrEmpty(permission))
+                {
+                    return BadRequest("Permission is required");
+                }
+
+                bool hasPermission = await _tokenValidationService.ValidateTokenPermissionAsync(token, permission, HttpContext);
+                return Ok(hasPermission);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating token permission");
+                return StatusCode(500, "An error occurred while validating the token permission");
             }
         }
 
@@ -150,6 +200,9 @@ namespace WorkoutTrackerWeb.Controllers
                     return NotFound();
                 }
 
+                // Clear the cache for this token since it was modified
+                await _tokenValidationService.ClearCacheForTokenAsync(token.Token);
+                
                 return Ok(token);
             }
             catch (Exception ex)
@@ -172,12 +225,22 @@ namespace WorkoutTrackerWeb.Controllers
                     return Unauthorized();
                 }
 
+                // Get the token first to clear the cache
+                var token = await _shareTokenService.GetShareTokenByIdAsync(id, userId.Value);
+                if (token == null)
+                {
+                    return NotFound();
+                }
+
                 var result = await _shareTokenService.DeleteShareTokenAsync(id, userId.Value);
                 if (!result)
                 {
                     return NotFound();
                 }
 
+                // Clear the cache for this token
+                await _tokenValidationService.ClearCacheForTokenAsync(token.Token);
+                
                 return NoContent();
             }
             catch (Exception ex)
@@ -200,12 +263,22 @@ namespace WorkoutTrackerWeb.Controllers
                     return Unauthorized();
                 }
 
+                // Get the token first to clear the cache
+                var token = await _shareTokenService.GetShareTokenByIdAsync(id, userId.Value);
+                if (token == null)
+                {
+                    return NotFound();
+                }
+
                 var result = await _shareTokenService.RevokeShareTokenAsync(id, userId.Value);
                 if (!result)
                 {
                     return NotFound();
                 }
 
+                // Clear the cache for this token
+                await _tokenValidationService.ClearCacheForTokenAsync(token.Token);
+                
                 return Ok(new { message = "Share token revoked successfully" });
             }
             catch (Exception ex)
@@ -226,6 +299,24 @@ namespace WorkoutTrackerWeb.Controllers
 
             var user = await _context.User.FirstOrDefaultAsync(u => u.IdentityUserId == identityUserId);
             return user?.UserId;
+        }
+        
+        // Helper method to get the client IP address
+        private string GetClientIpAddress()
+        {
+            // First try to get from X-Forwarded-For header
+            var forwardedFor = HttpContext.Request.Headers["X-Forwarded-For"].ToString();
+            if (!string.IsNullOrEmpty(forwardedFor))
+            {
+                var ips = forwardedFor.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                if (ips.Length > 0)
+                {
+                    return ips[0].Trim();
+                }
+            }
+            
+            // Fallback to connection remote IP
+            return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         }
     }
 }
