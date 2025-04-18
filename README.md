@@ -109,7 +109,8 @@ The application uses the following entity relationships:
 - **Session**: Represents a workout session
   - Belongs to a User
   - Has many Sets
-  - Includes date, time and name
+  - Includes date, time, name, and notes
+  - Properties: SessionId, Name, datetime, UserId, Notes (for workout session comments)
   
 - **Set**: Represents a set of exercises within a session
   - Belongs to a Session

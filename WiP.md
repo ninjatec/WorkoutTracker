@@ -68,11 +68,6 @@
 
 ## Next Steps
 
-### 1. 1RM Calculator for Shared Access
-- Implement read-only 1RM calculator view
-- Add permission checking for calculator access
-- Create exercise selection for shared calculator
-
 ### 2. User Management UI
 - Create UI for users to manage shared access tokens
 - Implement token creation, revocation, and monitoring interfaces

@@ -195,6 +195,8 @@ The application uses Entity Framework Core Code-First approach with SQL Server. 
 - Help center implementation (20250413113858_AddHelpPagesModels)
 - Login history tracking implementation (20250413_AddUserLoginHistory)
 - Version management implementation (20250414094500_AddVersionManagement)
+- Share token model implementation (20250418154639_AddShareTokenModel)
+- Session Notes column addition (20250418175454_AddNotesToSession)
 
 ## Features and Workflows
 
