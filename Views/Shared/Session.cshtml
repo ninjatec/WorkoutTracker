@@ -17,10 +17,10 @@
             <h5 class="mb-0">
                 @Model.datetime.ToString("MMMM d, yyyy") at @Model.datetime.ToString("h:mm tt")
             </h5>
-            @if (Model.TotalWorkoutTime.HasValue)
+            @if (Model.TotalWorkoutTime != TimeSpan.Zero)
             {
                 <span class="badge bg-light text-dark">
-                    Duration: @Model.TotalWorkoutTime.Value.ToString(@"hh\:mm\:ss")
+                    Duration: @Model.TotalWorkoutTime.ToString(@"hh\:mm\:ss")
                 </span>
             }
         </div>

@@ -57,9 +57,9 @@
                                                 <small class="text-muted">@session.datetime.ToString("h:mm tt")</small>
                                             </td>
                                             <td>
-                                                @if (session.TotalWorkoutTime.HasValue)
+                                                @if (session.TotalWorkoutTime != TimeSpan.Zero)
                                                 {
-                                                    @session.TotalWorkoutTime.Value.ToString(@"hh\:mm\:ss")
+                                                    @session.TotalWorkoutTime.ToString(@"hh\:mm\:ss")
                                                 }
                                                 else
                                                 {
@@ -67,9 +67,9 @@
                                                 }
                                             </td>
                                             <td class="text-center">
-                                                @if (ViewBag.SessionStats != null && ViewBag.SessionStats.ContainsKey(session.Id))
+                                                @if (ViewBag.SessionStats != null && ViewBag.SessionStats.ContainsKey(session.SessionId))
                                                 {
-                                                    <span>@ViewBag.SessionStats[session.Id].ExerciseCount</span>
+                                                    <span>@ViewBag.SessionStats[session.SessionId].ExerciseCount</span>
                                                 }
                                                 else
                                                 {
@@ -77,9 +77,9 @@
                                                 }
                                             </td>
                                             <td class="text-center">
-                                                @if (ViewBag.SessionStats != null && ViewBag.SessionStats.ContainsKey(session.Id))
+                                                @if (ViewBag.SessionStats != null && ViewBag.SessionStats.ContainsKey(session.SessionId))
                                                 {
-                                                    <span>@ViewBag.SessionStats[session.Id].SetCount</span>
+                                                    <span>@ViewBag.SessionStats[session.SessionId].SetCount</span>
                                                 }
                                                 else
                                                 {
@@ -87,9 +87,9 @@
                                                 }
                                             </td>
                                             <td class="text-center">
-                                                @if (ViewBag.SessionStats != null && ViewBag.SessionStats.ContainsKey(session.Id))
+                                                @if (ViewBag.SessionStats != null && ViewBag.SessionStats.ContainsKey(session.SessionId))
                                                 {
-                                                    <span>@ViewBag.SessionStats[session.Id].TotalVolume.ToString("N0") kg</span>
+                                                    <span>@ViewBag.SessionStats[session.SessionId].TotalVolume.ToString("N0") kg</span>
                                                 }
                                                 else
                                                 {
@@ -107,7 +107,7 @@
                                                 }
                                             </td>
                                             <td>
-                                                <a asp-action="Session" asp-route-id="@session.Id" class="btn btn-sm btn-outline-primary">
+                                                <a asp-action="Session" asp-route-id="@session.SessionId" class="btn btn-sm btn-outline-primary">
                                                     <i class="bi bi-eye"></i> View
                                                 </a>
                                             </td>

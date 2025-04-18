@@ -1,4 +1,4 @@
-@model ShareTokenValidationResponse
+@model WorkoutTrackerWeb.Dtos.ShareTokenValidationResponse
 @{
     ViewData["Title"] = "Invalid Token";
     Layout = "_SharedLayout";
@@ -15,10 +15,10 @@
             <strong>Error:</strong> @Model.Message
         </div>
 
-        @if (Model.ShareToken != null && Model.ShareToken.ExpiresAt.HasValue && Model.ShareToken.ExpiresAt.Value < DateTime.UtcNow)
+        @if (Model.ShareToken != null && Model.ShareToken.ExpiresAt < DateTime.UtcNow)
         {
             <div class="text-muted">
-                <p>This token expired on @Model.ShareToken.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm:ss UTC")</p>
+                <p>This token expired on @Model.ShareToken.ExpiresAt.ToString("yyyy-MM-dd HH:mm:ss UTC")</p>
             </div>
         }
         

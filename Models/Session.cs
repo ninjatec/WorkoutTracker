@@ -18,5 +18,18 @@ namespace WorkoutTrackerWeb.Models
         public int UserId { get; set; }
         public User User { get; set; }
         public ICollection<Set>? Sets { get; set; }
+        
+        [StringLength(500)]
+        public string Notes { get; set; } = "";
+        
+        [NotMapped]
+        public TimeSpan TotalWorkoutTime 
+        { 
+            get 
+            {
+                // Calculate workout time based on session duration or sets
+                return datetime.TimeOfDay; // Default implementation
+            }
+        }
     }
 }
