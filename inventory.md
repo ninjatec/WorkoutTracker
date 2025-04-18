@@ -245,6 +245,41 @@ The application uses Entity Framework Core Code-First approach with SQL Server. 
 3. Sets are associated with ExerciseTypes and SetTypes
 4. Each Set contains Reps with tracking for success/failure
 
+### Workout Sharing API
+
+1. Share Token Management API:
+   - RESTful API endpoints for managing workout data sharing
+   - Complete CRUD operations for share tokens
+   - Token-based security model with expiration and access limits
+   - Controller: `ShareTokenController`
+   - DTOs: `ShareTokenDto`, `CreateShareTokenRequest`, `UpdateShareTokenRequest`
+   - Service: `ShareTokenService` managing token generation and validation
+
+2. Core API endpoints:
+   - GET /api/ShareToken - Get all user's tokens (authenticated)
+   - GET /api/ShareToken/{id} - Get specific token (authenticated)
+   - POST /api/ShareToken - Create new token (authenticated)
+   - POST /api/ShareToken/validate - Validate token (anonymous)
+   - PUT /api/ShareToken/{id} - Update token (authenticated)
+   - DELETE /api/ShareToken/{id} - Delete token (authenticated)
+   - POST /api/ShareToken/{id}/revoke - Revoke token (authenticated)
+
+3. Security features:
+   - Cryptographically secure random token generation
+   - Token validation with expiration checking
+   - Usage tracking with access counting
+   - Row-level security with user filtering
+   - Validated request models with data annotations
+   - Comprehensive error handling and logging
+
+4. Service capabilities:
+   - Token generation with configurable expiry
+   - Session-specific or account-wide sharing
+   - Granular feature access controls
+   - Access count tracking and limiting
+   - Token revocation (soft deletion)
+   - User-specific token management
+
 ### Strength Calculation
 1. One Rep Max Calculator uses seven scientific formulas to estimate maximum strength:
    - Brzycki: weight × (36 / (37 - reps))

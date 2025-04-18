@@ -305,6 +305,9 @@ builder.Services.AddScoped<HelpService>();
 // Register LoginHistoryService for tracking login history
 builder.Services.AddScoped<LoginHistoryService>();
 
+// Register ShareTokenService for workout sharing
+builder.Services.AddScoped<IShareTokenService, ShareTokenService>();
+
 // Register VersionService for version management
 builder.Services.AddScoped<IVersionService, VersionService>();
 
