@@ -6,6 +6,14 @@ Production Site running on wot.ninjatec.co.uk
 
 ## Features
 
+- **Workout Sharing**: Share workout data securely with others
+  - Secure token-based sharing with expiration dates
+  - Granular access controls for specific workout data
+  - Usage limits with maximum view count options
+  - Time-limited access with automatic expiration
+  - Session-specific or account-wide sharing options
+  - User control to revoke access at any time
+
 - **User Authentication**: Secure login and registration using ASP.NET Core Identity with email confirmation
 - **Admin Dashboard**: Comprehensive admin dashboard with system metrics, user statistics, and quick actions
 - **Admin User Management**: Complete CRUD operations for user accounts with:
@@ -146,6 +154,49 @@ The application uses the following entity relationships:
   - Contains the term, definition, and usage examples
   - Can be organized by category
   - Can reference related terms
+  
+- **ShareToken**: Represents a secure sharing link for workout data
+  - Associated with a specific User who created the share
+  - Can be linked to a specific Session or share all user sessions
+  - Contains expiration date for time-limited access
+  - Includes usage tracking with access count
+  - Optional maximum usage limit with automatic deactivation
+  - Granular access controls for different features (sessions, reports, calculator)
+  - Includes user-defined name and description for organization
+  - Provides active status flag for manual revocation
+
+## Workout Sharing
+
+The application provides a secure system for sharing workout data with others:
+
+- **Secure Token System**: Share workout data via unique, secure tokens
+  - Randomly generated secure tokens for each share
+  - Token validation with built-in security checks
+  - Automatic token expiration after a set date
+  - Optional usage limits with maximum view count
+
+- **Access Controls**:
+  - Share specific sessions or your entire workout history
+  - Granular permission controls for different features:
+    - Session history access
+    - Report access
+    - Calculator access
+  - Temporary access with automatic expiration
+  - Manual revocation capability at any time
+
+- **User Management**:
+  - Dashboard for viewing and managing all active shares
+  - Track usage statistics for each shared link
+  - Add descriptive names and notes to each share
+  - Filter and sort shares by expiration, usage, and access type
+  - One-click generation of new sharing links
+
+- **Security Features**:
+  - Query filtering to prevent data leakage
+  - Anti-brute force protections
+  - Rate limiting for token validation
+  - Comprehensive activity logging
+  - No authentication required for recipients (view-only access)
 
 ## Reporting & Analytics
 

@@ -135,6 +135,26 @@ WorkoutTracker is a fitness tracking application built with ASP.NET Core, using 
 - Properties: Id, Term, Definition, Example, CreatedDate, LastModifiedDate, Slug, Category
 - Relationships: Many-to-many with self (RelatedTerms)
 
+#### ShareToken
+- Secure token for sharing workout data with others
+- Properties: 
+  - Id, Token, CreatedAt, ExpiresAt, IsActive
+  - AccessCount, MaxAccessCount
+  - AllowSessionAccess, AllowReportAccess, AllowCalculatorAccess
+  - UserId, SessionId (optional)
+  - Name, Description
+- Relationships:
+  - Many-to-one with User (creator)
+  - Many-to-one with Session (optional, for session-specific sharing)
+- Features:
+  - Time-limited access via expiration date
+  - Usage tracking with access count
+  - Optional maximum usage limit (MaxAccessCount)
+  - Granular permissions for feature access
+  - Computed properties for validity checks (IsValid, DaysUntilExpiration)
+  - Session-specific or account-wide sharing
+  - User-defined name and description for organization
+
 #### LoginHistory
 - Tracks user login activity for security and auditing purposes
 - Properties: Id, IdentityUserId, LoginTime, IpAddress, UserAgent, IsSuccessful, DeviceType, Platform
@@ -367,11 +387,16 @@ Planned functionality for workout data portability:
    - TempData-based success message handling
 
 4. Workout sharing features:
-   - Shareable workout templates
-   - Link generation with configurable expiration
-   - Access control mechanisms
-   - Email-based sharing
-   - Template library for common workout routines
+   - Secure token-based sharing system with ShareToken model
+   - Customizable access permissions (session viewing, reports, calculator)
+   - Time-limited access with automatic expiration dates
+   - Usage tracking with access counts and optional maximum limits
+   - Session-specific or account-wide sharing options
+   - User management dashboard for tracking and revoking shares
+   - Descriptive naming and notes for share organization
+   - Random secure token generation
+   - Database-enforced query filtering for data security
+   - Manual revocation controls
 
 5. Third-party integration:
    - Support for common fitness app formats

@@ -32,6 +32,7 @@ namespace WorkoutTrackerweb.Data
         public DbSet<WorkoutTrackerWeb.Models.HelpCategory> HelpCategory { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.GlossaryTerm> GlossaryTerm { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.LoginHistory> LoginHistory { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.ShareToken> ShareToken { get; set; } = default!;
 
         // Helper method to get the current user's own User record
         public async Task<User> GetCurrentUserAsync()
@@ -115,6 +116,23 @@ namespace WorkoutTrackerweb.Data
                 .HasMany(t => t.RelatedTerms)
                 .WithMany()
                 .UsingEntity(j => j.ToTable("GlossaryTermRelatedTerms"));
+                
+            // Configure ShareToken relationships and query filter
+            modelBuilder.Entity<ShareToken>()
+                .HasOne(st => st.User)
+                .WithMany()
+                .HasForeignKey(st => st.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            modelBuilder.Entity<ShareToken>()
+                .HasOne(st => st.Session)
+                .WithMany()
+                .HasForeignKey(st => st.SessionId)
+                .OnDelete(DeleteBehavior.SetNull);
+                
+            // ShareTokens are filtered by the current user (only see your own tokens unless admin)
+            modelBuilder.Entity<ShareToken>()
+                .HasQueryFilter(st => _currentUserId == null || st.User.IdentityUserId == _currentUserId);
         }
     }
 }
