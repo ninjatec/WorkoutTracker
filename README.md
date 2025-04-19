@@ -17,7 +17,9 @@ Production Site running on wot.ninjatec.co.uk
   - Cookie-based token persistence for better navigation
   - IP-based security and rate limiting
   - Permission-based feature access control
-  - User interface for creating and managing share tokens
+  - **Accessible UI for token management with accordion-based interface**
+  - **Modal-free design for improved accessibility and mobile experience**
+  - **Inline editing with tabbed interface for token management**
   - Token usage statistics with remaining uses display
   - Visual indicators for token status and expiration
   - Bulk token management with filtering options

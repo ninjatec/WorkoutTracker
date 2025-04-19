@@ -308,7 +308,9 @@ The application uses Entity Framework Core Code-First approach with SQL Server. 
    - Token management actions (view, edit, revoke, delete)
    - Token usage statistics with visual indicators
    - Secure token sharing with copy-to-clipboard functionality
-   - Modal-based interactions for token management
+   - **Accordion-based expandable design** that replaces modals for improved accessibility
+   - Tabbed interface for token details and editing
+   - Inline forms for token management without modal dialogs
 
 2. Core Pages and Components:
    - `Pages/Account/Manage/ShareTokens.cshtml`: Main Razor Page for token management
@@ -338,10 +340,11 @@ The application uses Entity Framework Core Code-First approach with SQL Server. 
    - Security features:
      - Secure URL generation with scheme and host
      - User validation for token ownership
-     - Confirmation for destructive actions
+     - Confirmation for destructive actions using built-in browser dialogs instead of modals
+     - Enhanced accessibility with modal-free design
 
 4. Technology Implementation:
-   - Bootstrap modals for management actions
+   - Bootstrap accordion and tab components for management actions
    - Client-side copy-to-clipboard functionality
    - Form validation with data annotations
    - AJAX-free design for simplified interaction
