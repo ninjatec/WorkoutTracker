@@ -109,9 +109,7 @@ namespace WorkoutTrackerWeb.Services
                     AllowReportAccess = request.AllowReportAccess,
                     AllowCalculatorAccess = request.AllowCalculatorAccess,
                     UserId = userId,
-                    User = user,
                     SessionId = request.SessionId,
-                    Session = session,
                     Name = request.Name ?? $"Share {DateTime.UtcNow:yyyy-MM-dd}",
                     Description = request.Description
                 };
