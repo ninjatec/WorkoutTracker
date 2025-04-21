@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Data;
+using WorkoutTrackerweb.Data;  // Adding this namespace that contains WorkoutTrackerWebContext
 using Microsoft.Extensions.DependencyInjection;
-using WorkoutTrackerweb.Data;
 using Microsoft.AspNetCore.Http;
 using WorkoutTrackerWeb.Services;
 using WorkoutTrackerWeb.Services.Email;
