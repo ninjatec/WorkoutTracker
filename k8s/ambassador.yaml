@@ -18,15 +18,12 @@ spec:
 apiVersion: getambassador.io/v3alpha1
 kind: Host
 metadata:
-  name: www.workouttracker.online
+  name: wwwworkouttrackeronline
   namespace: emissary
 spec:
   hostname: www.workouttracker.online
   acmeProvider:
     authority: none
-  requestPolicy:
-    insecure:
-      action: Route # Allow HTTP traffic from Cloudflare instead of redirecting
   tlsSecret:
     name: ambassador-certs-wot
 ---
@@ -39,7 +36,7 @@ spec:
   alpn_protocols: h2,http/1.1
   hosts:
   - wot.ninjatec.co.uk
-  secret: ambassador-certs-wot.emissary
+  secret: ambassador-certs.emissary
   secret_namespacing: true
   min_tls_version: v1.2
 
@@ -47,13 +44,13 @@ spec:
 apiVersion: getambassador.io/v3alpha1
 kind: TLSContext
 metadata:
-  name: tls-context-wot
+  name: tls-context-workouttracker
   namespace: emissary
 spec:
   alpn_protocols: h2,http/1.1
   hosts:
-  - wot.ninjatec.co.uk
-  secret: ambassador-certs.emissary
+  - www.workouttracker.online
+  secret: ambassador-certs-wot.emissary
   secret_namespacing: true
   min_tls_version: v1.2
   
