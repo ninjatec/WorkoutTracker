@@ -69,16 +69,16 @@
                         <nav aria-label="Personal Records pagination">
                             <ul class="pagination justify-content-center">
                                 <li class="page-item @(prevDisabled ? "disabled" : "")">
-                                    <a class="page-link" asp-page="./Reports" asp-route-pageNumber="@(currentPage - 1)" asp-route-period="@reportPeriod">Previous</a>
+                                    <a class="page-link" asp-page="./Reports" asp-route-pageNumber="@(currentPage - 1)" asp-route-period="@reportPeriod" asp-route-token="@Model.ShareToken?.Token">Previous</a>
                                 </li>
                                 @for (var i = 1; i <= totalPages; i++)
                                 {
                                     <li class="page-item @(i == currentPage ? "active" : "")">
-                                        <a class="page-link" asp-page="./Reports" asp-route-pageNumber="@i" asp-route-period="@reportPeriod">@i</a>
+                                        <a class="page-link" asp-page="./Reports" asp-route-pageNumber="@i" asp-route-period="@reportPeriod" asp-route-token="@Model.ShareToken?.Token">@i</a>
                                     </li>
                                 }
                                 <li class="page-item @(nextDisabled ? "disabled" : "")">
-                                    <a class="page-link" asp-page="./Reports" asp-route-pageNumber="@(currentPage + 1)" asp-route-period="@reportPeriod">Next</a>
+                                    <a class="page-link" asp-page="./Reports" asp-route-pageNumber="@(currentPage + 1)" asp-route-period="@reportPeriod" asp-route-token="@Model.ShareToken?.Token">Next</a>
                                 </li>
                             </ul>
                         </nav>
@@ -96,12 +96,13 @@
                     <h5>Weight Progress by Exercise Type (Last @reportPeriod Days)</h5>
                     <form method="get" class="d-flex align-items-center">
                         <input type="hidden" name="pageNumber" value="@currentPage" />
+                        <input type="hidden" name="token" value="@Model.ShareToken?.Token" />
                         <label for="period" class="me-2">Period:</label>
                         <select id="period" name="period" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
-                            <option value="30">30 Days</option>
-                            <option value="60">60 Days</option>
+                            <option value="30" selected="@(reportPeriod == 30)">30 Days</option>
+                            <option value="60" selected="@(reportPeriod == 60)">60 Days</option>
                             <option value="90" selected="@(reportPeriod == 90)">90 Days</option>
-                            <option value="120">120 Days</option>
+                            <option value="120" selected="@(reportPeriod == 120)">120 Days</option>
                         </select>
                     </form>
                 </div>
