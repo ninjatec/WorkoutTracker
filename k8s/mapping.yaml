@@ -28,7 +28,7 @@ metadata:
   name: workouttrackeronline
   namespace: web
 spec:
-  hostname: workouttracker.online
+  hostname: www.workouttracker.online
   prefix: /
   service: workouttracker.web:80
   timeout_ms: 500000
