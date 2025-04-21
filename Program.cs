@@ -61,8 +61,26 @@ Log.Logger = new LoggerConfiguration()
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Add trusted domains for the application
+string[] trustedDomains = new[] {
+    "workouttracker.online", 
+    "www.workouttracker.online",
+    "wot.ninjatec.co.uk",
+    "localhost",
+    "localhost:5001",
+    "localhost:5000"
+};
+
 // Add Serilog to the application
 builder.Host.UseSerilog();
+
+// Configure cookie policy
+builder.Services.Configure<CookiePolicyOptions>(options =>
+{
+    options.CheckConsentNeeded = context => true;
+    options.MinimumSameSitePolicy = SameSiteMode.None;
+    options.Secure = CookieSecurePolicy.Always;
+});
 
 // Configure rate limiting
 builder.Services.AddMemoryCache();
@@ -391,12 +409,15 @@ builder.Services.AddSession(options =>
     options.Cookie.Name = "WorkoutTracker.Session";
 });
 
-// Add CORS policy for production domain
+// Add CORS policy for production domains
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ProductionDomainPolicy", policy =>
     {
-        policy.WithOrigins("https://wot.ninjatec.co.uk")
+        policy.WithOrigins(
+                "https://wot.ninjatec.co.uk", 
+                "https://workouttracker.online", 
+                "https://www.workouttracker.online")
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials(); // Required for SignalR
@@ -473,9 +494,22 @@ builder.Services.AddDbContext<WorkoutTrackerWebContext>(options =>
     .EnableSensitiveDataLogging(builder.Environment.IsDevelopment()) // Only in development
 );
 
-// Configure authentication events to track login history
+// Configure application cookie settings for authentication
 builder.Services.ConfigureApplicationCookie(options =>
 {
+    options.Cookie.Name = "WorkoutTracker.Auth";
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.ExpireTimeSpan = TimeSpan.FromDays(14);
+    options.SlidingExpiration = true;
+    
+    // Set domain for production environment
+    if (!builder.Environment.IsDevelopment())
+    {
+        options.Cookie.Domain = "workouttracker.online";
+    }
+    
     options.Events.OnSignedIn = async context =>
     {
         var userManager = context.HttpContext.RequestServices
@@ -489,26 +523,6 @@ builder.Services.ConfigureApplicationCookie(options =>
             await loginHistoryService.RecordSuccessfulLoginAsync(user.Id);
         }
     };
-    
-    // Configure cookie settings
-    options.Cookie.HttpOnly = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-    options.ExpireTimeSpan = TimeSpan.FromHours(2);
-    options.SlidingExpiration = true;
-    
-    // Set cookie domain for production - only when not in development
-    if (!builder.Environment.IsDevelopment())
-    {
-        // Read host from configuration or set default
-        var host = builder.Configuration["AllowedHosts"]?.Split(';').FirstOrDefault() ?? "wot.ninjatec.co.uk";
-        
-        // Only set domain if it's not localhost
-        if (!host.Contains("localhost") && !host.Contains("127.0.0.1"))
-        {
-            // Don't set explicit domain - ASP.NET Core will handle this automatically based on the request
-            // options.Cookie.Domain = host; // This could be too restrictive
-        }
-    }
 });
 
 var app = builder.Build();
@@ -553,7 +567,7 @@ else
 {
     app.UseExceptionHandler("/Errors/Error");
     app.UseStatusCodePagesWithReExecute("/Errors/Error", "?statusCode={0}");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    // Configure HSTS for production
     app.UseHsts();
 }
 
@@ -567,10 +581,12 @@ app.Use(async (context, next) =>
         "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; " + 
         "img-src 'self' data:; " + 
         "font-src 'self' https://cdn.jsdelivr.net; " +
-        "connect-src 'self' https://wot.ninjatec.co.uk wss://wot.ninjatec.co.uk ws://wot.ninjatec.co.uk wss://* ws://*; " +
+        "connect-src 'self' https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online " +
+                         "wss://wot.ninjatec.co.uk wss://workouttracker.online wss://www.workouttracker.online " +
+                         "ws://wot.ninjatec.co.uk ws://workouttracker.online ws://www.workouttracker.online wss://* ws://*; " +
         "frame-src 'self'; " +
-        "frame-ancestors 'self' https://wot.ninjatec.co.uk; " + 
-        "form-action 'self' https://wot.ninjatec.co.uk; " +
+        "frame-ancestors 'self' https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online; " + 
+        "form-action 'self' https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online; " +
         "base-uri 'self'; " +
         "object-src 'none'";
     
