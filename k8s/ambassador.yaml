@@ -24,6 +24,9 @@ spec:
   hostname: www.workouttracker.online
   acmeProvider:
     authority: none
+  requestPolicy:
+    insecure:
+      action: Route # Allow HTTP traffic from Cloudflare instead of redirecting
   tlsSecret:
     name: ambassador-certs-wot
 ---
