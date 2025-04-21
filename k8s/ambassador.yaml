@@ -21,7 +21,23 @@ metadata:
   name: www.workouttracker.online
   namespace: emissary
 spec:
-  hostname: wot.ninjatec.co.uk
+  hostname: www.workouttracker.online
+  acmeProvider:
+    authority: none
+  requestPolicy:
+    insecure:
+      action: Route # Allow HTTP traffic from Cloudflare instead of redirecting
+  tlsSecret:
+    name: ambassador-certs
+
+---
+apiVersion: getambassador.io/v3alpha1
+kind: Host
+metadata:
+  name: workouttrackeronline
+  namespace: emissary
+spec:
+  hostname: workouttracker.online
   acmeProvider:
     authority: none
   requestPolicy:
@@ -42,6 +58,7 @@ spec:
   hosts:
   - wot.ninjatec.co.uk
   - www.workouttracker.online
+  - workouttracker.online
   secret: ambassador-certs.emissary
   secret_namespacing: true
   min_tls_version: v1.2
