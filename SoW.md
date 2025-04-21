@@ -1,13 +1,86 @@
 # Statement of Works
 
-[ ] Update sessions ages to suport sequencenumn
+[ ] Update sessions pages to support sequence numbers
+ - [ ] Add migration to formally add SequenceNum column to Set table with default value
+   - [ ] Create new migration for adding SequenceNum column to the Set table
+   - [ ] Set default value to 0 for existing records
+   - [ ] Add appropriate index for performance optimization
+   - [ ] Update database schema documentation
 
-[ ] Clean Up
- - [ ] Ensure only bootstrap 5 is used for the entire project
- - [ ] Identity any unused pages and create a statement of works section to remove them
- - [ ] Identity any unused code and create a statement of works section to remove them
- - [ ] Run a build and write a sectin to the statement of works based on the results.
- - [ ] Identify areas where MVC is used and create a statemnt of works section to migrate these to razorpages
+ - [ ] Enhance Session UI to support exercise ordering
+   - [ ] Update Sets/Create.cshtml to include sequence number input
+   - [ ] Update Sets/Edit.cshtml to allow changing sequence number
+   - [ ] Add drag-and-drop reordering capability to Sessions/Details.cshtml
+   - [ ] Add "move up/down" buttons for accessibility
+   - [ ] Add batch reordering functionality
+
+ - [ ] Update sorting logic in controllers and views
+   - [ ] Modify Sessions/Details.cshtml.cs to use SequenceNum in sorting
+   - [ ] Update Set controller logic to maintain sequence numbers when adding/deleting sets
+   - [ ] Ensure proper sequence when duplicating sets
+   - [ ] Add auto-increment logic for new sets in a session
+
+ - [ ] Implement sequence number management
+   - [ ] Create service to handle reordering and renumbering sets
+   - [ ] Add API endpoints for AJAX reordering
+   - [ ] Implement optimistic concurrency for sequence updates
+   - [ ] Cache sequence data for better performance
+
+ - [ ] Enhance reporting to respect sequence order
+   - [ ] Update Reports and Calculator pages to display sets in sequence order
+   - [ ] Ensure Shared workout views display exercises in correct sequence
+   - [ ] Add sequence number column to workout exports
+
+[ ] Migrate to Bootstrap 5
+   - [ ] Update DataTables integration from Bootstrap 4 to Bootstrap 5 in Views/Shared/_SharedLayout.cshtml
+   - [ ] Ensure all Bootstrap CSS and JS references are using version 5
+   - [ ] Update any Bootstrap 4 specific classes in custom CSS to Bootstrap 5 equivalents
+   - [ ] Verify all modal dialogs use Bootstrap 5 syntax
+   - [ ] Check form components for Bootstrap 5 compatibility
+ - [] remove unused pages
+   - [ ] Remove /Pages/TestEmail.cshtml and its code-behind file
+   - [ ] Remove /Pages/Users/ directory and all its contents as these are redundant with the Admin area
+   - [ ] Remove /Pages/BackgroundJobs/Index.cshtml as it duplicates functionality in Controllers
+   - [ ] Update any references to the removed pages
+   - [ ] Verify all navigation links after removing the unused pages
+
+
+ - [ ] clean up unused code
+   - [ ] Remove unused methods in BackgroundJobService:
+     - [ ] ProcessImportAsync (used only for testing)
+     - [ ] ProcessReportAsync (placeholder method)
+     - [ ] ValidateHangfireConfiguration (unused)
+   - [ ] Clean up unused CSS classes in site.css and shared.css
+   - [ ] Remove unused JavaScript functions in site.js
+   - [ ] Remove unnecessary commented code across the solution
+   - [ ] Clean up migrations with redundant or conflicting changes
+ 
+ 
+ [ ] Improve code quality
+   - [ ] Enable nullable reference types throughout the project
+   - [ ] Add XML documentation comments to public APIs
+   - [ ] Fix code style issues using .editorconfig rules
+   - [ ] Update to latest package versions for all NuGet dependencies
+   - [ ] Consider enabling compiler warnings as errors for better code quality
+ 
+ [ ] Migrate MVC to razorpages
+   - [ ] Migrate BackgroundJobsController to Razor Pages:
+     - [ ] Create Razor Pages for JobHistory, ServerStatus, and other BackgroundJobs views
+     - [ ] Update navigation references to point to new Razor Pages
+     - [ ] Remove MVC controller and views after migration
+   - [ ] Migrate HangfireDiagnosticsController to Razor Pages:
+     - [ ] Create equivalent Razor Pages for diagnostics and test jobs
+     - [ ] Ensure all functionality is preserved in the migration
+     - [ ] Update references and navigation links
+   - [ ] Migrate JobStatusController to Razor Pages API:
+     - [ ] Convert REST API endpoints to Razor Pages handlers with JSON responses
+     - [ ] Update client-side code to use new endpoints
+   - [ ] Migrate ShareTokenController to Razor Pages:
+     - [ ] Create Razor Pages API endpoints using handlers
+     - [ ] Ensure authentication and authorization are preserved
+   - [ ] Update shared layouts to remove redundant MVC-specific layouts:
+     - [ ] Consolidate _Layout.cshtml and _SharedLayout.cshtml
+     - [ ] Ensure consistent styling and navigation
 
 [x] Add distributed cache using a redis pod as part of the k8s deployment
  - [x] Configure the application to use Redis for distributed caching.
