@@ -28,7 +28,20 @@ spec:
     insecure:
       action: Route # Allow HTTP traffic from Cloudflare instead of redirecting
   tlsSecret:
-    name: ambassador-certs
+    name: ambassador-certs-wot
+---
+apiVersion: getambassador.io/v3alpha1
+kind: TLSContext
+metadata:
+  name: tls-context-wot
+  namespace: emissary
+spec:
+  alpn_protocols: h2,http/1.1
+  hosts:
+  - wot.ninjatec.co.uk
+  secret: ambassador-certs-wot.emissary
+  secret_namespacing: true
+  min_tls_version: v1.2
 
 ---
 apiVersion: getambassador.io/v3alpha1
@@ -40,7 +53,6 @@ spec:
   alpn_protocols: h2,http/1.1
   hosts:
   - wot.ninjatec.co.uk
-  - www.workouttracker.online
   secret: ambassador-certs.emissary
   secret_namespacing: true
   min_tls_version: v1.2
