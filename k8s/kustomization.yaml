@@ -7,4 +7,5 @@ resources:
   - regcred.yaml
   - secrets.yaml
   - ambassador.yaml
+  - mapping.yaml
 
