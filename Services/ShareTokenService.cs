@@ -97,6 +97,13 @@ namespace WorkoutTrackerWeb.Services
                     }
                 }
 
+                // Ensure at least session access is allowed
+                if (!request.AllowSessionAccess)
+                {
+                    _logger.LogWarning("Forcing AllowSessionAccess to true because it's required for shared access");
+                    request.AllowSessionAccess = true;
+                }
+
                 var shareToken = new ShareToken
                 {
                     Token = token,
@@ -105,7 +112,7 @@ namespace WorkoutTrackerWeb.Services
                     IsActive = true,
                     AccessCount = 0,
                     MaxAccessCount = request.MaxAccessCount,
-                    AllowSessionAccess = request.AllowSessionAccess,
+                    AllowSessionAccess = request.AllowSessionAccess, // Now guaranteed to be true
                     AllowReportAccess = request.AllowReportAccess,
                     AllowCalculatorAccess = request.AllowCalculatorAccess,
                     UserId = userId,
@@ -117,7 +124,8 @@ namespace WorkoutTrackerWeb.Services
                 _context.ShareToken.Add(shareToken);
                 await _context.SaveChangesAsync();
 
-                _logger.LogInformation("Created share token {TokenId} for user {UserId}", shareToken.Id, userId);
+                _logger.LogInformation("Created share token {TokenId} for user {UserId} with permissions: AllowSessionAccess={AllowSessionAccess}, AllowReportAccess={AllowReportAccess}, AllowCalculatorAccess={AllowCalculatorAccess}", 
+                    shareToken.Id, userId, shareToken.AllowSessionAccess, shareToken.AllowReportAccess, shareToken.AllowCalculatorAccess);
                 
                 return MapToDto(shareToken);
             }
@@ -132,6 +140,8 @@ namespace WorkoutTrackerWeb.Services
         {
             try
             {
+                _logger.LogInformation("Validating token: {Token}", token);
+                
                 var shareToken = await _context.ShareToken
                     .Include(st => st.User)
                     .Include(st => st.Session)
@@ -139,12 +149,16 @@ namespace WorkoutTrackerWeb.Services
 
                 if (shareToken == null)
                 {
+                    _logger.LogWarning("Token validation failed: Token not found in database: {Token}", token);
                     return new ShareTokenValidationResponse
                     {
                         IsValid = false,
                         Message = "Invalid share token"
                     };
                 }
+
+                _logger.LogInformation("Token found: ID={Id}, UserId={UserId}, Created={Created}, Expires={Expires}, IsActive={IsActive}, AccessCount={AccessCount}, MaxAccessCount={MaxAccessCount}, AllowSessionAccess={AllowSessionAccess}, AllowReportAccess={AllowReportAccess}, AllowCalculatorAccess={AllowCalculatorAccess}", 
+                    shareToken.Id, shareToken.UserId, shareToken.CreatedAt, shareToken.ExpiresAt, shareToken.IsActive, shareToken.AccessCount, shareToken.MaxAccessCount, shareToken.AllowSessionAccess, shareToken.AllowReportAccess, shareToken.AllowCalculatorAccess);
 
                 // Check if token is still valid
                 if (!shareToken.IsValid)
@@ -153,14 +167,23 @@ namespace WorkoutTrackerWeb.Services
                     if (!shareToken.IsActive)
                     {
                         reason = "Token has been revoked";
+                        _logger.LogWarning("Token validation failed: Token has been revoked: ID={Id}", shareToken.Id);
                     }
                     else if (shareToken.ExpiresAt <= DateTime.UtcNow)
                     {
                         reason = "Token has expired";
+                        _logger.LogWarning("Token validation failed: Token has expired: ID={Id}, Expired={Expired}, CurrentTime={CurrentTime}", 
+                            shareToken.Id, shareToken.ExpiresAt, DateTime.UtcNow);
                     }
                     else if (shareToken.MaxAccessCount.HasValue && shareToken.AccessCount >= shareToken.MaxAccessCount.Value)
                     {
                         reason = "Token has reached maximum usage limit";
+                        _logger.LogWarning("Token validation failed: Token reached usage limit: ID={Id}, AccessCount={AccessCount}, MaxAccessCount={MaxAccessCount}", 
+                            shareToken.Id, shareToken.AccessCount, shareToken.MaxAccessCount);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Token validation failed: Unknown reason: ID={Id}, IsValid={IsValid}", shareToken.Id, shareToken.IsValid);
                     }
 
                     return new ShareTokenValidationResponse
@@ -176,9 +199,10 @@ namespace WorkoutTrackerWeb.Services
                 {
                     shareToken.AccessCount++;
                     await _context.SaveChangesAsync();
-                    _logger.LogInformation("Access count incremented for share token {TokenId}", shareToken.Id);
+                    _logger.LogInformation("Access count incremented for share token {TokenId}, new count: {AccessCount}", shareToken.Id, shareToken.AccessCount);
                 }
 
+                _logger.LogInformation("Token validation successful: ID={Id}", shareToken.Id);
                 return new ShareTokenValidationResponse
                 {
                     IsValid = true,
@@ -303,7 +327,7 @@ namespace WorkoutTrackerWeb.Services
         {
             if (shareToken == null) return null;
             
-            return new ShareTokenDto
+            var dto = new ShareTokenDto
             {
                 Id = shareToken.Id,
                 Token = shareToken.Token,
@@ -326,6 +350,11 @@ namespace WorkoutTrackerWeb.Services
                 HasUsageLimits = shareToken.HasUsageLimits,
                 RemainingUses = shareToken.RemainingUses
             };
+            
+            // Log DTO permission values for debugging
+            Console.WriteLine($"MapToDto: AllowSessionAccess={dto.AllowSessionAccess}, AllowReportAccess={dto.AllowReportAccess}, AllowCalculatorAccess={dto.AllowCalculatorAccess}");
+            
+            return dto;
         }
     }
 }

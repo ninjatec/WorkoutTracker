@@ -19,6 +19,9 @@ namespace WorkoutTrackerWeb.Models
         public int NumberReps { get; set; } = 0;  // Number of reps in the set
         public int SessionId { get; set; }  // Adding direct reference to Session
         
+        // Adding sequence number for ordering sets
+        public int SequenceNum { get; set; } = 0;
+        
         // Adding weight field as per SoW requirements
         [Column(TypeName = "decimal(5,2)")]
         [Display(Name = "Weight (kg)")]

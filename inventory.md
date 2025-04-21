@@ -17,6 +17,10 @@ WorkoutTracker is a fitness tracking application built with ASP.NET Core, using 
 | `/Pages/Feedback` | Feedback submission and management system |
 | `/Pages/Help` | Help center with documentation, FAQs, glossary, and tutorials |
 | `/Pages/Version` | Version history display and management |
+| `/Pages/Account` | User account management including token sharing |
+| `/Pages/Shared` | Workout sharing view components |
+| `/Pages/Sessions` | Workout session management |
+| `/Pages/DataPortability` | Data import/export functionality |
 | `/Services` | Application services and business logic |
 | `/Services/VersionManagement` | Version tracking and management services |
 | `/Hubs` | SignalR hubs for real-time communication |
@@ -29,7 +33,25 @@ WorkoutTracker is a fitness tracking application built with ASP.NET Core, using 
 | `/scripts` | Build and deployment automation scripts |
 | `/Attributes` | Custom attributes including ShareTokenAuthorizeAttribute |
 | `/Extensions` | Extension methods including ShareTokenExtensions |
-| `/Views/Shared` | Shared views, including those for workout sharing |
+| `/Controllers` | API controllers for backward compatibility and specific REST endpoints |
+
+### Architecture Migration
+
+The application has been migrated from MVC to Razor Pages architecture with the following key changes:
+
+1. **Page-based Structure**: Replaced controller actions with page models for better encapsulation
+2. **Handler Methods**: Implemented OnGet, OnPost, OnPostAsync patterns instead of controller actions
+3. **Folder Organization**: Organized pages by feature area rather than controller/action patterns
+4. **API Controllers**: Maintained some API controllers for REST endpoints and backward compatibility
+5. **View Components**: Leveraged ViewComponents for reusable UI elements across pages
+
+### API Surface
+
+While the primary UI is built with Razor Pages, the application maintains targeted API controllers for:
+
+1. **Data Sharing**: REST endpoints for secure token-based data sharing
+2. **Background Jobs**: APIs for job status monitoring and control
+3. **Real-time Updates**: Endpoints supporting SignalR communication
 
 ### Configuration Files
 
@@ -174,30 +196,6 @@ WorkoutTracker is a fitness tracking application built with ASP.NET Core, using 
   - Docker image tagging
   - Kubernetes deployment management
 
-## Database Schema
-
-The application uses Entity Framework Core Code-First approach with SQL Server. Key migrations:
-
-- Initial database creation (20250331083704_InitialCreate)
-- Model tweaks and refinements (20250401122851_MdodelTweak)
-- Session changes (20250402095313_SessionChanges, 20250402110115_SessionChanges2)
-- Model changes (20250402112618_ModeChanges)
-- Set-Exercise relationship changes (20250408121738_SetExerciseRelationship)
-- Set type column fix (20250408134840_FixSetTypeColumn)
-- Set reps tracking (20250408171116_AddNumberRepsToSet)
-- Relationship updates (20250409060240_UpdateRepSetRelationship)
-- Identity integration (20250409094804_AddIdentityUserIdToUser)
-- Cascade delete configuration (20250409174517_UpdateSetRepCascadeDelete)
-- Exercise refactoring to ExerciseType (20250410121945_RefactorExerciseToExerciseType, 20250410144522_CompleteExerciseTypeRefactor)
-- Data Protection Keys (20250412090900_AddDataProtectionKeys)
-- Feedback system implementation (20250413093357_AddFeedbackModel)
-- Enhanced Feedback management (20250414174517_AddFeedbackEnhancedManagement)
-- Help center implementation (20250413113858_AddHelpPagesModels)
-- Login history tracking implementation (20250413_AddUserLoginHistory)
-- Version management implementation (20250414094500_AddVersionManagement)
-- Share token model implementation (20250418154639_AddShareTokenModel)
-- Session Notes column addition (20250418175454_AddNotesToSession)
-
 ## Features and Workflows
 
 ### Authentication
@@ -250,138 +248,34 @@ The application uses Entity Framework Core Code-First approach with SQL Server. 
 3. Sets are associated with ExerciseTypes and SetTypes
 4. Each Set contains Reps with tracking for success/failure
 
-### Workout Sharing API
-
-1. Share Token Management API:
-   - RESTful API endpoints for managing workout data sharing
-   - Complete CRUD operations for share tokens
-   - Token-based security model with expiration and access limits
-   - Controller: `ShareTokenController`
-   - DTOs: `ShareTokenDto`, `CreateShareTokenRequest`, `UpdateShareTokenRequest`
-   - Service: `ShareTokenService` managing token generation and validation
-
-2. Core API endpoints:
-   - GET /api/ShareToken - Get all user's tokens (authenticated)
-   - GET /api/ShareToken/{id} - Get specific token (authenticated)
-   - POST /api/ShareToken - Create new token (authenticated)
-   - POST /api/ShareToken/validate - Validate token (anonymous)
-   - GET /api/ShareToken/validate/{permission} - Validate token permission (anonymous)
-   - PUT /api/ShareToken/{id} - Update token (authenticated)
-   - DELETE /api/ShareToken/{id} - Delete token (authenticated)
-   - POST /api/ShareToken/{id}/revoke - Revoke token (authenticated)
-
-3. Security features:
-   - Cryptographically secure random token generation
-   - Token validation with expiration checking
-   - Usage tracking with access counting
-   - Row-level security with user filtering
-   - Validated request models with data annotations
-   - Comprehensive error handling and logging
-   - Rate limiting with token bucket algorithm for brute force protection
-   - Distributed caching for token validation to reduce database load
-   - IP address tracking and filtering for security audit
-   - Custom `ShareTokenAuthorize` attribute for controller/action protection
-
-4. Validation infrastructure:
-   - `TokenRateLimiter`: Implements token bucket algorithm for rate limiting
-   - `TokenValidationService`: Centralized validation with caching and security
-   - `ShareTokenAuthorizeAttribute`: Authorization filter for controllers
-   - `ShareTokenExtensions`: Helper extension methods for HttpContext
-   - Multiple token acquisition methods (query, header, cookie)
-   - Granular permission validation for different access types
-   
-5. Service capabilities:
-   - Token generation with configurable expiry
-   - Session-specific or account-wide sharing
-   - Granular feature access controls
-   - Access count tracking and limiting
-   - Token revocation (soft deletion)
-   - User-specific token management
-   - Cache invalidation for token updates, deletions, and revocations
-
-### Share Token Management UI
-
-1. User Interface Components:
-   - Account management section with ShareTokens page
-   - List of user's active share tokens with status indicators
-   - Create token form with permission controls and expiration settings
-   - Token management actions (view, edit, revoke, delete)
-   - Token usage statistics with visual indicators
-   - Secure token sharing with copy-to-clipboard functionality
-   - **Accordion-based expandable design** that replaces modals for improved accessibility
-   - Tabbed interface for token details and editing
-   - Inline forms for token management without modal dialogs
-
-2. Core Pages and Components:
-   - `Pages/Account/Manage/ShareTokens.cshtml`: Main Razor Page for token management
-   - `Pages/Account/Manage/ShareTokens.cshtml.cs`: Page model with token operations
-   - `Pages/Shared/_StatusMessage.cshtml`: Status notification partial view
-   - Integration with Account Management navigation
-
-3. Features and Workflows:
-   - Token creation with configurable settings:
-     - Expiration period (1-365 days)
-     - Session-specific or account-wide sharing
-     - Optional usage limits
-     - Granular permission controls for features
-     - Custom naming and description
-   - Token management:
-     - View generated link with copy functionality
-     - Edit existing token settings
-     - Extend token expiration
-     - Update permissions and access controls
-     - Revoke tokens without deletion (maintains history)
-     - Permanently delete tokens
-   - Visual status indicators:
-     - Active/inactive status badges
-     - Expiration countdown
-     - Usage statistics with remaining uses
-     - Permission indicators for feature access
-   - Security features:
-     - Secure URL generation with scheme and host
-     - User validation for token ownership
-     - Confirmation for destructive actions using built-in browser dialogs instead of modals
-     - Enhanced accessibility with modal-free design
-
-4. Technology Implementation:
-   - Bootstrap accordion and tab components for management actions
-   - Client-side copy-to-clipboard functionality
-   - Form validation with data annotations
-   - AJAX-free design for simplified interaction
-   - Session dropdown for session-specific sharing
-   - Integration with existing ShareTokenService
-   - Custom form models for create/edit operations
-
 ### Shared Workout Views
 
-1. Controller Architecture:
-   - `SharedController`: Web controller for user-facing shared workout pages
-     - Renders read-only views of workout history with token-based authentication
-     - Handles anonymous access via token validation
-     - Implements cookie-based token persistence for session navigation
-     - Provides granular permission control for different features
+1. Razor Pages Architecture:
+   - `Pages/Shared` folder contains read-only views for shared workout data:
+     - `Index.cshtml`: Entry point listing available sessions
+     - `Session.cshtml`: Detailed workout session view with exercise breakdown
+     - `Reports.cshtml`: Statistical reports with visualizations
+     - `Calculator.cshtml`: One-Rep Max calculator
+     - `TokenRequired.cshtml`: Error view when token is missing
+     - `InvalidToken.cshtml`: Error view for expired or invalid tokens
+     - `_SharedLayout.cshtml`: Special layout for shared content
 
-   - `SharedWorkoutController`: API controller for shared workout data
-     - REST API endpoints for accessing workout data via tokens
-     - Protected with `ShareTokenAuthorize` attribute
-     - Includes session, set, and rep data endpoints
-     - Provides exercise and set type metadata endpoints
+   - Page Models:
+     - `SharedPageModel.cs`: Base page model with token validation logic
+     - Feature-specific models inheriting from SharedPageModel
 
-2. View Components:
-   - Custom layout (`_SharedLayout.cshtml`) for shared access views
+2. API Controllers (Supporting Legacy Integration):
+   - `SharedController`: Limited API controller for backward compatibility
+   - `SharedWorkoutController`: REST API endpoints for shared workout data
+
+3. View Components:
+   - Custom layout for shared access views
      - Simplified navigation with permission-based visibility
      - Token information display with expiration countdown
      - Usage tracking information for tokens with limits
      - Visual status indicators for remaining access time
 
-   - Content Views:
-     - Session listing with responsive card layout
-     - Detailed session view with exercise breakdown
-     - Reports dashboard with statistics and charts
-     - One-Rep Max calculator with exercise selection
-     - Custom error views for access control scenarios
-
-3. Key Features:
+4. Key Features:
    - Anonymous access via secure tokens
    - Read-only views of workout data
    - Session navigation with breadcrumbs
@@ -393,21 +287,13 @@ The application uses Entity Framework Core Code-First approach with SQL Server. 
    - Cookie-based token persistence with secure configuration
    - Custom styling with dedicated shared.css
 
-4. Security Implementation:
+5. Security Implementation:
    - IP-based token validation tracking
    - Token validation on every request
    - Permission-based feature access control
    - Short-lived secure HTTP-only cookies
    - Sanitized user information display
    - Rate-limited access validation
-
-5. User Experience:
-   - Mobile-responsive design for all views
-   - Visual exercise categorization
-   - Interactive charts for performance metrics
-   - Rep success/failure visual indicators
-   - Contextual information about shared content
-   - Cross-device compatibility with secure token sharing
 
 ### Strength Calculation
 
@@ -661,6 +547,36 @@ The import process follows these steps:
    - Sets with exercise and set types
    - Reps with weights and success tracking
    - Exercise type catalog
+
+## Recent Changes
+
+1. **Architecture Migration**: Converted from MVC to Razor Pages for improved separation of concerns
+   - Replaced controllers with page models for better encapsulation
+   - Organized UI components by feature area rather than controller/action pattern
+   - Implemented handler methods (OnGet, OnPost) instead of controller actions
+   - Maintained API controllers for specific REST endpoints and backward compatibility
+   - Enhanced testability with more isolated page models
+
+2. **Workout Sharing Improvements**:
+   - Implemented secure token validation system
+   - Added granular permission controls for feature access
+   - Created consistent shared layout with status information
+   - Enhanced navigation between shared workout views
+
+3. **Performance Enhancements**:
+   - Added Redis distributed caching for report pages
+   - Implemented SignalR Redis backplane for multi-container scaling
+   - Optimized database queries with improved pagination and filtering
+
+4. **Security Updates**:
+   - Enhanced token validation with rate limiting
+   - Implemented IP tracking for shared access
+   - Added comprehensive audit logging for token usage
+
+5. **UI Improvements**:
+   - Replaced modal dialogs with inline forms for better accessibility
+   - Implemented accordion-based interfaces for token management
+   - Added responsive design enhancements for mobile compatibility
 
 ## Third-party Packages
 

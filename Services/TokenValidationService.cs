@@ -120,10 +120,13 @@ namespace WorkoutTrackerWeb.Services
             switch (permission.ToLowerInvariant())
             {
                 case "session":
+                case "sessionaccess":
                     return shareToken.AllowSessionAccess;
                 case "report":
+                case "reportaccess":
                     return shareToken.AllowReportAccess;
                 case "calculator":
+                case "calculatoraccess":
                     return shareToken.AllowCalculatorAccess;
                 default:
                     _logger.LogWarning("Unknown permission check: {Permission}", permission);

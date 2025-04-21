@@ -1,0 +1,174 @@
+@page
+@model WorkoutTrackerWeb.Pages.Shared.IndexModel
+@{
+    ViewData["Title"] = "Shared Workouts";
+    Layout = "_SharedLayout";
+    
+    // Get the token from the ShareToken object for navigation links
+    string tokenParam = Model.ShareToken?.Token;
+}
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="mb-0">Shared Workouts</h1>
+                <div>
+                    @if (Model.ShareToken != null)
+                    {
+                        <span class="text-muted">Token: @Model.ShareToken.Id</span>
+                    }
+                </div>
+            </div>
+            <p class="text-muted">These workout sessions have been shared with you.</p>
+        </div>
+    </div>
+
+    @if (!Model.Sessions.Any())
+    {
+        <div class="alert alert-info">
+            <p class="mb-0">No workout sessions have been shared yet.</p>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Workout Sessions</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Date & Time</th>
+                                        <th>Duration</th>
+                                        <th class="text-center">Exercises</th>
+                                        <th class="text-center">Sets</th>
+                                        <th class="text-center">Volume</th>
+                                        <th>Notes</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var session in Model.Sessions.OrderByDescending(s => s.datetime))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@session.datetime.ToString("MMM d, yyyy")</strong><br>
+                                                <small class="text-muted">@session.datetime.ToString("h:mm tt")</small>
+                                            </td>
+                                            <td>
+                                                @if (session.TotalWorkoutTime != TimeSpan.Zero)
+                                                {
+                                                    @session.TotalWorkoutTime.ToString(@"hh\:mm\:ss")
+                                                }
+                                                else
+                                                {
+                                                    <span>-</span>
+                                                }
+                                            </td>
+                                            <td class="text-center">
+                                                @if (Model.SessionStats != null && Model.SessionStats.ContainsKey(session.SessionId))
+                                                {
+                                                    <span>@Model.SessionStats[session.SessionId].ExerciseCount</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>-</span>
+                                                }
+                                            </td>
+                                            <td class="text-center">
+                                                @if (Model.SessionStats != null && Model.SessionStats.ContainsKey(session.SessionId))
+                                                {
+                                                    <span>@Model.SessionStats[session.SessionId].SetCount</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>-</span>
+                                                }
+                                            </td>
+                                            <td class="text-center">
+                                                @if (Model.SessionStats != null && Model.SessionStats.ContainsKey(session.SessionId))
+                                                {
+                                                    <span>@Model.SessionStats[session.SessionId].TotalVolume.ToString("N0") kg</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>-</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(session.Notes))
+                                                {
+                                                    <span class="session-notes">@(session.Notes.Length > 50 ? session.Notes.Substring(0, 47) + "..." : session.Notes)</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>-</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <a asp-page="./Session" asp-route-id="@session.SessionId" asp-route-token="@tokenParam" class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-eye"></i> View
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.ShareToken != null && Model.ShareToken.AllowReportAccess)
+        {
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">Analytics</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>View analytics and reports for these shared workouts.</p>
+                            <a asp-page="./Reports" asp-route-token="@tokenParam" class="btn btn-outline-success">
+                                <i class="bi bi-graph-up"></i> View Reports
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (Model.ShareToken != null && Model.ShareToken.AllowCalculatorAccess)
+        {
+            <div class="row">
+                <div class="col-12 mb-4">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">1RM Calculator</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>Calculate your estimated one-rep max (1RM) based on weight and reps.</p>
+                            <a asp-page="./Calculator" asp-route-token="@tokenParam" class="btn btn-outline-info">
+                                <i class="bi bi-calculator"></i> Open Calculator
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Any client-side interaction can be added here
+        });
+    </script>
+}

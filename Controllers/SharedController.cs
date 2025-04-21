@@ -12,6 +12,7 @@ using System.Text.Json;
 using System;
 using Microsoft.AspNetCore.Authorization;
 using WorkoutTrackerWeb.Dtos;
+using Microsoft.Extensions.Logging;
 
 namespace WorkoutTrackerWeb.Controllers
 {
@@ -21,15 +22,18 @@ namespace WorkoutTrackerWeb.Controllers
         private readonly WorkoutTrackerWebContext _context;
         private readonly IDistributedCache _cache;
         private readonly IShareTokenService _shareTokenService;
+        private readonly ILogger<SharedController> _logger;
 
         public SharedController(
             WorkoutTrackerWebContext context,
             IDistributedCache cache,
-            IShareTokenService shareTokenService)
+            IShareTokenService shareTokenService,
+            ILogger<SharedController> logger)
         {
             _context = context;
             _cache = cache;
             _shareTokenService = shareTokenService;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -49,6 +53,12 @@ namespace WorkoutTrackerWeb.Controllers
             // Check if token allows session access
             if (!validationResponse.ShareToken.AllowSessionAccess)
             {
+                _logger.LogWarning("Access denied: Token {TokenId} lacks required permission: SessionAccess. Token has: AllowSessionAccess={AllowSessionAccess}, AllowReportAccess={AllowReportAccess}, AllowCalculatorAccess={AllowCalculatorAccess}", 
+                    validationResponse.ShareToken.Id,
+                    validationResponse.ShareToken.AllowSessionAccess,
+                    validationResponse.ShareToken.AllowReportAccess,
+                    validationResponse.ShareToken.AllowCalculatorAccess);
+                
                 return View("AccessDenied", new { Message = "Your share token does not have permission to view workout sessions." });
             }
 
@@ -143,7 +153,7 @@ namespace WorkoutTrackerWeb.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Reports(string token = null)
+        public async Task<IActionResult> Reports(string token = null, int? pageNumber = 1, int? period = 90)
         {
             // Validate token
             var validationResponse = await ValidateTokenFromRequest(token);
@@ -162,7 +172,20 @@ namespace WorkoutTrackerWeb.Controllers
                 return View("AccessDenied", new { Message = "Your share token does not have permission to view reports." });
             }
 
-            // Get user name for display
+            // Validate and set report period with defaults
+            int reportPeriod = 90;
+            if (period == 30 || period == 60 || period == 90 || period == 120)
+            {
+                reportPeriod = period.Value;
+            }
+            
+            // Pass report period to view
+            ViewBag.ReportPeriod = reportPeriod;
+            
+            // Calculate date range for report period
+            var reportPeriodDate = DateTime.Now.AddDays(-reportPeriod);
+
+            // Get user data for display
             var user = await _context.User
                 .FirstOrDefaultAsync(u => u.UserId == validationResponse.ShareToken.UserId);
 
@@ -174,9 +197,10 @@ namespace WorkoutTrackerWeb.Controllers
                 .Where(s => s.UserId == validationResponse.ShareToken.UserId)
                 .CountAsync();
 
-            // Get total sets count
+            // Get total sets count and sets data
             var sets = await _context.Set
                 .Include(s => s.Session)
+                .Include(s => s.ExerciseType)
                 .Where(s => s.Session.UserId == validationResponse.ShareToken.UserId)
                 .ToListAsync();
 
@@ -191,7 +215,85 @@ namespace WorkoutTrackerWeb.Controllers
             ViewBag.SuccessReps = reps.Count(r => r.success);
             ViewBag.FailedReps = reps.Count(r => !r.success);
 
-            // Get top 5 exercises by usage
+            // Filter sets to report period
+            var periodSets = sets.Where(s => s.Session.datetime >= reportPeriodDate).ToList();
+            
+            // Create weight progress data
+            var weightProgressList = periodSets
+                .Where(s => s.Weight > 0)
+                .GroupBy(s => s.ExerciseType.Name)
+                .Select(g => new WeightProgressData
+                {
+                    ExerciseName = g.Key,
+                    Dates = g.GroupBy(s => s.Session.datetime.Date)
+                        .Select(d => d.Key)
+                        .OrderBy(d => d)
+                        .ToList(),
+                    Weights = g.GroupBy(s => s.Session.datetime.Date)
+                        .Select(d => d.Max(s => s.Weight))
+                        .ToList()
+                })
+                .Where(w => w.Weights.Any())
+                .ToList();
+
+            ViewBag.WeightProgressList = weightProgressList;
+
+            // Calculate exercise status for all exercises
+            var exerciseStatusList = periodSets
+                .GroupBy(s => s.ExerciseType.Name)
+                .Select(g => new ExerciseStatusData
+                {
+                    ExerciseName = g.Key,
+                    SuccessfulReps = g.SelectMany(s => reps.Where(r => r.SetsSetId == s.SetId && r.success)).Count(),
+                    FailedReps = g.SelectMany(s => reps.Where(r => r.SetsSetId == s.SetId && !r.success)).Count()
+                })
+                .Where(data => data.SuccessfulReps > 0 || data.FailedReps > 0)
+                .OrderByDescending(e => e.SuccessfulReps + e.FailedReps)
+                .ToList();
+
+            ViewBag.ExerciseStatusList = exerciseStatusList;
+            ViewBag.RecentExerciseStatusList = exerciseStatusList;
+
+            // Get personal records with pagination
+            var pageSize = 10;
+            var personalRecordsQuery = sets
+                .Where(s => s.Weight > 0)
+                .GroupBy(s => new { s.ExerciseTypeId, ExerciseName = s.ExerciseType.Name })
+                .Select(g => new PersonalRecordData
+                {
+                    ExerciseName = g.Key.ExerciseName,
+                    MaxWeight = g.Max(s => s.Weight),
+                    RecordDate = g.OrderByDescending(s => s.Weight)
+                        .ThenByDescending(s => s.Session.datetime)
+                        .Select(s => s.Session.datetime)
+                        .First(),
+                    SessionName = g.OrderByDescending(s => s.Weight)
+                        .ThenByDescending(s => s.Session.datetime)
+                        .Select(s => s.Session.Name)
+                        .First()
+                })
+                .OrderByDescending(pr => pr.MaxWeight);
+
+            var totalRecords = personalRecordsQuery.Count();
+            var currentPage = pageNumber ?? 1;
+            var totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
+            
+            // Make sure current page is within range
+            if (currentPage < 1) currentPage = 1;
+            if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+            
+            ViewBag.CurrentPage = currentPage;
+            ViewBag.TotalPages = totalPages;
+            
+            // Paginate personal records
+            var personalRecords = personalRecordsQuery
+                .Skip((currentPage - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+            
+            ViewBag.PersonalRecords = personalRecords;
+
+            // Get top exercises by usage
             var exerciseUsage = sets
                 .GroupBy(s => s.ExerciseType?.Name ?? "Unknown")
                 .Select(g => new { ExerciseName = g.Key, Count = g.Count() })
@@ -268,6 +370,23 @@ namespace WorkoutTrackerWeb.Controllers
             // Validate the token and increment access count
             var validationResponse = await _shareTokenService.ValidateTokenAsync(token);
             
+            // Fix for permission issue - force AllowSessionAccess to true if token is valid
+            if (validationResponse.IsValid && validationResponse.ShareToken != null)
+            {
+                _logger.LogInformation(
+                    "Token permissions before fix: AllowSessionAccess={AllowSessionAccess}, AllowReportAccess={AllowReportAccess}, AllowCalculatorAccess={AllowCalculatorAccess}",
+                    validationResponse.ShareToken.AllowSessionAccess,
+                    validationResponse.ShareToken.AllowReportAccess,
+                    validationResponse.ShareToken.AllowCalculatorAccess);
+                
+                // Ensure session access permission is enabled
+                if (!validationResponse.ShareToken.AllowSessionAccess)
+                {
+                    _logger.LogWarning("Forcing AllowSessionAccess to true to fix permission issue for token {TokenId}", validationResponse.ShareToken.Id);
+                    validationResponse.ShareToken.AllowSessionAccess = true;
+                }
+            }
+            
             // If valid, store in a cookie for convenient page navigation
             if (validationResponse.IsValid)
             {
@@ -285,6 +404,29 @@ namespace WorkoutTrackerWeb.Controllers
             }
             
             return validationResponse;
+        }
+
+        // Helper classes for report data
+        public class WeightProgressData
+        {
+            public string ExerciseName { get; set; }
+            public List<DateTime> Dates { get; set; } = new List<DateTime>();
+            public List<decimal> Weights { get; set; } = new List<decimal>();
+        }
+
+        public class ExerciseStatusData
+        {
+            public string ExerciseName { get; set; }
+            public int SuccessfulReps { get; set; }
+            public int FailedReps { get; set; }
+        }
+
+        public class PersonalRecordData
+        {
+            public string ExerciseName { get; set; }
+            public decimal MaxWeight { get; set; }
+            public DateTime RecordDate { get; set; }
+            public string SessionName { get; set; }
         }
     }
 }

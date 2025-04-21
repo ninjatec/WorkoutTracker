@@ -1,5 +1,14 @@
 # Statement of Works
 
+[ ] Update sessions ages to suport sequencenumn
+
+[ ] Clean Up
+ - [ ] Ensure only bootstrap 5 is used for the entire project
+ - [ ] Identity any unused pages and create a statement of works section to remove them
+ - [ ] Identity any unused code and create a statement of works section to remove them
+ - [ ] Run a build and write a sectin to the statement of works based on the results.
+ - [ ] Identify areas where MVC is used and create a statemnt of works section to migrate these to razorpages
+
 [x] Add distributed cache using a redis pod as part of the k8s deployment
  - [x] Configure the application to use Redis for distributed caching.
    - [x] Update `Program.cs` to register Redis as the distributed cache provider.

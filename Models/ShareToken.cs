@@ -55,7 +55,7 @@ namespace WorkoutTrackerWeb.Models
         public bool IsValid => 
             IsActive && 
             ExpiresAt > DateTime.UtcNow && 
-            (MaxAccessCount == null || AccessCount < MaxAccessCount);
+            (MaxAccessCount == null || AccessCount < MaxAccessCount.Value);
             
         // Calculate days until expiration
         [NotMapped]

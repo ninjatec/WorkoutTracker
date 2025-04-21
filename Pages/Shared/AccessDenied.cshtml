@@ -1,0 +1,50 @@
+@page
+@model WorkoutTrackerWeb.Pages.Shared.AccessDeniedModel
+@{
+    ViewData["Title"] = "Access Denied";
+    Layout = "_SharedLayout";
+}
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-danger mt-5">
+                <div class="card-header bg-danger text-white">
+                    <h3 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i> Access Denied</h3>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-lock text-danger" style="font-size: 5rem;"></i>
+                    </div>
+                    
+                    <h4 class="text-center mb-3">You don't have permission to access this resource</h4>
+                    
+                    <p class="text-center">
+                        Your access token is valid, but it doesn't grant permission to access this specific feature or data.
+                    </p>
+                    
+                    <div class="alert alert-secondary mt-4">
+                        <h5><i class="bi bi-info-circle"></i> What happened?</h5>
+                        <p>
+                            The person who shared this workout with you has limited what you can see. 
+                            Your access token only provides permissions for specific parts of the shared workout data.
+                        </p>
+                        <p class="mb-0">
+                            If you believe this is a mistake, please contact the person who shared this workout with you
+                            and ask them to update your permissions.
+                        </p>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <a href="javascript:history.back()" class="btn btn-outline-secondary me-2">
+                            <i class="bi bi-arrow-left me-1"></i> Go Back
+                        </a>
+                        <a href="/shared" class="btn btn-primary">
+                            <i class="bi bi-house me-1"></i> Return to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

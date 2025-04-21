@@ -403,6 +403,19 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Configure Razor Pages
+builder.Services.AddRazorPages(options => {
+    // Allow anonymous access to shared pages
+    options.Conventions.AllowAnonymousToPage("/Shared/Index");
+    options.Conventions.AllowAnonymousToPage("/Shared/Session");
+    options.Conventions.AllowAnonymousToPage("/Shared/Reports");
+    options.Conventions.AllowAnonymousToPage("/Shared/Calculator");
+    options.Conventions.AllowAnonymousToPage("/Shared/TokenRequired");
+    options.Conventions.AllowAnonymousToPage("/Shared/InvalidToken");
+    options.Conventions.AllowAnonymousToPage("/Shared/AccessDenied");
+    options.Conventions.AllowAnonymousToPage("/Shared/Privacy");
+});
+
 // Enhanced health checks
 var healthChecksBuilder = builder.Services.AddHealthChecks()
     // Database connectivity checks
@@ -694,14 +707,58 @@ app.MapControllerRoute(
     name: "areas",
     pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
 
+// Map default controller route
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
+
+// Add redirect from old MVC routes to new Razor Pages implementations for shared workout views
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapGet("Shared/{action=Index}/{id?}", async context =>
+    {
+        var action = context.Request.RouteValues["action"]?.ToString() ?? "Index";
+        var id = context.Request.RouteValues["id"]?.ToString();
+        var token = context.Request.Query["token"].ToString();
+
+        string redirectUrl;
+        switch (action.ToLower())
+        {
+            case "index":
+                redirectUrl = "/Shared/Index";
+                break;
+            case "session":
+                redirectUrl = $"/Shared/Session/{id}";
+                break;
+            case "reports":
+                redirectUrl = "/Shared/Reports";
+                break;
+            case "calculator":
+                redirectUrl = "/Shared/Calculator";
+                break;
+            default:
+                redirectUrl = "/Shared/Index";
+                break;
+        }
+
+        // Keep the token parameter if it exists
+        if (!string.IsNullOrEmpty(token))
+        {
+            redirectUrl += (redirectUrl.Contains('?') ? "&" : "?") + $"token={token}";
+        }
+
+        context.Response.Redirect(redirectUrl);
+    });
+});
+
 // Expose Prometheus metrics at the /metrics endpoint
 app.MapMetrics();
 
 // Map SignalR hub
 app.MapHub<ImportProgressHub>("/importProgressHub");
 
-// Add support for Razor Pages in areas - apply authorization policy AFTER health check endpoints
-app.MapRazorPages().RequireAuthorization();
+// Map Razor Pages (routes are automatically registered)
+app.MapRazorPages();
 
 // Initialize seed data
 using (var scope = app.Services.CreateScope())

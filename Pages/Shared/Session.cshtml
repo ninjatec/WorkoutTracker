@@ -1,0 +1,211 @@
+@page "{id:int}"
+@model WorkoutTrackerWeb.Pages.Shared.SessionModel
+@{
+    ViewData["Title"] = $"Session Details - {Model.Session?.datetime.ToString("MMM d, yyyy")}";
+    Layout = "_SharedLayout";
+    
+    // Get the token from the ShareToken object for navigation links
+    string tokenParam = Model.ShareToken?.Token;
+}
+
+<div class="container">
+    @if (Model.Session == null)
+    {
+        <div class="alert alert-danger">
+            <h4>Session not found</h4>
+            <p>The requested workout session could not be found or you do not have permission to view it.</p>
+            <a asp-page="./Index" asp-route-token="@tokenParam" class="btn btn-primary">Return to Sessions</a>
+        </div>
+    }
+    else
+    {
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">
+                            <i class="bi bi-calendar3"></i>
+                            @Model.Session.datetime.ToString("MMMM d, yyyy")
+                            <small class="d-block d-md-inline ms-md-2">
+                                @Model.Session.datetime.ToString("h:mm tt")
+                            </small>
+                        </h3>
+                        <a asp-page="./Index" asp-route-token="@tokenParam" class="btn btn-light btn-sm ms-3">
+                            <i class="bi bi-arrow-left"></i> Back to Sessions
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        @if (!string.IsNullOrEmpty(Model.Session.Notes))
+                        {
+                            <div class="alert alert-secondary">
+                                <strong>Session Notes:</strong> @Model.Session.Notes
+                            </div>
+                        }
+
+                        @if (!Model.ExerciseSets.Any())
+                        {
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                This session does not contain any exercise data.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="accordion mb-4" id="exerciseAccordion">
+                                @{
+                                    int exerciseCounter = 0;
+                                    foreach (var exercise in Model.ExerciseSets)
+                                    {
+                                        exerciseCounter++;
+                                        var exerciseId = $"exercise_{exerciseCounter}";
+                                        var headingId = $"heading_{exerciseCounter}";
+                                        var collapseId = $"collapse_{exerciseCounter}";
+                                    
+                                        <div class="accordion-item">
+                                            <h2 class="accordion-header" id="@headingId">
+                                                <button class="accordion-button @(exerciseCounter > 1 ? "collapsed" : "")" 
+                                                        type="button" 
+                                                        data-bs-toggle="collapse" 
+                                                        data-bs-target="#@collapseId" 
+                                                        aria-expanded="@(exerciseCounter == 1 ? "true" : "false")" 
+                                                        aria-controls="@collapseId">
+                                                    <strong class="me-2">@exercise.Key</strong>
+                                                    <span class="badge bg-secondary ms-2">@exercise.Value.Count sets</span>
+                                                </button>
+                                            </h2>
+                                            <div id="@collapseId" 
+                                                class="accordion-collapse collapse @(exerciseCounter == 1 ? "show" : "")" 
+                                                aria-labelledby="@headingId" 
+                                                data-bs-parent="#exerciseAccordion">
+                                                <div class="accordion-body">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-bordered table-striped">
+                                                            <thead class="table-dark">
+                                                                <tr>
+                                                                    <th scope="col">Set</th>
+                                                                    <th scope="col">Weight</th>
+                                                                    <th scope="col">Reps</th>
+                                                                    <th scope="col">Status</th>
+                                                                    <th scope="col">Notes</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                @{
+                                                                    int setCount = 0;
+                                                                    foreach (var set in exercise.Value)
+                                                                    {
+                                                                        setCount++;
+                                                                        <tr>
+                                                                            <td>@setCount</td>
+                                                                            <td>
+                                                                                @if (set.Weight > 0)
+                                                                                {
+                                                                                    @set.Weight <span>kg</span>
+                                                                                }
+                                                                                else if (Model.SetReps.TryGetValue(set.SetId, out var reps) && reps.Any())
+                                                                                {
+                                                                                    // Collect weights from reps without relying on LINQ for type inference
+                                                                                    List<decimal> repWeights = new List<decimal>();
+                                                                                    foreach (var rep in reps)
+                                                                                    {
+                                                                                        decimal? nullableWeight = rep.weight;
+                                                                                        // Only add reps that have a weight
+                                                                                        if (nullableWeight.HasValue)
+                                                                                        {
+                                                                                            repWeights.Add(nullableWeight.Value);
+                                                                                        }
+                                                                                    }
+                                                                                    
+                                                                                    // Get distinct weights
+                                                                                    var distinctWeights = new List<decimal>();
+                                                                                    foreach (var weight in repWeights)
+                                                                                    {
+                                                                                        if (!distinctWeights.Contains(weight))
+                                                                                        {
+                                                                                            distinctWeights.Add(weight);
+                                                                                        }
+                                                                                    }
+                                                                                    
+                                                                                    @if (distinctWeights.Count == 1)
+                                                                                    {
+                                                                                        @distinctWeights[0] <span>kg</span>
+                                                                                    }
+                                                                                    else
+                                                                                    {
+                                                                                        <span>Various</span>
+                                                                                    }
+                                                                                }
+                                                                                else
+                                                                                {
+                                                                                    <span>-</span>
+                                                                                }
+                                                                            </td>
+                                                                            <td>
+                                                                                @if (set.NumberReps > 0)
+                                                                                {
+                                                                                    @set.NumberReps
+                                                                                }
+                                                                                else if (Model.SetReps.TryGetValue(set.SetId, out var reps))
+                                                                                {
+                                                                                    @reps.Count
+                                                                                }
+                                                                                else
+                                                                                {
+                                                                                    <span>-</span>
+                                                                                }
+                                                                            </td>
+                                                                            <td>
+                                                                                @if (Model.SetReps.TryGetValue(set.SetId, out var setReps) && setReps.Any())
+                                                                                {
+                                                                                    int successCount = setReps.Count(r => r.success);
+                                                                                    int failCount = setReps.Count - successCount;
+                                                                                    
+                                                                                    @if (successCount == setReps.Count)
+                                                                                    {
+                                                                                        <span class="badge bg-success">All Completed</span>
+                                                                                    }
+                                                                                    else if (failCount == setReps.Count)
+                                                                                    {
+                                                                                        <span class="badge bg-danger">Failed</span>
+                                                                                    }
+                                                                                    else
+                                                                                    {
+                                                                                        <span class="badge bg-warning">
+                                                                                            @successCount / @setReps.Count
+                                                                                        </span>
+                                                                                    }
+                                                                                }
+                                                                                else
+                                                                                {
+                                                                                    <span class="badge bg-secondary">No Data</span>
+                                                                                }
+                                                                            </td>
+                                                                            <td>
+                                                                                @if (!string.IsNullOrEmpty(set.Notes))
+                                                                                {
+                                                                                    <span class="small fst-italic">@set.Notes</span>
+                                                                                }
+                                                                                else
+                                                                                {
+                                                                                    <span>-</span>
+                                                                                }
+                                                                            </td>
+                                                                        </tr>
+                                                                    }
+                                                                }
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>

@@ -1,0 +1,480 @@
+@page
+@model WorkoutTrackerWeb.Pages.Shared.ReportsModel
+@{
+    ViewData["Title"] = "Workout Reports";
+    Layout = "_SharedLayout";
+    int reportPeriod = Model.ReportPeriod;
+    int currentPage = Model.CurrentPage;
+    int totalPages = Model.TotalPages;
+}
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-page="./Index">Shared Workouts</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Reports</li>
+                </ol>
+            </nav>
+            <h1>Workout Reports</h1>
+            <p>Track workout progress and performance with detailed reports.</p>
+        </div>
+    </div>
+
+    <!-- Personal Records (PR) Table -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Personal Records (PRs) by Exercise Type</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Exercise</th>
+                                    <th>Max Weight (kg)</th>
+                                    <th>Record Date</th>
+                                    <th>Session</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model.PersonalRecords != null && Model.PersonalRecords.Any())
+                                {
+                                    @foreach (var record in Model.PersonalRecords)
+                                    {
+                                        <tr>
+                                            <td>@record.ExerciseName</td>
+                                            <td><strong>@record.MaxWeight</strong></td>
+                                            <td>@record.RecordDate.ToString("dd/MM/yy")</td>
+                                            <td>@record.SessionName</td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="4" class="text-center">No personal records found.</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                        @{
+                            var prevDisabled = Model.PersonalRecords == null || !Model.PersonalRecords.Any() || currentPage == 1;
+                            var nextDisabled = Model.PersonalRecords == null || !Model.PersonalRecords.Any() || currentPage == totalPages;
+                        }
+
+                        <nav aria-label="Personal Records pagination">
+                            <ul class="pagination justify-content-center">
+                                <li class="page-item @(prevDisabled ? "disabled" : "")">
+                                    <a class="page-link" asp-page="./Reports" asp-route-pageNumber="@(currentPage - 1)" asp-route-period="@reportPeriod">Previous</a>
+                                </li>
+                                @for (var i = 1; i <= totalPages; i++)
+                                {
+                                    <li class="page-item @(i == currentPage ? "active" : "")">
+                                        <a class="page-link" asp-page="./Reports" asp-route-pageNumber="@i" asp-route-period="@reportPeriod">@i</a>
+                                    </li>
+                                }
+                                <li class="page-item @(nextDisabled ? "disabled" : "")">
+                                    <a class="page-link" asp-page="./Reports" asp-route-pageNumber="@(currentPage + 1)" asp-route-period="@reportPeriod">Next</a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weight Progress Chart -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card" id="weightProgressContainer" data-loading="true" style="min-height: 650px;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>Weight Progress by Exercise Type (Last @reportPeriod Days)</h5>
+                    <form method="get" class="d-flex align-items-center">
+                        <input type="hidden" name="pageNumber" value="@currentPage" />
+                        <label for="period" class="me-2">Period:</label>
+                        <select id="period" name="period" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                            <option value="30">30 Days</option>
+                            <option value="60">60 Days</option>
+                            <option value="90" selected="@(reportPeriod == 90)">90 Days</option>
+                            <option value="120">120 Days</option>
+                        </select>
+                    </form>
+                </div>
+                <div class="card-body" style="height: 600px;">
+                    <div class="text-center loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                    </div>
+                    <canvas id="weightProgressChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card" id="overallChartContainer" data-loading="true" style="min-height: 450px;">
+                <div class="card-header">
+                    <h5>Overall Rep Success/Failure (Last @reportPeriod Days)</h5>
+                </div>
+                <div class="card-body" style="height: 400px;">
+                    <div class="text-center loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                    </div>
+                    <canvas id="overallChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Success Rate by Exercise Type (Last @reportPeriod Days)</h5>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Exercise</th>
+                                <th>Successful</th>
+                                <th>Failed</th>
+                                <th>Success Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.ExerciseStatusList != null && Model.ExerciseStatusList.Any())
+                            {
+                                @foreach (var exercise in Model.ExerciseStatusList)
+                                {
+                                    var total = exercise.SuccessfulReps + exercise.FailedReps;
+                                    var successRate = total > 0 ? (double)exercise.SuccessfulReps / total * 100 : 0;
+                                    <tr>
+                                        <td>@exercise.ExerciseName</td>
+                                        <td>@exercise.SuccessfulReps</td>
+                                        <td>@exercise.FailedReps</td>
+                                        <td>@successRate.ToString("F1")%</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center">No exercise data available.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card" id="exerciseChartContainer" data-loading="true" style="min-height: 550px;">
+                <div class="card-header">
+                    <h5>Recent Exercise Performance (Last @reportPeriod Days)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                    </div>
+                    <canvas id="exerciseChart" width="800" height="600" style="display: none;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.0/dist/chartjs-adapter-moment.min.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            createWeightProgressChart();
+            createOverallChart();
+            createExerciseChart();
+        });
+
+        function createWeightProgressChart() {
+            const ctx = document.getElementById('weightProgressChart');
+            const spinner = ctx.parentElement.querySelector('.loading-spinner');
+            
+            spinner.style.display = 'block';
+            ctx.style.display = 'none';
+
+            const datasets = [];
+            const colors = [
+                '#4CAF50', '#2196F3', '#F44336', '#FF9800', '#9C27B0', 
+                '#795548', '#607D8B', '#E91E63', '#FFEB3B', '#009688'
+            ];
+            
+            @if (Model.WeightProgressList != null)
+            {
+                for (int i = 0; i < Model.WeightProgressList.Count; i++)
+                {
+                    var exercise = Model.WeightProgressList[i];
+                    var colorIndex = i % 10;
+                    
+                    var formattedDates = new List<string>();
+                    var formattedWeights = new List<string>();
+                    
+                    for (int j = 0; j < exercise.Dates.Count; j++)
+                    {
+                        formattedDates.Add("'" + exercise.Dates[j].ToString("yyyy-MM-dd") + "'");
+                        formattedWeights.Add(exercise.Weights[j].ToString());
+                    }
+                    
+                    var datesString = string.Join(",", formattedDates);
+                    var weightsString = string.Join(",", formattedWeights);
+                    
+                    @:const dates@(i) = [@Html.Raw(datesString)];
+                    @:const weights@(i) = [@Html.Raw(weightsString)];
+                    @:datasets.push({
+                    @:    label: '@Html.Raw(exercise.ExerciseName)',
+                    @:    data: weights@(i).map(function(weight, index) { return { x: dates@(i)[index], y: weight }; }),
+                    @:    borderColor: colors[@colorIndex],
+                    @:    backgroundColor: colors[@colorIndex] + '33',
+                    @:    fill: false,
+                    @:    borderWidth: 2,
+                    @:    tension: 0.1,
+                    @:    pointRadius: 4
+                    @:});
+                }
+            }
+
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 0
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                tooltipFormat: 'MMM D, YYYY',
+                                displayFormats: {
+                                    day: 'MMM D'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Weight (kg)'
+                            },
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            enabled: true,
+                            mode: 'nearest',
+                            intersect: false,
+                            callbacks: {
+                                title: function(context) { return moment(context[0].raw.x).format('MMMM D, YYYY'); },
+                                label: function(context) { return context.dataset.label + ': ' + context.raw.y + ' kg'; }
+                            }
+                        },
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                boxWidth: 12,
+                                usePointStyle: true
+                            }
+                        }
+                    }
+                }
+            });
+
+            spinner.style.display = 'none';
+            ctx.style.display = 'block';
+        }
+
+        function createOverallChart() {
+            const ctx = document.getElementById('overallChart');
+            const spinner = ctx.parentElement.querySelector('.loading-spinner');
+            
+            spinner.style.display = 'block';
+            ctx.style.display = 'none';
+
+            const chart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Successful Reps', 'Failed Reps'],
+                    datasets: [{
+                        data: [@Model.SuccessReps, @Model.FailedReps],
+                        backgroundColor: ['#4caf50', '#f44336'],
+                        hoverBackgroundColor: ['#45a049', '#e53935']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 0
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    var value = context.raw;
+                                    var total = @(Model.SuccessReps + Model.FailedReps);
+                                    var percentage = Math.round((value / total) * 100);
+                                    return context.label + ': ' + value + ' (' + percentage + '%)';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            spinner.style.display = 'none';
+            ctx.style.display = 'block';
+        }
+
+        function createExerciseChart() {
+            const ctx = document.getElementById('exerciseChart');
+            const spinner = ctx.parentElement.querySelector('.loading-spinner');
+            
+            spinner.style.display = 'block';
+            ctx.style.display = 'none';
+
+            @if (Model.RecentExerciseStatusList != null && Model.RecentExerciseStatusList.Any())
+            {
+                var formattedExerciseNames = new List<string>();
+                var formattedSuccessData = new List<string>();
+                var formattedFailedData = new List<string>();
+                
+                foreach (var e in Model.RecentExerciseStatusList)
+                {
+                    formattedExerciseNames.Add("'" + e.ExerciseName + "'");
+                    formattedSuccessData.Add(e.SuccessfulReps.ToString());
+                    formattedFailedData.Add(e.FailedReps.ToString());
+                }
+                
+                var exerciseNamesString = string.Join(",", formattedExerciseNames);
+                var successDataString = string.Join(",", formattedSuccessData);
+                var failedDataString = string.Join(",", formattedFailedData);
+                
+                @:const exerciseNames = [@Html.Raw(exerciseNamesString)];
+                @:const successData = [@Html.Raw(successDataString)];
+                @:const failedData = [@Html.Raw(failedDataString)];
+                
+                @:const chart = new Chart(ctx, {
+                @:    type: 'bar',
+                @:    data: {
+                @:        labels: exerciseNames,
+                @:        datasets: [
+                @:            {
+                @:                label: 'Successful Reps',
+                @:                data: successData,
+                @:                backgroundColor: '#4caf50',
+                @:            },
+                @:            {
+                @:                label: 'Failed Reps',
+                @:                data: failedData,
+                @:                backgroundColor: '#f44336',
+                @:            }
+                @:        ]
+                @:    },
+                @:    options: {
+                @:        responsive: true,
+                @:        maintainAspectRatio: false,
+                @:        animation: {
+                @:            duration: 0
+                @:        },
+                @:        scales: {
+                @:            x: {
+                @:                stacked: true,
+                @:                ticks: {
+                @:                    maxRotation: 45,
+                @:                    minRotation: 45
+                @:                }
+                @:            },
+                @:            y: {
+                @:                stacked: true,
+                @:                beginAtZero: true
+                @:            }
+                @:        },
+                @:        plugins: {
+                @:            legend: {
+                @:                position: 'top',
+                @:                labels: {
+                @:                    boxWidth: 12,
+                @:                    usePointStyle: true
+                @:                }
+                @:            }
+                @:        }
+                @:    }
+                @:});
+            }
+            else
+            {
+                @:// No data available, create empty chart
+                @:const chart = new Chart(ctx, {
+                @:    type: 'bar',
+                @:    data: {
+                @:        labels: ['No Data Available'],
+                @:        datasets: [
+                @:            {
+                @:                label: 'Successful Reps',
+                @:                data: [0],
+                @:                backgroundColor: '#4caf50',
+                @:            },
+                @:            {
+                @:                label: 'Failed Reps',
+                @:                data: [0],
+                @:                backgroundColor: '#f44336',
+                @:            }
+                @:        ]
+                @:    },
+                @:    options: {
+                @:        responsive: true,
+                @:        maintainAspectRatio: false,
+                @:        scales: {
+                @:            x: { stacked: true },
+                @:            y: { stacked: true, beginAtZero: true }
+                @:        }
+                @:    }
+                @:});
+            }
+
+            spinner.style.display = 'none';
+            ctx.style.display = 'block';
+        }
+    </script>
+}

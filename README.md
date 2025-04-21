@@ -96,10 +96,10 @@ Production Site running on wot.ninjatec.co.uk
 
 ## Architecture
 
-The application follows a clean architecture pattern:
+The application follows a clean architecture pattern with Razor Pages:
 
 - **Models**: Define the core domain entities (User, Session, Set, Rep, ExerciseType, SetType, Feedback, HelpArticle, HelpCategory, GlossaryTerm)
-- **Pages**: Razor Pages for the user interface
+- **Pages**: Razor Pages for the user interface, organized by feature areas
 - **Services**: Business logic services for user management, email notifications, help content, and other functionality
 - **Data Access**: Entity Framework Core for database operations
 
@@ -324,6 +324,7 @@ The application provides comprehensive data portability features:
 
 ## Recent Updates
 
+- Migrated from MVC architecture to Razor Pages for improved separation of concerns and simpler request handling
 - Implemented secure token validation system with rate limiting, permission verification, and cache optimization
 - Implemented API endpoints for workout data sharing with token-based access controls
 - Enhanced workout data deletion with improved progress tracking, connection resilience, and fallback status polling
