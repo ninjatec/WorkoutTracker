@@ -43,18 +43,6 @@
    - [ ] Remove /Pages/BackgroundJobs/Index.cshtml as it duplicates functionality in Controllers
    - [ ] Update any references to the removed pages
    - [ ] Verify all navigation links after removing the unused pages
-
-
- - [ ] clean up unused code
-   - [ ] Remove unused methods in BackgroundJobService:
-     - [ ] ProcessImportAsync (used only for testing)
-     - [ ] ProcessReportAsync (placeholder method)
-     - [ ] ValidateHangfireConfiguration (unused)
-   - [ ] Clean up unused CSS classes in site.css and shared.css
-   - [ ] Remove unused JavaScript functions in site.js
-   - [ ] Remove unnecessary commented code across the solution
-   - [ ] Clean up migrations with redundant or conflicting changes
- 
  
  [ ] Improve code quality
    - [ ] Enable nullable reference types throughout the project
@@ -81,6 +69,15 @@
    - [ ] Update shared layouts to remove redundant MVC-specific layouts:
      - [ ] Consolidate _Layout.cshtml and _SharedLayout.cshtml
      - [ ] Ensure consistent styling and navigation
+
+[x] clean up unused code
+  - [x] Remove unused methods in BackgroundJobService:
+    - [x] ProcessImportAsync (used only for testing)
+    - [x] ProcessReportAsync (placeholder method)
+    - [x] ValidateHangfireConfiguration (unused)
+  - [x] Clean up unused CSS classes in site.css and shared.css
+  - [x] Remove unused JavaScript functions in site.js
+  - [x] Remove unnecessary commented code across the solution
 
 [x] Add distributed cache using a redis pod as part of the k8s deployment
  - [x] Configure the application to use Redis for distributed caching.

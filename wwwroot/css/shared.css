@@ -324,16 +324,6 @@
     margin-bottom: 20px;
 }
 
-/* Calculator styling */
-.calculator-form {
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-.result-table {
-    margin-top: 30px;
-}
-
 /* Responsive tweaks */
 @media (max-width: 768px) {
     .session-grid {

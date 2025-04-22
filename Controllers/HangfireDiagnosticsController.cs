@@ -86,8 +86,8 @@ namespace WorkoutTrackerWeb.Controllers
         {
             try
             {
-                // Create a test job through BackgroundJobService
-                var jobId = BackgroundJob.Enqueue(() => _backgroundJobService.ProcessImportAsync("Test Import"));
+                // Create a simple test job since ProcessImportAsync was removed
+                var jobId = BackgroundJob.Enqueue(() => Console.WriteLine($"Test job executed at: {DateTime.Now}"));
                 
                 TempData["SuccessMessage"] = $"Test job created successfully with ID: {jobId}";
                 return RedirectToAction("Index");

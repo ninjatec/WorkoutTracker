@@ -373,63 +373,6 @@ namespace WorkoutTrackerWeb.Services
             }
         }
 
-        // New generic import processing method for the dashboard
-        public async Task ProcessImportAsync(string importName)
-        {
-            _logger.LogInformation($"Processing import job: {importName}");
-            
-            try
-            {
-                // Simulate a long-running process
-                for (int i = 0; i <= 100; i += 10)
-                {
-                    _logger.LogDebug($"Import {importName} progress: {i}%");
-                    await Task.Delay(500); // Simulate work
-                }
-                
-                _logger.LogInformation($"Import job completed successfully: {importName}");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error processing import job: {importName}");
-                throw; // Rethrow so Hangfire marks it as failed
-            }
-        }
-        
-        // Method to generate reports
-        public async Task ProcessReportAsync(string reportName)
-        {
-            _logger.LogInformation($"Generating report: {reportName}");
-            
-            try
-            {
-                using (var scope = _serviceProvider.CreateScope())
-                {
-                    var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
-                    
-                    // Simulate report generation
-                    _logger.LogDebug("Collecting workout data...");
-                    await Task.Delay(1000);
-                    
-                    var sessionCount = await context.Session.CountAsync();
-                    var setCount = await context.Set.CountAsync();
-                    
-                    _logger.LogDebug($"Analyzing {sessionCount} sessions and {setCount} sets...");
-                    await Task.Delay(2000);
-                    
-                    _logger.LogDebug("Finalizing report...");
-                    await Task.Delay(500);
-                    
-                    _logger.LogInformation($"Report '{reportName}' generated successfully with data from {sessionCount} sessions");
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error generating report: {reportName}");
-                throw; // Let Hangfire know it failed
-            }
-        }
-        
         // Method to clean up old data
         public async Task ProcessDataCleanupAsync(DateTime olderThan)
         {
@@ -458,40 +401,6 @@ namespace WorkoutTrackerWeb.Services
             {
                 _logger.LogError(ex, $"Error during data cleanup for records older than {olderThan}");
                 throw;
-            }
-        }
-        
-        // Helper method to verify Hangfire is properly configured
-        public bool ValidateHangfireConfiguration()
-        {
-            try
-            {
-                // Attempt to access the Hangfire storage
-                var storageConnection = JobStorage.Current.GetConnection();
-                var monitoringApi = JobStorage.Current.GetMonitoringApi();
-                var servers = monitoringApi.Servers();
-                
-                bool isHangfireRunning = servers.Count() > 0;
-                _logger.LogInformation("Hangfire validation: found {ServerCount} active servers", servers.Count());
-                
-                // Log the names of active servers
-                foreach (var server in servers)
-                {
-                    _logger.LogDebug("Active Hangfire server: {0}, Queues: {1}", 
-                        server.Name, string.Join(", ", server.Queues));
-                }
-                
-                return isHangfireRunning;
-            }
-            catch (InvalidOperationException ioe)
-            {
-                _logger.LogError(ioe, "Hangfire storage not properly configured or initialized");
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error validating Hangfire configuration");
-                return false;
             }
         }
 

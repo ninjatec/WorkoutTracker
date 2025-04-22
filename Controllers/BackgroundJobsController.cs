@@ -201,9 +201,9 @@ namespace WorkoutTrackerWeb.Controllers
                         try {
                             if (string.IsNullOrEmpty(jobData))
                             {
-                                // Just queue a sample import job for demo purposes
-                                jobId = BackgroundJob.Enqueue(() => 
-                                    _backgroundJobService.ProcessImportAsync("Sample Import"));
+                                // Return a message that this demo function has been removed
+                                TempData["ErrorMessage"] = "Sample import functionality has been removed.";
+                                return RedirectToAction("Index");
                             }
                             else
                             {
@@ -252,10 +252,9 @@ namespace WorkoutTrackerWeb.Controllers
                         break;
                         
                     case "GenerateReport":
-                        // Queue a report generation job
-                        jobId = BackgroundJob.Enqueue(() => 
-                            _backgroundJobService.ProcessReportAsync("Sample Report"));
-                        break;
+                        // This demo function has been removed
+                        TempData["ErrorMessage"] = "Report generation functionality has been removed.";
+                        return RedirectToAction("Index");
                         
                     case "DataCleanup":
                         // Queue a data cleanup job
@@ -338,7 +337,20 @@ namespace WorkoutTrackerWeb.Controllers
         // Check Hangfire Status
         public IActionResult CheckHangfireStatus()
         {
-            bool isConfigured = _backgroundJobService.ValidateHangfireConfiguration();
+            // This method has been simplified since ValidateHangfireConfiguration was removed
+            bool isConfigured = false;
+            
+            try {
+                var storage = JobStorage.Current;
+                var monitoringApi = storage.GetMonitoringApi();
+                var servers = monitoringApi.Servers();
+                
+                isConfigured = servers.Count > 0;
+            }
+            catch (Exception ex) {
+                _logger.LogError(ex, "Error checking Hangfire status");
+                isConfigured = false;
+            }
             
             return Json(new { 
                 isConfigured = isConfigured, 
