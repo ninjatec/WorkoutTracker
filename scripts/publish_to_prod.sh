@@ -106,7 +106,13 @@ docker push ${DOCKER_REPO}:latest
 echo -e "${YELLOW}Updating Kubernetes deployment...${NC}"
 
 # Update the image tag in the deployment YAML
-sed -i '' "s|image: ${DOCKER_REPO}:.*|image: ${DOCKER_REPO}:${VERSION}|" ./k8s/deployment.yaml
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS syntax
+    sed -i '' "s|image: ${DOCKER_REPO}:.*|image: ${DOCKER_REPO}:${VERSION}|" ./k8s/deployment.yaml
+else
+    # Linux syntax
+    sed -i "s|image: ${DOCKER_REPO}:.*|image: ${DOCKER_REPO}:${VERSION}|" ./k8s/deployment.yaml
+fi
 
 # Apply Kubernetes manifests individually instead of using kustomization
 echo -e "${YELLOW}Applying Kubernetes manifests...${NC}"
