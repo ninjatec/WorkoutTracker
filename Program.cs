@@ -41,12 +41,17 @@ Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
     .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
     .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+    // Capture ASP.NET Core request logging at Information level
+    .MinimumLevel.Override("Microsoft.AspNetCore.Hosting.Diagnostics", LogEventLevel.Information) 
     .Enrich.FromLogContext()
     .Enrich.WithMachineName()
     .Enrich.WithEnvironmentName()
+    .Enrich.WithProperty("Application", "WorkoutTracker")
+    // Log to Console with a custom format - this will go to stdout in containers
     .WriteTo.Console(
-        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {AppVersion} {SourceContext}{NewLine}{Message:lj}{NewLine}{Exception}{NewLine}"
+        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Properties:j}{NewLine}{Exception}"
     )
+    // Keep security logging for audit purposes
     .WriteTo.File(
         path: "logs/security-.log",
         rollingInterval: RollingInterval.Day,
@@ -73,6 +78,16 @@ string[] trustedDomains = new[] {
 
 // Add Serilog to the application
 builder.Host.UseSerilog();
+
+// Configure host filtering to accept the correct domains
+builder.Services.AddHostFiltering(options => {
+    options.AllowedHosts = trustedDomains;
+    options.AllowEmptyHosts = true;  // Allow requests without a Host header
+    options.IncludeFailureMessage = true; // Include detailed failure messages
+});
+
+// Log the host filtering settings
+Log.Information("Host filtering configured with allowed hosts: {AllowedHosts}", string.Join(", ", trustedDomains));
 
 // Configure cookie policy
 builder.Services.Configure<CookiePolicyOptions>(options =>
@@ -405,6 +420,13 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true; // Make the session cookie essential
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // Use secure cookies in production
     
+    // Set domain for production environment
+    if (!builder.Environment.IsDevelopment())
+    {
+        // Use the same domain pattern as the auth cookie
+        options.Cookie.Domain = ".workouttracker.online";
+    }
+    
     // Set a reasonable cookie name
     options.Cookie.Name = "WorkoutTracker.Session";
 });
@@ -507,7 +529,9 @@ builder.Services.ConfigureApplicationCookie(options =>
     // Set domain for production environment
     if (!builder.Environment.IsDevelopment())
     {
-        options.Cookie.Domain = "workouttracker.online";
+        // Use a domain that works for both apex and www subdomains
+        // The leading dot allows cookies to work across all subdomains
+        options.Cookie.Domain = ".workouttracker.online";
     }
     
     options.Events.OnSignedIn = async context =>
@@ -667,6 +691,9 @@ app.UseSession();
 
 // Add VersionLoggingMiddleware to the pipeline
 app.UseVersionLogging();
+
+// Add request logging middleware right before authentication in the pipeline
+app.UseRequestLogging(app.Environment.IsProduction());
 
 app.UseAuthentication();
 app.UseAuthorization();
