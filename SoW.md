@@ -51,7 +51,7 @@
    - [ ] Update to latest package versions for all NuGet dependencies
    - [ ] Consider enabling compiler warnings as errors for better code quality
  
- [ ] Migrate MVC to razorpages
+ [x] Migrate MVC to razorpages
    - [x] Migrate BackgroundJobsController to Razor Pages:
      - [x] Create Razor Pages for JobHistory, ServerStatus, and other BackgroundJobs views
      - [x] Update navigation references to point to new Razor Pages
