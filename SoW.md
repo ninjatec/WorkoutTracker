@@ -66,10 +66,10 @@
    - [x] Migrate ShareTokenController to Razor Pages:
      - [x] Create Razor Pages API endpoints using handlers
      - [x] Ensure authentication and authorization are preserved
-   - [ ] Update shared layouts to remove redundant MVC-specific layouts:
-     - [ ] Consolidate _Layout.cshtml and _SharedLayout.cshtml
-     - [ ] Ensure consistent styling and navigation
-     - [ ] Remove files assotiated with now replaced MVC function
+   - [x] Update shared layouts to remove redundant MVC-specific layouts:
+     - [x] Consolidate _Layout.cshtml and _SharedLayout.cshtml
+     - [x] Ensure consistent styling and navigation
+     - [x] Remove files assotiated with now replaced MVC function
   
 
 [x] clean up unused code

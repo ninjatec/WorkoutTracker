@@ -268,15 +268,19 @@ While the primary UI is built with Razor Pages, the application includes API fun
      - `Calculator.cshtml`: One-Rep Max calculator
      - `TokenRequired.cshtml`: Error view when token is missing
      - `InvalidToken.cshtml`: Error view for expired or invalid tokens
-     - `_SharedLayout.cshtml`: Special layout for shared content
+     - `_SharedLayout.cshtml`: Consolidated layout for shared content with MVC/Razor Pages compatibility
 
    - Page Models:
      - `SharedPageModel.cs`: Base page model with token validation logic
      - Feature-specific models inheriting from SharedPageModel
 
-2. API Controllers (Supporting Legacy Integration):
-   - `SharedController`: Limited API controller for backward compatibility
-   - `SharedWorkoutController`: REST API endpoints for shared workout data
+2. Layout Structure:
+   - Consolidated layout system with Bootstrap 5 integration:
+     - `_Layout.cshtml`: Main application layout with DataTables and Chart.js integration
+     - `_SharedLayout.cshtml`: Specialized layout for shared workout content
+     - `_AdminLayout.cshtml`: Admin-specific layout inheriting from main layout
+   - Removed redundant MVC-specific layouts for better maintainability
+   - Shared layouts support both ViewBag (MVC) and PageModel (Razor Pages) data access patterns
 
 3. View Components:
    - Custom layout for shared access views
@@ -296,14 +300,6 @@ While the primary UI is built with Razor Pages, the application includes API fun
    - Session-specific or account-wide data access
    - Cookie-based token persistence with secure configuration
    - Custom styling with dedicated shared.css
-
-5. Security Implementation:
-   - IP-based token validation tracking
-   - Token validation on every request
-   - Permission-based feature access control
-   - Short-lived secure HTTP-only cookies
-   - Sanitized user information display
-   - Rate-limited access validation
 
 ### Strength Calculation
 

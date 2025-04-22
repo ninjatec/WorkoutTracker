@@ -40,7 +40,7 @@
                 <a asp-area="Admin" asp-page="/Feedback/Index" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Feedback") == true ? "active" : "")">
                     <i class="bi bi-chat-dots me-2"></i> Feedback Management
                 </a>
-                <a asp-area="Admin" asp-controller="Versions" asp-action="Index" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["controller"]?.ToString() == "Versions" ? "active" : "")">
+                <a asp-area="Admin" asp-page="/Versions/Index" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Versions") == true ? "active" : "")">
                     <i class="bi bi-tag me-2"></i> Version Management
                 </a>
                 <a href="#" class="list-group-item list-group-item-action">
