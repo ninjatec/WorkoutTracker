@@ -59,14 +59,6 @@
                                 <li><a class="dropdown-item text-danger" asp-page="/Account/DeleteWorkoutData">Delete All Workout Data</a></li>
                             </ul>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-page="/Feedback/Create">Feedback</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-page="/Help/Index">
-                                <i class="bi bi-question-circle"></i> Help
-                            </a>
-                        </li>
                         @if (User.IsInRole("Admin"))
                         {
                             <li class="nav-item dropdown">
@@ -106,7 +98,8 @@
                 </div>
                 <div class="col-md-6 text-end">
                     <div class="footer-links">
-                        <a asp-page="/Help/Index" class="text-light">Help Center</a> |
+                        <a asp-page="/Help/Index" class="text-light"><i class="bi bi-question-circle"></i> Help Center</a> |
+                        <a asp-page="/Feedback/Create" class="text-light"><i class="bi bi-chat-dots"></i> Feedback</a> |
                         <a asp-page="/Help/FAQ" class="text-light">FAQs</a> |
                         <a asp-page="/Help/Glossary" class="text-light">Glossary</a> |
                         <a asp-page="/Help/VideoTutorials" class="text-light">Video Tutorials</a> |

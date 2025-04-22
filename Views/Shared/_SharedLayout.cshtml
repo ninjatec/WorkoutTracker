@@ -84,7 +84,17 @@
 
     <footer class="border-top footer text-muted">
         <div class="container">
-            &copy; 2025 - Workout Tracker - <a asp-controller="Shared" asp-action="Privacy">Privacy</a>
+            <div class="row">
+                <div class="col-md-6">
+                    &copy; 2025 - Workout Tracker - <a asp-controller="Shared" asp-action="Privacy">Privacy</a>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="footer-links">
+                        <a asp-page="/Help/Index" class="text-dark"><i class="bi bi-question-circle"></i> Help</a> |
+                        <a asp-page="/Feedback/Create" class="text-dark"><i class="bi bi-chat-dots"></i> Feedback</a>
+                    </div>
+                </div>
+            </div>
         </div>
     </footer>
 
