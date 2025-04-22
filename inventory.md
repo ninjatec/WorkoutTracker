@@ -23,6 +23,7 @@ WorkoutTracker is a fitness tracking application built with ASP.NET Core, using 
 | `/Pages/DataPortability` | Data import/export functionality |
 | `/Pages/HangfireDiagnostics` | Hangfire background job system diagnostics and repair tools |
 | `/Pages/Api/JobStatus` | Razor Pages API for background job status monitoring |
+| `/Pages/BackgroundJobs` | Background job management, monitoring, and error handling |
 | `/Services` | Application services and business logic |
 | `/Services/VersionManagement` | Version tracking and management services |
 | `/Hubs` | SignalR hubs for real-time communication |
@@ -231,10 +232,10 @@ While the primary UI is built with Razor Pages, the application includes API fun
    - ImportProgressHub: SignalR hub for real-time progress updates
    - JobProgress: Standardized progress reporting model for consistent UI updates
    - TrainAIImportService & WorkoutDataService: Services with progress reporting
-   - BackgroundJobsController: Admin controller for job monitoring dashboard
-   - Job monitoring views: Index, History, Details, and ServerStatus
+   - BackgroundJobs pages: Razor Pages implementation for job monitoring dashboard
+   - Job monitoring views: Index, JobHistory, Details, and ServerStatus
 
-3. Job monitoring dashboard features:
+3. Job monitoring features:
    - Dashboard overview with job statistics and charts
    - Recent jobs listing with status indicators and timestamps
    - Job history with tabs for failed and succeeded jobs
@@ -244,6 +245,11 @@ While the primary UI is built with Razor Pages, the application includes API fun
    - Retry functionality for failed jobs with error tracking
    - Visual status indicators for job states
    - Real-time statistics for job processing metrics
+   - Admin-only access with role-based authorization
+   - Shared admin layout for consistent navigation and styling
+   - Exception handling with friendly error messages
+   - Background job management functions (retry, delete)
+   - Responsive design for different screen sizes
 
 ### Workout Management
 1. Users create workout Sessions with date and name
@@ -559,6 +565,8 @@ The import process follows these steps:
    - Implemented handler methods (OnGet, OnPost) instead of controller actions
    - Maintained API controllers for specific REST endpoints and backward compatibility
    - Enhanced testability with more isolated page models
+   - Migrated BackgroundJobsController to Razor Pages for better code organization
+   - Implemented role-based authorization at the page model level
 
 2. **Workout Sharing Improvements**:
    - Implemented secure token validation system

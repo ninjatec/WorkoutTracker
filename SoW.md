@@ -52,10 +52,10 @@
    - [ ] Consider enabling compiler warnings as errors for better code quality
  
  [ ] Migrate MVC to razorpages
-   - [ ] Migrate BackgroundJobsController to Razor Pages:
-     - [ ] Create Razor Pages for JobHistory, ServerStatus, and other BackgroundJobs views
-     - [ ] Update navigation references to point to new Razor Pages
-     - [ ] Remove MVC controller and views after migration
+   - [x] Migrate BackgroundJobsController to Razor Pages:
+     - [x] Create Razor Pages for JobHistory, ServerStatus, and other BackgroundJobs views
+     - [x] Update navigation references to point to new Razor Pages
+     - [x] Remove MVC controller and views after migration
    - [x] Migrate HangfireDiagnosticsController to Razor Pages:
      - [x] Create equivalent Razor Pages for diagnostics and test jobs
      - [x] Ensure all functionality is preserved in the migration
@@ -69,6 +69,8 @@
    - [ ] Update shared layouts to remove redundant MVC-specific layouts:
      - [ ] Consolidate _Layout.cshtml and _SharedLayout.cshtml
      - [ ] Ensure consistent styling and navigation
+     - [ ] Remove files assotiated with now replaced MVC function
+  
 
 [x] clean up unused code
   - [x] Remove unused methods in BackgroundJobService:
