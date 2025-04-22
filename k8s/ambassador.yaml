@@ -24,6 +24,18 @@ spec:
   tlsSecret:
     name: ambassador-certs
 
+---
+apiVersion: getambassador.io/v3alpha1
+kind: Host
+metadata:
+  name: workouttracker.online
+  namespace: emissary
+spec:
+  hostname: workouttracker.online
+  acmeProvider:
+    authority: none
+  tlsSecret:
+    name: ambassador-certs
 
 ---
 apiVersion: getambassador.io/v3alpha1
@@ -36,6 +48,7 @@ spec:
   hosts:
   - wot.ninjatec.co.uk
   - www.workouttracker.online
+  - workouttracker.online
   secret: ambassador-certs.emissary
   secret_namespacing: true
   min_tls_version: v1.2

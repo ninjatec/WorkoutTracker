@@ -35,3 +35,22 @@ spec:
     cookie:
       name: emissary-sticky-cookie
       ttl: 7200s
+
+---
+apiVersion: getambassador.io/v3alpha1
+kind: Mapping
+metadata:
+  name: workouttrackeronline-apex
+  namespace: web
+spec:
+  hostname: workouttracker.online
+  prefix: /
+  service: workouttracker.web:80
+  allow_upgrade:
+  - websocket
+  resolver: kubernetes-endpoint
+  load_balancer:
+    policy: ring_hash
+    cookie:
+      name: emissary-sticky-cookie
+      ttl: 7200s
