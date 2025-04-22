@@ -24,6 +24,7 @@ WorkoutTracker is a fitness tracking application built with ASP.NET Core, using 
 | `/Pages/HangfireDiagnostics` | Hangfire background job system diagnostics and repair tools |
 | `/Pages/Api/JobStatus` | Razor Pages API for background job status monitoring |
 | `/Pages/BackgroundJobs` | Background job management, monitoring, and error handling |
+| `/Pages/API/ShareToken` | Razor Pages API endpoints for token management and validation |
 | `/Services` | Application services and business logic |
 | `/Services/VersionManagement` | Version tracking and management services |
 | `/Hubs` | SignalR hubs for real-time communication |

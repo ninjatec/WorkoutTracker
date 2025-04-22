@@ -63,9 +63,9 @@
    - [x] Migrate JobStatusController to Razor Pages API:
      - [x] Convert REST API endpoints to Razor Pages handlers with JSON responses
      - [x] Update client-side code to use new endpoints
-   - [ ] Migrate ShareTokenController to Razor Pages:
-     - [ ] Create Razor Pages API endpoints using handlers
-     - [ ] Ensure authentication and authorization are preserved
+   - [x] Migrate ShareTokenController to Razor Pages:
+     - [x] Create Razor Pages API endpoints using handlers
+     - [x] Ensure authentication and authorization are preserved
    - [ ] Update shared layouts to remove redundant MVC-specific layouts:
      - [ ] Consolidate _Layout.cshtml and _SharedLayout.cshtml
      - [ ] Ensure consistent styling and navigation

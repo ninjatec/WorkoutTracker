@@ -457,6 +457,16 @@ builder.Services.AddRazorPages(options => {
     options.Conventions.AllowAnonymousToPage("/Shared/InvalidToken");
     options.Conventions.AllowAnonymousToPage("/Shared/AccessDenied");
     options.Conventions.AllowAnonymousToPage("/Shared/Privacy");
+    
+    // Configure API/ShareToken page route patterns
+    options.Conventions.AddPageRoute("/API/ShareToken/Index", "api/ShareToken");
+    options.Conventions.AddPageRoute("/API/ShareToken/Index", "api/ShareToken/{id:int}");
+    options.Conventions.AllowAnonymousToPage("/API/ShareToken/Validate");
+    options.Conventions.AddPageRoute("/API/ShareToken/Validate", "api/ShareToken/validate");
+    options.Conventions.AddPageRoute("/API/ShareToken/Create", "api/ShareToken");
+    options.Conventions.AddPageRoute("/API/ShareToken/Update", "api/ShareToken/{id:int}");
+    options.Conventions.AddPageRoute("/API/ShareToken/Delete", "api/ShareToken/{id:int}");
+    options.Conventions.AddPageRoute("/API/ShareToken/Revoke", "api/ShareToken/{id:int}/revoke");
 });
 
 // Enhanced health checks
