@@ -15,7 +15,7 @@ spec:
 apiVersion: getambassador.io/v3alpha1
 kind: Host
 metadata:
-  name: wwwworkouttrackeronline
+  name: www.workouttracker.online
   namespace: emissary
 spec:
   hostname: www.workouttracker.online
