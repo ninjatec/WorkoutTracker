@@ -60,9 +60,9 @@
      - [x] Create equivalent Razor Pages for diagnostics and test jobs
      - [x] Ensure all functionality is preserved in the migration
      - [x] Update references and navigation links
-   - [ ] Migrate JobStatusController to Razor Pages API:
-     - [ ] Convert REST API endpoints to Razor Pages handlers with JSON responses
-     - [ ] Update client-side code to use new endpoints
+   - [x] Migrate JobStatusController to Razor Pages API:
+     - [x] Convert REST API endpoints to Razor Pages handlers with JSON responses
+     - [x] Update client-side code to use new endpoints
    - [ ] Migrate ShareTokenController to Razor Pages:
      - [ ] Create Razor Pages API endpoints using handlers
      - [ ] Ensure authentication and authorization are preserved
