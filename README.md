@@ -324,9 +324,9 @@ The application provides comprehensive data portability features:
 
 ## Recent Updates
 
+- Migrated HangfireDiagnostics from MVC controller to Razor Pages for improved consistency and maintainability
 - Migrated from MVC architecture to Razor Pages for improved separation of concerns and simpler request handling
 - Implemented secure token validation system with rate limiting, permission verification, and cache optimization
-- Implemented API endpoints for workout data sharing with token-based access controls
 - Enhanced workout data deletion with improved progress tracking, connection resilience, and fallback status polling
 - Fixed TrainAI import progress tracking to properly display real-time updates throughout the entire import process
 - Enhanced job status monitoring with improved error handling and connection resilience

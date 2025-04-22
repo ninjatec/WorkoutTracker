@@ -1,0 +1,124 @@
+@page
+@model WorkoutTrackerWeb.Pages.HangfireDiagnostics.IndexModel
+@{
+    ViewData["Title"] = "Hangfire Diagnostics";
+}
+
+<h1>Hangfire Diagnostics</h1>
+
+<div class="row">
+    <div class="col-md-12">
+        @if (TempData["SuccessMessage"] != null)
+        {
+            <div class="alert alert-success">
+                @TempData["SuccessMessage"]
+            </div>
+        }
+        @if (TempData["WarningMessage"] != null)
+        {
+            <div class="alert alert-warning">
+                @TempData["WarningMessage"]
+            </div>
+        }
+        @if (TempData["ErrorMessage"] != null)
+        {
+            <div class="alert alert-danger">
+                @TempData["ErrorMessage"]
+            </div>
+        }
+        
+        <h2>Hangfire Status</h2>
+        <div class="card mb-4">
+            <div class="card-body">
+                <p><strong>Test Job Created:</strong> @(Model.IsHangfireWorking ? "Yes ✅" : "No ❌")</p>
+                @if (Model.TestJobId != null)
+                {
+                    <p><strong>Test Job ID:</strong> @Model.TestJobId</p>
+                }
+                
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <form method="post" asp-page-handler="RunTestJob">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-primary">Run Standard Test Job</button>
+                        </form>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <form method="post" asp-page-handler="RunDeleteTest">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-primary">Test Delete All Data Job</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <h2>Database Job Counts</h2>
+        <div class="card mb-4">
+            <div class="card-body">
+                @if (Model.JobCounts != null)
+                {
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.JobCounts)
+                            {
+                                <tr>
+                                    <td>@item.Key</td>
+                                    <td>
+                                        @if (item.Key == "ActiveServers" && item.Value == 0)
+                                        {
+                                            <span class="text-danger font-weight-bold">@item.Value</span>
+                                            <small class="text-danger d-block">No active Hangfire servers found!</small>
+                                        }
+                                        else
+                                        {
+                                            @item.Value
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p>Unable to retrieve job counts from database.</p>
+                }
+            </div>
+        </div>
+        
+        <h2>Schema Repair Tools</h2>
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <strong>Warning!</strong> These operations can modify your database schema. Use with caution.
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4">
+                        <form method="post" asp-page-handler="RepairHangfireSchema">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-warning">Repair Schema</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <h2>Diagnostic Information</h2>
+        <div class="card">
+            <div class="card-body">
+                <pre>@Html.Raw(Model.DiagnosticInfo)</pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<p><a href="/hangfire" class="btn btn-info mt-3">Go to Hangfire Dashboard</a></p>

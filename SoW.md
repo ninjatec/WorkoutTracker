@@ -56,10 +56,10 @@
      - [ ] Create Razor Pages for JobHistory, ServerStatus, and other BackgroundJobs views
      - [ ] Update navigation references to point to new Razor Pages
      - [ ] Remove MVC controller and views after migration
-   - [ ] Migrate HangfireDiagnosticsController to Razor Pages:
-     - [ ] Create equivalent Razor Pages for diagnostics and test jobs
-     - [ ] Ensure all functionality is preserved in the migration
-     - [ ] Update references and navigation links
+   - [x] Migrate HangfireDiagnosticsController to Razor Pages:
+     - [x] Create equivalent Razor Pages for diagnostics and test jobs
+     - [x] Ensure all functionality is preserved in the migration
+     - [x] Update references and navigation links
    - [ ] Migrate JobStatusController to Razor Pages API:
      - [ ] Convert REST API endpoints to Razor Pages handlers with JSON responses
      - [ ] Update client-side code to use new endpoints

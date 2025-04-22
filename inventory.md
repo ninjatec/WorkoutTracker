@@ -21,6 +21,7 @@ WorkoutTracker is a fitness tracking application built with ASP.NET Core, using 
 | `/Pages/Shared` | Workout sharing view components |
 | `/Pages/Sessions` | Workout session management |
 | `/Pages/DataPortability` | Data import/export functionality |
+| `/Pages/HangfireDiagnostics` | Hangfire background job system diagnostics and repair tools |
 | `/Services` | Application services and business logic |
 | `/Services/VersionManagement` | Version tracking and management services |
 | `/Hubs` | SignalR hubs for real-time communication |
