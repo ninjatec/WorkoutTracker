@@ -22,7 +22,7 @@ namespace WorkoutTrackerWeb.Hubs
             _logger.LogDebug("UpdateProgress called: workout {WorkoutProgress}/{TotalWorkouts}, reps {ProcessedReps}/{TotalReps}", 
                 workoutProgress, totalWorkouts, processedReps, totalReps);
                 
-            await Clients.All.SendAsync("UpdateProgress", new 
+            await Clients.All.SendAsync("updateProgress", new 
             {
                 workoutProgress,
                 totalWorkouts,
@@ -42,13 +42,13 @@ namespace WorkoutTrackerWeb.Hubs
                 progress.Status, progress.PercentComplete, jobId);
             
             // Send to the specific caller
-            await Clients.Caller.SendAsync("ReceiveProgress", progress);
+            await Clients.Caller.SendAsync("receiveProgress", progress);
         
             // If we have a job ID, also send to all clients in that job's group
             if (!string.IsNullOrEmpty(jobId))
             {
                 string groupName = $"job_{jobId}";
-                await Clients.Group(groupName).SendAsync("ReceiveProgress", progress);
+                await Clients.Group(groupName).SendAsync("receiveProgress", progress);
                 _logger.LogDebug("Progress broadcast to group {GroupName}", groupName);
             }
         }
@@ -74,7 +74,7 @@ namespace WorkoutTrackerWeb.Hubs
             await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
             
             // Acknowledge registration success
-            await Clients.Caller.SendAsync("JobRegistrationStatus", new { success = true, jobId, message = "Successfully registered for job updates" });
+            await Clients.Caller.SendAsync("jobRegistrationStatus", new { success = true, jobId, message = "Successfully registered for job updates" });
         }
         
         // Method to leave all job groups (called during reconnection to clean up)
@@ -102,7 +102,7 @@ namespace WorkoutTrackerWeb.Hubs
             _logger.LogInformation("Client connected: {ConnectionId}", Context.ConnectionId);
             
             // Notify the client that the connection is established
-            await Clients.Caller.SendAsync("ConnectionStatus", new { isConnected = true, connectionId = Context.ConnectionId });
+            await Clients.Caller.SendAsync("connectionStatus", new { isConnected = true, connectionId = Context.ConnectionId });
             
             await base.OnConnectedAsync();
         }

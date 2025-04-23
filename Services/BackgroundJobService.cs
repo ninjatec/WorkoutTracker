@@ -387,8 +387,6 @@ namespace WorkoutTrackerWeb.Services
                             TotalItems = workouts.Count
                         };
                         await SendJobUpdateWithRetriesAsync(connectionId, jobId, errorProgress);
-                        
-                        // Re-throw to mark the job as failed in Hangfire
                         throw new Exception($"Import failed: {result.message}");
                     }
                 }
@@ -1145,8 +1143,6 @@ namespace WorkoutTrackerWeb.Services
                             TotalItems = workouts.Count
                         };
                         await SendJobUpdateWithRetriesAsync(connectionId, jobId, errorProgress);
-                        
-                        // Re-throw to mark the job as failed in Hangfire
                         throw new Exception($"Import failed: {result.message}");
                     }
                 }
