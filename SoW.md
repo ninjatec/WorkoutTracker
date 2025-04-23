@@ -31,12 +31,12 @@
    - [ ] Ensure Shared workout views display exercises in correct sequence
    - [ ] Add sequence number column to workout exports
 
-[ ] Migrate to Bootstrap 5
-   - [ ] Update DataTables integration from Bootstrap 4 to Bootstrap 5 in Views/Shared/_SharedLayout.cshtml
-   - [ ] Ensure all Bootstrap CSS and JS references are using version 5
-   - [ ] Update any Bootstrap 4 specific classes in custom CSS to Bootstrap 5 equivalents
-   - [ ] Verify all modal dialogs use Bootstrap 5 syntax
-   - [ ] Check form components for Bootstrap 5 compatibility
+[x] Migrate to Bootstrap 5
+   - [x] Update DataTables integration from Bootstrap 4 to Bootstrap 5 in Views/Shared/_SharedLayout.cshtml
+   - [x] Ensure all Bootstrap CSS and JS references are using version 5
+   - [x] Update any Bootstrap 4 specific classes in custom CSS to Bootstrap 5 equivalents
+   - [x] Verify all modal dialogs use Bootstrap 5 syntax
+   - [x] Check form components for Bootstrap 5 compatibility
  - [] remove unused pages
    - [ ] Remove /Pages/TestEmail.cshtml and its code-behind file
    - [ ] Remove /Pages/Users/ directory and all its contents as these are redundant with the Admin area

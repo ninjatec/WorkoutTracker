@@ -13,26 +13,30 @@
 
 <div class="row mb-3">
     <div class="col-md-8">
-        <form asp-page="./Index" method="get" class="form-inline">
-            <div class="form-group mr-2">
-                <label for="FilterType" class="mr-2">Filter by:</label>
-                <select name="FilterType" id="FilterType" class="form-control mr-2">
-                    <option value="">All Fields</option>
-                    <option value="session" selected="@(Model.FilterType == "session")">Session</option>
-                    <option value="exercise" selected="@(Model.FilterType == "exercise")">Exercise Type</option>
-                    <option value="settype" selected="@(Model.FilterType == "settype")">Set Type</option>
-                    <option value="description" selected="@(Model.FilterType == "description")">Description</option>
-                    <option value="notes" selected="@(Model.FilterType == "notes")">Notes</option>
-                </select>
+        <form asp-page="./Index" method="get" class="row row-cols-lg-auto g-3 align-items-center">
+            <div class="col-12">
+                <label for="FilterType" class="visually-hidden">Filter by:</label>
+                <div class="input-group">
+                    <div class="input-group-text">Filter by:</div>
+                    <select name="FilterType" id="FilterType" class="form-select">
+                        <option value="">All Fields</option>
+                        <option value="session" selected="@(Model.FilterType == "session")">Session</option>
+                        <option value="exercise" selected="@(Model.FilterType == "exercise")">Exercise Type</option>
+                        <option value="settype" selected="@(Model.FilterType == "settype")">Set Type</option>
+                        <option value="description" selected="@(Model.FilterType == "description")">Description</option>
+                        <option value="notes" selected="@(Model.FilterType == "notes")">Notes</option>
+                    </select>
+                </div>
             </div>
-            <div class="form-group mr-2">
-                <input type="text" name="SearchString" value="@Model.CurrentFilter" placeholder="Search..." class="form-control" />
+            <div class="col-12">
+                <label class="visually-hidden" for="SearchString">Search</label>
+                <input type="text" name="SearchString" id="SearchString" value="@Model.CurrentFilter" placeholder="Search..." class="form-control" />
             </div>
-            <div class="form-group">
+            <div class="col-12">
                 <button type="submit" class="btn btn-primary">Search</button>
                 @if (!string.IsNullOrEmpty(Model.CurrentFilter))
                 {
-                    <a asp-page="./Index" class="btn btn-secondary ml-2">Clear</a>
+                    <a asp-page="./Index" class="btn btn-secondary ms-2">Clear</a>
                 }
             </div>
             <input type="hidden" name="sortOrder" value="@Model.CurrentSort" />

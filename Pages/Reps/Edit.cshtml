@@ -14,22 +14,21 @@
         <form method="post">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <input type="hidden" asp-for="Rep.RepId" />
-            <div class="form-group">
-                <label asp-for="Rep.weight" class="control-label"></label>
+            <div class="mb-3">
+                <label asp-for="Rep.weight" class="form-label"></label>
                 <input asp-for="Rep.weight" class="form-control" type="number" step="0.25" min="0" />
                 <span asp-validation-for="Rep.weight" class="text-danger"></span>
             </div>
-            <div class="form-group">
-                <label asp-for="Rep.repnumber" class="control-label"></label>
+            <div class="mb-3">
+                <label asp-for="Rep.repnumber" class="form-label"></label>
                 <input asp-for="Rep.repnumber" class="form-control" />
                 <span asp-validation-for="Rep.repnumber" class="text-danger"></span>
             </div>
-            <div class="form-group form-check">
-                <label class="form-check-label">
-                    <input class="form-check-input" asp-for="Rep.success" /> @Html.DisplayNameFor(model => model.Rep.success)
-                </label>
+            <div class="mb-3 form-check">
+                <input class="form-check-input" asp-for="Rep.success" />
+                <label class="form-check-label" asp-for="Rep.success"></label>
             </div>
-            <div class="form-group">
+            <div class="mb-3">
                 <input type="submit" value="Save" class="btn btn-primary" />
             </div>
         </form>

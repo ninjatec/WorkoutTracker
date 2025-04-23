@@ -85,7 +85,7 @@ Production Site running on wot.ninjatec.co.uk
 - **Database**: SQL Server
 - **ORM**: Entity Framework Core
 - **Authentication**: ASP.NET Core Identity
-- **Frontend**: Bootstrap, HTML, CSS, JavaScript
+- **Frontend**: Bootstrap 5, HTML, CSS, JavaScript
 - **Data Visualization**: Chart.js
 - **Email Services**: SMTP integration for notifications and feedback
 - **Background Processing**: Hangfire for long-running tasks
@@ -324,6 +324,12 @@ The application provides comprehensive data portability features:
 
 ## Recent Updates
 
+- Upgraded from Bootstrap 4 to Bootstrap 5:
+  - Updated DataTables integration with Bootstrap 5 styles and JavaScript
+  - Modernized form components with Bootstrap 5 classes and structure
+  - Updated modal dialog syntax with new data-bs-* attributes
+  - Improved form layouts with spacing utilities instead of form-group
+  - Enhanced dropdowns with form-select for better accessibility
 - Migrated ShareTokenController to Razor Pages API, preserving all functionality while improving architecture consistency
 - Migrated HangfireDiagnostics from MVC controller to Razor Pages for improved consistency and maintainability
 - Migrated from MVC architecture to Razor Pages for improved separation of concerns and simpler request handling
@@ -341,3 +347,4 @@ The application provides comprehensive data portability features:
 - Added real-time progress updates using SignalR for long-running operations
 - Optimized TrainAI data import with batched processing and improved error handling
 - Enhanced workout data deletion with background processing and progress tracking
+- Migrated frontend framework to Bootstrap 5 for improved design consistency and modern features

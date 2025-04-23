@@ -182,7 +182,18 @@ table {
   margin-right: 5px;
 }
 
-/* Badge styling */
+/* Badge styling - updated for Bootstrap 5 */
+.bg-success {
+  background-color: var(--primary-dark) !important;
+  color: var(--text-light);
+}
+
+.bg-danger {
+  background-color: var(--error-color) !important;
+  color: var(--text-light);
+}
+
+/* For backward compatibility */
 .badge-success {
   background-color: var(--primary-dark);
   color: var(--text-light);
