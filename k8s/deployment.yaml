@@ -23,7 +23,7 @@ spec:
       - name: regcred
       containers:
       - name: workout-tracker
-        image: ninjatec/workout-tracker:1.6.6.1
+        image: ninjatec/workout-tracker:1.6.6.2
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
