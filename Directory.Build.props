@@ -1,5 +1,5 @@
 <Project>
-  <!-- Enable nullable in a way that doesn't break existing code -->
+  <!-- Nullable reference types configuration -->
   <PropertyGroup>
     <!-- 
       Nullable reference types modes:
@@ -7,7 +7,8 @@
       - enable: Full enforcement of nullable reference types (target state)
       - disable: Turns off nullable reference type checking
     -->
-    <NullableContextOptions>annotations</NullableContextOptions>
+    <NullableContextOptions>disable</NullableContextOptions>
+    <Nullable>disable</Nullable>
     
     <!-- We'll gradually add nullable file-by-file with #nullable enable directives -->
     <LangVersion>latest</LangVersion>

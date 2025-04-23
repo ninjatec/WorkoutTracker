@@ -131,7 +131,7 @@ namespace WorkoutTrackerWeb.Services
         }
 
         // Get a specific user's sessions (limited to a certain count)
-        public async Task<List<Session>> GetUserSessionsAsync(int userId, int limit = 20)
+        public async Task<List<Models.Session>> GetUserSessionsAsync(int userId, int limit = 20)
         {
             // Get the most recent sessions for this user
             var sessions = await _context.Session

@@ -324,6 +324,11 @@ The application provides comprehensive data portability features:
 
 ## Recent Updates
 
+- Reverted nullable reference types configuration:
+  - Disabled nullable context options to fix SQL errors with null values
+  - Kept XML documentation generation for API documentation
+  - Retained existing nullable annotations for future re-enablement
+
 - Added comprehensive code quality improvements:
   - Implemented nullable reference types in annotation mode for gradual adoption
   - Added XML documentation comments to core service APIs

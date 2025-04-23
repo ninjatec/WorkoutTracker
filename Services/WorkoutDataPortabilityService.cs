@@ -158,7 +158,7 @@ namespace WorkoutTrackerWeb.Services
                         s.datetime == sessionExport.DateTime))
                         continue;
 
-                    var session = new Session
+                    var session = new Models.Session
                     {
                         Name = sessionExport.Name,
                         datetime = sessionExport.DateTime,

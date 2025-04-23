@@ -4,8 +4,11 @@ using WorkoutTrackerWeb.Data;
 using WorkoutTrackerweb.Data;  // Adding this namespace that contains WorkoutTrackerWebContext
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Session;
+using Microsoft.Extensions.Caching.Distributed;
 using WorkoutTrackerWeb.Services;
 using WorkoutTrackerWeb.Services.Email;
+using WorkoutTrackerWeb.Services.Session;
 using WorkoutTrackerWeb.Services.VersionManagement;
 using WorkoutTrackerWeb.Services.Hangfire;
 using WorkoutTrackerWeb.Middleware;
@@ -412,7 +415,7 @@ else
     }
 }
 
-// Configure session with a timeout and make it essential
+// Add session state with Redis caching and JSON serialization
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromMinutes(30); // Session timeout
@@ -431,6 +434,26 @@ builder.Services.AddSession(options =>
     options.Cookie.Name = "WorkoutTracker.Session";
 });
 
+// Add custom session serialization to use System.Text.Json for better performance
+builder.Services.AddOptions<SessionOptions>()
+    .Configure<IDistributedCache>((options, cache) => 
+    {
+        // Configure the session options to use our distributed cache implementation
+        options.IOTimeout = TimeSpan.FromSeconds(5);
+    });
+
+// Add custom session serialization middleware (reuse Redis connection)
+builder.Services.AddSingleton<ISessionStore, WorkoutTrackerWeb.Services.Session.DistributedSessionStore>();
+builder.Services.AddSingleton<ISessionSerializer, JsonSessionSerializer>();
+
+// Configure custom options for session serialization
+builder.Services.Configure<JsonSessionSerializerOptions>(options => 
+{
+    options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    options.WriteIndented = false; // Keep session state compact
+    options.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+});
+
 // Add CORS policy for production domains
 builder.Services.AddCors(options =>
 {
@@ -444,29 +467,6 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowCredentials(); // Required for SignalR
     });
-});
-
-// Configure Razor Pages
-builder.Services.AddRazorPages(options => {
-    // Allow anonymous access to shared pages
-    options.Conventions.AllowAnonymousToPage("/Shared/Index");
-    options.Conventions.AllowAnonymousToPage("/Shared/Session");
-    options.Conventions.AllowAnonymousToPage("/Shared/Reports");
-    options.Conventions.AllowAnonymousToPage("/Shared/Calculator");
-    options.Conventions.AllowAnonymousToPage("/Shared/TokenRequired");
-    options.Conventions.AllowAnonymousToPage("/Shared/InvalidToken");
-    options.Conventions.AllowAnonymousToPage("/Shared/AccessDenied");
-    options.Conventions.AllowAnonymousToPage("/Shared/Privacy");
-    
-    // Configure API/ShareToken page route patterns
-    options.Conventions.AddPageRoute("/API/ShareToken/Index", "api/ShareToken");
-    options.Conventions.AddPageRoute("/API/ShareToken/Index", "api/ShareToken/{id:int}");
-    options.Conventions.AllowAnonymousToPage("/API/ShareToken/Validate");
-    options.Conventions.AddPageRoute("/API/ShareToken/Validate", "api/ShareToken/validate");
-    options.Conventions.AddPageRoute("/API/ShareToken/Create", "api/ShareToken");
-    options.Conventions.AddPageRoute("/API/ShareToken/Update", "api/ShareToken/{id:int}");
-    options.Conventions.AddPageRoute("/API/ShareToken/Delete", "api/ShareToken/{id:int}");
-    options.Conventions.AddPageRoute("/API/ShareToken/Revoke", "api/ShareToken/{id:int}/revoke");
 });
 
 // Enhanced health checks

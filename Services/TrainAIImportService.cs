@@ -273,7 +273,7 @@ namespace WorkoutTrackerWeb.Services
                         try
                         {
                             // Create session
-                            var session = new Session
+                            var session = new Models.Session
                             {
                                 Name = workout.Name,
                                 datetime = workout.StartTime,

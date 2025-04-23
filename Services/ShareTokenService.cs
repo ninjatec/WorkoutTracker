@@ -154,7 +154,7 @@ namespace WorkoutTrackerWeb.Services
                     throw new InvalidOperationException($"User with ID {userId} not found");
                 }
 
-                Session session = null;
+                Models.Session session = null;
                 if (request.SessionId.HasValue)
                 {
                     session = await _context.Session
