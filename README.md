@@ -324,6 +324,14 @@ The application provides comprehensive data portability features:
 
 ## Recent Updates
 
+- **Implemented database connection pooling optimizations**:
+  - Added advanced connection pooling configuration in appsettings.json
+  - Created dedicated DbConnectionResilienceMiddleware to handle transient database errors
+  - Implemented DatabaseResilienceService with circuit breaker pattern for connection resilience
+  - Added connection pooling health check for database connection monitoring
+  - Configured SqlConnectionStringBuilder with optimized connection pooling parameters
+  - Added support for customizable pooling settings through configuration
+
 - Reverted nullable reference types configuration:
   - Disabled nullable context options to fix SQL errors with null values
   - Kept XML documentation generation for API documentation

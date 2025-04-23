@@ -542,7 +542,16 @@ The import process follows these steps:
 
 ## Recent Changes
 
-1. **Bootstrap Migration**: Upgraded from Bootstrap 4 to Bootstrap 5 for improved UI and performance
+1. **Database Connection Pooling Optimization**:
+   - Implemented advanced connection pooling configuration in appsettings.json
+   - Created DbConnectionResilienceMiddleware to handle transient database errors
+   - Developed DatabaseResilienceService with circuit breaker pattern implementation
+   - Added database connection pool health check for monitoring
+   - Enhanced WorkoutTrackerWebContext with optimized pooling settings
+   - Added error handling page for database connection issues
+   - Configured SqlConnectionStringBuilder with customizable connection parameters
+
+2. **Bootstrap Migration**: Upgraded from Bootstrap 4 to Bootstrap 5 for improved UI and performance
    - Updated DataTables integration to use Bootstrap 5 CSS and JS
    - Updated all layout files to use Bootstrap 5 syntax (data-bs-* attributes)
    - Replaced form-group with spacing utilities (mb-3) in form components
@@ -552,7 +561,7 @@ The import process follows these steps:
    - Implemented Bootstrap 5 form-select class for dropdown elements
    - Added Bootstrap Icons for improved iconography
 
-2. **Architecture Migration**: Converted from MVC to Razor Pages for improved separation of concerns
+3. **Architecture Migration**: Converted from MVC to Razor Pages for improved separation of concerns
    - Replaced controllers with page models for better encapsulation
    - Organized UI components by feature area rather than controller/action pattern
    - Implemented handler methods (OnGet, OnPost) instead of controller actions
@@ -561,28 +570,28 @@ The import process follows these steps:
    - Migrated BackgroundJobsController to Razor Pages for better code organization
    - Implemented role-based authorization at the page model level
 
-3. **Workout Sharing Improvements**:
+4. **Workout Sharing Improvements**:
    - Implemented secure token validation system
    - Added granular permission controls for feature access
    - Created consistent shared layout with status information
    - Enhanced navigation between shared workout views
 
-4. **Performance Enhancements**:
+5. **Performance Enhancements**:
    - Added Redis distributed caching for report pages
    - Implemented SignalR Redis backplane for multi-container scaling
    - Optimized database queries with improved pagination and filtering
 
-5. **Security Updates**:
+6. **Security Updates**:
    - Enhanced token validation with rate limiting
    - Implemented IP tracking for shared access
    - Added comprehensive audit logging for token usage
 
-6. **UI Improvements**:
+7. **UI Improvements**:
    - Replaced modal dialogs with inline forms for better accessibility
    - Implemented accordion-based interfaces for token management
    - Added responsive design enhancements for mobile compatibility
 
-7. **Code Cleanup**:
+8. **Code Cleanup**:
    - Removed unused pages (`TestEmail.cshtml`, `/Pages/Users/` directory, `BackgroundJobs/Index.cshtml`)
    - Updated navigation references to use Admin area for user management
    - Consolidated user management in Admin area

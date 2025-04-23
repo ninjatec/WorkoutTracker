@@ -60,18 +60,10 @@
    - [x] Replace SQL Server session state with Redis distributed cache
    - [x] Update `Program.cs` to use Redis for session state
    - [x] Configure proper serialization for session state
- - [ ] Extract Hangfire to separate worker containers
-   - [ ] Create dedicated Hangfire worker deployment in Kubernetes
-   - [ ] Configure worker containers to only process jobs without web UI
-   - [ ] Update main application to disable background processing
- - [ ] Implement proper sticky sessions for SignalR
-   - [ ] Configure service with session affinity for SignalR connections
-   - [ ] Update SignalR configuration for backplane operations
-   - [ ] Add connection resilience handling for SignalR clients
- - [ ] Add database connection pooling optimization
-   - [ ] Configure connection pooling settings in DbContext
-   - [ ] Add connection resiliency with retry policies
-   - [ ] Implement circuit breaker pattern for database connections
+ - [x] Add database connection pooling optimization
+   - [x] Configure connection pooling settings in DbContext
+   - [x] Add connection resiliency with retry policies
+   - [x] Implement circuit breaker pattern for database connections
  - [ ] Update documentation
    - [ ] Update `README.md` with multi-container architecture details
    - [ ] Update `inventory.md` with new components and relationships

@@ -354,6 +354,9 @@ builder.Services.AddScoped<IVersionService, VersionService>();
 // Register HangfireInitializationService
 builder.Services.AddScoped<IHangfireInitializationService, HangfireInitializationService>();
 
+// Register DatabaseResilienceService for connection pooling and retry logic
+builder.Services.AddSingleton<DatabaseResilienceService>();
+
 // Configure distributed cache using Redis
 if (builder.Environment.IsDevelopment())
 {
@@ -495,7 +498,12 @@ var healthChecksBuilder = builder.Services.AddHealthChecks()
         name: "private_memory_check",
         tags: new[] { "ready", "system" })
     // Simple liveness check
-    .AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "live" });
+    .AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "live" })
+    // Register the database connection pool health check
+    .AddCheck<WorkoutTrackerWeb.HealthChecks.DatabaseConnectionPoolHealthCheck>(
+        "database_connection_pool", 
+        failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded,
+        tags: new[] { "ready", "db", "connection-pool" });
 
 // Add Redis health check only in production
 if (!builder.Environment.IsDevelopment())
@@ -512,19 +520,62 @@ if (!builder.Environment.IsDevelopment())
 }
 
 builder.Services.AddDbContext<WorkoutTrackerWebContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("WorkoutTrackerWebContext") ?? 
-        throw new InvalidOperationException("Connection string 'WorkoutTrackerWebContext' not found."),
-        sqlOptions => {
-            sqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 5,
-                maxRetryDelay: TimeSpan.FromSeconds(30),
-                errorNumbersToAdd: null);
-            sqlOptions.CommandTimeout(30); // Set reasonable command timeout
-            sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "dbo");
-        })
+{
+    var connectionString = builder.Configuration.GetConnectionString("WorkoutTrackerWebContext") ?? 
+                           throw new InvalidOperationException("Connection string 'WorkoutTrackerWebContext' not found.");
+    
+    // Get connection pooling settings from configuration
+    var poolingConfig = builder.Configuration.GetSection("DatabaseConnectionPooling");
+    int maxPoolSize = poolingConfig.GetValue<int>("MaxPoolSize", 200);
+    int minPoolSize = poolingConfig.GetValue<int>("MinPoolSize", 10);
+    int connectionLifetime = poolingConfig.GetValue<int>("ConnectionLifetime", 300);
+    bool connectionResetEnabled = poolingConfig.GetValue<bool>("ConnectionResetEnabled", true);
+    int loadBalanceTimeout = poolingConfig.GetValue<int>("LoadBalanceTimeout", 30);
+    int retryCount = poolingConfig.GetValue<int>("RetryCount", 5);
+    int retryInterval = poolingConfig.GetValue<int>("RetryInterval", 10);
+    
+    // Build connection string with additional connection pooling parameters
+    var sqlConnectionBuilder = new SqlConnectionStringBuilder(connectionString)
+    {
+        MaxPoolSize = maxPoolSize,
+        MinPoolSize = minPoolSize,
+        ConnectTimeout = loadBalanceTimeout,
+        LoadBalanceTimeout = loadBalanceTimeout,
+        ConnectRetryCount = retryCount,
+        ConnectRetryInterval = retryInterval
+    };
+
+    // Add additional parameters to connection string directly since SqlConnectionStringBuilder 
+    // doesn't expose all pooling properties
+    string enhancedConnectionString = sqlConnectionBuilder.ConnectionString;
+    if (connectionLifetime > 0)
+    {
+        enhancedConnectionString += $";Connection Lifetime={connectionLifetime}";
+    }
+    
+    // Add connection reset parameter directly to connection string
+    enhancedConnectionString += $";Connection Reset={(connectionResetEnabled ? "true" : "false")}";
+    
+    // Use the enhanced connection string with all the pooling settings
+    options.UseSqlServer(enhancedConnectionString, sqlOptions => 
+    {
+        // Enhanced retry logic for transient SQL errors
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: retryCount,
+            maxRetryDelay: TimeSpan.FromSeconds(retryInterval),
+            errorNumbersToAdd: new[] { 4060, 40197, 40501, 40613, 49918, 4221, 1205, 233, 64, -2 });
+            
+        // Connection resiliency settings
+        sqlOptions.CommandTimeout(30); // Set reasonable command timeout
+        sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "dbo");
+        
+        // Connection pooling optimizations
+        sqlOptions.MinBatchSize(5);      // Minimum number of operations to batch
+        sqlOptions.MaxBatchSize(100);    // Maximum number of operations to batch
+    })
     .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking) // Set default behavior to NoTracking
-    .EnableSensitiveDataLogging(builder.Environment.IsDevelopment()) // Only in development
-);
+    .EnableSensitiveDataLogging(builder.Environment.IsDevelopment()); // Only in development
+});
 
 // Configure application cookie settings for authentication
 builder.Services.ConfigureApplicationCookie(options =>
@@ -642,6 +693,9 @@ app.Use(async (context, next) =>
 
 // Use our dedicated Redis resilience middleware
 app.UseRedisResilience();
+
+// Use our database connection resilience middleware
+app.UseDbConnectionResilience();
 
 // Initialize Hangfire database using HangfireInitializationService
 Log.Information("Attempting to initialize Hangfire schema");
