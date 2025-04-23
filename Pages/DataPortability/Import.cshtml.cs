@@ -110,57 +110,38 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                 FileSizeBytes = ImportFile.Length;
                 _logger.LogInformation("Processing import file of size {FileSizeBytes} bytes", FileSizeBytes);
                 
-                // For files > 5MB, use a different approach to avoid timeouts
-                bool isLargeFile = ImportFile.Length > 5 * 1024 * 1024; // 5MB threshold
+                // Use connection ID for realtime progress updates
                 string connectionId = HttpContext.Connection.Id;
                 string jobId;
                 
-                if (isLargeFile)
+                // Save to temp file and process asynchronously to avoid timeouts
+                string tempFilePath = Path.GetTempFileName();
+                
+                try 
                 {
-                    _logger.LogInformation("Large file detected ({SizeMB:F2}MB), using streamlined import approach", 
-                        ImportFile.Length / (1024.0 * 1024.0));
-                    
-                    // For large files, save to temp file and process asynchronously
-                    // to avoid Cloudflare 504 timeouts
-                    string tempFilePath = Path.GetTempFileName();
-                    
-                    try 
+                    using (var fileStream = new FileStream(tempFilePath, FileMode.Create))
                     {
-                        using (var fileStream = new FileStream(tempFilePath, FileMode.Create))
-                        {
-                            await ImportFile.CopyToAsync(fileStream);
-                        }
-                        
-                        // Queue background job to process the saved file
-                        jobId = _backgroundJobService.QueueJsonImportFromFile(
-                            userId.Value, tempFilePath, SkipExisting, connectionId, true); // true = delete file when done
-                        
-                        _logger.LogInformation("Queued JSON import from file job {JobId} for user {UserId}, temp file: {TempFile}", 
-                            jobId, userId.Value, tempFilePath);
+                        await ImportFile.CopyToAsync(fileStream);
                     }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error saving temp file for large import");
-                        
-                        // Clean up if possible
-                        if (System.IO.File.Exists(tempFilePath))
-                        {
-                            try { System.IO.File.Delete(tempFilePath); } catch { /* ignore */ }
-                        }
-                        
-                        throw;
-                    }
+                    
+                    // Queue background job to process the saved file
+                    jobId = _backgroundJobService.QueueJsonImportFromFile(
+                        userId.Value, tempFilePath, SkipExisting, connectionId, true); // true = delete file when done
+                    
+                    _logger.LogInformation("Queued JSON import from file job {JobId} for user {UserId}, temp file: {TempFile}", 
+                        jobId, userId.Value, tempFilePath);
                 }
-                else
+                catch (Exception ex)
                 {
-                    // For smaller files, use the original approach
-                    using var reader = new StreamReader(ImportFile.OpenReadStream());
-                    var jsonData = await reader.ReadToEndAsync();
-
-                    // Queue the import as a background job
-                    jobId = _backgroundJobService.QueueJsonImport(userId.Value, jsonData, SkipExisting, connectionId);
+                    _logger.LogError(ex, "Error saving temp file for import");
                     
-                    _logger.LogInformation("Queued standard JSON import job {JobId} for user {UserId}", jobId, userId.Value);
+                    // Clean up if possible
+                    if (System.IO.File.Exists(tempFilePath))
+                    {
+                        try { System.IO.File.Delete(tempFilePath); } catch { /* ignore */ }
+                    }
+                    
+                    throw;
                 }
                 
                 // Add the connection to the job-specific group

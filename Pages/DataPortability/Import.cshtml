@@ -646,17 +646,9 @@
             
             const file = fileInput.files[0];
             
-            // For large files, use AJAX upload to avoid timeout
-            if (file && file.size > LARGE_FILE_THRESHOLD) {
-                e.preventDefault(); // Prevent default form submission
-                uploadLargeFileWithAjax(file);
-            } else {
-                // For smaller files, use standard form submission
-                progressSection.classList.remove('d-none');
-                progressStatus.textContent = "Submitting import...";
-                progressDetails.textContent = "Preparing to process JSON data";
-                // Let the form submit naturally
-            }
+            // Always use AJAX upload to process via background jobs
+            e.preventDefault(); // Prevent default form submission
+            uploadLargeFileWithAjax(file);
         });
         
         // Initialize SignalR connection
