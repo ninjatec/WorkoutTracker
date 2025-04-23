@@ -13,10 +13,12 @@ using Hangfire;
 using System.Linq;
 using Microsoft.AspNetCore.SignalR;
 using WorkoutTrackerWeb.Hubs;
+using System.Text.Json;
 
 namespace WorkoutTrackerWeb.Pages.DataPortability
 {
     [Authorize]
+    [ValidateAntiForgeryToken]
     public class ImportModel : PageModel
     {
         private readonly WorkoutDataPortabilityService _portabilityService;
@@ -215,6 +217,79 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
             {
                 _logger.LogError(ex, "Error sending initial progress update");
                 // Ignore errors - this is just a nice-to-have initial feedback
+            }
+        }
+        
+        // Handler for AJAX-based large file uploads
+        public async Task<IActionResult> OnPostLargeFileAsync()
+        {
+            if (ImportFile == null || ImportFile.Length == 0)
+            {
+                return new JsonResult(new { success = false, message = "Please select a file to import" });
+            }
+
+            try
+            {
+                var userId = await _userService.GetCurrentUserIdAsync();
+                if (!userId.HasValue)
+                {
+                    return new JsonResult(new { success = false, message = "User not found" });
+                }
+
+                // Store file size for UI display
+                FileSizeBytes = ImportFile.Length;
+                _logger.LogInformation("Processing large file upload via AJAX: {FileSizeBytes} bytes", FileSizeBytes);
+                
+                // For AJAX uploads, always use the file-based approach to avoid timeouts
+                string tempFilePath = Path.GetTempFileName();
+                string jobId;
+                string connectionId = HttpContext.Connection.Id;
+                
+                try 
+                {
+                    using (var fileStream = new FileStream(tempFilePath, FileMode.Create))
+                    {
+                        await ImportFile.CopyToAsync(fileStream);
+                    }
+                    
+                    // Queue background job to process the saved file
+                    jobId = _backgroundJobService.QueueJsonImportFromFile(
+                        userId.Value, tempFilePath, SkipExisting, connectionId, true); // true = delete file when done
+                    
+                    _logger.LogInformation("AJAX upload: Queued JSON import job {JobId} for user {UserId}, temp file: {TempFile}", 
+                        jobId, userId.Value, tempFilePath);
+                    
+                    // Add the connection to the job-specific group
+                    await _hubContext.Groups.AddToGroupAsync(connectionId, $"job_{jobId}");
+                    
+                    // Send initial progress update
+                    await SendInitialProgressUpdateAsync(jobId, ImportFile.Length);
+                    
+                    // Return success with job ID
+                    return new JsonResult(new { 
+                        success = true, 
+                        jobId = jobId, 
+                        message = "File uploaded successfully and processing has started.",
+                        fileSizeMB = Math.Round(ImportFile.Length / (1024.0 * 1024.0), 2)
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error processing large file upload");
+                    
+                    // Clean up if possible
+                    if (System.IO.File.Exists(tempFilePath))
+                    {
+                        try { System.IO.File.Delete(tempFilePath); } catch { /* ignore */ }
+                    }
+                    
+                    return new JsonResult(new { success = false, message = $"Upload failed: {ex.Message}" });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error during large file upload");
+                return new JsonResult(new { success = false, message = $"Upload failed: {ex.Message}" });
             }
         }
         

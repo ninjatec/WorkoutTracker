@@ -435,8 +435,8 @@
 
         // Add form submit handler
         form.addEventListener('submit', function(e) {
-            // Only proceed if checkbox is checked
-            if (!confirmCheckbox.checked) {
+            // Make sure confirmCheckbox exists before checking its properties
+            if (confirmCheckbox && !confirmCheckbox.checked) {
                 e.preventDefault();
                 return;
             }

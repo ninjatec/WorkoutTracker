@@ -37,6 +37,7 @@ using Microsoft.AspNetCore.StaticFiles;
 using StackExchange.Redis;
 using HealthChecks.Redis;
 using HealthChecks.System;
+using Microsoft.AspNetCore.HttpOverrides;
 
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
@@ -91,6 +92,20 @@ builder.Services.AddHostFiltering(options => {
 
 // Log the host filtering settings
 Log.Information("Host filtering configured with allowed hosts: {AllowedHosts}", string.Join(", ", trustedDomains));
+
+// Configure forwarded headers options to properly handle proxy servers like Cloudflare
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    
+    // Clear the default networks that are trusted by default - we'll explicitly add our own
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+    
+    // Trust all proxies for now - in a production environment you'd want to be more specific
+    // about which proxies are trusted. For Cloudflare, you'd add their IP ranges.
+    options.ForwardLimit = null; // No limit on number of proxy hops
+});
 
 // Configure cookie policy
 builder.Services.Configure<CookiePolicyOptions>(options =>
@@ -424,7 +439,16 @@ builder.Services.AddSession(options =>
     options.IdleTimeout = TimeSpan.FromMinutes(30); // Session timeout
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true; // Make the session cookie essential
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // Use secure cookies in production
+    
+    // Only require HTTPS in production
+    if (builder.Environment.IsDevelopment())
+    {
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    }
+    else
+    {
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    }
     
     // Set domain for production environment
     if (!builder.Environment.IsDevelopment())
@@ -470,6 +494,26 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowCredentials(); // Required for SignalR
     });
+});
+
+// Configure Antiforgery options for AJAX requests with X-CSRF-TOKEN header
+builder.Services.AddAntiforgery(options => 
+{
+    options.HeaderName = "X-CSRF-TOKEN";
+    options.Cookie.Name = "CSRF-TOKEN";
+    options.Cookie.HttpOnly = false; // Must be accessible via JavaScript
+    
+    // Only require HTTPS in production
+    if (builder.Environment.IsDevelopment())
+    {
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    }
+    else
+    {
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    }
+    
+    options.Cookie.SameSite = SameSiteMode.Strict;
 });
 
 // Enhanced health checks
@@ -587,7 +631,17 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.Cookie.Name = "WorkoutTracker.Auth";
     options.Cookie.HttpOnly = true;
     options.Cookie.SameSite = SameSiteMode.Strict;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    
+    // Only require HTTPS in production
+    if (builder.Environment.IsDevelopment())
+    {
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    }
+    else
+    {
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    }
+    
     options.ExpireTimeSpan = TimeSpan.FromDays(14);
     options.SlidingExpiration = true;
     
@@ -659,6 +713,9 @@ else
     // Configure HSTS for production
     app.UseHsts();
 }
+
+// Use ForwardedHeaders middleware early in the pipeline to handle proxy headers
+app.UseForwardedHeaders();
 
 // Add Content Security Policy middleware
 app.Use(async (context, next) =>

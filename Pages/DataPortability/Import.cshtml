@@ -552,6 +552,84 @@
             }, 500);
         }
 
+        // New function to handle large file uploads via AJAX
+        function uploadLargeFileWithAjax(file) {
+            const formData = new FormData();
+            formData.append('ImportFile', file);
+            formData.append('SkipExisting', document.getElementById('SkipExisting').checked);
+            
+            // Show upload progress UI
+            uploadProgressSection.classList.remove('d-none');
+            uploadStatus.textContent = `Uploading ${(file.size / 1024 / 1024).toFixed(2)} MB file...`;
+            simulateUploadProgress();
+            
+            // Add AJAX request headers to avoid 504 timeout
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/DataPortability/Import?handler=LargeFile', true);
+            
+            // Get request verification token for CSRF protection
+            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            xhr.setRequestHeader('X-CSRF-TOKEN', token);
+            
+            // Send the form data without setting content type - let browser set it with proper boundary
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.success && response.jobId) {
+                            // Redirect to the status page with the job ID
+                            window.location.href = `/DataPortability/Import?jobId=${response.jobId}`;
+                        } else {
+                            // Show error
+                            errorMessage.textContent = response.message || "Upload failed";
+                            errorMessage.classList.remove('d-none');
+                            importButton.disabled = false;
+                            importButton.innerHTML = 'Import';
+                            document.body.classList.remove('importing');
+                        }
+                    } catch (e) {
+                        console.error("Error parsing response:", e);
+                        errorMessage.textContent = "Error processing server response";
+                        errorMessage.classList.remove('d-none');
+                        importButton.disabled = false;
+                        importButton.innerHTML = 'Import';
+                        document.body.classList.remove('importing');
+                    }
+                } else {
+                    // Handle HTTP errors
+                    errorMessage.textContent = `Upload failed: Server returned status ${xhr.status}`;
+                    errorMessage.classList.remove('d-none');
+                    importButton.disabled = false;
+                    importButton.innerHTML = 'Import';
+                    document.body.classList.remove('importing');
+                }
+            };
+            
+            xhr.onerror = function() {
+                errorMessage.textContent = "Network error occurred during upload";
+                errorMessage.classList.remove('d-none');
+                importButton.disabled = false;
+                importButton.innerHTML = 'Import';
+                document.body.classList.remove('importing');
+            };
+            
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percent = Math.floor((e.loaded / e.total) * 100);
+                    uploadProgressBar.style.width = `${percent}%`;
+                    uploadProgressBar.setAttribute('aria-valuenow', percent);
+                    uploadProgressBar.textContent = `${percent}%`;
+                    
+                    if (percent >= 100) {
+                        uploadStatus.textContent = "Upload complete. Processing file...";
+                    }
+                }
+            };
+            
+            // Send the form data
+            xhr.send(formData);
+        }
+
         // Add form submit handler
         form.addEventListener('submit', function(e) {
             // Make sure we have a file
@@ -566,20 +644,21 @@
             importButton.disabled = true;
             importButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Importing...';
             
-            // Show upload progress for large files
             const file = fileInput.files[0];
+            
+            // For large files, use AJAX upload to avoid timeout
             if (file && file.size > LARGE_FILE_THRESHOLD) {
-                uploadProgressSection.classList.remove('d-none');
-                uploadStatus.textContent = `Uploading ${(file.size / 1024 / 1024).toFixed(2)} MB file...`;
-                simulateUploadProgress();
+                e.preventDefault(); // Prevent default form submission
+                uploadLargeFileWithAjax(file);
             } else {
-                // Show progress section immediately for smaller files
+                // For smaller files, use standard form submission
                 progressSection.classList.remove('d-none');
                 progressStatus.textContent = "Submitting import...";
                 progressDetails.textContent = "Preparing to process JSON data";
+                // Let the form submit naturally
             }
         });
-
+        
         // Initialize SignalR connection
         initializeConnection();
         
