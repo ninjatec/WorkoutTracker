@@ -4,6 +4,8 @@
 - Do not apologize
 - User razorpages and not MVC
 - Use .net core 9
+- User bootstrap 5
+- make all code and configuration compatible with linux containers
 - Suggest solutions that I didn't think about—anticipate my needs
 - Be accurate and thorough
 - Value good arguments over authorities, the source is irrelevant

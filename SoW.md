@@ -55,7 +55,7 @@
    - [ ] Update inventory.md with new sharing components
    - [ ] Create user guide for sharing workout data
 
-[ ] Optimize for multi-container deployment
+[x] Optimize for multi-container deployment
  - [x] Implement Redis for distributed session state
    - [x] Replace SQL Server session state with Redis distributed cache
    - [x] Update `Program.cs` to use Redis for session state
@@ -64,10 +64,10 @@
    - [x] Configure connection pooling settings in DbContext
    - [x] Add connection resiliency with retry policies
    - [x] Implement circuit breaker pattern for database connections
- - [ ] Update documentation
-   - [ ] Update `README.md` with multi-container architecture details
-   - [ ] Update `inventory.md` with new components and relationships
-   - [ ] Create architecture diagram showing container interactions
+ - [x] Update documentation
+   - [x] Update `README.md` with multi-container architecture details
+   - [x] Update `inventory.md` with new components and relationships
+   - [x] Create architecture diagram showing container interactions
 
 
 [ ] Add swagger for API endpoints but disable in production

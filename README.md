@@ -278,7 +278,34 @@ The application includes Docker support for containerized deployment with:
 - Docker Compose configuration for development and production
 - Kubernetes manifests for orchestrated deployment
 
+### Multi-Container Architecture
+
+The application is designed to run in a multi-container environment for improved scalability and reliability:
+
+#### Core Components
+- **Web Application**: ASP.NET Core application running in multiple container instances
+- **Redis**: Used for both distributed caching and SignalR backplane
+- **SQL Server**: Database backend with connection pooling optimizations
+
+#### Container Communication
+- **SignalR Backplane**: Redis-backed communication between application instances
+- **Distributed Cache**: Shared Redis cache for report data and session state
+- **Database Connection Pooling**: Optimized SQL Server connections with resilience
+
+#### Scaling Capabilities
+- **Horizontal Scaling**: Multiple web application instances behind a load balancer
+- **Persistent Connections**: SignalR connections maintained across container instances
+- **Session Persistence**: User sessions maintained when scaling up/down
+- **Connection Resilience**: Circuit breaker patterns for database and Redis connections
+
+#### Deployment Configuration
+- **Kubernetes Manifests**: Complete deployment configuration in `/k8s` directory
+- **Resource Management**: CPU and memory limits defined for production workloads
+- **Health Monitoring**: Liveness, readiness, and startup probes for container orchestration
+- **Secrets Management**: Secure configuration via Kubernetes secrets
+
 ### Secrets Management
+
 - Development: User Secrets for local development (dotnet user-secrets)
 - Production: Kubernetes Secrets for sensitive configuration in production
 - Connection strings and email configuration stored securely outside of source code

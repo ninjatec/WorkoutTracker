@@ -66,6 +66,33 @@ While the primary UI is built with Razor Pages, the application includes API fun
 | `/k8s/secrets.yaml` | Kubernetes secrets for production deployments |
 | `/k8s/deployment.yaml` | Kubernetes deployment with health check configurations |
 | `/k8s/redis.yaml` | Redis deployment for SignalR backplane |
+| `/k8s/mapping.yaml` | Ambassador API gateway configuration for routing requests |
+| `/k8s/ambassador.yaml` | Ambassador edge stack installation manifest |
+| `/k8s/redis-helm.yaml` | Helm chart values for Redis installation |
+| `/k8s/deploy-redis-helm.sh` | Script for deploying Redis using Helm |
+
+### Multi-Container Architecture Components
+
+| Component | Purpose |
+|-----------|---------|
+| Web Application | ASP.NET Core container instances running the main application |
+| Redis | Provides distributed caching and SignalR backplane functionality |
+| SQL Server | Persistent data storage with optimized connection pooling |
+| Ambassador API Gateway | Edge routing with sticky sessions for SignalR connections |
+| Health Checks | Container orchestration integration including Redis connectivity |
+
+### Resilience Components
+
+| Component | Purpose |
+|-----------|---------|
+| `DbConnectionResilienceMiddleware` | Handles transient SQL Server connection issues |
+| `RedisResilienceMiddleware` | Manages Redis connection failures with circuit breaker pattern |
+| `DatabaseConnectionPoolHealthCheck` | Monitors database connection pool health |
+| Connection Pooling Configuration | Settings in `appsettings.json` for optimized database connections |
+| Retry Policies | Polly-based retry mechanisms for external service calls |
+| Circuit Breakers | Prevents cascading failures by failing fast when services are unavailable |
+| Health Checks | Comprehensive monitoring of all system dependencies |
+| Redis Backplane | Ensures resilient SignalR communications across instances |
 
 ## Data Model
 

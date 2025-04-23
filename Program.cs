@@ -553,8 +553,12 @@ builder.Services.AddDbContext<WorkoutTrackerWebContext>(options =>
         enhancedConnectionString += $";Connection Lifetime={connectionLifetime}";
     }
     
-    // Add connection reset parameter directly to connection string
-    enhancedConnectionString += $";Connection Reset={(connectionResetEnabled ? "true" : "false")}";
+    // Add connection reset parameter directly to connection string - only on Windows
+    // This parameter is not supported on macOS and Linux
+    if (connectionResetEnabled && OperatingSystem.IsWindows())
+    {
+        enhancedConnectionString += $";Connection Reset=true";
+    }
     
     // Use the enhanced connection string with all the pooling settings
     options.UseSqlServer(enhancedConnectionString, sqlOptions => 
