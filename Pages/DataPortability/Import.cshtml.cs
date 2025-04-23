@@ -10,6 +10,9 @@ using WorkoutTrackerWeb.Services;
 using Hangfire.Storage;
 using Microsoft.Extensions.Logging;
 using Hangfire;
+using System.Linq;
+using Microsoft.AspNetCore.SignalR;
+using WorkoutTrackerWeb.Hubs;
 
 namespace WorkoutTrackerWeb.Pages.DataPortability
 {
@@ -20,16 +23,19 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
         private readonly UserService _userService;
         private readonly BackgroundJobService _backgroundJobService;
         private readonly ILogger<ImportModel> _logger;
+        private readonly IHubContext<ImportProgressHub> _hubContext;
 
         public ImportModel(
             WorkoutDataPortabilityService portabilityService,
             UserService userService,
             BackgroundJobService backgroundJobService,
+            IHubContext<ImportProgressHub> hubContext,
             ILogger<ImportModel> logger)
         {
             _portabilityService = portabilityService;
             _userService = userService;
             _backgroundJobService = backgroundJobService;
+            _hubContext = hubContext;
             _logger = logger;
         }
 
@@ -47,6 +53,7 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
         public string JobId { get; set; }
         public string JobState { get; set; }
         public string ErrorMessage { get; set; }
+        public long FileSizeBytes { get; set; }
 
         public async Task<IActionResult> OnGetAsync(string jobId = null)
         {
@@ -97,22 +104,77 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                     throw new InvalidOperationException("User not found");
                 }
 
-                using var reader = new StreamReader(ImportFile.OpenReadStream());
-                var jsonData = await reader.ReadToEndAsync();
-
-                // Queue the import as a background job
-                string connectionId = HttpContext.Connection.Id;
-                string jobId = _backgroundJobService.QueueJsonImport(userId.Value, jsonData, SkipExisting, connectionId);
+                // Store file size for UI display
+                FileSizeBytes = ImportFile.Length;
+                _logger.LogInformation("Processing import file of size {FileSizeBytes} bytes", FileSizeBytes);
                 
-                _logger.LogInformation("Queued JSON import background job {JobId} for user {UserId}", jobId, userId.Value);
+                // For very large files (> 10MB), use a different approach to avoid timeouts
+                bool isLargeFile = ImportFile.Length > 10 * 1024 * 1024; // 10MB threshold
+                string connectionId = HttpContext.Connection.Id;
+                string jobId;
+                
+                if (isLargeFile)
+                {
+                    _logger.LogInformation("Large file detected ({SizeMB:F2}MB), using streamlined import approach", 
+                        ImportFile.Length / (1024.0 * 1024.0));
+                    
+                    // For large files, save to temp file and process asynchronously
+                    // to avoid Cloudflare 504 timeouts
+                    string tempFilePath = Path.GetTempFileName();
+                    
+                    try 
+                    {
+                        using (var fileStream = new FileStream(tempFilePath, FileMode.Create))
+                        {
+                            await ImportFile.CopyToAsync(fileStream);
+                        }
+                        
+                        // Queue background job to process the saved file
+                        jobId = _backgroundJobService.QueueJsonImportFromFile(
+                            userId.Value, tempFilePath, SkipExisting, connectionId, true); // true = delete file when done
+                        
+                        _logger.LogInformation("Queued JSON import from file job {JobId} for user {UserId}, temp file: {TempFile}", 
+                            jobId, userId.Value, tempFilePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error saving temp file for large import");
+                        
+                        // Clean up if possible
+                        if (System.IO.File.Exists(tempFilePath))
+                        {
+                            try { System.IO.File.Delete(tempFilePath); } catch { /* ignore */ }
+                        }
+                        
+                        throw;
+                    }
+                }
+                else
+                {
+                    // For smaller files, use the original approach
+                    using var reader = new StreamReader(ImportFile.OpenReadStream());
+                    var jsonData = await reader.ReadToEndAsync();
+
+                    // Queue the import as a background job
+                    jobId = _backgroundJobService.QueueJsonImport(userId.Value, jsonData, SkipExisting, connectionId);
+                    
+                    _logger.LogInformation("Queued standard JSON import job {JobId} for user {UserId}", jobId, userId.Value);
+                }
+                
+                // Add the connection to the job-specific group
+                await _hubContext.Groups.AddToGroupAsync(connectionId, $"job_{jobId}");
+                
+                // Show immediate feedback
+                await SendInitialProgressUpdateAsync(jobId, ImportFile.Length);
                 
                 // Store the job ID to allow checking status
                 JobId = jobId;
                 JobState = "Enqueued";
-                Message = "Import job has been started. Please wait while your data is being processed.";
+                Success = true;
+                Message = "Import job has been started. You can watch the progress on this page or leave and check back later.";
                 
-                // Redirect to the same page with the job ID to track progress
-                return RedirectToPage(new { jobId });
+                // Return the page with job tracking info
+                return Page();
             }
             catch (Exception ex)
             {
@@ -120,6 +182,39 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                 Message = $"Import failed: {ex.Message}";
                 Success = false;
                 return Page();
+            }
+        }
+        
+        // Send an initial progress update to show the UI is working
+        private async Task SendInitialProgressUpdateAsync(string jobId, long fileSize)
+        {
+            try 
+            {
+                // Send an initial progress update to show the job is starting
+                var initialProgress = new JobProgress
+                {
+                    Status = "Starting import...",
+                    PercentComplete = 0,
+                    TotalItems = 1,
+                    ProcessedItems = 0,
+                    Details = $"Preparing to import JSON data ({(fileSize / 1024.0 / 1024.0):F2}MB)"
+                };
+                
+                // Send to both the individual connection and the job group
+                string connectionId = HttpContext.Connection.Id;
+                if (!string.IsNullOrEmpty(connectionId))
+                {
+                    await _hubContext.Clients.Client(connectionId).SendAsync("ReceiveProgress", initialProgress);
+                    _logger.LogInformation("Sent initial progress update to connectionId={ConnectionId}", connectionId);
+                }
+                
+                await _hubContext.Clients.Group($"job_{jobId}").SendAsync("ReceiveProgress", initialProgress);
+                _logger.LogInformation("Sent initial progress update to job group={JobGroup}", $"job_{jobId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending initial progress update");
+                // Ignore errors - this is just a nice-to-have initial feedback
             }
         }
         
@@ -158,6 +253,11 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                 var scheduledJobs = monitoringApi.ScheduledJobs(0, 1000);
                 if (scheduledJobs.Any(j => j.Key == jobId))
                     return (true, "Scheduled");
+                
+                // Check enqueued jobs
+                var enqueuedJobs = monitoringApi.EnqueuedJobs("default", 0, 1000);
+                if (enqueuedJobs.Any(j => j.Key == jobId))
+                    return (true, "Enqueued");
                 
                 return (false, state);
             }

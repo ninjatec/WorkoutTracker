@@ -8,22 +8,34 @@
 
 <div class="row">
     <div class="col-md-6">
-        <form method="post" enctype="multipart/form-data" id="importForm">
-            <div class="mb-3">
-                <label asp-for="ImportFile" class="form-label">JSON File</label>
-                <input asp-for="ImportFile" class="form-control" type="file" accept=".json" />
-                <span asp-validation-for="ImportFile" class="text-danger"></span>
-            </div>
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Import JSON Data</h5>
+                <form method="post" enctype="multipart/form-data" id="importForm">
+                    <div class="mb-3">
+                        <label asp-for="ImportFile" class="form-label">JSON File</label>
+                        <input asp-for="ImportFile" class="form-control" type="file" accept=".json" id="jsonFileInput" />
+                        <span asp-validation-for="ImportFile" class="text-danger"></span>
+                        <div id="fileInfo" class="form-text d-none">
+                            <span id="fileSize"></span>
+                            <div id="largeFileWarning" class="alert alert-info mt-2 d-none">
+                                <i class="fas fa-info-circle"></i> Large file detected. The upload will be processed in the background to avoid timeouts.
+                            </div>
+                        </div>
+                    </div>
 
-            <div class="form-check mb-3">
-                <input asp-for="SkipExisting" class="form-check-input" type="checkbox" checked />
-                <label asp-for="SkipExisting" class="form-check-label">Skip existing sessions</label>
-            </div>
+                    <div class="form-check mb-3">
+                        <input asp-for="SkipExisting" class="form-check-input" type="checkbox" checked />
+                        <label asp-for="SkipExisting" class="form-check-label">Skip existing sessions</label>
+                    </div>
 
-            <div class="mb-3">
-                <button type="submit" class="btn btn-primary" id="importButton">Import</button>
+                    <div class="mb-3">
+                        <button type="submit" class="btn btn-primary" id="importButton">Import</button>
+                        <a asp-page="./Index" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
             </div>
-        </form>
+        </div>
 
         @if (!string.IsNullOrEmpty(Model.Message))
         {
@@ -38,28 +50,46 @@
             </div>
         }
         
-        <!-- Job Progress Section -->
-        <div id="progressSection" class="mt-4 @(string.IsNullOrEmpty(Model.JobId) ? "d-none" : "")">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Import Progress</h5>
-                    <span id="connectionStatus" class="badge bg-secondary">Connecting...</span>
+        <!-- File Upload Progress -->
+        <div id="uploadProgressSection" class="card mb-4 d-none">
+            <div class="card-body">
+                <h5 class="card-title">Upload Progress</h5>
+                <div class="progress mb-3">
+                    <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-info" 
+                         role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
                 </div>
-                <div class="card-body">
-                    <p id="progressStatus">@(Model.JobState ?? "Initializing...")</p>
-                    
-                    <div class="progress mb-3">
-                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                             role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                    </div>
-                    
-                    <p id="progressDetails" class="text-muted small"></p>
-                    
-                    <div id="itemProgress" class="d-none mb-3">
-                        <p><span id="processedItems">0</span> of <span id="totalItems">0</span> items processed</p>
-                    </div>
-                    
-                    <div id="errorMessage" class="alert alert-danger d-none"></div>
+                <p id="uploadStatus" class="text-muted">Preparing to upload file...</p>
+            </div>
+        </div>
+        
+        <!-- Job Progress Section -->
+        <div id="progressSection" class="card mb-4 @(string.IsNullOrEmpty(Model.JobId) ? "d-none" : "")">
+            <div class="card-body">
+                <h5 class="card-title d-flex justify-content-between align-items-center">
+                    Import Progress
+                    <span id="connectionStatus" class="badge bg-secondary">Connecting...</span>
+                </h5>
+                
+                <p id="progressStatus">@(Model.JobState ?? "Initializing...")</p>
+                
+                <div class="progress mb-3">
+                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                </div>
+                
+                <p id="progressDetails" class="text-muted small"></p>
+                
+                <div id="itemProgress" class="d-none mb-3">
+                    <p><span id="processedItems">0</span> of <span id="totalItems">0</span> items processed</p>
+                </div>
+                
+                <div id="errorMessage" class="alert alert-danger d-none"></div>
+                
+                <div class="mt-3">
+                    <p class="text-info">
+                        <i class="fas fa-info-circle"></i>
+                        The import is running in the background. You can leave this page if you wish.
+                    </p>
                 </div>
             </div>
         </div>
@@ -81,6 +111,29 @@
             </div>
         }
     </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Import Instructions</h5>
+                <p>To import your workout data:</p>
+                <ol>
+                    <li>Click "Choose File" and select a JSON file exported from this or another compatible system</li>
+                    <li>Check "Skip existing sessions" if you want to avoid duplicates</li>
+                    <li>Click "Import" to start the import process</li>
+                </ol>
+                <p class="mb-0"><strong>Note:</strong> The import process will:</p>
+                <ul>
+                    <li>Create new exercise types if they don't exist</li>
+                    <li>Import all sessions along with sets and reps</li>
+                    <li>Match existing exercise types and set types by name</li>
+                </ul>
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle"></i> Large imports now run as background jobs and won't time out.
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 @section Scripts {
@@ -98,12 +151,27 @@
         .badge.disconnected {
             background-color: #dc3545 !important;
         }
+        
+        .badge.reconnecting {
+            background-color: #ffc107 !important;
+        }
     </style>
 
     <script>
         // Get form and UI elements
         const form = document.getElementById('importForm');
         const importButton = document.getElementById('importButton');
+        const fileInput = document.getElementById('jsonFileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileSize = document.getElementById('fileSize');
+        const largeFileWarning = document.getElementById('largeFileWarning');
+        
+        // Upload progress elements
+        const uploadProgressSection = document.getElementById('uploadProgressSection');
+        const uploadProgressBar = document.getElementById('uploadProgressBar');
+        const uploadStatus = document.getElementById('uploadStatus');
+        
+        // Import progress elements
         const progressSection = document.getElementById('progressSection');
         const progressBar = document.getElementById('progressBar');
         const progressStatus = document.getElementById('progressStatus');
@@ -113,6 +181,30 @@
         const processedItems = document.getElementById('processedItems');
         const totalItems = document.getElementById('totalItems');
         const itemProgress = document.getElementById('itemProgress');
+        
+        // File size threshold for large file handling (10MB)
+        const LARGE_FILE_THRESHOLD = 10 * 1024 * 1024;
+        
+        // File input change handler to show file size
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files.length > 0) {
+                const file = this.files[0];
+                const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
+                
+                // Show file info
+                fileInfo.classList.remove('d-none');
+                fileSize.textContent = `File size: ${fileSizeMB} MB`;
+                
+                // Show warning for large files
+                if (file.size > LARGE_FILE_THRESHOLD) {
+                    largeFileWarning.classList.remove('d-none');
+                } else {
+                    largeFileWarning.classList.add('d-none');
+                }
+            } else {
+                fileInfo.classList.add('d-none');
+            }
+        });
         
         // SignalR connection
         let connection;
@@ -133,7 +225,7 @@
             connection.onreconnecting(error => {
                 console.warn("SignalR reconnecting", error);
                 connectionStatus.textContent = "Reconnecting...";
-                connectionStatus.className = "badge bg-warning";
+                connectionStatus.className = "badge reconnecting bg-warning";
                 isConnected = false;
             });
             
@@ -174,8 +266,9 @@
             connection.on("ReceiveProgress", (progress) => {
                 console.log("Progress update:", progress);
                 
-                // Show progress section
+                // Show progress section and hide upload progress
                 progressSection.classList.remove('d-none');
+                uploadProgressSection.classList.add('d-none');
                 
                 // Update progress bar
                 progressBar.style.width = progress.percentComplete + "%";
@@ -342,6 +435,22 @@
                             // Job is still in progress
                             progressStatus.textContent = `Import in progress (Status: ${data.state})`;
                             
+                            // If we have progress data available, update the progress bar
+                            if (data.progress && typeof data.progress.percentComplete !== 'undefined') {
+                                const percent = data.progress.percentComplete;
+                                progressBar.style.width = `${percent}%`;
+                                progressBar.setAttribute('aria-valuenow', percent);
+                                progressBar.textContent = `${percent}%`;
+                                
+                                if (data.progress.status) {
+                                    progressStatus.textContent = data.progress.status;
+                                }
+                                
+                                if (data.progress.details) {
+                                    progressDetails.textContent = data.progress.details;
+                                }
+                            }
+                            
                             // Keep the poll running
                         }
                         else {
@@ -390,18 +499,52 @@
                 });
         }
 
+        // Simulate upload progress when submitting large files
+        function simulateUploadProgress() {
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 10;
+                if (progress > 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                }
+                
+                uploadProgressBar.style.width = `${Math.floor(progress)}%`;
+                uploadProgressBar.setAttribute('aria-valuenow', Math.floor(progress));
+                uploadProgressBar.textContent = `${Math.floor(progress)}%`;
+                
+                if (progress >= 100) {
+                    uploadStatus.textContent = "Upload complete. Processing file...";
+                }
+            }, 500);
+        }
+
         // Add form submit handler
         form.addEventListener('submit', function(e) {
+            // Make sure we have a file
+            if (!fileInput.files || fileInput.files.length === 0) {
+                return;
+            }
+
             // Add waiting cursor to body
             document.body.classList.add('importing');
+            
             // Disable the import button
             importButton.disabled = true;
             importButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Importing...';
             
-            // Show progress section immediately
-            progressSection.classList.remove('d-none');
-            progressStatus.textContent = "Submitting import...";
-            progressDetails.textContent = "Preparing to upload file and start background job";
+            // Show upload progress for large files
+            const file = fileInput.files[0];
+            if (file && file.size > LARGE_FILE_THRESHOLD) {
+                uploadProgressSection.classList.remove('d-none');
+                uploadStatus.textContent = `Uploading ${(file.size / 1024 / 1024).toFixed(2)} MB file...`;
+                simulateUploadProgress();
+            } else {
+                // Show progress section immediately for smaller files
+                progressSection.classList.remove('d-none');
+                progressStatus.textContent = "Submitting import...";
+                progressDetails.textContent = "Preparing to process JSON data";
+            }
         });
 
         // Initialize SignalR connection
@@ -441,6 +584,20 @@
                     errorMessage.classList.remove('d-none');
                     </text>
                 }
+            }
+            </text>
+        }
+        
+        // Show file size info if we have it from the model
+        @if (Model.FileSizeBytes > 0)
+        {
+            <text>
+            const fileSizeMB = (@Model.FileSizeBytes / 1024 / 1024).toFixed(2);
+            fileInfo.classList.remove('d-none');
+            fileSize.textContent = `File size: ${fileSizeMB} MB`;
+            
+            if (@Model.FileSizeBytes > LARGE_FILE_THRESHOLD) {
+                largeFileWarning.classList.remove('d-none');
             }
             </text>
         }

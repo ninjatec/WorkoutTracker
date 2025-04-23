@@ -13,6 +13,7 @@ using System.Linq;
 using Microsoft.EntityFrameworkCore; // Add this for Entity Framework extensions
 using Newtonsoft.Json; // Add this for JSON serialization
 using WorkoutTrackerWeb.Pages.BackgroundJobs; // For TrainAIImportData model
+using System.IO; // Add this for file operations
 
 namespace WorkoutTrackerWeb.Services
 {
@@ -716,6 +717,228 @@ namespace WorkoutTrackerWeb.Services
                 throw;
             }
         }
+
+        // Queue JSON import from file as a background job
+        public string QueueJsonImportFromFile(int userId, string filePath, bool skipExisting, string connectionId, bool deleteFileWhenDone = false)
+        {
+            _logger.LogInformation($"Queuing JSON import from file job for user {userId}, file path: {filePath}");
+            
+            try
+            {
+                // Validate inputs
+                if (userId <= 0)
+                {
+                    _logger.LogError("Invalid userId: {UserId}", userId);
+                    throw new ArgumentException("Invalid user ID", nameof(userId));
+                }
+                
+                if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath))
+                {
+                    _logger.LogError("File not found or invalid file path: {FilePath}", filePath);
+                    throw new ArgumentException("File not found or invalid file path", nameof(filePath));
+                }
+                
+                // Create a serialization-friendly parameter object
+                var importData = new JsonFileImportData
+                {
+                    UserId = userId,
+                    FilePath = filePath,
+                    SkipExisting = skipExisting,
+                    ConnectionId = connectionId,
+                    DeleteFileWhenDone = deleteFileWhenDone
+                };
+                
+                // Queue the job
+                string jobId;
+                try
+                {
+                    // Enqueue the job with explicit type arguments to avoid serialization issues
+                    jobId = BackgroundJob.Enqueue<BackgroundJobService>(x => 
+                        x.ProcessJsonFileImportAsync(importData));
+                    
+                    _logger.LogInformation("Successfully queued JSON file import job with ID {JobId}", jobId);
+                    
+                    // Add the connection to a SignalR group for this job
+                    if (!string.IsNullOrEmpty(connectionId))
+                    {
+                        using (var scope = _serviceProvider.CreateScope())
+                        {
+                            var importHub = scope.ServiceProvider.GetRequiredService<IHubContext<ImportProgressHub>>();
+                            importHub.Groups.AddToGroupAsync(connectionId, $"job_{jobId}").GetAwaiter().GetResult();
+                            _logger.LogDebug("Added connection {ConnectionId} to group job_{JobId}", connectionId, jobId);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error when queuing JSON file import job");
+                    throw;
+                }
+                
+                return jobId;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to queue JSON file import job for user {UserId}", userId);
+                throw; // Re-throw to show error to user
+            }
+        }
+
+        // Method to process JSON import from file as a background job
+        public async Task ProcessJsonFileImportAsync(JsonFileImportData importData)
+        {
+            // Extract parameters from the data wrapper
+            int userId = importData.UserId;
+            string filePath = importData.FilePath;
+            bool skipExisting = importData.SkipExisting;
+            string connectionId = importData.ConnectionId;
+            bool deleteFileWhenDone = importData.DeleteFileWhenDone;
+            
+            _logger.LogInformation("Starting JSON import from file: UserId={UserId}, FilePath={FilePath}", 
+                userId, filePath);
+                
+            // Delegate to the actual implementation
+            await ImportJsonDataFromFileAsync(userId, filePath, skipExisting, connectionId, deleteFileWhenDone);
+        }
+        
+        // This method will be called by Hangfire in the background to process JSON from a file
+        private async Task ImportJsonDataFromFileAsync(int userId, string filePath, bool skipExisting, string connectionId, bool deleteFileWhenDone)
+        {
+            // Get job ID from context
+            string jobId = "unknown";
+            try 
+            {
+                // Try to get the job ID from the PerformContext if available through JobActivator
+                var context = JobActivatorScope.Current?.Resolve(typeof(PerformContext)) as PerformContext;
+                if (context != null)
+                {
+                    jobId = context.BackgroundJob.Id;
+                    _logger.LogInformation("Resolved job ID {JobId} from PerformContext", jobId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to get job ID from context");
+            }
+            
+            _logger.LogInformation("Starting background JSON file import for user {UserId}, job {JobId}, file {FilePath}", 
+                userId, jobId, filePath);
+            
+            try
+            {
+                // Verify the file exists
+                if (!System.IO.File.Exists(filePath))
+                {
+                    throw new FileNotFoundException($"The import file was not found at path: {filePath}");
+                }
+                
+                // Get the file size for progress reporting
+                var fileInfo = new FileInfo(filePath);
+                long fileSize = fileInfo.Length;
+                
+                // Read the file content
+                string jsonContent;
+                using (var reader = new StreamReader(filePath))
+                {
+                    jsonContent = await reader.ReadToEndAsync();
+                }
+                
+                _logger.LogInformation("Successfully read JSON file of size {FileSizeBytes} bytes", fileSize);
+                
+                // Create a new service scope to get required services
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var dataPortabilityService = scope.ServiceProvider.GetRequiredService<WorkoutDataPortabilityService>();
+                    
+                    // Initialize progress reporting with retries for connection issues
+                    var initProgress = new JobProgress { 
+                        Status = "Initializing import...", 
+                        PercentComplete = 0,
+                        Details = $"Preparing to process JSON data ({fileSize / (1024.0 * 1024.0):F2}MB)"
+                    };
+                    
+                    // Send progress updates to both the specific client and the job group
+                    await SendJobUpdateWithRetriesAsync(connectionId, jobId, initProgress);
+                    
+                    // Set up the progress callback with more detail
+                    dataPortabilityService.OnProgressUpdate = async (jobProgress) => {
+                        // Add the job ID to the progress data for logging
+                        _logger.LogDebug("Job {JobId} progress: {Status} {PercentComplete}%", 
+                            jobId, jobProgress.Status, jobProgress.PercentComplete);
+                            
+                        await SendJobUpdateWithRetriesAsync(connectionId, jobId, jobProgress);
+                    };
+                    
+                    // Execute the actual import operation
+                    var startTime = DateTime.UtcNow;
+                    var result = await dataPortabilityService.ImportUserDataAsync(userId, jsonContent, skipExisting);
+                    var duration = DateTime.UtcNow - startTime;
+                    
+                    _logger.LogInformation("File import completed in {Duration} with result: success={Success}, message={Message}", 
+                        duration, result.success, result.message);
+                    
+                    // Report completion or failure
+                    if (result.success)
+                    {
+                        var finalProgress = new JobProgress { 
+                            Status = "Completed", 
+                            PercentComplete = 100,
+                            Details = $"Successfully imported data in {duration.TotalSeconds:F1} seconds",
+                            ProcessedItems = result.importedItems?.Count ?? 0,
+                            TotalItems = result.importedItems?.Count ?? 0
+                        };
+                        await SendJobUpdateWithRetriesAsync(connectionId, jobId, finalProgress);
+                    }
+                    else if (!string.IsNullOrEmpty(result.message))
+                    {
+                        var errorProgress = new JobProgress { 
+                            Status = "Error", 
+                            PercentComplete = 0,
+                            ErrorMessage = result.message,
+                            ProcessedItems = result.importedItems?.Count ?? 0,
+                            TotalItems = 0
+                        };
+                        await SendJobUpdateWithRetriesAsync(connectionId, jobId, errorProgress);
+                        
+                        // Re-throw to mark the job as failed in Hangfire
+                        throw new Exception($"Import failed: {result.message}");
+                    }
+                }
+                
+                _logger.LogInformation("Successfully completed JSON file import for user {UserId}, job {JobId}", userId, jobId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during background JSON file import for user {UserId}, job {JobId}", userId, jobId);
+                
+                // Report error
+                var errorProgress = new JobProgress { 
+                    Status = "Error", 
+                    PercentComplete = 0,
+                    ErrorMessage = "An error occurred during import: " + ex.Message 
+                };
+                await SendJobUpdateWithRetriesAsync(connectionId, jobId, errorProgress);
+                
+                // Re-throw to ensure Hangfire marks the job as failed
+                throw;
+            }
+            finally
+            {
+                // Clean up the temporary file if requested
+                if (deleteFileWhenDone && !string.IsNullOrEmpty(filePath) && System.IO.File.Exists(filePath))
+                {
+                    try 
+                    {
+                        System.IO.File.Delete(filePath);
+                        _logger.LogInformation("Deleted temporary import file: {FilePath}", filePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error deleting temporary import file: {FilePath}", filePath);
+                    }
+                }
+            }
+        }
     }
 
     // Common job progress class for consistent reporting
@@ -737,5 +960,15 @@ namespace WorkoutTrackerWeb.Services
         public string JsonContent { get; set; }
         public bool SkipExisting { get; set; }
         public string ConnectionId { get; set; }
+    }
+
+    // Data wrapper for JSON file import
+    public class JsonFileImportData
+    {
+        public int UserId { get; set; }
+        public string FilePath { get; set; }
+        public bool SkipExisting { get; set; }
+        public string ConnectionId { get; set; }
+        public bool DeleteFileWhenDone { get; set; }
     }
 }
