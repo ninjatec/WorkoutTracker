@@ -11,6 +11,8 @@ using Microsoft.Extensions.DependencyInjection;
 using WorkoutTrackerweb.Data;
 using System.Linq;
 using Microsoft.EntityFrameworkCore; // Add this for Entity Framework extensions
+using Newtonsoft.Json; // Add this for JSON serialization
+using WorkoutTrackerWeb.Pages.BackgroundJobs; // For TrainAIImportData model
 
 namespace WorkoutTrackerWeb.Services
 {
@@ -76,6 +78,8 @@ namespace WorkoutTrackerWeb.Services
                 using (var scope = _serviceProvider.CreateScope())
                 {
                     var workoutDataService = scope.ServiceProvider.GetRequiredService<WorkoutDataService>();
+                    var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerweb.Data.WorkoutTrackerWebContext>();
+                    var userManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<Microsoft.AspNetCore.Identity.IdentityUser>>();
                     
                     // Initialize progress reporting with retries for connection issues
                     var initProgress = new JobProgress { 
@@ -86,6 +90,41 @@ namespace WorkoutTrackerWeb.Services
                     
                     // Send progress updates to both the specific client and the job group
                     await SendJobUpdateWithRetriesAsync(connectionId, jobId, initProgress);
+                    
+                    // Validate user before proceeding
+                    var user = await context.User.FirstOrDefaultAsync(u => u.IdentityUserId == identityUserId);
+                    
+                    if (user == null)
+                    {
+                        _logger.LogWarning("User with IdentityUserId {IdentityUserId} not found directly. Attempting alternative lookup methods.", identityUserId);
+                        
+                        // Try to find the identity user first to make sure it exists
+                        var identityUser = await userManager.FindByIdAsync(identityUserId);
+                        if (identityUser == null)
+                        {
+                            var errorProgress = new JobProgress { 
+                                Status = "Error", 
+                                PercentComplete = 0,
+                                ErrorMessage = $"Identity user not found. Please contact support with reference: {jobId}"
+                            };
+                            await SendJobUpdateWithRetriesAsync(connectionId, jobId, errorProgress);
+                            throw new Exception($"Identity user not found for ID: {identityUserId}");
+                        }
+                        
+                        // Create a new application user record
+                        _logger.LogInformation("Creating new application user for identity user {IdentityUserId}", identityUserId);
+                        user = new Models.User
+                        {
+                            IdentityUserId = identityUserId,
+                            Name = identityUser.UserName ?? "User" // Use username or fallback
+                        };
+                        
+                        context.User.Add(user);
+                        await context.SaveChangesAsync();
+                        
+                        _logger.LogInformation("Created new user {UserId} for identity user {IdentityUserId}", 
+                            user.UserId, identityUserId);
+                    }
                     
                     // Set up the progress callback
                     workoutDataService.OnProgressUpdate = async (jobProgress) => {
@@ -133,14 +172,14 @@ namespace WorkoutTrackerWeb.Services
             }
         }
 
-        // Queue TrainAI import as a background job
+        // Queue TrainAI import as a background job using a more serialization-friendly approach
         public string QueueTrainAIImport(int userId, List<TrainAIWorkout> workouts, string connectionId)
         {
             _logger.LogInformation($"Queuing TrainAI import job for user {userId} with {workouts.Count} workouts");
             
             try
             {
-                // Validate inputs to identify potential serialization issues
+                // Validate inputs
                 if (userId <= 0)
                 {
                     _logger.LogError("Invalid userId: {UserId}", userId);
@@ -153,30 +192,52 @@ namespace WorkoutTrackerWeb.Services
                     throw new ArgumentException("No workouts provided for import", nameof(workouts));
                 }
                 
-                if (string.IsNullOrEmpty(connectionId))
+                // Create a serialization-friendly parameter object instead of passing complex objects directly
+                var importData = new TrainAIImportData
                 {
-                    _logger.LogWarning("Empty connectionId provided. Real-time updates may not work.");
-                    // Don't throw, just warn - connection ID can be empty in some scenarios
+                    UserId = userId,
+                    Workouts = workouts,
+                    ConnectionId = connectionId
+                };
+                
+                // Verify we can serialize it to avoid issues
+                try 
+                {
+                    // Test serialization to ensure data can be sent to Redis/SQL
+                    var testSerialization = JsonConvert.SerializeObject(
+                        importData, 
+                        new JsonSerializerSettings 
+                        { 
+                            TypeNameHandling = TypeNameHandling.None,
+                            ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                        });
+                    
+                    _logger.LogDebug("Serialization test successful, payload size: {SizeBytes} bytes", 
+                        testSerialization.Length);
                 }
-
-                // Log details for troubleshooting
-                _logger.LogDebug("TrainAI import details: {WorkoutCount} workouts, connectionId: {ConnectionId}", 
-                    workouts.Count, connectionId);
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to serialize import data");
+                    throw new InvalidOperationException("Unable to process workout data for background import. The data may be corrupted.", ex);
+                }
 
                 // Use try-catch to identify specific Hangfire issues
                 string jobId;
                 try
                 {
-                    // Attempt to create the background job
-                    jobId = BackgroundJob.Enqueue(() => ImportTrainAIWorkoutsAsync(userId, workouts, connectionId));
+                    // First verify Hangfire is operational with a simple ping job
+                    var pingJobId = BackgroundJob.Enqueue(() => Console.WriteLine($"Hangfire ping at {DateTime.Now}"));
+                    _logger.LogDebug("Hangfire ping successful with job ID: {PingJobId}", pingJobId);
+                    
+                    // Now enqueue the real job with explicit type arguments to avoid serialization issues
+                    jobId = BackgroundJob.Enqueue<BackgroundJobService>(x => 
+                        x.ProcessTrainAIImportAsync(importData));
+                    
                     _logger.LogInformation("Successfully queued TrainAI import job with ID {JobId}", jobId);
                     
                     // Add the connection to a SignalR group for this job
-                    // This allows the client to receive updates even if they reconnect
                     if (!string.IsNullOrEmpty(connectionId))
                     {
-                        // We need to do this when queueing, not just in the background job
-                        // because by then the client may have already connected to SignalR
                         using (var scope = _serviceProvider.CreateScope())
                         {
                             var importHub = scope.ServiceProvider.GetRequiredService<IHubContext<ImportProgressHub>>();
@@ -187,9 +248,28 @@ namespace WorkoutTrackerWeb.Services
                 }
                 catch (InvalidOperationException iex)
                 {
-                    // This typically happens when Hangfire storage is not properly initialized
-                    _logger.LogError(iex, "Hangfire initialization error when queuing TrainAI import job. Check Hangfire configuration.");
-                    throw new InvalidOperationException("Background job system not initialized. Please contact support.", iex);
+                    _logger.LogError(iex, "Hangfire initialization error. Checking schema health...");
+                    
+                    // Try to get diagnostic info to help troubleshoot
+                    using (var scope = _serviceProvider.CreateScope())
+                    {
+                        try
+                        {
+                            var hangfireInit = scope.ServiceProvider.GetRequiredService<Services.Hangfire.IHangfireInitializationService>();
+                            var diagnosticInfo = hangfireInit.GetDiagnosticInfo();
+                            _logger.LogError("Hangfire diagnostics: {DiagnosticInfo}", diagnosticInfo);
+                            
+                            // Try to repair the schema
+                            var repairResult = hangfireInit.RepairHangfireSchemaAsync().GetAwaiter().GetResult();
+                            _logger.LogWarning("Hangfire schema repair attempt result: {RepairResult}", repairResult);
+                        }
+                        catch (Exception diagEx)
+                        {
+                            _logger.LogError(diagEx, "Error getting Hangfire diagnostics");
+                        }
+                    }
+                    
+                    throw new InvalidOperationException("Background job system not initialized. Please try again or contact support if the issue persists.", iex);
                 }
                 catch (Exception ex)
                 {
@@ -206,8 +286,23 @@ namespace WorkoutTrackerWeb.Services
             }
         }
 
-        // This method will be called by Hangfire in the background
-        public async Task ImportTrainAIWorkoutsAsync(int userId, List<TrainAIWorkout> workouts, string connectionId)
+        // New method to process import from serialization-friendly data
+        public async Task ProcessTrainAIImportAsync(TrainAIImportData importData)
+        {
+            // Extract parameters from the data wrapper
+            int userId = importData.UserId;
+            List<TrainAIWorkout> workouts = importData.Workouts;
+            string connectionId = importData.ConnectionId;
+            
+            _logger.LogInformation("Starting TrainAI import from serialized data: UserId={UserId}, Workouts={WorkoutCount}", 
+                userId, workouts?.Count ?? 0);
+                
+            // Delegate to the original implementation
+            await ImportTrainAIWorkoutsAsync(userId, workouts, connectionId);
+        }
+
+        // This method is kept as private or internal now since we'll call it through ProcessTrainAIImportAsync
+        private async Task ImportTrainAIWorkoutsAsync(int userId, List<TrainAIWorkout> workouts, string connectionId)
         {
             // Get job ID from context
             string jobId = "unknown";

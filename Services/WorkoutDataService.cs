@@ -8,6 +8,7 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Caching.Distributed;
 using WorkoutTrackerWeb.Pages.Reports;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace WorkoutTrackerWeb.Services
 {
@@ -16,6 +17,7 @@ namespace WorkoutTrackerWeb.Services
         private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger<WorkoutDataService> _logger;
         private readonly IDistributedCache _cache;
+        private readonly IServiceProvider _serviceProvider;
         private const int BatchSize = 500; // Increased batch size for better performance
         
         // Event for progress reporting
@@ -24,11 +26,13 @@ namespace WorkoutTrackerWeb.Services
         public WorkoutDataService(
             WorkoutTrackerWebContext context,
             ILogger<WorkoutDataService> logger,
-            IDistributedCache cache)
+            IDistributedCache cache,
+            IServiceProvider serviceProvider)
         {
             _context = context;
             _logger = logger;
             _cache = cache;
+            _serviceProvider = serviceProvider;
         }
 
         // Helper method to invalidate the cached report data when data changes
@@ -57,8 +61,32 @@ namespace WorkoutTrackerWeb.Services
 
             if (user == null)
             {
-                _logger.LogWarning($"User with IdentityUserId {identityUserId} not found");
-                throw new ArgumentException("User not found", nameof(identityUserId));
+                // Log the fact that the user wasn't found directly
+                _logger.LogWarning($"User with IdentityUserId {identityUserId} not found directly");
+                
+                // Try to find the identity user first
+                using var scope = _serviceProvider.CreateScope();
+                var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+                var identityUser = await userManager.FindByIdAsync(identityUserId);
+                
+                if (identityUser == null)
+                {
+                    _logger.LogError($"Identity user with ID {identityUserId} not found at all");
+                    throw new ArgumentException("Identity user not found", nameof(identityUserId));
+                }
+                
+                // Create the user record if it doesn't exist
+                _logger.LogWarning($"Creating new application user for identity user {identityUserId}");
+                user = new Models.User
+                {
+                    IdentityUserId = identityUserId,
+                    Name = identityUser.UserName ?? "User" // Use username or fallback
+                };
+                
+                _context.User.Add(user);
+                await _context.SaveChangesAsync();
+                
+                _logger.LogInformation($"Created new user for identity user {identityUserId}: User ID {user.UserId}");
             }
             
             // Calculate total count of items to delete for progress tracking

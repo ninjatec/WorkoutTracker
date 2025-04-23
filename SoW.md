@@ -1,5 +1,59 @@
 # Statement of Works
 
+[] Update the Import page DataPortability/Import to use background jobs worker hangfire
+ - [ ] Add background job support to standard JSON import functionality
+   - [ ] Refactor WorkoutDataPortabilityService to support async background processing
+   - [ ] Create job progress model similar to existing ImportTrainAI implementation
+   - [ ] Add support for SignalR progress updates in the WorkoutDataPortabilityService
+   - [ ] Implement proper error handling and job status reporting
+   - [ ] Update service to support both direct and background processing modes
+ 
+ - [ ] Enhance BackgroundJobService to handle JSON imports
+   - [ ] Add method to queue JSON imports as background jobs 
+   - [ ] Implement progress tracking for JSON imports
+   - [ ] Create job completion notification mechanism
+   - [ ] Add error handling and job failure recovery
+   - [ ] Ensure proper cleanup of resources after job completion
+
+ - [ ] Update Import page UI for background processing
+   - [ ] Add real-time progress tracking with SignalR
+   - [ ] Create progress bar and status indicators 
+   - [ ] Implement connection state display (connected/disconnected)
+   - [ ] Add fallback polling for job status when SignalR is unavailable
+   - [ ] Display detailed import progress information
+
+ - [ ] Integrate with ImportProgressHub for real-time updates
+   - [ ] Extend ImportProgressHub to support standard JSON imports
+   - [ ] Implement client-side SignalR connection in Import.cshtml
+   - [ ] Add code to register for job-specific updates
+   - [ ] Handle reconnection scenarios and progress synchronization
+   - [ ] Ensure proper job group management in the hub
+
+ - [ ] Update Import.cshtml.cs page model
+   - [ ] Refactor OnPostAsync to use background job processing
+   - [ ] Add JobId property to track background jobs
+   - [ ] Implement job status checking functionality 
+   - [ ] Add error message retrieval from failed jobs
+   - [ ] Provide initial progress update when job starts
+
+ - [ ] Implement job status persistence and monitoring
+   - [ ] Save job metadata for user reference
+   - [ ] Add job status polling endpoint for fallback scenarios
+   - [ ] Create job cancellation functionality
+   - [ ] Implement job cleanup for completed/failed imports
+   - [ ] Add job history display for users to track past imports
+
+ - [ ] Add testing and documentation
+   - [ ] Create unit tests for background job processing
+   - [ ] Test with large import files to verify performance
+   - [ ] Test error scenarios and recovery mechanisms
+   - [ ] Update inventory.md with new components
+   - [ ] Document the implementation in code comments
+
+---
+---
+
+
 [ ] Update sessions pages to support sequence numbers
  - [ ] Add migration to formally add SequenceNum column to Set table with default value
    - [ ] Create new migration for adding SequenceNum column to the Set table
@@ -31,6 +85,9 @@
    - [ ] Ensure Shared workout views display exercises in correct sequence
    - [ ] Add sequence number column to workout exports
 
+---
+---
+
 
 [ ] Implement workout data sharing functionality
  - [x] Create shared workout link system
@@ -55,6 +112,9 @@
    - [ ] Update inventory.md with new sharing components
    - [ ] Create user guide for sharing workout data
 
+---
+---
+
 [x] Optimize for multi-container deployment
  - [x] Implement Redis for distributed session state
    - [x] Replace SQL Server session state with Redis distributed cache
@@ -69,6 +129,8 @@
    - [x] Update `inventory.md` with new components and relationships
    - [x] Create architecture diagram showing container interactions
 
+---
+---
 
 [ ] Add swagger for API endpoints but disable in production
  - [ ] Set up Swagger documentation
