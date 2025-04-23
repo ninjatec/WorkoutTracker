@@ -48,4 +48,13 @@ namespace WorkoutTrackerWeb.Pages.BackgroundJobs
         public bool SkipExisting { get; set; } = true;
         public string ConnectionId { get; set; }
     }
+    
+    // Parameter model for TrainAI CSV import
+    public class TrainAICsvImportData
+    {
+        public int UserId { get; set; }
+        public string FilePath { get; set; }
+        public string ConnectionId { get; set; }
+        public bool DeleteFileWhenDone { get; set; } = true;
+    }
 }

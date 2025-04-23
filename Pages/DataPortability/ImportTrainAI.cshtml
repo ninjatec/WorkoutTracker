@@ -36,6 +36,16 @@
                         <a asp-page="./Index" class="btn btn-secondary">Cancel</a>
                     </div>
                 </form>
+
+                <!-- Upload progress indicator for large files -->
+                <div id="uploadProgressSection" class="mt-4 d-none">
+                    <h5>Uploading File</h5>
+                    <div class="progress mb-2">
+                        <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                    </div>
+                    <p id="uploadStatus" class="text-muted small">Preparing to upload...</p>
+                </div>
             </div>
         </div>
 
@@ -154,16 +164,21 @@
     </style>
 
     <script>
-        // File size thresholds in bytes
+        // File size thresholds for different upload methods
         const LARGE_FILE_THRESHOLD = 1 * 1024 * 1024; // 1MB
         const VERY_LARGE_FILE_THRESHOLD = 5 * 1024 * 1024; // 5MB
-        
+
         // Handle file input change to show file size information
         const fileInput = document.getElementById('csvFileInput');
         const fileInfo = document.getElementById('fileInfo');
         const fileSize = document.getElementById('fileSize');
         const largeFileWarning = document.getElementById('largeFileWarning');
         const veryLargeFileWarning = document.getElementById('veryLargeFileWarning');
+        
+        // Upload progress elements
+        const uploadProgressSection = document.getElementById('uploadProgressSection');
+        const uploadProgressBar = document.getElementById('uploadProgressBar');
+        const uploadStatus = document.getElementById('uploadStatus');
         
         fileInput.addEventListener('change', function() {
             // Reset warnings
@@ -229,6 +244,124 @@
             .configureLogging(signalR.LogLevel.Warning)
             .build();
         
+        // Function to simulate upload progress for large files
+        function simulateUploadProgress() {
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 5;
+                if (progress >= 95) {
+                    progress = 95; // Cap at 95% until we get confirmation
+                    clearInterval(interval);
+                }
+                
+                uploadProgressBar.style.width = `${Math.floor(progress)}%`;
+                uploadProgressBar.setAttribute('aria-valuenow', Math.floor(progress));
+                uploadProgressBar.textContent = `${Math.floor(progress)}%`;
+                
+                if (progress >= 95) {
+                    uploadStatus.textContent = "Upload complete. Processing file...";
+                }
+            }, 500);
+        }
+        
+        // Function to handle large file uploads via AJAX
+        function uploadLargeFileWithAjax(file) {
+            const formData = new FormData();
+            formData.append('ImportFile', file);
+            
+            // Show upload progress UI
+            uploadProgressSection.classList.remove('d-none');
+            uploadStatus.textContent = `Uploading ${(file.size / 1024 / 1024).toFixed(2)} MB file...`;
+            simulateUploadProgress();
+            
+            // Add AJAX request headers to avoid timeouts
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/DataPortability/ImportTrainAI?handler=LargeFile', true);
+            
+            // Add anti-forgery token
+            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            xhr.setRequestHeader("RequestVerificationToken", token);
+            
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        
+                        if (response.success) {
+                            // Show 100% complete and update status
+                            uploadProgressBar.style.width = '100%';
+                            uploadProgressBar.setAttribute('aria-valuenow', 100);
+                            uploadProgressBar.textContent = '100%';
+                            uploadStatus.textContent = "Upload complete. Processing file...";
+                            
+                            // Close the upload section and show the job progress section
+                            setTimeout(() => {
+                                uploadProgressSection.classList.add('d-none');
+                                progressSection.classList.remove('d-none');
+                                progressStatus.textContent = `File uploaded successfully. Starting import process...`;
+                                progressDetails.textContent = `File size: ${response.fileSizeMb} MB. Job ID: ${response.jobId}`;
+                            }, 1000);
+                            
+                            // Register for updates on the new job
+                            if (isConnected) {
+                                registerForJobUpdates(response.jobId);
+                            } else {
+                                // If SignalR is not connected, start polling
+                                jobStatusCheckInterval = setInterval(() => {
+                                    checkJobStatus(response.jobId);
+                                }, 3000);
+                            }
+                        } else {
+                            // Show error
+                            errorMessage.textContent = response.message;
+                            errorMessage.classList.remove('d-none');
+                            importButton.disabled = false;
+                            importButton.innerHTML = 'Import';
+                            document.body.classList.remove('importing');
+                        }
+                    } catch (e) {
+                        console.error("Error parsing server response:", e);
+                        errorMessage.textContent = "Error processing the server response";
+                        errorMessage.classList.remove('d-none');
+                        importButton.disabled = false;
+                        importButton.innerHTML = 'Import';
+                        document.body.classList.remove('importing');
+                    }
+                } else {
+                    // Handle HTTP errors
+                    errorMessage.textContent = `Upload failed: Server returned status ${xhr.status}`;
+                    errorMessage.classList.remove('d-none');
+                    importButton.disabled = false;
+                    importButton.innerHTML = 'Import';
+                    document.body.classList.remove('importing');
+                }
+            };
+            
+            xhr.onerror = function() {
+                errorMessage.textContent = "Network error occurred during upload";
+                errorMessage.classList.remove('d-none');
+                importButton.disabled = false;
+                importButton.innerHTML = 'Import';
+                document.body.classList.remove('importing');
+            };
+            
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percent = Math.floor((e.loaded / e.total) * 100);
+                    uploadProgressBar.style.width = `${percent}%`;
+                    uploadProgressBar.setAttribute('aria-valuenow', percent);
+                    uploadProgressBar.textContent = `${percent}%`;
+                    
+                    if (percent >= 100) {
+                        uploadStatus.textContent = "Upload complete. Processing file...";
+                    }
+                }
+            };
+            
+            // Send the request
+            xhr.send(formData);
+        }
+                
         // Track connection state changes
         connection.onreconnecting((error) => {
             console.warn("SignalR reconnecting due to error:", error);
@@ -578,18 +711,36 @@
                 });
         }
 
-        // Add form submit handler
+        // Add form submit handler with large file handling
         form.addEventListener('submit', function(e) {
-            // Add waiting cursor to body
-            document.body.classList.add('importing');
-            // Disable the import button
-            importButton.disabled = true;
-            importButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Importing...';
+            const file = fileInput.files[0];
+            if (!file) return; // No file selected
             
-            // Show progress section immediately
-            progressSection.classList.remove('d-none');
-            progressStatus.textContent = "Submitting import...";
-            progressDetails.textContent = "Preparing to upload file and start background job";
+            // Check if this is a large file that should use AJAX upload
+            if (file.size >= LARGE_FILE_THRESHOLD) {
+                e.preventDefault(); // Prevent normal form submission
+                
+                // Add waiting cursor to body
+                document.body.classList.add('importing');
+                // Disable the import button
+                importButton.disabled = true;
+                importButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Uploading...';
+                
+                // Use AJAX to upload the file and avoid timeouts
+                uploadLargeFileWithAjax(file);
+            } else {
+                // Regular form submission for smaller files
+                // Add waiting cursor to body
+                document.body.classList.add('importing');
+                // Disable the import button
+                importButton.disabled = true;
+                importButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Importing...';
+                
+                // Show progress section immediately
+                progressSection.classList.remove('d-none');
+                progressStatus.textContent = "Submitting import...";
+                progressDetails.textContent = "Preparing to upload file and start background job";
+            }
         });
 
         // Show progress section if we have a job ID (background job is running)

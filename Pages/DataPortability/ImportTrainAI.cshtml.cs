@@ -12,9 +12,11 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.IO;
+using System.Linq;
 using WorkoutTrackerweb.Data;
 using WorkoutTrackerWeb.Hubs;
 using WorkoutTrackerWeb.Services;
+using WorkoutTrackerWeb.Pages.BackgroundJobs;
 
 namespace WorkoutTrackerWeb.Pages.DataPortability
 {
@@ -55,6 +57,7 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
         public bool IsJobInProgress { get; set; }
         public string JobState { get; set; }
         public string ErrorMessage { get; set; }
+        public long FileSizeBytes { get; set; }
 
         public async Task<IActionResult> OnGetAsync(string jobId = null)
         {
@@ -113,16 +116,11 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
 
             try
             {
-                // Parse the CSV file
-                using var stream = ImportFile.OpenReadStream();
-                var workouts = await _importService.ParseTrainAICsvAsync(stream);
-
-                if (workouts.Count == 0)
-                {
-                    Message = "No workouts found in the file";
-                    return Page();
-                }
-
+                // Store file size for display
+                FileSizeBytes = ImportFile.Length;
+                _logger.LogInformation("Processing CSV import: {FileName}, size: {FileSize:N0} bytes", 
+                    ImportFile.FileName, ImportFile.Length);
+                
                 // Get current user
                 var identityUser = await _userManager.GetUserAsync(User);
                 if (identityUser == null)
@@ -146,11 +144,27 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
 
                 // Get SignalR connection ID for real-time progress updates
                 string connectionId = HttpContext.Connection.Id;
-                _logger.LogInformation("Submitting import with connectionId={ConnectionId}", connectionId);
+                _logger.LogInformation("Connection ID: {ConnectionId}", connectionId);
                 
-                // Set up the hub connection before queuing the job
+                // Add the connection to a group for progress updates
                 await _hubContext.Groups.AddToGroupAsync(connectionId, "pending_import");
-                
+
+                // For larger files, use a streaming approach to avoid timeouts
+                if (ImportFile.Length > 1 * 1024 * 1024) // 1MB threshold
+                {
+                    return await HandleLargeFileUploadAsync(user.UserId, connectionId);
+                }
+
+                // For smaller files, process synchronously
+                using var stream = ImportFile.OpenReadStream();
+                var workouts = await _importService.ParseTrainAICsvAsync(stream);
+
+                if (workouts.Count == 0)
+                {
+                    Message = "No workouts found in the file";
+                    return Page();
+                }
+
                 // Queue the import as a background job
                 JobId = _backgroundJobService.QueueTrainAIImport(user.UserId, workouts, connectionId);
                 _logger.LogInformation("Job queued with ID={JobId}", JobId);
@@ -172,7 +186,7 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during TrainAI import");
+                _logger.LogError(ex, "Error during TrainAI import: {Message}", ex.Message);
                 Success = false;
                 Message = $"Import failed: {ex.Message}";
                 ErrorMessage = ex.ToString();
@@ -249,7 +263,7 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
             }
         }
         
-        private async Task SendInitialProgressUpdateAsync(string jobId, int workoutCount)
+        private async Task SendInitialProgressUpdateAsync(string jobId, int workoutCount, long? fileSize = null)
         {
             try 
             {
@@ -260,7 +274,9 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                     PercentComplete = 0,
                     TotalItems = workoutCount,
                     ProcessedItems = 0,
-                    Details = "Preparing to import workouts"
+                    Details = fileSize.HasValue ? 
+                        $"Preparing to process {(fileSize.Value / (1024.0 * 1024.0)).ToString("F2")} MB file" : 
+                        "Preparing to import workouts"
                 };
                 
                 // Send to both the individual connection and the job group
@@ -278,6 +294,179 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
             {
                 _logger.LogError(ex, "Error sending initial progress update");
                 // Ignore errors - this is just a nice-to-have initial feedback
+            }
+        }
+
+        private async Task<IActionResult> HandleLargeFileUploadAsync(int userId, string connectionId)
+        {
+            try
+            {
+                _logger.LogInformation("Using background processing for large file: {FileName}, {Size:N0} bytes",
+                    ImportFile.FileName, ImportFile.Length);
+                
+                // For larger files, save to temporary storage
+                string tempFilePath = Path.Combine(Path.GetTempPath(), $"trainai_import_{Guid.NewGuid()}.csv");
+                
+                try
+                {
+                    using (var fileStream = new FileStream(tempFilePath, FileMode.Create))
+                    {
+                        await ImportFile.CopyToAsync(fileStream);
+                    }
+                    
+                    _logger.LogInformation("Large file saved to temporary location: {TempFilePath}", tempFilePath);
+                    
+                    // Queue background job to process the file
+                    JobId = _backgroundJobService.QueueTrainAICsvImport(
+                        userId, 
+                        tempFilePath, 
+                        connectionId, 
+                        true); // Delete the temp file when done
+                    
+                    _logger.LogInformation("Large file import queued with job ID: {JobId}", JobId);
+                    
+                    // Add the connection to the job group
+                    await _hubContext.Groups.AddToGroupAsync(connectionId, $"job_{JobId}");
+                    
+                    // Update the job state
+                    (IsJobInProgress, JobState, ErrorMessage) = await CheckJobStatusAsync(JobId);
+                    
+                    // Send initial progress update with file size information
+                    await SendInitialProgressUpdateAsync(JobId, 0, ImportFile.Length);
+                    
+                    Success = true;
+                    Message = $"Your file ({(ImportFile.Length / (1024.0 * 1024.0)).ToString("F2")} MB) has been uploaded and queued for processing. " +
+                             $"Job ID: {JobId}. You can track the progress on this page or come back later.";
+                    
+                    return Page();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error processing large file: {Message}", ex.Message);
+                    
+                    // Clean up temp file if there was an error
+                    if (System.IO.File.Exists(tempFilePath))
+                    {
+                        try { System.IO.File.Delete(tempFilePath); } 
+                        catch (Exception deleteEx) { 
+                            _logger.LogWarning(deleteEx, "Error cleaning up temp file: {TempFilePath}", tempFilePath);
+                        }
+                    }
+                    
+                    throw; // Re-throw to be caught by outer handler
+                }
+            }
+            catch (Exception ex)
+            {
+                // This catch block handles any exceptions from the try block above
+                Success = false;
+                Message = $"Import failed: {ex.Message}";
+                ErrorMessage = ex.ToString();
+                return Page();
+            }
+        }
+
+        [IgnoreAntiforgeryToken]
+        public async Task<IActionResult> OnPostLargeFileAsync()
+        {
+            try
+            {
+                _logger.LogInformation("Processing large CSV file upload via AJAX");
+                
+                if (ImportFile == null || ImportFile.Length == 0)
+                {
+                    return new JsonResult(new { success = false, message = "Please select a file to import" });
+                }
+
+                // Store file size for the UI
+                FileSizeBytes = ImportFile.Length;
+                _logger.LogInformation("Processing large file upload: {FileName}, size: {FileSize:N0} bytes", 
+                    ImportFile.FileName, ImportFile.Length);
+
+                // Get current user
+                var identityUser = await _userManager.GetUserAsync(User);
+                if (identityUser == null)
+                {
+                    return new JsonResult(new { success = false, message = "User not found" });
+                }
+
+                // Get or create the corresponding User record
+                var user = await _context.User.FirstOrDefaultAsync(u => u.IdentityUserId == identityUser.Id);
+                if (user == null)
+                {
+                    user = new Models.User
+                    {
+                        IdentityUserId = identityUser.Id,
+                        Name = identityUser.UserName
+                    };
+                    _context.User.Add(user);
+                    await _context.SaveChangesAsync();
+                }
+
+                // For large files, save to a temporary file first
+                string tempFilePath = Path.GetTempFileName();
+                _logger.LogInformation("Saving large file to temporary location: {TempFile}", tempFilePath);
+                
+                string connectionId = HttpContext.Connection.Id;
+                string jobId;
+                
+                try 
+                {
+                    // Save the file to disk to avoid keeping it in memory
+                    using (var fileStream = new FileStream(tempFilePath, FileMode.Create))
+                    {
+                        await ImportFile.CopyToAsync(fileStream);
+                    }
+                    
+                    // Create a background job to process the file
+                    jobId = _backgroundJobService.QueueTrainAICsvImport(
+                        user.UserId, 
+                        tempFilePath, 
+                        connectionId, 
+                        true); // Delete the temp file when done
+                    
+                    _logger.LogInformation("Large file upload queued with job ID: {JobId}", jobId);
+
+                    // Set the job ID for the view
+                    JobId = jobId;
+                    
+                    // Add the connection to the job group
+                    await _hubContext.Groups.AddToGroupAsync(connectionId, $"job_{jobId}");
+                    
+                    // Send initial progress update to show the job is starting
+                    await SendInitialProgressUpdateAsync(jobId, 1, ImportFile.Length);
+                    
+                    return new JsonResult(new { 
+                        success = true, 
+                        jobId = jobId, 
+                        message = "Your file has been uploaded and is being processed. You can track the progress on this page.",
+                        fileSizeMb = Math.Round(ImportFile.Length / (1024.0 * 1024.0), 2)
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error processing large file upload: {Message}", ex.Message);
+                    
+                    // Clean up the temp file if there was an error
+                    if (System.IO.File.Exists(tempFilePath))
+                    {
+                        try { System.IO.File.Delete(tempFilePath); } 
+                        catch { /* ignore cleanup errors */ }
+                    }
+                    
+                    return new JsonResult(new { 
+                        success = false, 
+                        message = $"Error processing file: {ex.Message}" 
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error in OnPostLargeFileAsync: {Message}", ex.Message);
+                return new JsonResult(new { 
+                    success = false, 
+                    message = "An unexpected error occurred while processing your file." 
+                });
             }
         }
     }

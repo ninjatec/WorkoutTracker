@@ -939,6 +939,252 @@ namespace WorkoutTrackerWeb.Services
                 }
             }
         }
+
+        // Queue TrainAI CSV import as a background job
+        public string QueueTrainAICsvImport(int userId, string filePath, string connectionId, bool deleteFileWhenDone = true)
+        {
+            _logger.LogInformation($"Queuing TrainAI CSV import job for user {userId}, file path: {filePath}");
+            
+            try
+            {
+                // Validate inputs
+                if (userId <= 0)
+                {
+                    _logger.LogError("Invalid userId: {UserId}", userId);
+                    throw new ArgumentException("Invalid user ID", nameof(userId));
+                }
+                
+                if (string.IsNullOrEmpty(filePath) || !System.IO.File.Exists(filePath))
+                {
+                    _logger.LogError("File not found or invalid file path: {FilePath}", filePath);
+                    throw new ArgumentException("File not found or invalid file path", nameof(filePath));
+                }
+                
+                // Create a serialization-friendly parameter object
+                var importData = new TrainAICsvImportData
+                {
+                    UserId = userId,
+                    FilePath = filePath,
+                    ConnectionId = connectionId,
+                    DeleteFileWhenDone = deleteFileWhenDone
+                };
+                
+                // Queue the job
+                string jobId;
+                try
+                {
+                    // Enqueue the job with explicit type arguments to avoid serialization issues
+                    jobId = BackgroundJob.Enqueue<BackgroundJobService>(x => 
+                        x.ProcessTrainAICsvFileImportAsync(importData));
+                    
+                    _logger.LogInformation("Successfully queued TrainAI CSV file import job with ID {JobId}", jobId);
+                    
+                    // Add the connection to a SignalR group for this job
+                    if (!string.IsNullOrEmpty(connectionId))
+                    {
+                        using (var scope = _serviceProvider.CreateScope())
+                        {
+                            var importHub = scope.ServiceProvider.GetRequiredService<IHubContext<ImportProgressHub>>();
+                            importHub.Groups.AddToGroupAsync(connectionId, $"job_{jobId}").GetAwaiter().GetResult();
+                            _logger.LogDebug("Added connection {ConnectionId} to group job_{JobId}", connectionId, jobId);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error when queuing TrainAI CSV file import job");
+                    throw;
+                }
+                
+                return jobId;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to queue TrainAI CSV file import job for user {UserId}", userId);
+                throw; // Re-throw to show error to user
+            }
+        }
+
+        // Method to process TrainAI CSV import from file as a background job
+        public async Task ProcessTrainAICsvFileImportAsync(TrainAICsvImportData importData)
+        {
+            // Extract parameters from the data wrapper
+            int userId = importData.UserId;
+            string filePath = importData.FilePath;
+            string connectionId = importData.ConnectionId;
+            bool deleteFileWhenDone = importData.DeleteFileWhenDone;
+            
+            _logger.LogInformation("Starting TrainAI CSV import from file: UserId={UserId}, FilePath={FilePath}", 
+                userId, filePath);
+                
+            // Delegate to the actual implementation
+            await ImportTrainAICsvFromFileAsync(userId, filePath, connectionId, deleteFileWhenDone);
+        }
+        
+        // This method will be called by Hangfire in the background to process TrainAI CSV from a file
+        private async Task ImportTrainAICsvFromFileAsync(int userId, string filePath, string connectionId, bool deleteFileWhenDone)
+        {
+            // Get job ID from context
+            string jobId = "unknown";
+            try 
+            {
+                // Try to get the job ID from the PerformContext if available through JobActivator
+                var context = JobActivatorScope.Current?.Resolve(typeof(PerformContext)) as PerformContext;
+                if (context != null)
+                {
+                    jobId = context.BackgroundJob.Id;
+                    _logger.LogInformation("Resolved job ID {JobId} from PerformContext", jobId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to get job ID from context");
+            }
+            
+            _logger.LogInformation("Starting background TrainAI CSV file import for user {UserId}, job {JobId}, file {FilePath}", 
+                userId, jobId, filePath);
+            
+            try
+            {
+                // Verify the file exists
+                if (!System.IO.File.Exists(filePath))
+                {
+                    throw new FileNotFoundException($"The import file was not found at path: {filePath}");
+                }
+                
+                // Get the file size for progress reporting
+                var fileInfo = new FileInfo(filePath);
+                long fileSize = fileInfo.Length;
+                
+                // Create a new service scope to get required services
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var trainAIImportService = scope.ServiceProvider.GetRequiredService<TrainAIImportService>();
+                    
+                    // Initialize progress reporting with retries for connection issues
+                    var initProgress = new JobProgress { 
+                        Status = "Processing CSV file...", 
+                        PercentComplete = 5,
+                        Details = $"Parsing CSV data ({fileSize / (1024.0 * 1024.0):F2}MB)"
+                    };
+                    
+                    // Send progress updates
+                    await SendJobUpdateWithRetriesAsync(connectionId, jobId, initProgress);
+                    
+                    // Parse the CSV file directly from disk to avoid loading it all into memory
+                    List<TrainAIWorkout> workouts;
+                    using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+                    {
+                        workouts = await trainAIImportService.ParseTrainAICsvAsync(fileStream);
+                    }
+                    
+                    if (workouts.Count == 0)
+                    {
+                        _logger.LogWarning("No workouts found in file: {FilePath}", filePath);
+                        var noWorkoutsProgress = new JobProgress { 
+                            Status = "Error", 
+                            PercentComplete = 0,
+                            ErrorMessage = "No workouts found in the CSV file."
+                        };
+                        await SendJobUpdateWithRetriesAsync(connectionId, jobId, noWorkoutsProgress);
+                        throw new InvalidOperationException("No workouts found in the CSV file.");
+                    }
+                    
+                    // Update progress after parsing
+                    var parseCompleteProgress = new JobProgress { 
+                        Status = "File parsed successfully", 
+                        PercentComplete = 10,
+                        Details = $"Found {workouts.Count} workouts with {workouts.Sum(w => w.Sets.Count)} sets",
+                        TotalItems = workouts.Count,
+                        ProcessedItems = 0
+                    };
+                    await SendJobUpdateWithRetriesAsync(connectionId, jobId, parseCompleteProgress);
+                    
+                    // Set up the progress callback for the import process
+                    trainAIImportService.OnProgressUpdateV2 = async (jobProgress) => {
+                        // Scale the progress to start from 10% (after parsing)
+                        if (jobProgress.PercentComplete < 100)
+                        {
+                            jobProgress.PercentComplete = 10 + (int)(jobProgress.PercentComplete * 0.9);
+                        }
+                        
+                        // Add the job ID to the progress data for logging
+                        _logger.LogDebug("Job {JobId} progress: {Status} {PercentComplete}%", 
+                            jobId, jobProgress.Status, jobProgress.PercentComplete);
+                            
+                        await SendJobUpdateWithRetriesAsync(connectionId, jobId, jobProgress);
+                    };
+                    
+                    // Execute the actual import operation
+                    var startTime = DateTime.UtcNow;
+                    var result = await trainAIImportService.ImportTrainAIWorkoutsAsync(userId, workouts);
+                    var duration = DateTime.UtcNow - startTime;
+                    
+                    _logger.LogInformation("CSV import completed in {Duration} with result: success={Success}, message={Message}", 
+                        duration, result.success, result.message);
+                    
+                    // Report completion or failure
+                    if (result.success)
+                    {
+                        var finalProgress = new JobProgress { 
+                            Status = "Completed", 
+                            PercentComplete = 100,
+                            Details = $"Successfully imported {workouts.Count} workouts in {duration.TotalSeconds:F1} seconds",
+                            ProcessedItems = workouts.Count,
+                            TotalItems = workouts.Count
+                        };
+                        await SendJobUpdateWithRetriesAsync(connectionId, jobId, finalProgress);
+                    }
+                    else if (!string.IsNullOrEmpty(result.message))
+                    {
+                        var errorProgress = new JobProgress { 
+                            Status = "Error", 
+                            PercentComplete = 0,
+                            ErrorMessage = result.message,
+                            ProcessedItems = result.importedItems?.Count ?? 0,
+                            TotalItems = workouts.Count
+                        };
+                        await SendJobUpdateWithRetriesAsync(connectionId, jobId, errorProgress);
+                        
+                        // Re-throw to mark the job as failed in Hangfire
+                        throw new Exception($"Import failed: {result.message}");
+                    }
+                }
+                
+                _logger.LogInformation("Successfully completed TrainAI CSV file import for user {UserId}, job {JobId}", userId, jobId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during background TrainAI CSV file import for user {UserId}, job {JobId}", userId, jobId);
+                
+                // Report error
+                var errorProgress = new JobProgress { 
+                    Status = "Error", 
+                    PercentComplete = 0,
+                    ErrorMessage = "An error occurred during import: " + ex.Message 
+                };
+                await SendJobUpdateWithRetriesAsync(connectionId, jobId, errorProgress);
+                
+                // Re-throw to ensure Hangfire marks the job as failed
+                throw;
+            }
+            finally
+            {
+                // Clean up the temporary file if requested
+                if (deleteFileWhenDone && !string.IsNullOrEmpty(filePath) && System.IO.File.Exists(filePath))
+                {
+                    try 
+                    {
+                        System.IO.File.Delete(filePath);
+                        _logger.LogInformation("Deleted temporary import file: {FilePath}", filePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error deleting temporary import file: {FilePath}", filePath);
+                    }
+                }
+            }
+        }
     }
 
     // Common job progress class for consistent reporting
@@ -968,6 +1214,15 @@ namespace WorkoutTrackerWeb.Services
         public int UserId { get; set; }
         public string FilePath { get; set; }
         public bool SkipExisting { get; set; }
+        public string ConnectionId { get; set; }
+        public bool DeleteFileWhenDone { get; set; }
+    }
+
+    // Data wrapper for TrainAI CSV import
+    public class TrainAICsvImportData
+    {
+        public int UserId { get; set; }
+        public string FilePath { get; set; }
         public string ConnectionId { get; set; }
         public bool DeleteFileWhenDone { get; set; }
     }
