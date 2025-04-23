@@ -50,8 +50,8 @@ namespace WorkoutTrackerWeb.Services
     {
         private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger<TrainAIImportService> _logger;
-        private const int BATCH_SIZE = 100; // Increased batch size
-        private const int PROGRESS_UPDATE_FREQUENCY = 50; // Update progress every 50 reps
+        private const int BATCH_SIZE = 250; // Increased batch size for better performance
+        private const int PROGRESS_UPDATE_FREQUENCY = 100; // Less frequent updates to reduce overhead
         
         // Legacy progress update event
         public event Action<ImportProgress> OnProgressUpdate;

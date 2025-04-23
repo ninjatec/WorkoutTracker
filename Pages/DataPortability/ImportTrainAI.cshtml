@@ -14,8 +14,21 @@
                 <form method="post" enctype="multipart/form-data" class="mt-3" id="importForm">
                     <div class="form-group">
                         <label asp-for="ImportFile" class="form-label">CSV File</label>
-                        <input asp-for="ImportFile" class="form-control" type="file" accept=".csv" />
+                        <input asp-for="ImportFile" class="form-control" type="file" accept=".csv" id="csvFileInput" />
                         <span asp-validation-for="ImportFile" class="text-danger"></span>
+                        <div id="fileInfo" class="form-text d-none">
+                            <span id="fileSize"></span>
+                            <div id="largeFileWarning" class="alert alert-info mt-2 d-none">
+                                <i class="fas fa-info-circle"></i> 
+                                Large file detected. The import will run as a background process and may take several minutes.
+                                You can leave this page and check back later.
+                            </div>
+                            <div id="veryLargeFileWarning" class="alert alert-warning mt-2 d-none">
+                                <i class="fas fa-exclamation-triangle"></i> 
+                                Very large file detected. The import will run as a background process and may take significant time.
+                                Processing will continue even if you close this page.
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mt-3">
@@ -141,6 +154,49 @@
     </style>
 
     <script>
+        // File size thresholds in bytes
+        const LARGE_FILE_THRESHOLD = 1 * 1024 * 1024; // 1MB
+        const VERY_LARGE_FILE_THRESHOLD = 5 * 1024 * 1024; // 5MB
+        
+        // Handle file input change to show file size information
+        const fileInput = document.getElementById('csvFileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileSize = document.getElementById('fileSize');
+        const largeFileWarning = document.getElementById('largeFileWarning');
+        const veryLargeFileWarning = document.getElementById('veryLargeFileWarning');
+        
+        fileInput.addEventListener('change', function() {
+            // Reset warnings
+            fileInfo.classList.add('d-none');
+            largeFileWarning.classList.add('d-none');
+            veryLargeFileWarning.classList.add('d-none');
+            
+            if (this.files && this.files[0]) {
+                const file = this.files[0];
+                
+                // Format file size in human-readable format
+                let displaySize;
+                if (file.size < 1024) {
+                    displaySize = file.size + ' bytes';
+                } else if (file.size < 1024 * 1024) {
+                    displaySize = (file.size / 1024).toFixed(2) + ' KB';
+                } else {
+                    displaySize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+                }
+                
+                // Show file size information
+                fileSize.textContent = `File size: ${displaySize}`;
+                fileInfo.classList.remove('d-none');
+                
+                // Show warnings based on file size
+                if (file.size >= VERY_LARGE_FILE_THRESHOLD) {
+                    veryLargeFileWarning.classList.remove('d-none');
+                } else if (file.size >= LARGE_FILE_THRESHOLD) {
+                    largeFileWarning.classList.remove('d-none');
+                }
+            }
+        });
+
         // Get form and button elements
         const form = document.getElementById('importForm');
         const importButton = document.getElementById('importButton');

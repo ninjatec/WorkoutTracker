@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.IO;
 using WorkoutTrackerweb.Data;
 using WorkoutTrackerWeb.Hubs;
 using WorkoutTrackerWeb.Services;
@@ -18,6 +19,8 @@ using WorkoutTrackerWeb.Services;
 namespace WorkoutTrackerWeb.Pages.DataPortability
 {
     [Authorize]
+    [RequestSizeLimit(100 * 1024 * 1024)] // 100MB max file size
+    [RequestFormLimits(MultipartBodyLengthLimit = 100 * 1024 * 1024)] // Also set form limit
     public class ImportTrainAIModel : PageModel
     {
         private readonly TrainAIImportService _importService;
