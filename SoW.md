@@ -37,12 +37,12 @@
    - [x] Update any Bootstrap 4 specific classes in custom CSS to Bootstrap 5 equivalents
    - [x] Verify all modal dialogs use Bootstrap 5 syntax
    - [x] Check form components for Bootstrap 5 compatibility
- - [] remove unused pages
-   - [ ] Remove /Pages/TestEmail.cshtml and its code-behind file
-   - [ ] Remove /Pages/Users/ directory and all its contents as these are redundant with the Admin area
-   - [ ] Remove /Pages/BackgroundJobs/Index.cshtml as it duplicates functionality in Controllers
-   - [ ] Update any references to the removed pages
-   - [ ] Verify all navigation links after removing the unused pages
+ - [x] remove unused pages
+   - [x] Remove /Pages/TestEmail.cshtml and its code-behind file
+   - [x] Remove /Pages/Users/ directory and all its contents as these are redundant with the Admin area
+   - [x] Remove /Pages/BackgroundJobs/Index.cshtml as it duplicates functionality in Controllers
+   - [x] Update any references to the removed pages
+   - [x] Verify all navigation links after removing the unused pages
  
  [ ] Improve code quality
    - [ ] Enable nullable reference types throughout the project

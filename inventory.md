@@ -23,21 +23,7 @@ WorkoutTracker is a fitness tracking application built with ASP.NET Core, using 
 | `/Pages/DataPortability` | Data import/export functionality |
 | `/Pages/HangfireDiagnostics` | Hangfire background job system diagnostics and repair tools |
 | `/Pages/Api/JobStatus` | Razor Pages API for background job status monitoring |
-| `/Pages/BackgroundJobs` | Background job management, monitoring, and error handling |
 | `/Pages/API/ShareToken` | Razor Pages API endpoints for token management and validation |
-| `/Services` | Application services and business logic |
-| `/Services/VersionManagement` | Version tracking and management services |
-| `/Hubs` | SignalR hubs for real-time communication |
-| `/wwwroot` | Static assets (CSS, JS, images) |
-| `/Areas/Identity` | Authentication and user management |
-| `/Areas/Admin` | Administrative functions including version management |
-| `/Migrations` | Database migration scripts |
-| `/ViewComponents` | Reusable UI components including VersionInfo |
-| `/Middleware` | Custom middleware including VersionLoggingMiddleware |
-| `/scripts` | Build and deployment automation scripts |
-| `/Attributes` | Custom attributes including ShareTokenAuthorizeAttribute |
-| `/Extensions` | Extension methods including ShareTokenExtensions |
-| `/Controllers` | API controllers for backward compatibility and specific REST endpoints |
 
 ### Architecture Migration
 
@@ -596,98 +582,7 @@ The import process follows these steps:
    - Implemented accordion-based interfaces for token management
    - Added responsive design enhancements for mobile compatibility
 
-## Third-party Packages
-
-| Package | Purpose |
-|---------|---------|
-| Entity Framework Core | ORM for data access |
-| ASP.NET Core Identity | Authentication and authorization |
-| Hangfire | Background job processing |
-| SignalR | Real-time client-server communication |
-| SignalR.StackExchangeRedis | Redis backplane for multi-container SignalR scaling |
-| StackExchange.Redis | Redis client for .NET |
-| AspNetCore.HealthChecks.Redis | Redis health monitoring for Kubernetes |
-| AspNetCore.HealthChecks.System | System metrics health checks |
-| AspNetCore.HealthChecks.SqlServer | SQL Server health monitoring |
-| Chart.js | Data visualization |
-| Bootstrap | UI framework |
-| CsvHelper | CSV file parsing and processing |
-| UAParser | User agent parsing for device detection |
-
-## Application Infrastructure
-
-### Distributed Caching with Redis
-
-1. Architecture:
-   - Redis server deployed as a StatefulSet in Kubernetes
-   - Redis Sentinel for high availability
-   - Environment-specific caching strategy:
-     - Development: SQL Server distributed cache 
-     - Production: Redis distributed cache
-   - Cache invalidation upon data modifications
-   - Per-user cache isolation with namespaced keys
-
-2. Key components:
-   - Redis configuration in Program.cs
-   - StackExchangeRedis integration
-   - Distributed cache implementation in Reports pages
-   - Cache invalidation in data services
-   - JSON serialization for complex objects
-   - Sliding and absolute expiration policies
-
-3. Report page caching:
-   - Component-based caching strategy with separate cache keys
-   - User-specific cache isolation
-   - Configurable cache duration (5 minutes sliding, 30 minutes absolute)
-   - Cached components:
-     - Overall workout status (success/failure metrics)
-     - Exercise-specific performance metrics
-     - Recent exercise activity (30 days)
-     - Weight progression data
-     - Personal records with pagination
-
-4. Performance benefits:
-   - Reduced database load for report generation
-   - Faster page load times for complex reports
-   - Scalable across multiple application instances
-   - Resilient caching with automatic reconnection
-   - Memory optimization through targeted component caching
-
-5. Cache invalidation:
-   - Strategic invalidation when workout data changes
-   - Granular component-level invalidation
-   - Error handling for cache operations
-   - Clean separation of concerns with helper methods
-
-### SignalR Scaling with Redis Backplane
-
-1. Architecture:
-   - Redis server deployed as a separate container in Kubernetes
-   - SignalR configured to use Redis as a backplane for cross-container message delivery
-   - Health monitoring for Redis with Kubernetes probes
-   - Resilient connection handling with automatic reconnection
-
-2. Key components:
-   - Redis deployment in Kubernetes (`/k8s/redis.yaml`)
-   - Redis connection string configuration via environment variables
-   - SignalR Redis backplane configuration in `Program.cs`
-   - Health checks for Redis monitoring
-
-3. Benefits:
-   - Enables WebSocket functionality across multiple container instances
-   - Maintains client connections during rolling updates or scaling events
-   - Supports horizontal scaling of the application
-   - Provides resilience against temporary Redis connection issues
-   - Enables real-time updates for progress tracking across all instances
-   - Improves availability and reliability for real-time features
-
-4. Implementation details:
-   - Exponential retry policy for Redis connection issues
-   - Connection event logging for troubleshooting
-   - Kubernetes health checks integration
-   - Environment variable configuration for flexible deployment
-
-5. Integration with existing features:
-   - Real-time progress updates for background operations
-   - ImportProgressHub scaled across multiple containers
-   - Consistent user experience during container scaling events
+7. **Code Cleanup**:
+   - Removed unused pages (`TestEmail.cshtml`, `/Pages/Users/` directory, `BackgroundJobs/Index.cshtml`)
+   - Updated navigation references to use Admin area for user management
+   - Consolidated user management in Admin area
