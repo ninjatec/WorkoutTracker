@@ -36,12 +36,21 @@ namespace WorkoutTrackerWeb.Hubs
         }
         
         // New method for generic job progress updates
-        public async Task SendProgress(JobProgress progress)
+        public async Task SendProgress(JobProgress progress, string jobId = null)
         {
-            _logger.LogDebug("SendProgress called: {Status} {PercentComplete}%", 
-                progress.Status, progress.PercentComplete);
-                
+            _logger.LogDebug("SendProgress called: {Status} {PercentComplete}% for job {JobId}", 
+                progress.Status, progress.PercentComplete, jobId);
+            
+            // Send to the specific caller
             await Clients.Caller.SendAsync("ReceiveProgress", progress);
+        
+            // If we have a job ID, also send to all clients in that job's group
+            if (!string.IsNullOrEmpty(jobId))
+            {
+                string groupName = $"job_{jobId}";
+                await Clients.Group(groupName).SendAsync("ReceiveProgress", progress);
+                _logger.LogDebug("Progress broadcast to group {GroupName}", groupName);
+            }
         }
         
         // Method to store connection ID for background job notifications

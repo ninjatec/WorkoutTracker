@@ -149,40 +149,8 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                 // Add the connection to a group for progress updates
                 await _hubContext.Groups.AddToGroupAsync(connectionId, "pending_import");
 
-                // For larger files, use a streaming approach to avoid timeouts
-                if (ImportFile.Length > 1 * 1024 * 1024) // 1MB threshold
-                {
-                    return await HandleLargeFileUploadAsync(user.UserId, connectionId);
-                }
-
-                // For smaller files, process synchronously
-                using var stream = ImportFile.OpenReadStream();
-                var workouts = await _importService.ParseTrainAICsvAsync(stream);
-
-                if (workouts.Count == 0)
-                {
-                    Message = "No workouts found in the file";
-                    return Page();
-                }
-
-                // Queue the import as a background job
-                JobId = _backgroundJobService.QueueTrainAIImport(user.UserId, workouts, connectionId);
-                _logger.LogInformation("Job queued with ID={JobId}", JobId);
-                
-                // Add the connection to the job-specific group
-                await _hubContext.Groups.AddToGroupAsync(connectionId, $"job_{JobId}");
-                
-                // Update the job state
-                (IsJobInProgress, JobState, ErrorMessage) = await CheckJobStatusAsync(JobId);
-                
-                // Show immediate feedback
-                await SendInitialProgressUpdateAsync(JobId, workouts.Count);
-                
-                Success = true;
-                Message = $"Import job started with {workouts.Count} workouts. Job ID: {JobId}. Status: {JobState}. " +
-                          $"The process will run in the background. You can watch the progress on this page or leave and check back later.";
-                
-                return Page();
+                // Process all files as background jobs to avoid any timeout issues
+                return await HandleLargeFileUploadAsync(user.UserId, connectionId);
             }
             catch (Exception ex)
             {
@@ -397,7 +365,7 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                     user = new Models.User
                     {
                         IdentityUserId = identityUser.Id,
-                        Name = identityUser.UserName
+                        Name = identityUser.UserName ?? "User" // Use username or fallback
                     };
                     _context.User.Add(user);
                     await _context.SaveChangesAsync();

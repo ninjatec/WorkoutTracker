@@ -280,7 +280,7 @@
             
             // Add anti-forgery token
             const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-            xhr.setRequestHeader("RequestVerificationToken", token);
+            xhr.setRequestHeader("X-CSRF-TOKEN", token);
             
             xhr.onload = function() {
                 if (xhr.status === 200) {
@@ -716,31 +716,17 @@
             const file = fileInput.files[0];
             if (!file) return; // No file selected
             
-            // Check if this is a large file that should use AJAX upload
-            if (file.size >= LARGE_FILE_THRESHOLD) {
-                e.preventDefault(); // Prevent normal form submission
-                
-                // Add waiting cursor to body
-                document.body.classList.add('importing');
-                // Disable the import button
-                importButton.disabled = true;
-                importButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Uploading...';
-                
-                // Use AJAX to upload the file and avoid timeouts
-                uploadLargeFileWithAjax(file);
-            } else {
-                // Regular form submission for smaller files
-                // Add waiting cursor to body
-                document.body.classList.add('importing');
-                // Disable the import button
-                importButton.disabled = true;
-                importButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Importing...';
-                
-                // Show progress section immediately
-                progressSection.classList.remove('d-none');
-                progressStatus.textContent = "Submitting import...";
-                progressDetails.textContent = "Preparing to upload file and start background job";
-            }
+            // Always prevent default form submission and use AJAX for all files
+            e.preventDefault();
+            
+            // Add waiting cursor to body
+            document.body.classList.add('importing');
+            // Disable the import button
+            importButton.disabled = true;
+            importButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Uploading...';
+            
+            // Use AJAX to upload the file and avoid timeouts
+            uploadLargeFileWithAjax(file);
         });
 
         // Show progress section if we have a job ID (background job is running)
