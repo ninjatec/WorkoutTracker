@@ -31,71 +31,6 @@
    - [ ] Ensure Shared workout views display exercises in correct sequence
    - [ ] Add sequence number column to workout exports
 
-[x] Migrate to Bootstrap 5
-   - [x] Update DataTables integration from Bootstrap 4 to Bootstrap 5 in Views/Shared/_SharedLayout.cshtml
-   - [x] Ensure all Bootstrap CSS and JS references are using version 5
-   - [x] Update any Bootstrap 4 specific classes in custom CSS to Bootstrap 5 equivalents
-   - [x] Verify all modal dialogs use Bootstrap 5 syntax
-   - [x] Check form components for Bootstrap 5 compatibility
- - [x] remove unused pages
-   - [x] Remove /Pages/TestEmail.cshtml and its code-behind file
-   - [x] Remove /Pages/Users/ directory and all its contents as these are redundant with the Admin area
-   - [x] Remove /Pages/BackgroundJobs/Index.cshtml as it duplicates functionality in Controllers
-   - [x] Update any references to the removed pages
-   - [x] Verify all navigation links after removing the unused pages
- 
- [ ] Improve code quality
-   - [ ] Enable nullable reference types throughout the project
-   - [ ] Add XML documentation comments to public APIs
-   - [ ] Fix code style issues using .editorconfig rules
-   - [ ] Update to latest package versions for all NuGet dependencies
-   - [ ] Consider enabling compiler warnings as errors for better code quality
- 
- [x] Migrate MVC to razorpages
-   - [x] Migrate BackgroundJobsController to Razor Pages:
-     - [x] Create Razor Pages for JobHistory, ServerStatus, and other BackgroundJobs views
-     - [x] Update navigation references to point to new Razor Pages
-     - [x] Remove MVC controller and views after migration
-   - [x] Migrate HangfireDiagnosticsController to Razor Pages:
-     - [x] Create equivalent Razor Pages for diagnostics and test jobs
-     - [x] Ensure all functionality is preserved in the migration
-     - [x] Update references and navigation links
-   - [x] Migrate JobStatusController to Razor Pages API:
-     - [x] Convert REST API endpoints to Razor Pages handlers with JSON responses
-     - [x] Update client-side code to use new endpoints
-   - [x] Migrate ShareTokenController to Razor Pages:
-     - [x] Create Razor Pages API endpoints using handlers
-     - [x] Ensure authentication and authorization are preserved
-   - [x] Update shared layouts to remove redundant MVC-specific layouts:
-     - [x] Consolidate _Layout.cshtml and _SharedLayout.cshtml
-     - [x] Ensure consistent styling and navigation
-     - [x] Remove files assotiated with now replaced MVC function
-  
-
-[x] clean up unused code
-  - [x] Remove unused methods in BackgroundJobService:
-    - [x] ProcessImportAsync (used only for testing)
-    - [x] ProcessReportAsync (placeholder method)
-    - [x] ValidateHangfireConfiguration (unused)
-  - [x] Clean up unused CSS classes in site.css and shared.css
-  - [x] Remove unused JavaScript functions in site.js
-  - [x] Remove unnecessary commented code across the solution
-
-[x] Add distributed cache using a redis pod as part of the k8s deployment
- - [x] Configure the application to use Redis for distributed caching.
-   - [x] Update `Program.cs` to register Redis as the distributed cache provider.
-
-[x] Set the reports pages to use redis cache
- - [x] Identify the reports pages that will use Redis cache.
- - [x] Implement caching logic in the application for the identified reports pages.
-   - [x] Add methods to check for cached data before querying the database.
-   - [x] Add methods to store data in Redis after fetching from the database.
- - [x] Update the application to invalidate or update the cache when relevant data changes.
- - [x] Test the caching implementation to ensure it improves performance and works as expected.
- - [x] Update `README.md` with details on how the reports pages use Redis cache.
- - [x] Update `inventory.md` to reflect the caching implementation for reports pages.
-
-
 
 [ ] Implement workout data sharing functionality
  - [x] Create shared workout link system
@@ -145,3 +80,31 @@
    - [ ] Update `README.md` with multi-container architecture details
    - [ ] Update `inventory.md` with new components and relationships
    - [ ] Create architecture diagram showing container interactions
+
+
+[ ] Add swagger for API endpoints but disable in production
+ - [ ] Set up Swagger documentation
+   - [ ] Install required NuGet packages (Swashbuckle.AspNetCore)
+   - [ ] Configure Swagger in Program.cs with appropriate API information
+   - [ ] Add XML documentation file configuration to project file
+   - [ ] Set up security definitions for authentication methods
+ - [ ] Enhance API endpoints for Swagger
+   - [ ] Add appropriate XML documentation comments to API controllers and methods
+   - [ ] Configure proper response types and status codes for better Swagger docs
+   - [ ] Implement example values for request and response models
+   - [ ] Add operation IDs for improved client generation
+ - [ ] Configure environment-specific behavior
+   - [ ] Enable Swagger UI only in development/test environments
+   - [ ] Implement security measures to prevent production access
+   - [ ] Add environment tag to API documentation
+   - [ ] Configure CORS for Swagger UI in development only
+ - [ ] Implement proper authentication in Swagger
+   - [ ] Configure JWT authentication flow in Swagger UI
+   - [ ] Add OAuth2 configuration for token-based endpoints
+   - [ ] Set up proper security requirements for protected endpoints
+   - [ ] Test authentication flows through Swagger UI
+ - [ ] Create Swagger documentation portal
+   - [ ] Style Swagger UI with application branding
+   - [ ] Add helpful descriptions and examples for API usage
+   - [ ] Configure ReDoc as an alternative documentation viewer
+   - [ ] Implement rate-limiting on Swagger endpoints in non-production

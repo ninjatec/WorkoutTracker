@@ -12,28 +12,95 @@ using WorkoutTrackerweb.Data;
 
 namespace WorkoutTrackerWeb.Services
 {
+    /// <summary>
+    /// Defines the interface for share token management, allowing users to create and manage tokens
+    /// that provide limited access to their workout data.
+    /// </summary>
     public interface IShareTokenService
     {
+        /// <summary>
+        /// Retrieves all share tokens created by a specific user.
+        /// </summary>
+        /// <param name="userId">The ID of the user whose tokens to retrieve.</param>
+        /// <returns>A list of share token DTOs for the specified user.</returns>
         Task<List<ShareTokenDto>> GetUserShareTokensAsync(int userId);
+        
+        /// <summary>
+        /// Retrieves a specific share token by its ID.
+        /// </summary>
+        /// <param name="id">The ID of the share token to retrieve.</param>
+        /// <param name="userId">The ID of the user who owns the token.</param>
+        /// <returns>The share token DTO if found and owned by the user; otherwise null.</returns>
         Task<ShareTokenDto> GetShareTokenByIdAsync(int id, int userId);
+        
+        /// <summary>
+        /// Creates a new share token for a user based on the provided request.
+        /// </summary>
+        /// <param name="request">The token creation request containing parameters like permissions and expiry.</param>
+        /// <param name="userId">The ID of the user creating the token.</param>
+        /// <returns>The newly created share token DTO.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when the user or session doesn't exist.</exception>
         Task<ShareTokenDto> CreateShareTokenAsync(CreateShareTokenRequest request, int userId);
+        
+        /// <summary>
+        /// Validates a share token to determine if it can be used to access shared content.
+        /// </summary>
+        /// <param name="token">The token string to validate.</param>
+        /// <param name="incrementAccessCount">Whether to increment the access count on successful validation.</param>
+        /// <returns>A validation response indicating if the token is valid and providing details.</returns>
         Task<ShareTokenValidationResponse> ValidateTokenAsync(string token, bool incrementAccessCount = true);
+        
+        /// <summary>
+        /// Updates an existing share token with new settings.
+        /// </summary>
+        /// <param name="id">The ID of the share token to update.</param>
+        /// <param name="request">The update request containing the new token settings.</param>
+        /// <param name="userId">The ID of the user who owns the token.</param>
+        /// <returns>The updated share token DTO if successful; otherwise null.</returns>
         Task<ShareTokenDto> UpdateShareTokenAsync(int id, UpdateShareTokenRequest request, int userId);
+        
+        /// <summary>
+        /// Permanently deletes a share token.
+        /// </summary>
+        /// <param name="id">The ID of the share token to delete.</param>
+        /// <param name="userId">The ID of the user who owns the token.</param>
+        /// <returns>True if the token was successfully deleted; otherwise false.</returns>
         Task<bool> DeleteShareTokenAsync(int id, int userId);
+        
+        /// <summary>
+        /// Revokes a share token, making it invalid for future use without deleting it.
+        /// </summary>
+        /// <param name="id">The ID of the share token to revoke.</param>
+        /// <param name="userId">The ID of the user who owns the token.</param>
+        /// <returns>True if the token was successfully revoked; otherwise false.</returns>
         Task<bool> RevokeShareTokenAsync(int id, int userId);
     }
 
+    /// <summary>
+    /// Implements token sharing functionality, allowing users to securely share access 
+    /// to their workout data with others.
+    /// </summary>
+    /// <remarks>
+    /// Share tokens can grant different levels of access (session, reports, calculator)
+    /// and can have expiration dates and usage limits for security.
+    /// </remarks>
     public class ShareTokenService : IShareTokenService
     {
         private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger<ShareTokenService> _logger;
 
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ShareTokenService"/> class.
+        /// </summary>
+        /// <param name="context">The database context for accessing share token data.</param>
+        /// <param name="logger">The logger for recording service activities.</param>
         public ShareTokenService(WorkoutTrackerWebContext context, ILogger<ShareTokenService> logger)
         {
             _context = context;
             _logger = logger;
         }
 
+        /// <inheritdoc />
         public async Task<List<ShareTokenDto>> GetUserShareTokensAsync(int userId)
         {
             try
@@ -54,6 +121,7 @@ namespace WorkoutTrackerWeb.Services
             }
         }
 
+        /// <inheritdoc />
         public async Task<ShareTokenDto> GetShareTokenByIdAsync(int id, int userId)
         {
             try
@@ -72,6 +140,7 @@ namespace WorkoutTrackerWeb.Services
             }
         }
 
+        /// <inheritdoc />
         public async Task<ShareTokenDto> CreateShareTokenAsync(CreateShareTokenRequest request, int userId)
         {
             try
@@ -136,6 +205,7 @@ namespace WorkoutTrackerWeb.Services
             }
         }
 
+        /// <inheritdoc />
         public async Task<ShareTokenValidationResponse> ValidateTokenAsync(string token, bool incrementAccessCount = true)
         {
             try
@@ -217,6 +287,7 @@ namespace WorkoutTrackerWeb.Services
             }
         }
 
+        /// <inheritdoc />
         public async Task<ShareTokenDto> UpdateShareTokenAsync(int id, UpdateShareTokenRequest request, int userId)
         {
             try
@@ -254,6 +325,7 @@ namespace WorkoutTrackerWeb.Services
             }
         }
 
+        /// <inheritdoc />
         public async Task<bool> DeleteShareTokenAsync(int id, int userId)
         {
             try
@@ -280,6 +352,7 @@ namespace WorkoutTrackerWeb.Services
             }
         }
 
+        /// <inheritdoc />
         public async Task<bool> RevokeShareTokenAsync(int id, int userId)
         {
             try
@@ -307,14 +380,16 @@ namespace WorkoutTrackerWeb.Services
             }
         }
 
+        /// <summary>
+        /// Generates a cryptographically secure random token for sharing access.
+        /// </summary>
+        /// <returns>A URL-safe base64 encoded random token string.</returns>
         private string GenerateSecureToken()
         {
-            // Generate a cryptographically secure random token
             using var rng = RandomNumberGenerator.Create();
             var bytes = new byte[32]; // 256 bits
             rng.GetBytes(bytes);
             
-            // Convert to URL-safe base64 string
             var token = Convert.ToBase64String(bytes)
                 .Replace('+', '-')
                 .Replace('/', '_')
@@ -323,6 +398,11 @@ namespace WorkoutTrackerWeb.Services
             return token;
         }
 
+        /// <summary>
+        /// Maps a ShareToken entity to its corresponding DTO representation.
+        /// </summary>
+        /// <param name="shareToken">The share token entity to map.</param>
+        /// <returns>A DTO representing the share token, or null if the input is null.</returns>
         private static ShareTokenDto MapToDto(ShareToken shareToken)
         {
             if (shareToken == null) return null;
@@ -351,7 +431,6 @@ namespace WorkoutTrackerWeb.Services
                 RemainingUses = shareToken.RemainingUses
             };
             
-            // Log DTO permission values for debugging
             Console.WriteLine($"MapToDto: AllowSessionAccess={dto.AllowSessionAccess}, AllowReportAccess={dto.AllowReportAccess}, AllowCalculatorAccess={dto.AllowCalculatorAccess}");
             
             return dto;
