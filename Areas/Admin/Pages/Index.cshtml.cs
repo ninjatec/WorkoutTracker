@@ -13,6 +13,8 @@ using Microsoft.Extensions.Logging;
 using WorkoutTrackerweb.Data;
 using WorkoutTrackerWeb.Areas.Admin.ViewModels;
 using WorkoutTrackerWeb.Models;
+using WorkoutTrackerWeb.Services;
+using System.Text.Json.Serialization;
 
 namespace WorkoutTrackerWeb.Areas.Admin.Pages
 {
@@ -24,19 +26,22 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages
         private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger<IndexModel> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly DatabaseResilienceService _databaseResilienceService;
 
         public IndexModel(
             UserManager<IdentityUser> userManager,
             RoleManager<IdentityRole> roleManager,
             WorkoutTrackerWebContext context,
             ILogger<IndexModel> logger,
-            IHttpClientFactory httpClientFactory)
+            IHttpClientFactory httpClientFactory,
+            DatabaseResilienceService databaseResilienceService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
             _context = context;
             _logger = logger;
             _httpClientFactory = httpClientFactory;
+            _databaseResilienceService = databaseResilienceService;
         }
 
         // User statistics
@@ -54,6 +59,11 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages
         public bool ApiStatus { get; set; } = true;
         public bool EmailStatus { get; set; } = true;
         public bool RedisStatus { get; set; } = true;
+        
+        // Database connection pooling and resilience info
+        public bool IsCircuitBreakerOpen { get; set; }
+        public DateTime? CircuitBreakerLastStateChange { get; set; }
+        public Dictionary<string, string> ConnectionPoolInfo { get; set; } = new Dictionary<string, string>();
         
         // Recent users
         public List<UserViewModel> RecentUsers { get; set; } = new List<UserViewModel>();
@@ -92,6 +102,11 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages
             // Check health status of services
             await CheckHealthStatusAsync();
             
+            // Get database resilience status
+            var (isOpen, lastStateChange) = _databaseResilienceService.GetCircuitBreakerState();
+            IsCircuitBreakerOpen = isOpen;
+            CircuitBreakerLastStateChange = lastStateChange;
+            
             // Get 5 most recent users
             var recentIdentityUsers = await _userManager.Users
                 .OrderByDescending(u => u.Id)  // Using ID as a proxy for creation date
@@ -124,6 +139,62 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages
                 // Check database health
                 var dbResponse = await client.GetAsync(new Uri($"{Request.Scheme}://{Request.Host}/health/database"));
                 DatabaseStatus = dbResponse.IsSuccessStatusCode;
+                
+                if (dbResponse.IsSuccessStatusCode)
+                {
+                    // Parse the detailed health check response
+                    var responseContent = await dbResponse.Content.ReadAsStringAsync();
+                    try 
+                    {
+                        var healthData = JsonSerializer.Deserialize<HealthCheckResponse>(responseContent);
+                        
+                        // Extract connection pool information if available
+                        if (healthData?.Entries != null)
+                        {
+                            // Look for the database_connection_pool health check
+                            if (healthData.Entries.TryGetValue("database_connection_pool", out var poolEntry) && 
+                                poolEntry.Data != null)
+                            {
+                                foreach (var item in poolEntry.Data)
+                                {
+                                    ConnectionPoolInfo[item.Key] = item.Value?.ToString() ?? "N/A";
+                                }
+                            }
+                            
+                            // Also try the direct database health check as a fallback
+                            else if (healthData.Entries.TryGetValue("database_health_check", out var dbEntry) && 
+                                     dbEntry.Data != null)
+                            {
+                                foreach (var item in dbEntry.Data)
+                                {
+                                    ConnectionPoolInfo[item.Key] = item.Value?.ToString() ?? "N/A";
+                                }
+                            }
+                            
+                            // Also look for sql_health_check information
+                            else if (healthData.Entries.TryGetValue("sql_health_check", out var sqlEntry) && 
+                                     sqlEntry.Data != null)
+                            {
+                                foreach (var item in sqlEntry.Data)
+                                {
+                                    ConnectionPoolInfo[item.Key] = item.Value?.ToString() ?? "N/A";
+                                }
+                            }
+                            
+                            if (ConnectionPoolInfo.Count == 0)
+                            {
+                                // Add basic connection status if no detailed info is available
+                                ConnectionPoolInfo["Status"] = "Connected";
+                                ConnectionPoolInfo["Note"] = "Detailed pool information not available";
+                            }
+                        }
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogWarning(ex, "Error parsing health check response");
+                        ConnectionPoolInfo["Error"] = "Failed to parse health data: " + ex.Message;
+                    }
+                }
                 
                 // Check Redis health (only in production)
                 if (!HttpContext.Request.Host.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase))
@@ -162,6 +233,8 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages
         private class HealthCheckEntry
         {
             public string Status { get; set; }
+            [JsonExtensionData]
+            public Dictionary<string, object> Data { get; set; }
         }
     }
 }

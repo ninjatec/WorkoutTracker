@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Services;
+using WorkoutTrackerweb.Data;
 
 namespace WorkoutTrackerWeb.HealthChecks
 {
@@ -17,12 +18,12 @@ namespace WorkoutTrackerWeb.HealthChecks
     {
         private readonly DatabaseResilienceService _databaseResilienceService;
         private readonly ILogger<DatabaseConnectionPoolHealthCheck> _logger;
-        private readonly DbContext _dbContext;
+        private readonly WorkoutTrackerWebContext _dbContext;
 
         public DatabaseConnectionPoolHealthCheck(
             DatabaseResilienceService databaseResilienceService,
             ILogger<DatabaseConnectionPoolHealthCheck> logger,
-            DbContext dbContext)
+            WorkoutTrackerWebContext dbContext)
         {
             _databaseResilienceService = databaseResilienceService ?? throw new ArgumentNullException(nameof(databaseResilienceService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
