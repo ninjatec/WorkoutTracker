@@ -666,8 +666,8 @@ app.Use(async (context, next) =>
     // Define CSP policy
     context.Response.Headers["Content-Security-Policy"] = 
         "default-src 'self'; " +
-        "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com 'unsafe-inline'; " + 
-        "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; " + 
+        "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net 'unsafe-inline'; " + 
+        "style-src 'self' https://cdn.jsdelivr.net https://cdn.datatables.net 'unsafe-inline'; " + 
         "img-src 'self' data:; " + 
         "font-src 'self' https://cdn.jsdelivr.net; " +
         "connect-src 'self' https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online " +

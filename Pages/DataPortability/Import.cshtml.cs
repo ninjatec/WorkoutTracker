@@ -108,8 +108,8 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                 FileSizeBytes = ImportFile.Length;
                 _logger.LogInformation("Processing import file of size {FileSizeBytes} bytes", FileSizeBytes);
                 
-                // For very large files (> 10MB), use a different approach to avoid timeouts
-                bool isLargeFile = ImportFile.Length > 10 * 1024 * 1024; // 10MB threshold
+                // For files > 5MB, use a different approach to avoid timeouts
+                bool isLargeFile = ImportFile.Length > 5 * 1024 * 1024; // 5MB threshold
                 string connectionId = HttpContext.Connection.Id;
                 string jobId;
                 
