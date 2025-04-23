@@ -234,32 +234,38 @@
 
         // Handle new-style progress updates
         connection.on("ReceiveProgress", (progress) => {
-            console.log("ReceiveProgress:", progress);
+            console.log("Progress update:", progress);
             
             // Show progress section
             progressSection.classList.remove('d-none');
             
             // Update progress bar
-            const percent = progress.percentComplete || 0;
-            progressBar.style.width = `${percent}%`;
-            progressBar.setAttribute('aria-valuenow', percent);
-            progressBar.textContent = `${percent}%`;
+            progressBar.style.width = progress.percentComplete + "%";
+            progressBar.setAttribute('aria-valuenow', progress.percentComplete);
+            progressBar.textContent = progress.percentComplete + "%";
             
             // Update status text
-            progressStatus.textContent = progress.status || "Processing...";
+            progressStatus.textContent = progress.status;
             
-            // Update details
+            // Show details if available
             if (progress.details) {
                 progressDetails.textContent = progress.details;
-                if (progress.processedItems && progress.totalItems) {
-                    progressDetails.textContent += ` (${progress.processedItems} of ${progress.totalItems} items)`;
-                }
+                progressDetails.classList.remove('d-none');
+            } else {
+                progressDetails.classList.add('d-none');
             }
             
-            // Handle error
-            if (progress.status === "Error" && progress.errorMessage) {
+            // Show item progress if available
+            if (progress.totalItems > 0) {
+                progressDetails.textContent += ` (${progress.processedItems} of ${progress.totalItems} items)`;
+            }
+            
+            // Show error message if available
+            if (progress.errorMessage) {
                 errorMessage.textContent = progress.errorMessage;
                 errorMessage.classList.remove('d-none');
+                
+                // Change progress bar to red for errors
                 progressBar.classList.remove('bg-info');
                 progressBar.classList.add('bg-danger');
                 importButton.disabled = false;
@@ -285,6 +291,39 @@
                 setTimeout(() => {
                     window.location.reload();
                 }, 3000);
+            }
+        });
+        
+        // Handle connection status updates from the server
+        connection.on("ConnectionStatus", (data) => {
+            console.log("Connection status update:", data);
+            
+            if (data.isConnected) {
+                connectionStatus.textContent = "Connected";
+                connectionStatus.className = "badge connected bg-success";
+                isConnected = true;
+            } else {
+                connectionStatus.textContent = "Disconnected";
+                connectionStatus.className = "badge disconnected bg-danger";
+                isConnected = false;
+            }
+        });
+        
+        // Handle job registration status updates from the server
+        connection.on("JobRegistrationStatus", (data) => {
+            console.log("Job registration status:", data);
+            
+            if (data.success) {
+                jobRegistered = true;
+                console.log(data.message);
+            } else {
+                jobRegistered = false;
+                console.error("Failed to register for job updates:", data.message);
+                
+                // Try again after a delay if we're still connected
+                if (isConnected && data.jobId) {
+                    setTimeout(() => registerForJobUpdates(data.jobId), 3000);
+                }
             }
         });
 

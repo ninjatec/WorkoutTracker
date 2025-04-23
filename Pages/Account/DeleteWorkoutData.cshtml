@@ -216,6 +216,43 @@
                 }
             }
             
+            // Handle connection status updates from the server
+            connection.on("ConnectionStatus", (data) => {
+                console.log("Connection status update:", data);
+                
+                if (data.isConnected) {
+                    if (document.getElementById('connectionStatus')) {
+                        document.getElementById('connectionStatus').textContent = "Connected";
+                        document.getElementById('connectionStatus').className = "badge connected bg-success";
+                    }
+                    isConnected = true;
+                } else {
+                    if (document.getElementById('connectionStatus')) {
+                        document.getElementById('connectionStatus').textContent = "Disconnected";
+                        document.getElementById('connectionStatus').className = "badge disconnected bg-danger";
+                    }
+                    isConnected = false;
+                }
+            });
+            
+            // Handle job registration status updates from the server
+            connection.on("JobRegistrationStatus", (data) => {
+                console.log("Job registration status:", data);
+                
+                if (data.success) {
+                    jobRegistered = true;
+                    console.log(data.message);
+                } else {
+                    jobRegistered = false;
+                    console.error("Failed to register for job updates:", data.message);
+                    
+                    // Try again after a delay if we're still connected
+                    if (isConnected && data.jobId) {
+                        setTimeout(() => registerForJobUpdates(data.jobId), 3000);
+                    }
+                }
+            });
+            
             // Handle error
             if (progress.status === "Error" && progress.errorMessage) {
                 errorMessage.textContent = progress.errorMessage;
