@@ -39,4 +39,13 @@ namespace WorkoutTrackerWeb.Pages.BackgroundJobs
         public string UserId { get; set; }
         public string ConnectionId { get; set; }
     }
+    
+    // New parameter model for JSON import
+    public class JsonImportData
+    {
+        public int UserId { get; set; }
+        public string JsonContent { get; set; }
+        public bool SkipExisting { get; set; } = true;
+        public string ConnectionId { get; set; }
+    }
 }

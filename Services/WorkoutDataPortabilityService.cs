@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Text.Json;
-using WorkoutTrackerWeb.Models;
-using WorkoutTrackerweb.Data;
+using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Models;
 using System.Linq;
 
 namespace WorkoutTrackerWeb.Services
@@ -13,100 +14,138 @@ namespace WorkoutTrackerWeb.Services
     public class WorkoutDataPortabilityService
     {
         private readonly WorkoutTrackerWebContext _context;
-        private readonly UserManager<IdentityUser> _userManager;
-        private readonly UserService _userService;
+        private readonly ILogger<WorkoutDataPortabilityService> _logger;
+        private readonly IServiceProvider _serviceProvider;
+
+        // Progress update delegate for background processing
+        public Action<JobProgress> OnProgressUpdate { get; set; }
 
         public WorkoutDataPortabilityService(
-            WorkoutTrackerWebContext context,
-            UserManager<IdentityUser> userManager,
-            UserService userService)
+            WorkoutTrackerWebContext context, 
+            ILogger<WorkoutDataPortabilityService> logger,
+            IServiceProvider serviceProvider)
         {
             _context = context;
-            _userManager = userManager;
-            _userService = userService;
+            _logger = logger;
+            _serviceProvider = serviceProvider;
         }
 
         public async Task<WorkoutExport> ExportUserDataAsync(int userId, DateTime? startDate = null, DateTime? endDate = null)
         {
-            var user = await _context.User
-                .FirstOrDefaultAsync(u => u.UserId == userId);
-            
+            // Get user info
+            var user = await _context.User.FindAsync(userId);
             if (user == null)
-                throw new ArgumentException("User not found", nameof(userId));
+            {
+                throw new InvalidOperationException("User not found");
+            }
 
-            var identityUser = await _userManager.FindByIdAsync(user.IdentityUserId);
-            
-            var sessionsQuery = _context.Session
-                .Include(s => s.Sets)
-                    .ThenInclude(set => set.ExerciseType)
-                .Include(s => s.Sets)
-                    .ThenInclude(set => set.Settype)
-                .Include(s => s.Sets)
-                    .ThenInclude(set => set.Reps)
-                .Where(s => s.UserId == userId);
-
-            // Apply date filtering if specified
-            if (startDate.HasValue)
-                sessionsQuery = sessionsQuery.Where(s => s.datetime >= startDate.Value);
-            if (endDate.HasValue)
-                sessionsQuery = sessionsQuery.Where(s => s.datetime <= endDate.Value);
-
-            var sessions = await sessionsQuery.OrderBy(s => s.datetime).ToListAsync();
-
-            var exerciseTypes = await _context.ExerciseType.OrderBy(e => e.Name).ToListAsync();
-            var setTypes = await _context.Settype.OrderBy(s => s.Name).ToListAsync();
-
+            // Create export data
             var export = new WorkoutExport
             {
                 ExportDate = DateTime.UtcNow,
-                User = new UserExport
+                Version = "1.0",
+                UserName = user.Name,
+                Sessions = new List<SessionExport>(),
+                ExerciseTypes = new List<ExerciseTypeExport>(),
+                SetTypes = new List<SetTypeExport>()
+            };
+
+            // Prepare query for sessions based on provided date range
+            var sessionQuery = _context.Session.Where(s => s.UserId == userId);
+            if (startDate.HasValue)
+            {
+                sessionQuery = sessionQuery.Where(s => s.datetime >= startDate.Value);
+            }
+            if (endDate.HasValue)
+            {
+                sessionQuery = sessionQuery.Where(s => s.datetime <= endDate.Value);
+            }
+
+            // Fetch and process sessions
+            var sessions = await sessionQuery
+                .Include(s => s.Sets)
+                .ThenInclude(s => s.Reps)
+                .Include(s => s.Sets)
+                .ThenInclude(s => s.ExerciseType)
+                .Include(s => s.Sets)
+                .ThenInclude(s => s.Settype)
+                .ToListAsync();
+
+            // Report initial progress for background processing
+            ReportProgress("Starting export...", 0, sessions.Count);
+
+            int processedCount = 0;
+            foreach (var session in sessions)
+            {
+                var sessionExport = new SessionExport
                 {
-                    Name = user.Name,
-                    Email = identityUser?.Email
-                },
-                Sessions = sessions.Select(s => new SessionExport
+                    Name = session.Name,
+                    DateTime = session.datetime,
+                    Sets = new List<SetExport>()
+                };
+
+                foreach (var set in session.Sets)
                 {
-                    Name = s.Name,
-                    DateTime = s.datetime,
-                    Sets = s.Sets?.Select(set => new SetExport
+                    var setExport = new SetExport
                     {
                         Description = set.Description,
                         Notes = set.Notes,
-                        ExerciseTypeName = set.ExerciseType.Name,
-                        SetTypeName = set.Settype.Name,
                         NumberReps = set.NumberReps,
                         Weight = set.Weight,
-                        Reps = set.Reps?.Select(r => new RepExport
+                        ExerciseTypeName = set.ExerciseType?.Name,
+                        SetTypeName = set.Settype?.Name,
+                        Reps = new List<RepExport>()
+                    };
+
+                    if (set.Reps != null)
+                    {
+                        foreach (var rep in set.Reps)
                         {
-                            Weight = r.weight,
-                            RepNumber = r.repnumber,
-                            Success = r.success
-                        }).ToList() ?? new List<RepExport>()
-                    }).ToList() ?? new List<SetExport>()
-                }).ToList(),
-                ExerciseTypes = exerciseTypes.Select(e => new ExerciseTypeExport
+                            setExport.Reps.Add(new RepExport
+                            {
+                                RepNumber = rep.repnumber,
+                                Weight = rep.weight,
+                                Success = rep.success
+                            });
+                        }
+                    }
+
+                    sessionExport.Sets.Add(setExport);
+                }
+
+                export.Sessions.Add(sessionExport);
+                processedCount++;
+                
+                // Report progress every session
+                ReportProgress("Exporting session data...", processedCount, sessions.Count, session.Name);
+            }
+
+            // Add all exercise types
+            var exerciseTypes = await _context.ExerciseType.ToListAsync();
+            foreach (var exerciseType in exerciseTypes)
+            {
+                export.ExerciseTypes.Add(new ExerciseTypeExport
                 {
-                    Name = e.Name,
-                    Description = e.Description
-                }).ToList(),
-                SetTypes = setTypes.Select(s => new SetTypeExport
+                    Name = exerciseType.Name,
+                    Description = exerciseType.Description ?? ""
+                });
+            }
+
+            // Add all set types
+            var setTypes = await _context.Settype.ToListAsync();
+            foreach (var setType in setTypes)
+            {
+                export.SetTypes.Add(new SetTypeExport
                 {
-                    Name = s.Name,
-                    Description = s.Description
-                }).ToList()
-            };
+                    Name = setType.Name,
+                    Description = setType.Description ?? ""
+                });
+            }
+
+            // Report completion
+            ReportProgress("Export completed", sessions.Count, sessions.Count);
 
             return export;
-        }
-
-        public async Task<string> ExportUserDataToJsonAsync(int userId, DateTime? startDate = null, DateTime? endDate = null)
-        {
-            var export = await ExportUserDataAsync(userId, startDate, endDate);
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true
-            };
-            return JsonSerializer.Serialize(export, options);
         }
 
         public async Task<(bool success, string message, List<string> importedItems)> ImportUserDataAsync(
@@ -116,104 +155,271 @@ namespace WorkoutTrackerWeb.Services
         {
             try
             {
+                // Report initial progress
+                ReportProgress("Starting import...", 0, 100, "Parsing JSON data");
+
                 var import = JsonSerializer.Deserialize<WorkoutExport>(jsonData);
                 var importedItems = new List<string>();
+                
+                // Get total items to process for progress tracking
+                int totalItems = 
+                    (import.ExerciseTypes?.Count ?? 0) + 
+                    (import.SetTypes?.Count ?? 0) + 
+                    (import.Sessions?.Count ?? 0);
+                    
+                int processedItems = 0;
+
+                // Report parsed items
+                ReportProgress("JSON parsed successfully", 5, 100, 
+                    $"Found {import.Sessions?.Count ?? 0} sessions, " +
+                    $"{import.ExerciseTypes?.Count ?? 0} exercise types, " +
+                    $"{import.SetTypes?.Count ?? 0} set types");
 
                 // Import exercise types if they don't exist
-                foreach (var exerciseType in import.ExerciseTypes)
+                if (import.ExerciseTypes != null && import.ExerciseTypes.Count > 0)
                 {
-                    if (!await _context.ExerciseType.AnyAsync(e => e.Name == exerciseType.Name))
+                    foreach (var exerciseType in import.ExerciseTypes)
                     {
-                        _context.ExerciseType.Add(new ExerciseType
+                        if (!await _context.ExerciseType.AnyAsync(e => e.Name == exerciseType.Name))
                         {
-                            Name = exerciseType.Name,
-                            Description = exerciseType.Description
-                        });
-                        importedItems.Add($"Exercise Type: {exerciseType.Name}");
+                            _context.ExerciseType.Add(new ExerciseType
+                            {
+                                Name = exerciseType.Name,
+                                Description = exerciseType.Description
+                            });
+                            importedItems.Add($"Exercise Type: {exerciseType.Name}");
+                        }
+                        processedItems++;
+                        ReportProgress("Importing exercise types...", processedItems, totalItems, exerciseType.Name);
                     }
                 }
 
                 // Import set types if they don't exist
-                foreach (var setType in import.SetTypes)
+                if (import.SetTypes != null && import.SetTypes.Count > 0)
                 {
-                    if (!await _context.Settype.AnyAsync(s => s.Name == setType.Name))
+                    foreach (var setType in import.SetTypes)
                     {
-                        _context.Settype.Add(new Settype
+                        if (!await _context.Settype.AnyAsync(s => s.Name == setType.Name))
                         {
-                            Name = setType.Name,
-                            Description = setType.Description
-                        });
-                        importedItems.Add($"Set Type: {setType.Name}");
+                            _context.Settype.Add(new Settype
+                            {
+                                Name = setType.Name,
+                                Description = setType.Description
+                            });
+                            importedItems.Add($"Set Type: {setType.Name}");
+                        }
+                        processedItems++;
+                        ReportProgress("Importing set types...", processedItems, totalItems, setType.Name);
                     }
                 }
 
                 await _context.SaveChangesAsync();
+                ReportProgress("Base types imported", 20, 100, "Beginning session import");
 
                 // Import sessions and their related data
-                foreach (var sessionExport in import.Sessions)
+                if (import.Sessions != null && import.Sessions.Count > 0)
                 {
-                    if (skipExisting && await _context.Session.AnyAsync(s => 
-                        s.UserId == userId && 
-                        s.Name == sessionExport.Name && 
-                        s.datetime == sessionExport.DateTime))
-                        continue;
-
-                    var session = new Models.Session
+                    int sessionCount = import.Sessions.Count;
+                    int currentSession = 0;
+                    int percentComplete = 20; // Start from 20% after base types
+                    
+                    foreach (var sessionExport in import.Sessions)
                     {
-                        Name = sessionExport.Name,
-                        datetime = sessionExport.DateTime,
-                        UserId = userId
-                    };
-
-                    _context.Session.Add(session);
-                    await _context.SaveChangesAsync(); // Save to get SessionId
-
-                    importedItems.Add($"Session: {session.Name} ({session.datetime})");
-
-                    foreach (var setExport in sessionExport.Sets)
-                    {
-                        var exerciseType = await _context.ExerciseType
-                            .FirstAsync(e => e.Name == setExport.ExerciseTypeName);
-                        var setType = await _context.Settype
-                            .FirstAsync(s => s.Name == setExport.SetTypeName);
-
-                        var set = new Set
+                        currentSession++;
+                        
+                        // Calculate percentage: 20% (base) + (current/total * 80%)
+                        percentComplete = 20 + (int)((currentSession / (float)sessionCount) * 80);
+                        ReportProgress($"Importing session {currentSession}/{sessionCount}", 
+                            percentComplete, 100, sessionExport.Name);
+                            
+                        if (skipExisting && await _context.Session.AnyAsync(s => 
+                            s.UserId == userId && 
+                            s.Name == sessionExport.Name && 
+                            s.datetime == sessionExport.DateTime))
                         {
-                            Description = setExport.Description,
-                            Notes = setExport.Notes,
-                            ExerciseTypeId = exerciseType.ExerciseTypeId,
-                            SettypeId = setType.SettypeId,
-                            NumberReps = setExport.NumberReps,
-                            Weight = setExport.Weight,
-                            SessionId = session.SessionId
+                            _logger.LogInformation("Skipping existing session: {Name} on {Date}", 
+                                sessionExport.Name, sessionExport.DateTime);
+                            processedItems++;
+                            continue;
+                        }
+
+                        var session = new Models.Session
+                        {
+                            Name = sessionExport.Name,
+                            datetime = sessionExport.DateTime,
+                            UserId = userId
                         };
 
-                        _context.Set.Add(set);
-                        await _context.SaveChangesAsync(); // Save to get SetId
+                        _context.Session.Add(session);
+                        await _context.SaveChangesAsync(); // Save to get session ID
+                        importedItems.Add($"Session: {sessionExport.Name} ({sessionExport.DateTime})");
 
-                        foreach (var repExport in setExport.Reps)
+                        // Load existing exercise and set types for reference
+                        var exerciseTypes = await _context.ExerciseType.ToDictionaryAsync(e => e.Name, e => e);
+                        var setTypes = await _context.Settype.ToDictionaryAsync(s => s.Name, s => s);
+
+                        if (sessionExport.Sets != null && sessionExport.Sets.Count > 0)
                         {
-                            var rep = new Rep
+                            foreach (var setExport in sessionExport.Sets)
                             {
-                                weight = repExport.Weight,
-                                repnumber = repExport.RepNumber,
-                                success = repExport.Success,
-                                SetsSetId = set.SetId
-                            };
+                                // Find or create the exercise type
+                                ExerciseType exerciseType = null;
+                                if (!string.IsNullOrEmpty(setExport.ExerciseTypeName) && 
+                                    exerciseTypes.TryGetValue(setExport.ExerciseTypeName, out exerciseType))
+                                {
+                                    // Exercise type exists
+                                }
+                                else if (!string.IsNullOrEmpty(setExport.ExerciseTypeName))
+                                {
+                                    // Create new exercise type if it doesn't exist
+                                    exerciseType = new ExerciseType { Name = setExport.ExerciseTypeName };
+                                    _context.ExerciseType.Add(exerciseType);
+                                    await _context.SaveChangesAsync();
+                                    exerciseTypes[exerciseType.Name] = exerciseType;
+                                    importedItems.Add($"Exercise Type: {exerciseType.Name}");
+                                }
 
-                            _context.Rep.Add(rep);
+                                // Find or create the set type
+                                Settype setType = null;
+                                if (!string.IsNullOrEmpty(setExport.SetTypeName) && 
+                                    setTypes.TryGetValue(setExport.SetTypeName, out setType))
+                                {
+                                    // Set type exists
+                                }
+                                else if (!string.IsNullOrEmpty(setExport.SetTypeName))
+                                {
+                                    // Create new set type if it doesn't exist
+                                    setType = new Settype { Name = setExport.SetTypeName };
+                                    _context.Settype.Add(setType);
+                                    await _context.SaveChangesAsync();
+                                    setTypes[setType.Name] = setType;
+                                    importedItems.Add($"Set Type: {setType.Name}");
+                                }
+
+                                // Create the set
+                                var set = new Set
+                                {
+                                    Description = setExport.Description,
+                                    Notes = setExport.Notes,
+                                    NumberReps = setExport.NumberReps,
+                                    Weight = setExport.Weight,
+                                    ExerciseTypeId = exerciseType?.ExerciseTypeId ?? 0, // Fixed null conversion
+                                    SettypeId = setType?.SettypeId ?? 0, // Fixed null conversion
+                                    SessionId = session.SessionId
+                                };
+
+                                _context.Set.Add(set);
+                                await _context.SaveChangesAsync(); // Save to get set ID
+
+                                // Add reps if present
+                                if (setExport.Reps != null && setExport.Reps.Count > 0)
+                                {
+                                    foreach (var repExport in setExport.Reps)
+                                    {
+                                        var rep = new Rep
+                                        {
+                                            repnumber = repExport.RepNumber,
+                                            weight = repExport.Weight,
+                                            success = repExport.Success,
+                                            SetsSetId = set.SetId
+                                        };
+
+                                        _context.Rep.Add(rep);
+                                    }
+
+                                    await _context.SaveChangesAsync();
+                                }
+                            }
                         }
+                        
+                        processedItems++;
                     }
                 }
 
-                await _context.SaveChangesAsync();
+                // Final progress update
+                ReportProgress("Import completed successfully", 100, 100, 
+                    $"Imported {importedItems.Count} items");
 
                 return (true, "Import completed successfully", importedItems);
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error during import");
+                
+                // Report error progress
+                ReportProgress("Import failed", 0, 100, "Error", ex.Message);
+                
                 return (false, $"Import failed: {ex.Message}", new List<string>());
             }
         }
+        
+        // Helper method to report progress for background processing
+        private void ReportProgress(string status, int current, int total, string currentItem = null, string errorMessage = null)
+        {
+            if (OnProgressUpdate == null) return;
+            
+            int percentComplete = total > 0 ? (int)((current / (float)total) * 100) : 0;
+            percentComplete = Math.Min(percentComplete, 100); // Ensure we don't exceed 100%
+            
+            var progress = new JobProgress
+            {
+                Status = status,
+                PercentComplete = percentComplete,
+                ProcessedItems = current,
+                TotalItems = total,
+                CurrentItem = currentItem,
+                Details = currentItem,
+                ErrorMessage = errorMessage
+            };
+            
+            OnProgressUpdate(progress);
+        }
+    }
+
+    public class WorkoutExport
+    {
+        public DateTime ExportDate { get; set; }
+        public string Version { get; set; }
+        public string UserName { get; set; }
+        public List<SessionExport> Sessions { get; set; }
+        public List<ExerciseTypeExport> ExerciseTypes { get; set; }
+        public List<SetTypeExport> SetTypes { get; set; }
+    }
+
+    public class SessionExport
+    {
+        public string Name { get; set; }
+        public DateTime DateTime { get; set; }
+        public List<SetExport> Sets { get; set; }
+    }
+
+    public class SetExport
+    {
+        public string Description { get; set; }
+        public string Notes { get; set; }
+        public int NumberReps { get; set; }
+        public decimal Weight { get; set; } // Changed from double to decimal
+        public string ExerciseTypeName { get; set; }
+        public string SetTypeName { get; set; }
+        public List<RepExport> Reps { get; set; }
+    }
+
+    public class RepExport
+    {
+        public int RepNumber { get; set; }
+        public decimal Weight { get; set; } // Changed from double to decimal
+        public bool Success { get; set; }
+    }
+
+    public class ExerciseTypeExport
+    {
+        public string Name { get; set; }
+        public string Description { get; set; }
+    }
+
+    public class SetTypeExport
+    {
+        public string Name { get; set; }
+        public string Description { get; set; }
     }
 }

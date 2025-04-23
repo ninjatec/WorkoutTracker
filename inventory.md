@@ -245,7 +245,8 @@ While the primary UI is built with Razor Pages, the application includes API fun
    - BackgroundJobService: Central service for queuing and executing background jobs
    - ImportProgressHub: SignalR hub for real-time progress updates
    - JobProgress: Standardized progress reporting model for consistent UI updates
-   - TrainAIImportService & WorkoutDataService: Services with progress reporting
+   - TrainAIImportService & WorkoutDataPortabilityService: Services with progress reporting
+   - JobStatusController: REST API for polling job status when SignalR is unavailable
    - BackgroundJobs pages: Razor Pages implementation for job monitoring dashboard
    - Job monitoring views: Index, JobHistory, Details, and ServerStatus
 
@@ -440,12 +441,15 @@ Planned functionality for workout data portability:
    - Import summary reporting
    - TrainAI CSV import support with auto-mapping
    - Multiple import formats (JSON, CSV)
-   - Background processing for large imports
+   - Background processing for large imports using Hangfire
    - Real-time progress tracking via SignalR
    - Resilient connection handling with automatic retries
    - Fallback job status polling when SignalR is unavailable
    - Improved job status monitoring with detailed state tracking
    - Immediate visual feedback when starting background jobs
+   - Cross-browser compatibility with enhanced error handling
+   - Job progress persistence for page refreshes or reconnects
+   - Shared ImportProgressHub for consistent progress reporting
 
 3. Data deletion functionality:
    - Transactional deletion of all user workout data
@@ -527,12 +531,15 @@ The import process follows these steps:
    - Import summary reporting
    - TrainAI CSV import support with auto-mapping
    - Multiple import formats (JSON, CSV)
-   - Background processing for large imports
+   - Background processing for large imports using Hangfire
    - Real-time progress tracking via SignalR
    - Resilient connection handling with automatic retries
    - Fallback job status polling when SignalR is unavailable
    - Improved job status monitoring with detailed state tracking
    - Immediate visual feedback when starting background jobs
+   - Cross-browser compatibility with enhanced error handling
+   - Job progress persistence for page refreshes or reconnects
+   - Shared ImportProgressHub for consistent progress reporting
 
 3. Implementation components:
    - WorkoutExport model for data serialization
@@ -622,3 +629,16 @@ The import process follows these steps:
    - Removed unused pages (`TestEmail.cshtml`, `/Pages/Users/` directory, `BackgroundJobs/Index.cshtml`)
    - Updated navigation references to use Admin area for user management
    - Consolidated user management in Admin area
+
+9. **Background Job System Enhancements**:
+   - Added background job support for standard JSON imports
+   - Implemented JobProgress model for consistent progress reporting
+   - Created JobStatusController API for polling job status
+   - Enhanced ImportProgressHub for real-time updates
+   - Added client-side failover mechanism for when SignalR is unavailable
+   - Improved error handling with detailed job status reporting
+   - Added support for job progress persistence
+   - Implemented job ID tracking for both CSV and JSON imports
+   - Enhanced UI for job progress with status indicators
+   - Created standardized pattern for background job operations
+   - Improved resource cleanup after job completion

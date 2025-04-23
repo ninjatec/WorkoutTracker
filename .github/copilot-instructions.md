@@ -1,5 +1,6 @@
 - Be casual unless otherwise specified
 - ALWAYS reference the SoW WiP Readme Inventory and Models to build context.
+- ALWAYS ensure the codebase comiles withut error before a task is considered complete
 - Be terse and concise
 - Do not apologize
 - User razorpages and not MVC

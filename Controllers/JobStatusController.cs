@@ -1,12 +1,11 @@
-using Hangfire;
-using Hangfire.Common;
-using Hangfire.Storage;
-using Hangfire.Storage.Monitoring;
+using System;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
+using Hangfire.Storage;
+using Hangfire;
 using System.Linq;
+using Newtonsoft.Json;
 using WorkoutTrackerWeb.Services;
 
 namespace WorkoutTrackerWeb.Controllers
@@ -15,114 +14,144 @@ namespace WorkoutTrackerWeb.Controllers
     [ApiController]
     public class JobStatusController : ControllerBase
     {
-        private readonly BackgroundJobService _backgroundJobService;
         private readonly ILogger<JobStatusController> _logger;
+        private readonly BackgroundJobService _backgroundJobService;
 
         public JobStatusController(
-            BackgroundJobService backgroundJobService, 
-            ILogger<JobStatusController> logger)
+            ILogger<JobStatusController> logger,
+            BackgroundJobService backgroundJobService)
         {
-            _backgroundJobService = backgroundJobService;
             _logger = logger;
+            _backgroundJobService = backgroundJobService;
         }
 
-        // GET: api/jobstatus/{id}
-        [HttpGet("{id}")]
-        public IActionResult GetJobStatus(string id)
+        [HttpGet("{jobId}")]
+        public async Task<IActionResult> GetJobStatus(string jobId)
         {
-            if (string.IsNullOrEmpty(id))
+            if (string.IsNullOrEmpty(jobId))
             {
                 return BadRequest("Job ID is required");
             }
 
             try
             {
-                // Check if the job is in progress using our service
-                bool isInProgress = _backgroundJobService.IsJobInProgress(id);
-                
+                var storage = JobStorage.Current;
+                var monitoringApi = storage.GetMonitoringApi();
                 string state = "Unknown";
-                DateTime? createdAt = null;
                 string errorMessage = null;
-                
-                try
+                JobProgress progress = null;
+
+                // Check for processing jobs
+                var processingJobs = monitoringApi.ProcessingJobs(0, 1000);
+                if (processingJobs.Any(j => j.Key == jobId))
                 {
-                    // Try to get job data from Hangfire
-                    var storage = JobStorage.Current;
-                    var monitoringApi = storage.GetMonitoringApi();
+                    state = "Processing";
                     
-                    // First check processing jobs
-                    var processingJobs = monitoringApi.ProcessingJobs(0, 1000);
-                    if (processingJobs.Any(j => j.Key == id))
-                    {
-                        var jobData = processingJobs.First(j => j.Key == id).Value;
-                        state = "Processing";
-                        createdAt = jobData?.StartedAt;
-                    }
-                    
-                    // Check failed jobs
-                    var failedJobs = monitoringApi.FailedJobs(0, 1000);
-                    if (failedJobs.Any(j => j.Key == id))
-                    {
-                        var jobData = failedJobs.First(j => j.Key == id).Value;
-                        state = "Failed";
-                        createdAt = jobData?.FailedAt;
-                        errorMessage = jobData?.ExceptionMessage;
-                        if (string.IsNullOrEmpty(errorMessage) && jobData?.ExceptionDetails != null)
-                        {
-                            errorMessage = "Error occurred during job execution. See logs for details.";
-                        }
-                    }
-                    
-                    // Check succeeded jobs
-                    var succeededJobs = monitoringApi.SucceededJobs(0, 1000);
-                    if (succeededJobs.Any(j => j.Key == id))
-                    {
-                        var jobData = succeededJobs.First(j => j.Key == id).Value;
-                        state = "Succeeded";
-                        createdAt = jobData?.SucceededAt;
-                    }
-                    
-                    // Check scheduled jobs
-                    var scheduledJobs = monitoringApi.ScheduledJobs(0, 1000);
-                    if (scheduledJobs.Any(j => j.Key == id))
-                    {
-                        var jobData = scheduledJobs.First(j => j.Key == id).Value;
-                        state = "Scheduled";
-                        createdAt = jobData?.ScheduledAt;
-                    }
-                    
-                    // Check enqueued jobs
-                    var enqueuedJobs = monitoringApi.EnqueuedJobs("default", 0, 1000);
-                    if (enqueuedJobs.Any(j => j.Key == id))
-                    {
-                        var jobData = enqueuedJobs.First(j => j.Key == id).Value;
-                        state = "Enqueued";
-                        createdAt = jobData?.EnqueuedAt;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error getting detailed job info for {JobId}", id);
-                    // Fall back to the isInProgress flag we got from the service
-                    state = isInProgress ? "Processing" : "Unknown";
+                    // Try to get progress for processing jobs
+                    progress = await GetProgressForJobAsync(jobId);
                 }
                 
-                // Prepare response data
-                var resultData = new
+                // Check for succeeded jobs
+                var succeededJobs = monitoringApi.SucceededJobs(0, 1000);
+                if (succeededJobs.Any(j => j.Key == jobId))
                 {
-                    jobId = id,
-                    isInProgress = isInProgress,
-                    state = state,
-                    createdAt = createdAt,
-                    errorMessage = errorMessage
-                };
+                    state = "Succeeded";
+                }
                 
-                return Ok(resultData);
+                // Check for failed jobs
+                var failedJobs = monitoringApi.FailedJobs(0, 1000);
+                var failedJob = failedJobs.FirstOrDefault(j => j.Key == jobId);
+                if (failedJob.Key == jobId)
+                {
+                    state = "Failed";
+                    errorMessage = failedJob.Value?.ExceptionMessage;
+                }
+                
+                // Check for scheduled jobs
+                var scheduledJobs = monitoringApi.ScheduledJobs(0, 1000);
+                if (scheduledJobs.Any(j => j.Key == jobId))
+                {
+                    state = "Scheduled";
+                }
+                
+                // Check for enqueued jobs
+                var enqueuedJobs = monitoringApi.EnqueuedJobs("default", 0, 1000);
+                if (enqueuedJobs.Any(j => j.Key == jobId))
+                {
+                    state = "Enqueued";
+                }
+
+                // Also check if the job is in progress with our service
+                if (state == "Unknown" && _backgroundJobService.IsJobInProgress(jobId))
+                {
+                    state = "Processing";
+                    
+                    // Try to get progress
+                    progress = await GetProgressForJobAsync(jobId);
+                }
+
+                return Ok(new { jobId, state, errorMessage, progress });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting status for job {JobId}", id);
-                return StatusCode(500, new { error = "Error getting job status", message = ex.Message });
+                _logger.LogError(ex, "Error getting job status for job {JobId}", jobId);
+                return StatusCode(500, new { message = "An error occurred while checking job status", error = ex.Message });
+            }
+        }
+        
+        private async Task<JobProgress> GetProgressForJobAsync(string jobId)
+        {
+            try
+            {
+                // Try to get progress from job parameters
+                using (var connection = JobStorage.Current.GetConnection())
+                {
+                    var jobData = connection.GetJobData(jobId);
+                    if (jobData?.Job != null)
+                    {
+                        // Check if job has parameters that might contain progress data
+                        var parameters = jobData.Job.Args;
+                        if (parameters != null && parameters.Count > 0)
+                        {
+                            // Look for JobProgress objects in the parameters
+                            foreach (var param in parameters)
+                            {
+                                if (param is JobProgress progressParam)
+                                {
+                                    return progressParam;
+                                }
+                            }
+                        }
+                        
+                        // Also check for progress data stored in job state
+                        var storageConnection = JobStorage.Current.GetConnection();
+                        var hash = storageConnection.GetAllEntriesFromHash($"job:{jobId}:progress");
+                        
+                        if (hash != null && hash.ContainsKey("progress"))
+                        {
+                            var progressJson = hash["progress"];
+                            if (!string.IsNullOrEmpty(progressJson))
+                            {
+                                try
+                                {
+                                    return JsonConvert.DeserializeObject<JobProgress>(progressJson);
+                                }
+                                catch
+                                {
+                                    // Ignore deserialization errors
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // No progress found
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving progress data for job {JobId}", jobId);
+                return null;
             }
         }
     }

@@ -13,7 +13,7 @@
                 <h5 class="card-title">Import from TrainAI CSV</h5>
                 <form method="post" enctype="multipart/form-data" class="mt-3" id="importForm">
                     <div class="form-group">
-                        <label asp-for="ImportFile" class="control-label">CSV File</label>
+                        <label asp-for="ImportFile" class="form-label">CSV File</label>
                         <input asp-for="ImportFile" class="form-control" type="file" accept=".csv" />
                         <span asp-validation-for="ImportFile" class="text-danger"></span>
                     </div>
@@ -33,7 +33,7 @@
             </div>
         }
         
-        <!-- Modern progress tracking UI -->
+        <!-- Progress tracking UI -->
         <div id="progressSection" class="card mb-4 @(string.IsNullOrEmpty(Model.JobId) ? "d-none" : "")">
             <div class="card-body">
                 <h5 class="card-title" id="progressStatus">Import in progress...</h5>
@@ -44,7 +44,9 @@
                     </div>
                 </div>
                 <div id="progressDetails" class="small text-muted"></div>
-                <div id="errorMessage" class="alert alert-danger mt-3 d-none"></div>
+                <div id="errorMessage" class="alert alert-danger mt-3 @(string.IsNullOrEmpty(Model.ErrorMessage) ? "d-none" : "")">
+                    @Model.ErrorMessage
+                </div>
                 
                 <div class="mt-3">
                     <p class="text-info">
@@ -417,6 +419,22 @@
                             // Job is still in progress
                             progressStatus.textContent = `Import in progress (Status: ${data.state})`;
                             
+                            // If we have progress data available, update the progress bar
+                            if (data.progress && typeof data.progress.percentComplete !== 'undefined') {
+                                const percent = data.progress.percentComplete;
+                                progressBar.style.width = `${percent}%`;
+                                progressBar.setAttribute('aria-valuenow', percent);
+                                progressBar.textContent = `${percent}%`;
+                                
+                                if (data.progress.status) {
+                                    progressStatus.textContent = data.progress.status;
+                                }
+                                
+                                if (data.progress.details) {
+                                    progressDetails.textContent = data.progress.details;
+                                }
+                            }
+                            
                             // Keep the poll running
                         }
                         else {
@@ -505,10 +523,15 @@
                 progressStatus.textContent = "Import failed";
                 progressBar.classList.remove('bg-info');
                 progressBar.classList.add('bg-danger');
-                const errorMsg = document.createElement('div');
-                errorMsg.textContent = "The import job failed. Check logs for details.";
-                errorMsg.classList.add('alert', 'alert-danger', 'mt-3');
-                progressSection.querySelector('.card-body').appendChild(errorMsg);
+                
+                // Show error message if available
+                @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                {
+                    <text>
+                    errorMessage.textContent = "@Html.Raw(Model.ErrorMessage.Replace("\"", "\\\""))";
+                    errorMessage.classList.remove('d-none');
+                    </text>
+                }
             }
             </text>
         }

@@ -532,6 +532,190 @@ namespace WorkoutTrackerWeb.Services
                 return false;
             }
         }
+
+        // Queue JSON import as a background job
+        public string QueueJsonImport(int userId, string jsonContent, bool skipExisting, string connectionId)
+        {
+            _logger.LogInformation($"Queuing JSON import job for user {userId}");
+            
+            try
+            {
+                // Validate inputs
+                if (userId <= 0)
+                {
+                    _logger.LogError("Invalid userId: {UserId}", userId);
+                    throw new ArgumentException("Invalid user ID", nameof(userId));
+                }
+                
+                if (string.IsNullOrEmpty(jsonContent))
+                {
+                    _logger.LogError("No JSON content provided for import");
+                    throw new ArgumentException("No JSON content provided for import", nameof(jsonContent));
+                }
+                
+                // Create a serialization-friendly parameter object
+                var importData = new JsonImportData
+                {
+                    UserId = userId,
+                    JsonContent = jsonContent,
+                    SkipExisting = skipExisting,
+                    ConnectionId = connectionId
+                };
+                
+                // Queue the job
+                string jobId;
+                try
+                {
+                    // Enqueue the job with explicit type arguments to avoid serialization issues
+                    jobId = BackgroundJob.Enqueue<BackgroundJobService>(x => 
+                        x.ProcessJsonImportAsync(importData));
+                    
+                    _logger.LogInformation("Successfully queued JSON import job with ID {JobId}", jobId);
+                    
+                    // Add the connection to a SignalR group for this job
+                    if (!string.IsNullOrEmpty(connectionId))
+                    {
+                        using (var scope = _serviceProvider.CreateScope())
+                        {
+                            var importHub = scope.ServiceProvider.GetRequiredService<IHubContext<ImportProgressHub>>();
+                            importHub.Groups.AddToGroupAsync(connectionId, $"job_{jobId}").GetAwaiter().GetResult();
+                            _logger.LogDebug("Added connection {ConnectionId} to group job_{JobId}", connectionId, jobId);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error when queuing JSON import job");
+                    throw;
+                }
+                
+                return jobId;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to queue JSON import job for user {UserId}", userId);
+                throw; // Re-throw to show error to user
+            }
+        }
+
+        // Method to process JSON import as a background job
+        public async Task ProcessJsonImportAsync(JsonImportData importData)
+        {
+            // Extract parameters from the data wrapper
+            int userId = importData.UserId;
+            string jsonContent = importData.JsonContent;
+            bool skipExisting = importData.SkipExisting;
+            string connectionId = importData.ConnectionId;
+            
+            _logger.LogInformation("Starting JSON import from serialized data: UserId={UserId}", userId);
+                
+            // Delegate to the actual implementation
+            await ImportJsonDataAsync(userId, jsonContent, skipExisting, connectionId);
+        }
+        
+        // This method will be called by Hangfire in the background
+        private async Task ImportJsonDataAsync(int userId, string jsonContent, bool skipExisting, string connectionId)
+        {
+            // Get job ID from context
+            string jobId = "unknown";
+            try 
+            {
+                // Try to get the job ID from the PerformContext if available through JobActivator
+                var context = JobActivatorScope.Current?.Resolve(typeof(PerformContext)) as PerformContext;
+                if (context != null)
+                {
+                    jobId = context.BackgroundJob.Id;
+                    _logger.LogInformation("Resolved job ID {JobId} from PerformContext", jobId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to get job ID from context");
+            }
+            
+            _logger.LogInformation("Starting background JSON import operation for user {UserId}, job {JobId}, connectionId {ConnectionId}", 
+                userId, jobId, connectionId);
+            
+            try
+            {
+                // Create a new service scope to get required services
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var dataPortabilityService = scope.ServiceProvider.GetRequiredService<WorkoutDataPortabilityService>();
+                    
+                    // Initialize progress reporting with retries for connection issues
+                    var initProgress = new JobProgress { 
+                        Status = "Initializing import...", 
+                        PercentComplete = 0,
+                        Details = "Preparing to process JSON data"
+                    };
+                    
+                    // Send progress updates to both the specific client and the job group
+                    await SendJobUpdateWithRetriesAsync(connectionId, jobId, initProgress);
+                    
+                    // Set up the progress callback with more detail
+                    dataPortabilityService.OnProgressUpdate = async (jobProgress) => {
+                        // Add the job ID to the progress data for logging
+                        _logger.LogDebug("Job {JobId} progress: {Status} {PercentComplete}%", 
+                            jobId, jobProgress.Status, jobProgress.PercentComplete);
+                            
+                        await SendJobUpdateWithRetriesAsync(connectionId, jobId, jobProgress);
+                    };
+                    
+                    // Execute the actual import operation
+                    var startTime = DateTime.UtcNow;
+                    var result = await dataPortabilityService.ImportUserDataAsync(userId, jsonContent, skipExisting);
+                    var duration = DateTime.UtcNow - startTime;
+                    
+                    _logger.LogInformation("Import completed in {Duration} with result: success={Success}, message={Message}", 
+                        duration, result.success, result.message);
+                    
+                    // Report completion or failure
+                    if (result.success)
+                    {
+                        var finalProgress = new JobProgress { 
+                            Status = "Completed", 
+                            PercentComplete = 100,
+                            Details = $"Successfully imported data in {duration.TotalSeconds:F1} seconds",
+                            ProcessedItems = result.importedItems?.Count ?? 0,
+                            TotalItems = result.importedItems?.Count ?? 0
+                        };
+                        await SendJobUpdateWithRetriesAsync(connectionId, jobId, finalProgress);
+                    }
+                    else if (!string.IsNullOrEmpty(result.message))
+                    {
+                        var errorProgress = new JobProgress { 
+                            Status = "Error", 
+                            PercentComplete = 0,
+                            ErrorMessage = result.message,
+                            ProcessedItems = result.importedItems?.Count ?? 0,
+                            TotalItems = 0
+                        };
+                        await SendJobUpdateWithRetriesAsync(connectionId, jobId, errorProgress);
+                        
+                        // Re-throw to mark the job as failed in Hangfire
+                        throw new Exception($"Import failed: {result.message}");
+                    }
+                }
+                
+                _logger.LogInformation("Successfully completed JSON import for user {UserId}, job {JobId}", userId, jobId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during background JSON import for user {UserId}, job {JobId}", userId, jobId);
+                
+                // Report error
+                var errorProgress = new JobProgress { 
+                    Status = "Error", 
+                    PercentComplete = 0,
+                    ErrorMessage = "An error occurred during import: " + ex.Message 
+                };
+                await SendJobUpdateWithRetriesAsync(connectionId, jobId, errorProgress);
+                
+                // Re-throw to ensure Hangfire marks the job as failed
+                throw;
+            }
+        }
     }
 
     // Common job progress class for consistent reporting
@@ -544,5 +728,14 @@ namespace WorkoutTrackerWeb.Services
         public int TotalItems { get; set; }
         public string Details { get; set; }
         public string ErrorMessage { get; set; }
+    }
+
+    // Data wrapper for JSON import
+    public class JsonImportData
+    {
+        public int UserId { get; set; }
+        public string JsonContent { get; set; }
+        public bool SkipExisting { get; set; }
+        public string ConnectionId { get; set; }
     }
 }

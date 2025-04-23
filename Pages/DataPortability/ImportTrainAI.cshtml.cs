@@ -51,6 +51,7 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
         public string JobId { get; set; }
         public bool IsJobInProgress { get; set; }
         public string JobState { get; set; }
+        public string ErrorMessage { get; set; }
 
         public async Task<IActionResult> OnGetAsync(string jobId = null)
         {
@@ -61,10 +62,10 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
             if (!string.IsNullOrEmpty(jobId))
             {
                 JobId = jobId;
-                (IsJobInProgress, JobState) = await CheckJobStatusAsync(jobId);
+                (IsJobInProgress, JobState, ErrorMessage) = await CheckJobStatusAsync(jobId);
                 
-                _logger.LogInformation("Job status check: IsJobInProgress={IsJobInProgress}, JobState={JobState}", 
-                    IsJobInProgress, JobState);
+                _logger.LogInformation("Job status check: IsJobInProgress={IsJobInProgress}, JobState={JobState}, HasError={HasError}", 
+                    IsJobInProgress, JobState, !string.IsNullOrEmpty(ErrorMessage));
                 
                 if (IsJobInProgress)
                 {
@@ -79,13 +80,12 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                 else if (JobState == "Failed")
                 {
                     Success = false;
-                    Message = "Import job failed. Check the error message below for details.";
+                    Message = "Import job failed.";
                     
-                    // Try to get the exception details
-                    var exceptionDetails = await GetJobExceptionDetailsAsync(jobId);
-                    if (!string.IsNullOrEmpty(exceptionDetails))
+                    // If we already have an error message from the job status check, use it
+                    if (!string.IsNullOrEmpty(ErrorMessage))
                     {
-                        Message += $" Error: {exceptionDetails}";
+                        Message += $" Error: {ErrorMessage}";
                     }
                 }
                 else
@@ -156,7 +156,7 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                 await _hubContext.Groups.AddToGroupAsync(connectionId, $"job_{JobId}");
                 
                 // Update the job state
-                (IsJobInProgress, JobState) = await CheckJobStatusAsync(JobId);
+                (IsJobInProgress, JobState, ErrorMessage) = await CheckJobStatusAsync(JobId);
                 
                 // Show immediate feedback
                 await SendInitialProgressUpdateAsync(JobId, workouts.Count);
@@ -172,92 +172,77 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                 _logger.LogError(ex, "Error during TrainAI import");
                 Success = false;
                 Message = $"Import failed: {ex.Message}";
+                ErrorMessage = ex.ToString();
                 return Page();
             }
         }
         
-        private async Task<(bool IsInProgress, string State)> CheckJobStatusAsync(string jobId)
+        private async Task<(bool IsInProgress, string State, string ErrorMessage)> CheckJobStatusAsync(string jobId)
         {
             try
             {
                 if (string.IsNullOrEmpty(jobId))
-                    return (false, "Unknown");
+                    return (false, "Unknown", null);
                 
                 // First check with our service if it's in progress
                 bool isInProgress = _backgroundJobService.IsJobInProgress(jobId);
                 
                 // If it's in progress, return immediately
                 if (isInProgress)
-                    return (true, "Processing");
+                    return (true, "Processing", null);
                 
                 // If not in progress, check more detailed status using Hangfire's API
                 string state = "Unknown";
+                string errorMessage = null;
                 
                 try
                 {
-                    var storage = JobStorage.Current;
-                    var monitoringApi = storage.GetMonitoringApi();
+                    var monitoringApi = JobStorage.Current.GetMonitoringApi();
                     
                     // Check failed jobs
                     var failedJobs = monitoringApi.FailedJobs(0, 1000);
                     if (failedJobs.Any(j => j.Key == jobId))
-                        return (false, "Failed");
+                    {
+                        var failedJob = failedJobs.FirstOrDefault(j => j.Key == jobId);
+                        errorMessage = !string.IsNullOrEmpty(failedJob.Value?.ExceptionMessage) 
+                            ? failedJob.Value.ExceptionMessage 
+                            : "An error occurred during job execution. See logs for details.";
+                        return (false, "Failed", errorMessage);
+                    }
                     
                     // Check succeeded jobs
                     var succeededJobs = monitoringApi.SucceededJobs(0, 1000);
                     if (succeededJobs.Any(j => j.Key == jobId))
-                        return (false, "Succeeded");
+                        return (false, "Succeeded", null);
                     
                     // Check scheduled jobs
                     var scheduledJobs = monitoringApi.ScheduledJobs(0, 1000);
                     if (scheduledJobs.Any(j => j.Key == jobId))
-                        return (true, "Scheduled");
+                        return (true, "Scheduled", null);
                     
                     // Check enqueued jobs
                     var enqueuedJobs = monitoringApi.EnqueuedJobs("default", 0, 1000);
                     if (enqueuedJobs.Any(j => j.Key == jobId))
-                        return (true, "Enqueued");
+                        return (true, "Enqueued", null);
+                    
+                    // Check processing jobs
+                    var processingJobs = monitoringApi.ProcessingJobs(0, 1000);
+                    if (processingJobs.Any(j => j.Key == jobId))
+                        return (true, "Processing", null);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error checking job state for JobId={JobId}", jobId);
                     // Fall back to the isInProgress check result
-                    return (isInProgress, isInProgress ? "Processing" : "Unknown");
+                    return (isInProgress, isInProgress ? "Processing" : "Unknown", null);
                 }
                 
-                return (false, state);
+                return (false, state, errorMessage);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error checking job status for JobId={JobId}", jobId);
-                return (false, "Error");
-            }
-        }
-        
-        private async Task<string> GetJobExceptionDetailsAsync(string jobId)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(jobId))
-                    return null;
-                
-                var monitoringApi = JobStorage.Current.GetMonitoringApi();
-                var failedJobs = monitoringApi.FailedJobs(0, 1000);
-                var failedJob = failedJobs.FirstOrDefault(j => j.Key == jobId);
-                
-                if (failedJob.Key == jobId && failedJob.Value != null)
-                {
-                    return !string.IsNullOrEmpty(failedJob.Value.ExceptionMessage) 
-                        ? failedJob.Value.ExceptionMessage 
-                        : "An error occurred during job execution. See logs for details.";
-                }
-                
-                return null;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting exception details for JobId={JobId}", jobId);
-                return "Error retrieving job details";
+                return (false, "Error", ex.Message);
             }
         }
         

@@ -9,18 +9,18 @@
 <div class="row">
     <div class="col-md-6">
         <form method="post" enctype="multipart/form-data" id="importForm">
-            <div class="form-group">
-                <label asp-for="ImportFile" class="control-label">JSON File</label>
+            <div class="mb-3">
+                <label asp-for="ImportFile" class="form-label">JSON File</label>
                 <input asp-for="ImportFile" class="form-control" type="file" accept=".json" />
                 <span asp-validation-for="ImportFile" class="text-danger"></span>
             </div>
 
-            <div class="form-check mt-3">
+            <div class="form-check mb-3">
                 <input asp-for="SkipExisting" class="form-check-input" type="checkbox" checked />
                 <label asp-for="SkipExisting" class="form-check-label">Skip existing sessions</label>
             </div>
 
-            <div class="form-group mt-3">
+            <div class="mb-3">
                 <button type="submit" class="btn btn-primary" id="importButton">Import</button>
             </div>
         </form>
@@ -29,8 +29,40 @@
         {
             <div class="alert @(Model.Success ? "alert-success" : "alert-danger")" role="alert">
                 @Model.Message
+                @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                {
+                    <div class="mt-2">
+                        <strong>Error details:</strong> @Model.ErrorMessage
+                    </div>
+                }
             </div>
         }
+        
+        <!-- Job Progress Section -->
+        <div id="progressSection" class="mt-4 @(string.IsNullOrEmpty(Model.JobId) ? "d-none" : "")">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Import Progress</h5>
+                    <span id="connectionStatus" class="badge bg-secondary">Connecting...</span>
+                </div>
+                <div class="card-body">
+                    <p id="progressStatus">@(Model.JobState ?? "Initializing...")</p>
+                    
+                    <div class="progress mb-3">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                    </div>
+                    
+                    <p id="progressDetails" class="text-muted small"></p>
+                    
+                    <div id="itemProgress" class="d-none mb-3">
+                        <p><span id="processedItems">0</span> of <span id="totalItems">0</span> items processed</p>
+                    </div>
+                    
+                    <div id="errorMessage" class="alert alert-danger d-none"></div>
+                </div>
+            </div>
+        </div>
 
         @if (Model.Success && Model.ImportedItems.Any())
         {
@@ -53,16 +85,310 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
     <style>
         .importing {
             cursor: wait !important;
         }
+        
+        .badge.connected {
+            background-color: #28a745 !important;
+        }
+        
+        .badge.disconnected {
+            background-color: #dc3545 !important;
+        }
     </style>
 
     <script>
-        // Get form and button elements
+        // Get form and UI elements
         const form = document.getElementById('importForm');
         const importButton = document.getElementById('importButton');
+        const progressSection = document.getElementById('progressSection');
+        const progressBar = document.getElementById('progressBar');
+        const progressStatus = document.getElementById('progressStatus');
+        const progressDetails = document.getElementById('progressDetails');
+        const errorMessage = document.getElementById('errorMessage');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const processedItems = document.getElementById('processedItems');
+        const totalItems = document.getElementById('totalItems');
+        const itemProgress = document.getElementById('itemProgress');
+        
+        // SignalR connection
+        let connection;
+        let isConnected = false;
+        let jobRegistered = false;
+        let reconnectAttempts = 0;
+        let jobStatusCheckInterval = null;
+        
+        // Initialize connection
+        function initializeConnection() {
+            // Create the connection
+            connection = new signalR.HubConnectionBuilder()
+                .withUrl("/importProgressHub")
+                .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+                .build();
+                
+            // Handle connection status changes
+            connection.onreconnecting(error => {
+                console.warn("SignalR reconnecting", error);
+                connectionStatus.textContent = "Reconnecting...";
+                connectionStatus.className = "badge bg-warning";
+                isConnected = false;
+            });
+            
+            connection.onreconnected(() => {
+                console.log("SignalR reconnected");
+                connectionStatus.textContent = "Connected";
+                connectionStatus.className = "badge connected bg-success";
+                isConnected = true;
+                
+                // Re-register for job updates if we have a jobId
+                const jobId = "@Model.JobId";
+                if (jobId && !jobRegistered) {
+                    registerForJobUpdates(jobId);
+                }
+                
+                // Clear the polling interval if we're reconnected
+                clearJobStatusPolling();
+            });
+            
+            connection.onclose((error) => {
+                console.error("SignalR connection closed", error);
+                connectionStatus.textContent = "Disconnected";
+                connectionStatus.className = "badge disconnected bg-danger";
+                isConnected = false;
+                
+                // Show error only if we have an active job
+                const jobId = "@Model.JobId";
+                if (jobId && !progressBar.classList.contains('bg-success')) {
+                    errorMessage.textContent = "Lost connection to server. Your import is still running. The page will check status periodically.";
+                    errorMessage.classList.remove('d-none');
+                    
+                    // Start polling for job status
+                    startJobStatusPolling();
+                }
+            });
+
+            // Handle progress updates from the server
+            connection.on("ReceiveProgress", (progress) => {
+                console.log("Progress update:", progress);
+                
+                // Show progress section
+                progressSection.classList.remove('d-none');
+                
+                // Update progress bar
+                progressBar.style.width = progress.percentComplete + "%";
+                progressBar.setAttribute('aria-valuenow', progress.percentComplete);
+                progressBar.textContent = progress.percentComplete + "%";
+                
+                // Update status text
+                progressStatus.textContent = progress.status;
+                
+                // Show details if available
+                if (progress.details) {
+                    progressDetails.textContent = progress.details;
+                    progressDetails.classList.remove('d-none');
+                } else {
+                    progressDetails.classList.add('d-none');
+                }
+                
+                // Show item progress if available
+                if (progress.totalItems > 0) {
+                    itemProgress.classList.remove('d-none');
+                    processedItems.textContent = progress.processedItems;
+                    totalItems.textContent = progress.totalItems;
+                } else {
+                    itemProgress.classList.add('d-none');
+                }
+                
+                // Show error message if available
+                if (progress.errorMessage) {
+                    errorMessage.textContent = progress.errorMessage;
+                    errorMessage.classList.remove('d-none');
+                    
+                    // Change progress bar to red for errors
+                    progressBar.classList.remove('bg-info');
+                    progressBar.classList.add('bg-danger');
+                } else {
+                    errorMessage.classList.add('d-none');
+                }
+                
+                // Handle completion
+                if (progress.status === "Completed") {
+                    progressBar.classList.remove('bg-info');
+                    progressBar.classList.add('bg-success');
+                    importButton.disabled = false;
+                    importButton.textContent = "Import";
+                    document.body.classList.remove('importing');
+                    
+                    // Clear any status polling
+                    clearJobStatusPolling();
+                    
+                    // Refresh page after 3 seconds to show import summary
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 3000);
+                }
+                
+                // If there's an error, re-enable the form
+                if (progress.status === "Error") {
+                    importButton.disabled = false;
+                    importButton.textContent = "Import";
+                    document.body.classList.remove('importing');
+                    
+                    // Clear any status polling
+                    clearJobStatusPolling();
+                }
+            });
+            
+            // Start the connection
+            startConnection();
+        }
+        
+        // Function to register for job updates
+        function registerForJobUpdates(jobId) {
+            if (!jobId || !isConnected) return;
+            
+            console.log("Attempting to register for updates on job:", jobId);
+            
+            connection.invoke("RegisterForJobUpdates", jobId)
+                .then(() => {
+                    console.log("Successfully registered for updates on job:", jobId);
+                    jobRegistered = true;
+                    
+                    // Also show the progress section since we're monitoring a job
+                    progressSection.classList.remove('d-none');
+                })
+                .catch(err => {
+                    console.error("Error registering for job updates:", err);
+                    // Try again later if we're still connected
+                    if (isConnected) {
+                        setTimeout(() => registerForJobUpdates(jobId), 3000);
+                    }
+                });
+        }
+        
+        // Function to start polling for job status updates when SignalR is not available
+        function startJobStatusPolling() {
+            // Clear any existing interval
+            clearJobStatusPolling();
+            
+            const jobId = "@Model.JobId";
+            if (!jobId) return;
+            
+            console.log("Starting job status polling for job:", jobId);
+            
+            // Poll every 5 seconds
+            jobStatusCheckInterval = setInterval(() => {
+                checkJobStatus(jobId);
+            }, 5000);
+        }
+        
+        // Function to clear job status polling
+        function clearJobStatusPolling() {
+            if (jobStatusCheckInterval) {
+                clearInterval(jobStatusCheckInterval);
+                jobStatusCheckInterval = null;
+            }
+        }
+        
+        // Function to check job status via AJAX when SignalR is not available
+        function checkJobStatus(jobId) {
+            if (!jobId) return;
+            
+            console.log("Checking job status for:", jobId);
+            
+            // Make a simple AJAX request to check job status
+            fetch(`/api/jobstatus/${jobId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Job status response:", data);
+                    
+                    if (data.state) {
+                        // Update UI based on job state
+                        if (data.state === "Succeeded") {
+                            // Job completed successfully
+                            progressBar.classList.remove('bg-info');
+                            progressBar.classList.add('bg-success');
+                            progressStatus.textContent = "Import completed successfully";
+                            progressBar.style.width = "100%";
+                            progressBar.setAttribute('aria-valuenow', 100);
+                            progressBar.textContent = "100%";
+                            
+                            // Refresh the page to show results
+                            window.location.reload();
+                        } 
+                        else if (data.state === "Failed") {
+                            // Job failed
+                            progressBar.classList.remove('bg-info');
+                            progressBar.classList.add('bg-danger');
+                            progressStatus.textContent = "Import failed";
+                            
+                            if (data.errorMessage) {
+                                errorMessage.textContent = data.errorMessage;
+                                errorMessage.classList.remove('d-none');
+                            }
+                            
+                            // Clear the interval since we have a final state
+                            clearJobStatusPolling();
+                        }
+                        else if (data.state === "Processing" || data.state === "Scheduled" || data.state === "Enqueued") {
+                            // Job is still in progress
+                            progressStatus.textContent = `Import in progress (Status: ${data.state})`;
+                            
+                            // Keep the poll running
+                        }
+                        else {
+                            // Unknown state
+                            progressStatus.textContent = `Import status: ${data.state}`;
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error("Error checking job status:", error);
+                    // Don't stop polling on errors, just try again next time
+                });
+        }
+        
+        // Start the connection and register for job updates if needed
+        function startConnection() {
+            console.log("Starting SignalR connection...");
+            
+            connection.start()
+                .then(() => {
+                    console.log("SignalR connected!");
+                    connectionStatus.textContent = "Connected";
+                    connectionStatus.className = "badge connected bg-success";
+                    isConnected = true;
+                    reconnectAttempts = 0;
+                    
+                    // Register for job updates if we have a job ID
+                    const jobId = "@Model.JobId";
+                    if (jobId && !jobRegistered) {
+                        registerForJobUpdates(jobId);
+                    }
+                })
+                .catch(err => {
+                    console.error("SignalR Connection Error: ", err);
+                    connectionStatus.textContent = "Connection Failed";
+                    connectionStatus.className = "badge disconnected bg-danger";
+                    
+                    // If we have a job ID, start polling as fallback
+                    const jobId = "@Model.JobId";
+                    if (jobId) {
+                        startJobStatusPolling();
+                    }
+                    
+                    // Try to reconnect after a delay
+                    setTimeout(startConnection, 5000);
+                });
+        }
 
         // Add form submit handler
         form.addEventListener('submit', function(e) {
@@ -71,13 +397,52 @@
             // Disable the import button
             importButton.disabled = true;
             importButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Importing...';
+            
+            // Show progress section immediately
+            progressSection.classList.remove('d-none');
+            progressStatus.textContent = "Submitting import...";
+            progressDetails.textContent = "Preparing to upload file and start background job";
         });
 
-        // Check for success message to remove waiting state
-        if (document.querySelector('.alert-success')) {
-            document.body.classList.remove('importing');
-            importButton.disabled = false;
-            importButton.innerHTML = 'Import';
+        // Initialize SignalR connection
+        initializeConnection();
+        
+        // Show progress section if we have a job ID (background job is running)
+        @if (!string.IsNullOrEmpty(Model.JobId))
+        {
+            <text>
+            progressSection.classList.remove('d-none');
+            
+            // Update initial progress based on job state
+            const jobState = "@Model.JobState";
+            if (jobState === "Processing" || jobState === "Scheduled" || jobState === "Enqueued") {
+                progressStatus.textContent = `Import in progress (Status: ${jobState})`;
+                progressBar.classList.add('bg-info');
+                progressBar.classList.add('progress-bar-animated');
+                progressBar.classList.add('progress-bar-striped');
+            }
+            else if (jobState === "Succeeded") {
+                progressStatus.textContent = "Import completed successfully";
+                progressBar.classList.remove('bg-info');
+                progressBar.classList.add('bg-success');
+                progressBar.style.width = "100%";
+                progressBar.setAttribute('aria-valuenow', 100);
+                progressBar.textContent = "100%";
+            }
+            else if (jobState === "Failed") {
+                progressStatus.textContent = "Import failed";
+                progressBar.classList.remove('bg-info');
+                progressBar.classList.add('bg-danger');
+                
+                @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                {
+                    <text>
+                    errorMessage.textContent = "@Html.Raw(Json.Serialize(Model.ErrorMessage))";
+                    errorMessage.classList.remove('d-none');
+                    </text>
+                }
+            }
+            </text>
         }
     </script>
 }

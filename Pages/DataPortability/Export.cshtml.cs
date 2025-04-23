@@ -44,8 +44,15 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                     throw new InvalidOperationException("User not found");
                 }
 
-                var jsonData = await _portabilityService.ExportUserDataToJsonAsync(
+                // Get the export data from the service
+                var exportData = await _portabilityService.ExportUserDataAsync(
                     userId.Value, StartDate, EndDate);
+                
+                // Convert to JSON
+                var jsonData = System.Text.Json.JsonSerializer.Serialize(exportData, new System.Text.Json.JsonSerializerOptions 
+                { 
+                    WriteIndented = true 
+                });
 
                 var fileName = $"workout_data_{DateTime.UtcNow:yyyyMMddHHmm}.json";
                 
