@@ -102,6 +102,7 @@ namespace WorkoutTrackerWeb.Hubs
             _logger.LogInformation("Client connected: {ConnectionId}", Context.ConnectionId);
             
             // Notify the client that the connection is established
+            // Use exactly this casing for consistency with client-side handlers
             await Clients.Caller.SendAsync("connectionStatus", new { isConnected = true, connectionId = Context.ConnectionId });
             
             await base.OnConnectedAsync();

@@ -217,7 +217,7 @@
             }
             
             // Handle connection status updates from the server
-            connection.on("connectionStatus", (data) => {
+            connection.on("connectionstatus", (data) => {
                 console.log("Connection status update:", data);
                 
                 if (data.isConnected) {
