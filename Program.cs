@@ -621,7 +621,12 @@ try
         .AddCheck<WorkoutTrackerWeb.HealthChecks.DatabaseConnectionPoolHealthCheck>(
             "database_connection_pool", 
             failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded,
-            tags: new[] { "ready", "db", "connection-pool" });
+            tags: new[] { "ready", "db", "connection-pool" })
+        // Register the SMTP health check for email service
+        .AddCheck<WorkoutTrackerWeb.HealthChecks.SmtpHealthCheck>(
+            "email_smtp_health", 
+            failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded,
+            tags: new[] { "ready", "email", "smtp" });
 
     // Add Redis health check only in production
     if (!builder.Environment.IsDevelopment())
@@ -1019,6 +1024,13 @@ try
     app.MapHealthChecks("/health/redis", new HealthCheckOptions
     {
         Predicate = check => check.Tags.Contains("redis"),
+        ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+    }).AllowAnonymous();
+
+    // Specific Email health check endpoint
+    app.MapHealthChecks("/health/email", new HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("email"),
         ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
     }).AllowAnonymous();
 

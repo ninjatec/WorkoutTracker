@@ -6,6 +6,17 @@
 
 <link rel="stylesheet" href="~/css/admin-metrics.css" asp-append-version="true" />
 
+<style>
+    /* Fix for tab visibility issue by removing problematic CSS variable */
+    .nav-tabs .nav-link {
+        color: #495057 !important; /* Use a specific color instead of the CSS variable */
+    }
+    .nav-tabs .nav-link.active {
+        color: #000 !important;
+        font-weight: bold;
+    }
+</style>
+
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>System Metrics Dashboard</h1>

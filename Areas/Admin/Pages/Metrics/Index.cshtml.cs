@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,10 +19,12 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
     {
         private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger _logger;
+        private readonly IHttpClientFactory _httpClientFactory;
 
-        public IndexModel(WorkoutTrackerWebContext context)
+        public IndexModel(WorkoutTrackerWebContext context, IHttpClientFactory httpClientFactory)
         {
             _context = context;
+            _httpClientFactory = httpClientFactory;
             _logger = Log.ForContext<IndexModel>();
         }
 
@@ -233,21 +237,140 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
                 new EndpointPerformanceInfo { Path = "/Shared/Index", AvgResponseTime = random.Next(40, 200), P95ResponseTime = random.Next(200, 600), RequestCount = random.Next(10, 100), ErrorRate = random.Next(0, 10) }
             };
             
-            // Health metrics - sample data
-            ServiceHealth = new List<ServiceHealthInfo>
-            {
-                new ServiceHealthInfo { Name = "Database", IsHealthy = true, LastChecked = DateTime.Now.AddMinutes(-random.Next(1, 10)) },
-                new ServiceHealthInfo { Name = "Redis Cache", IsHealthy = true, LastChecked = DateTime.Now.AddMinutes(-random.Next(1, 10)) },
-                new ServiceHealthInfo { Name = "Hangfire", IsHealthy = true, LastChecked = DateTime.Now.AddMinutes(-random.Next(1, 10)) },
-                new ServiceHealthInfo { Name = "Email Service", IsHealthy = random.Next(0, 10) > 2, LastChecked = DateTime.Now.AddMinutes(-random.Next(1, 10)) },
-                new ServiceHealthInfo { Name = "External API", IsHealthy = random.Next(0, 10) > 1, LastChecked = DateTime.Now.AddMinutes(-random.Next(1, 10)) }
-            };
+            // Health metrics - initialize list
+            ServiceHealth = new List<ServiceHealthInfo>();
             
+            // Check database status with health check endpoint
+            try
+            {
+                var client = _httpClientFactory.CreateClient();
+                var dbResponse = await client.GetAsync(new Uri($"{Request.Scheme}://{Request.Host}/health/database"));
+                ServiceHealth.Add(new ServiceHealthInfo 
+                { 
+                    Name = "Database", 
+                    IsHealthy = dbResponse.IsSuccessStatusCode, 
+                    LastChecked = DateTime.Now
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning(ex, "Error checking database health");
+                ServiceHealth.Add(new ServiceHealthInfo 
+                { 
+                    Name = "Database", 
+                    IsHealthy = false, 
+                    LastChecked = DateTime.Now
+                });
+            }
+            
+            // Check Redis cache status with health check endpoint (only in production)
+            try
+            {
+                if (!HttpContext.Request.Host.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+                {
+                    var client = _httpClientFactory.CreateClient();
+                    var redisResponse = await client.GetAsync(new Uri($"{Request.Scheme}://{Request.Host}/health/redis"));
+                    ServiceHealth.Add(new ServiceHealthInfo 
+                    { 
+                        Name = "Redis Cache", 
+                        IsHealthy = redisResponse.IsSuccessStatusCode, 
+                        LastChecked = DateTime.Now
+                    });
+                }
+                else
+                {
+                    ServiceHealth.Add(new ServiceHealthInfo 
+                    { 
+                        Name = "Redis Cache", 
+                        IsHealthy = true, 
+                        LastChecked = DateTime.Now
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning(ex, "Error checking Redis health");
+                ServiceHealth.Add(new ServiceHealthInfo 
+                { 
+                    Name = "Redis Cache", 
+                    IsHealthy = false, 
+                    LastChecked = DateTime.Now
+                });
+            }
+            
+            // Add Hangfire status (simulated for now)
+            ServiceHealth.Add(new ServiceHealthInfo 
+            { 
+                Name = "Hangfire", 
+                IsHealthy = true, 
+                LastChecked = DateTime.Now.AddMinutes(-random.Next(1, 10))
+            });
+            
+            // Check email service status with health check endpoint
+            try
+            {
+                var client = _httpClientFactory.CreateClient();
+                var emailResponse = await client.GetAsync(new Uri($"{Request.Scheme}://{Request.Host}/health/email"));
+                bool isHealthy = emailResponse.IsSuccessStatusCode;
+                
+                // Parse the response content to get more details if needed
+                if (emailResponse.IsSuccessStatusCode)
+                {
+                    var jsonContent = await emailResponse.Content.ReadAsStringAsync();
+                    
+                    // Try to parse the health check response to get detailed status
+                    try
+                    {
+                        var healthData = JsonSerializer.Deserialize<JsonElement>(jsonContent);
+                        if (healthData.TryGetProperty("status", out var status))
+                        {
+                            string statusValue = status.GetString();
+                            isHealthy = statusValue?.Equals("Healthy", StringComparison.OrdinalIgnoreCase) ?? false;
+                        }
+                    }
+                    catch (JsonException jex)
+                    {
+                        _logger.Warning(jex, "Error parsing email health check response");
+                    }
+                }
+                
+                ServiceHealth.Add(new ServiceHealthInfo 
+                { 
+                    Name = "Email Service", 
+                    IsHealthy = isHealthy, 
+                    LastChecked = DateTime.Now
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning(ex, "Error checking email service health");
+                ServiceHealth.Add(new ServiceHealthInfo 
+                { 
+                    Name = "Email Service", 
+                    IsHealthy = false, 
+                    LastChecked = DateTime.Now
+                });
+            }
+            
+            // Add External API status (simulated)
+            ServiceHealth.Add(new ServiceHealthInfo 
+            { 
+                Name = "External API", 
+                IsHealthy = random.Next(0, 10) > 1, 
+                LastChecked = DateTime.Now.AddMinutes(-random.Next(1, 10))
+            });
+            
+            // Circuit breakers - use actual status for email service
             CircuitBreakers = new List<CircuitBreakerInfo>
             {
                 new CircuitBreakerInfo { Name = "Database Connection", State = "Closed", LastStateChange = DateTime.Now.AddHours(-12) },
                 new CircuitBreakerInfo { Name = "Redis Connection", State = "Closed", LastStateChange = DateTime.Now.AddHours(-6) },
-                new CircuitBreakerInfo { Name = "Email Service", State = random.Next(0, 10) > 8 ? "Open" : "Closed", LastStateChange = DateTime.Now.AddMinutes(-random.Next(30, 180)) },
+                new CircuitBreakerInfo 
+                { 
+                    Name = "Email Service", 
+                    State = ServiceHealth.FirstOrDefault(s => s.Name == "Email Service")?.IsHealthy == false ? "Open" : "Closed", 
+                    LastStateChange = DateTime.Now.AddMinutes(-random.Next(30, 180)) 
+                },
                 new CircuitBreakerInfo { Name = "External API", State = random.Next(0, 10) > 8 ? "HalfOpen" : "Closed", LastStateChange = DateTime.Now.AddMinutes(-random.Next(10, 60)) }
             };
             
