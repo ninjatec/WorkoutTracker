@@ -9,6 +9,7 @@ using WorkoutTrackerWeb.Models;
 using WorkoutTrackerweb.Data;
 using WorkoutTrackerWeb.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Logging;
 
 namespace WorkoutTrackerWeb.Pages.Sessions
 {
@@ -17,17 +18,23 @@ namespace WorkoutTrackerWeb.Pages.Sessions
     {
         private readonly WorkoutTrackerWebContext _context;
         private readonly UserService _userService;
+        private readonly ILogger<DeleteModel> _logger;
 
         public DeleteModel(
             WorkoutTrackerWebContext context,
-            UserService userService)
+            UserService userService,
+            ILogger<DeleteModel> logger)
         {
             _context = context;
             _userService = userService;
+            _logger = logger;
         }
 
         [BindProperty]
         public Session Session { get; set; } = default!;
+        
+        [TempData]
+        public string ErrorMessage { get; set; }
 
         public async Task<IActionResult> OnGetAsync(int? id)
         {
@@ -72,38 +79,73 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 return Challenge();
             }
 
-            // Use a specific select query first to verify the session exists and belongs to the user
-            bool exists = await _context.Session
-                .AnyAsync(s => s.SessionId == id && s.UserId == currentUserId);
-                
-            if (!exists)
-            {
-                return NotFound();
-            }
-
-            // Using direct removal approach instead of loading the full entity
-            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // Fetch just the session reference for deletion without loading related entities
-                var session = new Session { SessionId = id.Value };
-                _context.Entry(session).State = EntityState.Deleted;
+                // First, find the session with all related entities to ensure it exists and belongs to user
+                var session = await _context.Session
+                    .Include(s => s.Sets)
+                        .ThenInclude(s => s.Reps)
+                    .FirstOrDefaultAsync(s => s.SessionId == id && s.UserId == currentUserId);
+                    
+                if (session == null)
+                {
+                    return NotFound();
+                }
                 
-                // Execute the delete - cascading delete will handle related entities
-                await _context.SaveChangesAsync();
+                // Get the execution strategy from the context
+                var strategy = _context.Database.CreateExecutionStrategy();
                 
-                await transaction.CommitAsync();
+                await strategy.ExecuteAsync(async () =>
+                {
+                    // Delete reps first to avoid foreign key constraint issues
+                    foreach (var set in session.Sets ?? Enumerable.Empty<Set>())
+                    {
+                        if (set.Reps != null && set.Reps.Any())
+                        {
+                            _context.Rep.RemoveRange(set.Reps);
+                        }
+                    }
+                    
+                    // Now delete sets
+                    if (session.Sets != null && session.Sets.Any())
+                    {
+                        _context.Set.RemoveRange(session.Sets);
+                    }
+                    
+                    // Finally delete the session
+                    _context.Session.Remove(session);
+                    
+                    // Save all changes
+                    await _context.SaveChangesAsync();
+                    
+                    _logger.LogInformation("Successfully deleted session {SessionId} for user {UserId}", 
+                        id, currentUserId);
+                    
+                    // Clear the change tracker to release memory
+                    _context.ChangeTracker.Clear();
+                });
                 
-                // Clear the context after a large delete operation
-                _context.ChangeTracker.Clear();
+                return RedirectToPage("./Index");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                throw;
+                _logger.LogError(ex, "Failed to delete session {SessionId}", id);
+                ErrorMessage = "An error occurred while deleting the session. Please try again.";
+                
+                // Re-load the session for display
+                var session = await _context.Session
+                    .AsNoTracking()
+                    .Include(s => s.User)
+                    .FirstOrDefaultAsync(m => m.SessionId == id && m.UserId == currentUserId);
+                
+                if (session != null)
+                {
+                    Session = session;
+                    return Page();
+                }
+                
+                return RedirectToPage("./Index", new { error = "Failed to delete session" });
             }
-
-            return RedirectToPage("./Index");
         }
     }
 }
