@@ -874,31 +874,119 @@ namespace WorkoutTrackerWeb.Services
                         // If we got results, add them to our list with searchInfo about the permutation
                         if (permutationResults != null && permutationResults.Count > 0)
                         {
-                            results ??= new List<ExerciseApiResponse>();
-                            
-                            foreach (var exercise in permutationResults)
+                            foreach (var result in permutationResults)
                             {
-                                // Store information about how this exercise was found
-                                exercise.SearchInfo = $"Word Order Match: '{permutation}'";
-                                
-                                // Add only unique exercises (avoid duplicates)
-                                if (!results.Any(e => e.Name.Equals(exercise.Name, StringComparison.OrdinalIgnoreCase)))
-                                {
-                                    results.Add(exercise);
-                                }
+                                result.SearchInfo = $"Word Order Match: {permutation}";
                             }
                             
-                            _logger.LogInformation("Found {Count} matches using word permutation '{Permutation}'", 
-                                permutationResults.Count, permutation);
-                            
-                            // If we found results, no need to try more permutations
-                            break;
+                            if (results == null)
+                                results = new List<ExerciseApiResponse>();
+                                
+                            results.AddRange(permutationResults);
+                        }
+                    }
+                }
+            }
+            
+            // If still no results found or we want to try for partial matches regardless
+            if ((results == null || results.Count < 3) && !string.IsNullOrWhiteSpace(name))
+            {
+                // Try searching for partial word matches
+                var partialMatchResults = await SearchForPartialWordMatchesAsync(name, cancellationToken);
+                
+                if (partialMatchResults.Count > 0)
+                {
+                    results ??= new List<ExerciseApiResponse>();
+                    
+                    // Check for duplicates before adding
+                    foreach (var partialMatch in partialMatchResults)
+                    {
+                        if (!results.Any(r => r.Name.Equals(partialMatch.Name, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            results.Add(partialMatch);
                         }
                     }
                 }
             }
             
             return results ?? new List<ExerciseApiResponse>();
+        }
+
+        /// <summary>
+        /// Searches for exercises with partial word matches to the given exercise name
+        /// </summary>
+        /// <param name="name">Exercise name to search for partial matches</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>List of exercises with partial word matches</returns>
+        private async Task<List<ExerciseApiResponse>> SearchForPartialWordMatchesAsync(string name, CancellationToken cancellationToken = default)
+        {
+            var results = new List<ExerciseApiResponse>();
+            
+            // Split the exercise name into individual words
+            var words = name.Split(new[] { ' ', '-', '_', ',' }, StringSplitOptions.RemoveEmptyEntries)
+                         .Where(w => w.Length >= 4) // Only use words with at least 4 characters to avoid common words
+                         .ToList();
+            
+            if (words.Count == 0)
+                return results;
+            
+            _logger.LogInformation("Searching for partial word matches using {Count} words from '{Name}'", words.Count, name);
+            
+            // For each significant word in the name, search for exercises containing it
+            foreach (var word in words)
+            {
+                // Skip very common words that might return too many matches
+                if (IsCommonWord(word))
+                    continue;
+                
+                // Check for cancellation
+                cancellationToken.ThrowIfCancellationRequested();
+                
+                // Search for exercises containing this word
+                var wordSearchParams = new ExerciseSearchParams { Name = word };
+                var wordResults = await _apiService.SearchExercisesAsync(wordSearchParams);
+                
+                if (wordResults != null && wordResults.Count > 0)
+                {
+                    _logger.LogInformation("Found {Count} potential partial matches using word '{Word}'", wordResults.Count, word);
+                    
+                    // Mark these as partial word matches
+                    foreach (var result in wordResults)
+                    {
+                        result.SearchInfo = $"Partial Word Match: {word}";
+                    }
+                    
+                    // Add matches that aren't exact replicas of the original name
+                    foreach (var match in wordResults)
+                    {
+                        if (!name.Equals(match.Name, StringComparison.OrdinalIgnoreCase) && 
+                            !results.Any(r => r.Name.Equals(match.Name, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            results.Add(match);
+                        }
+                    }
+                }
+            }
+            
+            return results;
+        }
+        
+        /// <summary>
+        /// Checks if a word is a common word that should be excluded from partial matching
+        /// </summary>
+        private bool IsCommonWord(string word)
+        {
+            // Lowercase for comparison
+            word = word.ToLowerInvariant();
+            
+            // List of common words in exercise names that aren't specific enough for searches
+            var commonWords = new[] 
+            { 
+                "with", "using", "exercise", "workout", "training", "body", "weight",
+                "machine", "assisted", "free", "weights", "dumbbell", "barbell" 
+            };
+            
+            return commonWords.Contains(word);
         }
 
         /// <summary>
