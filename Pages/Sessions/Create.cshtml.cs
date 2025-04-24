@@ -43,16 +43,15 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 return Page();
             }
 
-            // Get the current user
-            var currentUser = await _userService.GetOrCreateCurrentUserAsync();
-            if (currentUser == null)
+            // Get the current user ID only (not the User entity)
+            var currentUserId = await _userService.GetCurrentUserIdAsync();
+            if (!currentUserId.HasValue)
             {
                 return Challenge(); // Redirect to login if user not authenticated
             }
 
-            // Assign the current user to the session
-            Session.UserId = currentUser.UserId;
-            Session.User = currentUser;
+            // Only assign the user ID, not the whole User entity
+            Session.UserId = currentUserId.Value;
 
             _context.Session.Add(Session);
             await _context.SaveChangesAsync();
