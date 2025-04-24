@@ -117,3 +117,8 @@ spec:
             secretKeyRef:
               name: workouttracker-secrets
               key: EmailSettings__UseSsl
+        - name: ApiKeys__ApiNinjas
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: ApiKeys__ApiNinjas
