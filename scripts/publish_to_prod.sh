@@ -99,8 +99,49 @@ docker tag $BUILT_IMAGE_NAME ${DOCKER_REPO}:latest
 
 # 6. Push Docker images to repository
 echo -e "${YELLOW}Pushing Docker images...${NC}"
-docker push ${DOCKER_REPO}:${VERSION}
-docker push ${DOCKER_REPO}:latest
+
+# Function to push with retry
+push_with_retry() {
+    local image=$1
+    local max_attempts=3
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        echo -e "${YELLOW}Push attempt $attempt/$max_attempts for $image${NC}"
+        if docker push $image; then
+            echo -e "${GREEN}Successfully pushed $image${NC}"
+            return 0
+        else
+            echo -e "${YELLOW}Push failed for $image (attempt $attempt/$max_attempts)${NC}"
+            attempt=$((attempt+1))
+            
+            if [ $attempt -le $max_attempts ]; then
+                echo -e "${YELLOW}Waiting 10 seconds before retry...${NC}"
+                sleep 10
+                
+                # Try to refresh Docker login credentials
+                if [ $attempt -eq 2 ]; then
+                    echo -e "${YELLOW}Refreshing Docker login credentials...${NC}"
+                    docker logout
+                    docker login || true
+                fi
+            fi
+        fi
+    done
+    
+    echo -e "${RED}Failed to push $image after $max_attempts attempts${NC}"
+    return 1
+}
+
+# Push with retries
+if ! push_with_retry "${DOCKER_REPO}:${VERSION}"; then
+    echo -e "${RED}Failed to push versioned image. Aborting deployment.${NC}"
+    exit 1
+fi
+
+if ! push_with_retry "${DOCKER_REPO}:latest"; then
+    echo -e "${YELLOW}Warning: Failed to push latest tag, but continuing with deployment since versioned image was pushed.${NC}"
+fi
 
 # 7. Update Kubernetes deployment
 echo -e "${YELLOW}Updating Kubernetes deployment...${NC}"
