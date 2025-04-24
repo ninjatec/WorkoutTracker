@@ -6,6 +6,14 @@ Production Site running on wot.ninjatec.co.uk
 
 ## Features
 
+- **Dynamic Log Level Configuration**: Runtime control of application logging levels
+  - Admin interface for adjusting log levels without application restart
+  - Global default log level configuration
+  - Source-specific log level overrides for granular control
+  - Persistent configuration stored in database
+  - Real-time application of log level changes
+  - Security controls with admin-only access
+
 - **Workout Sharing**: Share workout data securely with others
   - Secure token-based sharing with expiration dates
   - Granular access controls for specific workout data

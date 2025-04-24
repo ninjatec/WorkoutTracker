@@ -642,3 +642,45 @@ The import process follows these steps:
    - Enhanced UI for job progress with status indicators
    - Created standardized pattern for background job operations
    - Improved resource cleanup after job completion
+
+### Logging Configuration Components
+
+| Component | Purpose |
+|-----------|---------|
+| `LogLevelSettings` | Entity model for storing log level configuration in the database |
+| `LogLevelOverride` | Entity model for source-specific logging overrides |
+| `ILoggingService` | Interface defining the contract for runtime log level management |
+| `LoggingService` | Service implementation for managing log levels at runtime |
+| `DynamicLogLevelProvider` | Static provider for Serilog dynamic log level switches |
+| `LoggingExtensions` | Extension methods for configuring Serilog with dynamic levels |
+| `LogLevelConfigurationHostedService` | Background service to apply log settings at startup |
+| `/Areas/Admin/Pages/Logging/Configure.cshtml` | Admin UI for managing log levels |
+
+### LogLevel Configuration System
+
+The application includes a comprehensive log level configuration system with the following features:
+
+1. **Runtime Log Level Management**:
+   - Dynamic adjustment of log levels without application restart
+   - Source-specific overrides for targeted debugging
+   - Global default log level control
+   - Persistent settings stored in database
+
+2. **Admin Interface**:
+   - UI for adjusting log levels at `/Admin/Logging/Configure`
+   - Dropdown selection for global log level
+   - Source-specific override management
+   - Visual status indicators for current log levels
+   - Security controls with admin-only access
+
+3. **Implementation Details**:
+   - Integration with Serilog's LoggingLevelSwitch
+   - LogLevel configuration stored in SQL Server
+   - Real-time application of log level changes
+   - Default log levels for new installations
+   - Automatic application of settings at startup
+
+4. **Security Features**:
+   - Role-based access control (Admin role required)
+   - Audit logging for log level changes
+   - User tracking for configuration updates

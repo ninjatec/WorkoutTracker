@@ -43,8 +43,11 @@
                 <a asp-area="Admin" asp-page="/Versions/Index" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Versions") == true ? "active" : "")">
                     <i class="bi bi-tag me-2"></i> Version Management
                 </a>
-                <a href="#" class="list-group-item list-group-item-action">
+                <div class="list-group-item list-group-item-primary">
                     <i class="bi bi-gear me-2"></i> System Settings
+                </div>
+                <a asp-area="Admin" asp-page="/Logging/Configure" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Logging") == true ? "active" : "")">
+                    <i class="bi bi-sliders me-2"></i> Log Configuration
                 </a>
                 <a href="/health" target="_blank" class="list-group-item list-group-item-action">
                     <i class="bi bi-heart-pulse me-2"></i> Health Checks

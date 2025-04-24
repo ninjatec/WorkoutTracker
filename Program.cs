@@ -11,6 +11,7 @@ using WorkoutTrackerWeb.Services.Email;
 using WorkoutTrackerWeb.Services.Session;
 using WorkoutTrackerWeb.Services.VersionManagement;
 using WorkoutTrackerWeb.Services.Hangfire;
+using WorkoutTrackerWeb.Services.Logging; // Add the Logging namespace for extension methods
 using WorkoutTrackerWeb.Middleware;
 using WorkoutTrackerWeb.Hubs;
 using Microsoft.AspNetCore.Identity.UI.Services;
@@ -39,14 +40,10 @@ using HealthChecks.Redis;
 using HealthChecks.System;
 using Microsoft.AspNetCore.HttpOverrides;
 
-// Configure Serilog
+// Configure Serilog with dynamic log level management
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Debug()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-    .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
-    .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
-    // Turn off ASP.NET Core request logging by setting to Warning level
-    .MinimumLevel.Override("Microsoft.AspNetCore.Hosting.Diagnostics", LogEventLevel.Warning) 
+    // Use our dynamic log level provider
+    .ConfigureWithDynamicLevels()
     .Enrich.FromLogContext()
     .Enrich.WithMachineName()
     .Enrich.WithEnvironmentName()
@@ -129,6 +126,10 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+// Register Logging Services
+builder.Services.AddLoggingServices();
+builder.Services.AddHostedService<WorkoutTrackerWeb.Services.Logging.LogLevelConfigurationHostedService>();
 
 // Register HttpClientFactory
 builder.Services.AddHttpClient();

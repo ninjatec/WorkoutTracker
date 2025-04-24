@@ -1,0 +1,175 @@
+@page
+@model WorkoutTrackerWeb.Areas.Admin.Pages.Logging.ConfigureModel
+@{
+    ViewData["Title"] = "Log Level Configuration";
+}
+
+<div class="container py-4">
+    <h1>Log Level Configuration</h1>
+    <p class="text-muted">Configure application-wide logging levels and source-specific overrides</p>
+    
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> 
+        Changes to log levels are applied immediately across the application and persisted between application restarts.
+    </div>
+    
+    @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle"></i> @Model.SuccessMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle"></i> @Model.ErrorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Default Log Level</h5>
+                </div>
+                <div class="card-body">
+                    <p>This setting controls the default logging level for the entire application.</p>
+                    
+                    <form method="post" asp-page-handler="UpdateDefaultLevel">
+                        <div class="mb-3">
+                            <label for="defaultLogLevel" class="form-label">Default Log Level</label>
+                            <select name="defaultLogLevel" id="defaultLogLevel" class="form-select">
+                                @foreach (var level in Model.LogLevelOptions)
+                                {
+                                    <option value="@level.Value" selected="@(Model.CurrentSettings.DefaultLogLevel == (Serilog.Events.LogEventLevel)level.Value)">
+                                        @level.Key
+                                    </option>
+                                }
+                            </select>
+                            <div class="form-text">
+                                Current value: <span class="badge @Model.GetLogLevelBadgeClass(Model.CurrentSettings.DefaultLogLevel)">@Model.CurrentSettings.DefaultLogLevel</span>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Update Default Level
+                        </button>
+                    </form>
+                </div>
+                <div class="card-footer text-muted">
+                    <small>Last updated: @Model.CurrentSettings.LastUpdated.ToString("g") by @Model.CurrentSettings.LastUpdatedBy</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">Add Source Context Override</h5>
+                </div>
+                <div class="card-body">
+                    <p>Create source-specific log level overrides to fine-tune logging for specific components.</p>
+                    
+                    <form method="post" asp-page-handler="AddOverride">
+                        <div class="mb-3">
+                            <label for="sourceContext" class="form-label">Source Context</label>
+                            <select name="sourceContext" id="sourceContext" class="form-select">
+                                @foreach (var context in Model.CommonSourceContexts)
+                                {
+                                    <option value="@context">@context</option>
+                                }
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="logLevel" class="form-label">Log Level</label>
+                            <select name="logLevel" id="logLevel" class="form-select">
+                                @foreach (var level in Model.LogLevelOptions)
+                                {
+                                    <option value="@level.Value">@level.Key</option>
+                                }
+                            </select>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-plus-circle"></i> Add Override
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="card-title mb-0">Source Context Overrides</h5>
+        </div>
+        <div class="card-body">
+            @if (Model.CurrentSettings.Overrides.Count == 0)
+            {
+                <div class="alert alert-secondary">
+                    <i class="bi bi-info-circle"></i> No source context overrides have been configured.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Source Context</th>
+                                <th>Log Level</th>
+                                <th width="120">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.CurrentSettings.Overrides)
+                            {
+                                <tr>
+                                    <td>@item.SourceContext</td>
+                                    <td>
+                                        <span class="badge @Model.GetLogLevelBadgeClass(item.LogLevel)">
+                                            @item.LogLevel
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <form method="post" asp-page-handler="RemoveOverride" style="display: inline-block;">
+                                            <input type="hidden" name="sourceContext" value="@item.SourceContext" />
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="bi bi-trash"></i> Remove
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Script to highlight changes
+        document.addEventListener('DOMContentLoaded', function() {
+            // Highlight rows briefly when the page loads
+            const urlParams = new URLSearchParams(window.location.search);
+            const updated = urlParams.get('updated');
+            
+            if (updated) {
+                const row = document.querySelector(`tr[data-context="${updated}"]`);
+                if (row) {
+                    row.classList.add('bg-success', 'bg-opacity-25');
+                    setTimeout(() => {
+                        row.classList.remove('bg-success', 'bg-opacity-25');
+                    }, 3000);
+                }
+            }
+        });
+    </script>
+}
