@@ -213,16 +213,32 @@ namespace WorkoutTrackerWeb.Services
             var searchParams = new ExerciseSearchParams { Name = exercise.Name };
             var apiExercises = await _apiService.SearchExercisesAsync(searchParams);
 
-            // Find the closest match by name
+            // First try to find an exact match by name
             var bestMatch = apiExercises.FirstOrDefault(a => 
                 a.Name.Equals(exercise.Name, StringComparison.OrdinalIgnoreCase));
 
-            // If no exact match, try to find a partial match
+            // If no exact match, look for similar exercises (contains)
             if (bestMatch == null && apiExercises.Any())
             {
-                bestMatch = apiExercises.First();
-                _logger.LogInformation("No exact match found for '{Name}', using closest match '{MatchName}'", 
-                    exercise.Name, bestMatch.Name);
+                // Find exercises that contain the name or vice versa
+                var similarMatches = apiExercises
+                    .Where(a => a.Name.Contains(exercise.Name, StringComparison.OrdinalIgnoreCase) || 
+                               exercise.Name.Contains(a.Name, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                
+                if (similarMatches.Any())
+                {
+                    bestMatch = similarMatches.First();
+                    _logger.LogInformation("Found similar match '{MatchName}' for exercise '{Name}'", 
+                        bestMatch.Name, exercise.Name);
+                }
+                else
+                {
+                    // Fall back to first result if no similar matches
+                    bestMatch = apiExercises.First();
+                    _logger.LogInformation("No similar matches found for '{Name}', using first result '{MatchName}'", 
+                        exercise.Name, bestMatch.Name);
+                }
             }
 
             if (bestMatch == null)
@@ -288,14 +304,32 @@ namespace WorkoutTrackerWeb.Services
                     var searchParams = new ExerciseSearchParams { Name = exercise.Name };
                     var apiExercises = await _apiService.SearchExercisesAsync(searchParams);
 
-                    // Find the closest match by name
+                    // First try for an exact match by name
                     var bestMatch = apiExercises.FirstOrDefault(a => 
                         a.Name.Equals(exercise.Name, StringComparison.OrdinalIgnoreCase));
 
-                    // If no exact match, try to find a partial match
+                    // If no exact match, look for similar exercises (contains)
                     if (bestMatch == null && apiExercises.Any())
                     {
-                        bestMatch = apiExercises.First();
+                        // Find exercises that contain the name or vice versa
+                        var similarMatches = apiExercises
+                            .Where(a => a.Name.Contains(exercise.Name, StringComparison.OrdinalIgnoreCase) || 
+                                      exercise.Name.Contains(a.Name, StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+
+                        if (similarMatches.Any())
+                        {
+                            bestMatch = similarMatches.First();
+                            _logger.LogInformation("Found similar match '{MatchName}' for exercise '{Name}'", 
+                                bestMatch.Name, exercise.Name);
+                        }
+                        else
+                        {
+                            // Fall back to first result if no similar matches
+                            bestMatch = apiExercises.First();
+                            _logger.LogInformation("No similar matches found for '{Name}', using first result '{MatchName}'", 
+                                exercise.Name, bestMatch.Name);
+                        }
                     }
 
                     if (bestMatch == null)
@@ -437,28 +471,84 @@ namespace WorkoutTrackerWeb.Services
                             break;
                         }
 
-                        // Find the closest match by name
+                        // Check for exact match first
                         var exactMatch = apiExercises.FirstOrDefault(a => 
                             a.Name.Equals(exercise.Name, StringComparison.OrdinalIgnoreCase));
 
-                        // If no exact match, check if we should create a pending selection or auto-select
+                        // If no exact match, look for similar exercises (contains match)
+                        List<ExerciseApiResponse> similarMatches = null;
+                        
                         if (exactMatch == null && apiExercises.Any())
                         {
-                            if (autoSelectMatches)
+                            // Find exercises that contain the name or vice versa
+                            similarMatches = apiExercises
+                                .Where(a => a.Name.Contains(exercise.Name, StringComparison.OrdinalIgnoreCase) || 
+                                           exercise.Name.Contains(a.Name, StringComparison.OrdinalIgnoreCase))
+                                .ToList();
+
+                            // Log the similar matches found
+                            if (similarMatches.Any())
                             {
-                                // Auto-select the first match
+                                _logger.LogInformation("Found {Count} similar matches for '{Name}': {MatchNames}", 
+                                    similarMatches.Count, 
+                                    exercise.Name, 
+                                    string.Join(", ", similarMatches.Select(m => m.Name)));
+                                
+                                // If auto-select is enabled, use the first similar match
+                                if (autoSelectMatches)
+                                {
+                                    exactMatch = similarMatches.First();
+                                    _logger.LogInformation("Auto-selecting similar match '{MatchName}' for exercise '{Name}'",
+                                        exactMatch.Name, exercise.Name);
+                                }
+                                else 
+                                {
+                                    // Get the selection service from the current scope if needed
+                                    var selectionService = scope.ServiceProvider.GetService<ExerciseSelectionService>();
+                                    
+                                    if (selectionService != null)
+                                    {
+                                        // Create a pending selection for user input with the similar matches
+                                        await selectionService.CreatePendingSelectionAsync(
+                                            jobId, 
+                                            exercise.ExerciseTypeId, 
+                                            exercise.Name, 
+                                            similarMatches);
+                                        
+                                        pending++;
+                                        
+                                        _logger.LogInformation("Created pending selection for exercise '{Name}' with {MatchCount} similar matches", 
+                                            exercise.Name, similarMatches.Count);
+                                        
+                                        await SendProgressUpdateAsync(jobId, processed, found, enriched, failed, pending,
+                                            $"Pending user selection for exercise: {exercise.Name}");
+                                        
+                                        continue; // Skip to next exercise
+                                    }
+                                    else
+                                    {
+                                        // Fall back to first similar match if selection service not available
+                                        exactMatch = similarMatches.First();
+                                        _logger.LogWarning("Selection service not available, auto-selecting first similar match '{MatchName}' for exercise '{Name}'",
+                                            exactMatch.Name, exercise.Name);
+                                    }
+                                }
+                            }
+                            // If no similar matches but there are some API results, handle as before
+                            else if (autoSelectMatches)
+                            {
                                 exactMatch = apiExercises.First();
-                                _logger.LogInformation("Auto-selecting first match '{MatchName}' for exercise '{Name}'",
+                                _logger.LogInformation("No similar matches, auto-selecting first result '{MatchName}' for exercise '{Name}'",
                                     exactMatch.Name, exercise.Name);
                             }
-                            else 
+                            else
                             {
                                 // Get the selection service from the current scope if needed
                                 var selectionService = scope.ServiceProvider.GetService<ExerciseSelectionService>();
                                 
                                 if (selectionService != null)
                                 {
-                                    // Create a pending selection for user input
+                                    // Create a pending selection for user input with all API results
                                     await selectionService.CreatePendingSelectionAsync(
                                         jobId, 
                                         exercise.ExerciseTypeId, 
@@ -467,7 +557,7 @@ namespace WorkoutTrackerWeb.Services
                                     
                                     pending++;
                                     
-                                    _logger.LogInformation("Created pending selection for exercise '{Name}' with {MatchCount} possible matches", 
+                                    _logger.LogInformation("No similar matches, created pending selection for exercise '{Name}' with {MatchCount} possible matches", 
                                         exercise.Name, apiExercises.Count);
                                     
                                     await SendProgressUpdateAsync(jobId, processed, found, enriched, failed, pending,
