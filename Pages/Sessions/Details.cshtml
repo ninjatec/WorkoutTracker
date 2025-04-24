@@ -74,7 +74,12 @@
                     <h2 class="accordion-header" id="heading-@set.SetId">
                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
                                 data-bs-target="#collapse-@set.SetId" aria-expanded="false" aria-controls="collapse-@set.SetId">
-                            <strong>@set.ExerciseType.Name</strong> - @set.Settype.Name - @set.NumberReps reps - @set.Weight kg
+                            <strong>@set.ExerciseType.Name</strong> 
+                            @if (!string.IsNullOrEmpty(set.ExerciseType.Muscle))
+                            {
+                                <span class="ms-2 badge bg-info">@set.ExerciseType.Muscle</span>
+                            }
+                            <span class="ms-2">- @set.Settype.Name - @set.NumberReps reps - @set.Weight kg</span>
                         </button>
                     </h2>
                     <div id="collapse-@set.SetId" class="accordion-collapse collapse" aria-labelledby="heading-@set.SetId" data-bs-parent="#setsAccordion">
@@ -89,6 +94,14 @@
                                     <strong>Notes:</strong> @(string.IsNullOrEmpty(set.Notes) ? "None" : set.Notes)
                                 </div>
                             </div>
+                            @if (!string.IsNullOrEmpty(set.ExerciseType.Muscle))
+                            {
+                                <div class="row mb-3">
+                                    <div class="col">
+                                        <strong>Muscle Group:</strong> @set.ExerciseType.Muscle
+                                    </div>
+                                </div>
+                            }
                             
                             @if (set.Reps != null && set.Reps.Any())
                             {

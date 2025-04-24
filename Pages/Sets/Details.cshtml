@@ -53,6 +53,15 @@
         <dd class="col-sm-10">
             @Html.DisplayFor(model => model.Set.ExerciseType.Name)
         </dd>
+        @if (!string.IsNullOrEmpty(Model.Set.ExerciseType.Muscle))
+        {
+            <dt class="col-sm-2">
+                Muscle Group
+            </dt>
+            <dd class="col-sm-10">
+                <span class="badge bg-info">@Model.Set.ExerciseType.Muscle</span>
+            </dd>
+        }
         <dt class="col-sm-2">
             Set Type
         </dt>
@@ -84,11 +93,11 @@
                         <td>
                             @if (rep.success)
                             {
-                                <span class="badge badge-success">Success</span>
+                                <span class="badge bg-success">Success</span>
                             }
                             else
                             {
-                                <span class="badge badge-danger">Failed</span>
+                                <span class="badge bg-danger">Failed</span>
                             }
                         </td>
                         <td>
