@@ -513,8 +513,15 @@ builder.Services.AddAntiforgery(options =>
     options.Cookie.Name = "CSRF-TOKEN";
     options.Cookie.HttpOnly = false; // Must be accessible via JavaScript
     
-    // Only require HTTPS in production
-    if (builder.Environment.IsDevelopment())
+    // For production, we need to handle the case where HTTPS is terminated at ingress
+    // and the internal request is HTTP
+    if (builder.Environment.IsProduction())
+    {
+        // Use None to accept both HTTP and HTTPS requests
+        // This is safe because we're handling HTTPS at the ingress level
+        options.Cookie.SecurePolicy = CookieSecurePolicy.None;
+    }
+    else if (builder.Environment.IsDevelopment())
     {
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     }
