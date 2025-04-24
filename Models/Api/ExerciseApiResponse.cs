@@ -42,5 +42,12 @@ namespace WorkoutTrackerWeb.Models.Api
         /// </summary>
         [JsonPropertyName("instructions")]
         public string Instructions { get; set; }
+        
+        /// <summary>
+        /// Gets or sets information about how this exercise was found (e.g. word permutation details)
+        /// This property is not part of the API response but used internally for tracking search information.
+        /// </summary>
+        [JsonIgnore]
+        public string SearchInfo { get; set; }
     }
 }

@@ -283,13 +283,14 @@ namespace WorkoutTrackerWeb.Services
         /// <returns>Summary of the enrichment operation</returns>
         public async Task<(int found, int enriched, int failed)> EnrichExercisesWithEmptyFieldsAsync()
         {
-            // Find all exercises with at least one empty field
+            // Find exercises that need enrichment - an exercise needs enrichment if ANY of these core fields are empty:
+            // 1. Missing Type field
+            // 2. Missing Muscle field
+            // 3. Missing Difficulty field
             var exercises = await _context.ExerciseType
                 .Where(e => string.IsNullOrEmpty(e.Type) || 
                             string.IsNullOrEmpty(e.Muscle) || 
-                            string.IsNullOrEmpty(e.Equipment) || 
-                            string.IsNullOrEmpty(e.Difficulty) || 
-                            string.IsNullOrEmpty(e.Instructions))
+                            string.IsNullOrEmpty(e.Difficulty))
                 .ToListAsync();
 
             int found = exercises.Count;
@@ -354,15 +355,16 @@ namespace WorkoutTrackerWeb.Services
                         changed = true;
                     }
                     
-                    if (string.IsNullOrEmpty(exercise.Equipment))
-                    {
-                        exercise.Equipment = bestMatch.Equipment;
-                        changed = true;
-                    }
-                    
                     if (string.IsNullOrEmpty(exercise.Difficulty))
                     {
                         exercise.Difficulty = bestMatch.Difficulty;
+                        changed = true;
+                    }
+                    
+                    // Also update optional fields if they're empty
+                    if (string.IsNullOrEmpty(exercise.Equipment))
+                    {
+                        exercise.Equipment = bestMatch.Equipment;
                         changed = true;
                     }
                     
@@ -415,16 +417,19 @@ namespace WorkoutTrackerWeb.Services
                 using var scope = _scopeFactory.CreateScope();
                 var dbContext = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
                 
-                // Get a new instance of the API service from the current scope
+                // Get required services from the current scope
                 var apiService = scope.ServiceProvider.GetRequiredService<ExerciseApiService>();
+                var selectionService = scope.ServiceProvider.GetService<ExerciseSelectionService>();
                 
-                // Find all exercises with at least one empty field
+                // Find exercises that need enrichment - an exercise needs enrichment if ANY of these conditions are true:
+                // 1. Missing Type field
+                // 2. Missing Muscle field
+                // 3. Missing Difficulty field
+                // This new query considers an exercise as "already enriched" if Type, Muscle and Difficulty are all populated
                 var exercises = await dbContext.ExerciseType
                     .Where(e => string.IsNullOrEmpty(e.Type) || 
                                 string.IsNullOrEmpty(e.Muscle) || 
-                                string.IsNullOrEmpty(e.Equipment) || 
-                                string.IsNullOrEmpty(e.Difficulty) || 
-                                string.IsNullOrEmpty(e.Instructions))
+                                string.IsNullOrEmpty(e.Difficulty))
                     .ToListAsync(cancellationToken);
 
                 int found = exercises.Count;
@@ -432,6 +437,7 @@ namespace WorkoutTrackerWeb.Services
                 int failed = 0;
                 int pending = 0;
                 int processed = 0;
+                int alreadyEnriched = 0;
 
                 // Send initial progress update
                 await SendProgressUpdateAsync(jobId, 0, found, enriched, failed, pending, "Starting enrichment process...");
@@ -461,9 +467,8 @@ namespace WorkoutTrackerWeb.Services
                                 $"Processing exercise: {exercise.Name}");
                         }
 
-                        // Search for this exercise by name in the API
-                        var searchParams = new ExerciseSearchParams { Name = exercise.Name };
-                        var apiExercises = await apiService.SearchExercisesAsync(searchParams);
+                        // Use our enhanced search method that includes word permutations
+                        var apiExercises = await SearchExercisesByNameAsync(exercise.Name, cancellationToken);
 
                         // Check for cancellation after the API call
                         if (cancellationToken.IsCancellationRequested)
@@ -471,94 +476,58 @@ namespace WorkoutTrackerWeb.Services
                             break;
                         }
 
-                        // Check for exact match first
+                        // Check if we found any results
+                        if (apiExercises.Count == 0)
+                        {
+                            _logger.LogWarning("No API data found for exercise '{Name}', even with word permutations", exercise.Name);
+                            failed++;
+                            continue;
+                        }
+
+                        // Process results based on whether they're exact matches, similar matches, or word permutation matches
                         var exactMatch = apiExercises.FirstOrDefault(a => 
                             a.Name.Equals(exercise.Name, StringComparison.OrdinalIgnoreCase));
-
-                        // If no exact match, look for similar exercises (contains match)
-                        List<ExerciseApiResponse> similarMatches = null;
                         
-                        if (exactMatch == null && apiExercises.Any())
+                        // If we don't have an exact match but have results, look for similar matches or permutations
+                        if (exactMatch == null)
                         {
-                            // Find exercises that contain the name or vice versa
-                            similarMatches = apiExercises
-                                .Where(a => a.Name.Contains(exercise.Name, StringComparison.OrdinalIgnoreCase) || 
-                                           exercise.Name.Contains(a.Name, StringComparison.OrdinalIgnoreCase))
+                            // Check if any of the results are permutation matches (they'll be marked)
+                            var permutationMatches = apiExercises
+                                .Where(a => a.SearchInfo?.Contains("Word Order Match:") == true)
                                 .ToList();
-
-                            // Log the similar matches found
-                            if (similarMatches.Any())
+                            
+                            // Standard similar matches (contains)
+                            var similarMatches = apiExercises
+                                .Where(a => string.IsNullOrEmpty(a.SearchInfo) && 
+                                           (a.Name.Contains(exercise.Name, StringComparison.OrdinalIgnoreCase) || 
+                                            exercise.Name.Contains(a.Name, StringComparison.OrdinalIgnoreCase)))
+                                .ToList();
+                            
+                            // Combine results with similar matches first, then permutation matches
+                            var allPotentialMatches = similarMatches.Concat(permutationMatches).ToList();
+                            
+                            if (allPotentialMatches.Any())
                             {
-                                _logger.LogInformation("Found {Count} similar matches for '{Name}': {MatchNames}", 
-                                    similarMatches.Count, 
-                                    exercise.Name, 
-                                    string.Join(", ", similarMatches.Select(m => m.Name)));
-                                
-                                // If auto-select is enabled, use the first similar match
                                 if (autoSelectMatches)
                                 {
-                                    exactMatch = similarMatches.First();
-                                    _logger.LogInformation("Auto-selecting similar match '{MatchName}' for exercise '{Name}'",
+                                    // Auto-select the first match
+                                    exactMatch = allPotentialMatches.First();
+                                    _logger.LogInformation("Auto-selecting match '{MatchName}' for exercise '{Name}'",
                                         exactMatch.Name, exercise.Name);
                                 }
-                                else 
+                                else if (selectionService != null)
                                 {
-                                    // Get the selection service from the current scope if needed
-                                    var selectionService = scope.ServiceProvider.GetService<ExerciseSelectionService>();
-                                    
-                                    if (selectionService != null)
-                                    {
-                                        // Create a pending selection for user input with the similar matches
-                                        await selectionService.CreatePendingSelectionAsync(
-                                            jobId, 
-                                            exercise.ExerciseTypeId, 
-                                            exercise.Name, 
-                                            similarMatches);
-                                        
-                                        pending++;
-                                        
-                                        _logger.LogInformation("Created pending selection for exercise '{Name}' with {MatchCount} similar matches", 
-                                            exercise.Name, similarMatches.Count);
-                                        
-                                        await SendProgressUpdateAsync(jobId, processed, found, enriched, failed, pending,
-                                            $"Pending user selection for exercise: {exercise.Name}");
-                                        
-                                        continue; // Skip to next exercise
-                                    }
-                                    else
-                                    {
-                                        // Fall back to first similar match if selection service not available
-                                        exactMatch = similarMatches.First();
-                                        _logger.LogWarning("Selection service not available, auto-selecting first similar match '{MatchName}' for exercise '{Name}'",
-                                            exactMatch.Name, exercise.Name);
-                                    }
-                                }
-                            }
-                            // If no similar matches but there are some API results, handle as before
-                            else if (autoSelectMatches)
-                            {
-                                exactMatch = apiExercises.First();
-                                _logger.LogInformation("No similar matches, auto-selecting first result '{MatchName}' for exercise '{Name}'",
-                                    exactMatch.Name, exercise.Name);
-                            }
-                            else
-                            {
-                                // Get the selection service from the current scope if needed
-                                var selectionService = scope.ServiceProvider.GetService<ExerciseSelectionService>();
-                                
-                                if (selectionService != null)
-                                {
-                                    // Create a pending selection for user input with all API results
+                                    // Create a pending selection for user input with all potential matches
                                     await selectionService.CreatePendingSelectionAsync(
                                         jobId, 
                                         exercise.ExerciseTypeId, 
                                         exercise.Name, 
-                                        apiExercises);
+                                        allPotentialMatches);
                                     
                                     pending++;
                                     
-                                    _logger.LogInformation("No similar matches, created pending selection for exercise '{Name}' with {MatchCount} possible matches", 
-                                        exercise.Name, apiExercises.Count);
+                                    _logger.LogInformation("Created pending selection for exercise '{Name}' with {MatchCount} potential matches", 
+                                        exercise.Name, allPotentialMatches.Count);
                                     
                                     await SendProgressUpdateAsync(jobId, processed, found, enriched, failed, pending,
                                         $"Pending user selection for exercise: {exercise.Name}");
@@ -568,19 +537,56 @@ namespace WorkoutTrackerWeb.Services
                                 else
                                 {
                                     // Fall back to first match if selection service not available
-                                    exactMatch = apiExercises.First();
+                                    exactMatch = allPotentialMatches.First();
                                     _logger.LogWarning("Selection service not available, auto-selecting first match '{MatchName}' for exercise '{Name}'",
                                         exactMatch.Name, exercise.Name);
                                 }
                             }
+                            else if (autoSelectMatches)
+                            {
+                                // Auto-select the first result if there are no similar or permutation matches
+                                exactMatch = apiExercises.First();
+                                _logger.LogInformation("No similar matches, auto-selecting first result '{MatchName}' for exercise '{Name}'",
+                                    exactMatch.Name, exercise.Name);
+                            }
+                            else if (selectionService != null)
+                            {
+                                // Create a pending selection for user input with all API results
+                                await selectionService.CreatePendingSelectionAsync(
+                                    jobId, 
+                                    exercise.ExerciseTypeId, 
+                                    exercise.Name, 
+                                    apiExercises);
+                                
+                                pending++;
+                                
+                                _logger.LogInformation("No similar matches, created pending selection for exercise '{Name}' with {MatchCount} possible matches", 
+                                    exercise.Name, apiExercises.Count);
+                                
+                                await SendProgressUpdateAsync(jobId, processed, found, enriched, failed, pending,
+                                    $"Pending user selection for exercise: {exercise.Name}");
+                                
+                                continue; // Skip to next exercise
+                            }
+                            else
+                            {
+                                // Fall back to first match if selection service not available
+                                exactMatch = apiExercises.First();
+                                _logger.LogWarning("Selection service not available, auto-selecting first match '{MatchName}' for exercise '{Name}'",
+                                    exactMatch.Name, exercise.Name);
+                            }
                         }
 
+                        // At this point, we should have a match to apply (either exact, similar, or first result)
                         if (exactMatch == null)
                         {
                             _logger.LogWarning("No API data found for exercise '{Name}'", exercise.Name);
                             failed++;
                             continue;
                         }
+
+                        // Extract actual exercise name if it has the permutation marker
+                        string actualName = exactMatch.Name;
 
                         // Fill in any empty fields with data from the API
                         bool changed = false;
@@ -597,15 +603,16 @@ namespace WorkoutTrackerWeb.Services
                             changed = true;
                         }
                         
-                        if (string.IsNullOrEmpty(exercise.Equipment))
-                        {
-                            exercise.Equipment = exactMatch.Equipment;
-                            changed = true;
-                        }
-                        
                         if (string.IsNullOrEmpty(exercise.Difficulty))
                         {
                             exercise.Difficulty = exactMatch.Difficulty;
+                            changed = true;
+                        }
+                        
+                        // Also update optional fields if they're empty
+                        if (string.IsNullOrEmpty(exercise.Equipment))
+                        {
+                            exercise.Equipment = exactMatch.Equipment;
                             changed = true;
                         }
                         
@@ -621,12 +628,24 @@ namespace WorkoutTrackerWeb.Services
                             exercise.LastUpdated = DateTime.UtcNow;
                             
                             // Don't change the IsFromApi flag
-                            
                             dbContext.Update(exercise);
                             
                             // Save changes for each exercise to avoid losing progress on failure
                             await dbContext.SaveChangesAsync(cancellationToken);
                             enriched++;
+                            
+                            // Add note about using permutation if applicable
+                            string additionalInfo = exactMatch.SearchInfo?.Contains("Word Order Match:") == true 
+                                ? " using word permutation match" 
+                                : "";
+                            
+                            _logger.LogInformation("Enriched exercise '{Name}' with data from '{MatchName}'{AdditionalInfo}", 
+                                exercise.Name, actualName, additionalInfo);
+                        }
+                        else
+                        {
+                            _logger.LogInformation("No changes needed for exercise '{Name}' - already has core data populated", exercise.Name);
+                            alreadyEnriched++;
                         }
                     }
                     catch (Exception ex)
@@ -809,6 +828,130 @@ namespace WorkoutTrackerWeb.Services
             }
             
             return await _selectionService.GetAllPendingSelectionsCountAsync();
+        }
+
+        /// <summary>
+        /// Searches for exercises by name, providing a more flexible search when exact matches aren't found
+        /// </summary>
+        /// <param name="name">Exercise name to search for</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>List of matching API exercises</returns>
+        public async Task<List<ExerciseApiResponse>> SearchExercisesByNameAsync(string name, CancellationToken cancellationToken = default)
+        {
+            // Try exact match first
+            var searchParams = new ExerciseSearchParams { Name = name };
+            var results = await _apiService.SearchExercisesAsync(searchParams);
+            
+            // If no results found, try searching with words in different order
+            if ((results == null || results.Count == 0) && !string.IsNullOrWhiteSpace(name))
+            {
+                // Split the name into words and filter out empty strings
+                var words = name.Split(new[] { ' ', '-', '_', ',' }, StringSplitOptions.RemoveEmptyEntries);
+                
+                // Only proceed if we have multiple words (single word already failed in the exact match)
+                if (words.Length > 1)
+                {
+                    _logger.LogInformation("No exact matches found for '{Name}', trying word permutations", name);
+                    
+                    // Generate permutations of the words
+                    var permutations = GenerateWordPermutations(words, 3); // Limit to 3 permutations to avoid API spam
+                    
+                    foreach (var permutation in permutations)
+                    {
+                        // Skip if it's identical to the original (should be caught by exact match)
+                        if (permutation.Equals(name, StringComparison.OrdinalIgnoreCase))
+                            continue;
+                        
+                        // Check for cancellation
+                        cancellationToken.ThrowIfCancellationRequested();
+                        
+                        _logger.LogInformation("Trying word permutation: '{Permutation}' for '{Name}'", permutation, name);
+                        
+                        // Try searching with this permutation
+                        var permutationParams = new ExerciseSearchParams { Name = permutation };
+                        var permutationResults = await _apiService.SearchExercisesAsync(permutationParams);
+                        
+                        // If we got results, add them to our list with searchInfo about the permutation
+                        if (permutationResults != null && permutationResults.Count > 0)
+                        {
+                            results ??= new List<ExerciseApiResponse>();
+                            
+                            foreach (var exercise in permutationResults)
+                            {
+                                // Store information about how this exercise was found
+                                exercise.SearchInfo = $"Word Order Match: '{permutation}'";
+                                
+                                // Add only unique exercises (avoid duplicates)
+                                if (!results.Any(e => e.Name.Equals(exercise.Name, StringComparison.OrdinalIgnoreCase)))
+                                {
+                                    results.Add(exercise);
+                                }
+                            }
+                            
+                            _logger.LogInformation("Found {Count} matches using word permutation '{Permutation}'", 
+                                permutationResults.Count, permutation);
+                            
+                            // If we found results, no need to try more permutations
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            return results ?? new List<ExerciseApiResponse>();
+        }
+
+        /// <summary>
+        /// Generates different word orders from an array of words
+        /// </summary>
+        /// <param name="words">Array of words to permute</param>
+        /// <param name="maxPermutations">Maximum number of permutations to return</param>
+        /// <returns>List of permuted word strings</returns>
+        private List<string> GenerateWordPermutations(string[] words, int maxPermutations)
+        {
+            var result = new List<string>();
+            
+            // Add simple reordering of words
+            // Example: "Bench Press" -> "Press Bench"
+            if (words.Length == 2)
+            {
+                result.Add($"{words[1]} {words[0]}");
+            }
+            // For 3+ words, try some common useful permutations
+            else if (words.Length >= 3)
+            {
+                // First word moved to end
+                var firstToEnd = words.Skip(1).Concat(new[] { words[0] });
+                result.Add(string.Join(" ", firstToEnd));
+                
+                // Last word moved to beginning
+                var lastToStart = new[] { words[words.Length - 1] }.Concat(words.Take(words.Length - 1));
+                result.Add(string.Join(" ", lastToStart));
+                
+                // If we have exactly 3 words, add one more permutation
+                if (words.Length == 3)
+                {
+                    // Middle, first, last
+                    result.Add($"{words[1]} {words[0]} {words[2]}");
+                }
+            }
+            
+            // Limit the number of permutations to avoid API spam
+            return result.Take(maxPermutations).ToList();
+        }
+
+        /// <summary>
+        /// Determines if an exercise type is already sufficiently enriched
+        /// based on having the core fields (Type, Muscle, and Difficulty) populated
+        /// </summary>
+        /// <param name="exerciseType">The exercise type to check</param>
+        /// <returns>True if the exercise is considered already enriched</returns>
+        private bool IsExerciseSufficientlyEnriched(ExerciseType exerciseType)
+        {
+            // Consider an exercise enriched if Type, Muscle, and Difficulty are all populated
+            return !string.IsNullOrEmpty(exerciseType.Type) && 
+                   !string.IsNullOrEmpty(exerciseType.Muscle) && 
+                   !string.IsNullOrEmpty(exerciseType.Difficulty);
         }
     }
 }

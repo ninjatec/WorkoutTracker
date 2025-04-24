@@ -88,7 +88,13 @@ else
                                                            @(i == 0 ? "checked" : "")>
                                                     <label class="form-check-label w-100" for="option-@pendingSelection.Id-@i">
                                                         <div class="d-flex justify-content-between">
-                                                            <h6>@apiExercise.Name</h6>
+                                                            <h6>
+                                                                @apiExercise.Name
+                                                                @if (!string.IsNullOrEmpty(apiExercise.SearchInfo) && apiExercise.SearchInfo.Contains("Word Order Match:"))
+                                                                {
+                                                                    <span class="badge bg-warning ms-2" title="Found by rearranging the words in the exercise name">Word Order Match</span>
+                                                                }
+                                                            </h6>
                                                             <span class="badge rounded-pill bg-info">
                                                                 @apiExercise.Type / @apiExercise.Muscle
                                                             </span>
@@ -104,6 +110,27 @@ else
                                                                 <p><strong>Difficulty:</strong> @apiExercise.Difficulty</p>
                                                             </div>
                                                         </div>
+                                                        
+                                                        @if (!string.IsNullOrEmpty(apiExercise.SearchInfo) && apiExercise.SearchInfo.Contains("Word Order Match:"))
+                                                        {
+                                                            <div class="alert alert-warning mt-2">
+                                                                <small>
+                                                                    <i class="fas fa-info-circle"></i>
+                                                                    This match was found by rearranging the words in the exercise name.
+                                                                    @{
+                                                                        var match = System.Text.RegularExpressions.Regex.Match(
+                                                                            apiExercise.SearchInfo, 
+                                                                            @"Word Order Match: '([^']+)'");
+                                                                        
+                                                                        if (match.Success)
+                                                                        {
+                                                                            var searchTerm = match.Groups[1].Value;
+                                                                            <span>Search term: <strong>@searchTerm</strong></span>
+                                                                        }
+                                                                    }
+                                                                </small>
+                                                            </div>
+                                                        }
                                                         
                                                         <div class="collapse" id="instructions-@pendingSelection.Id-@i">
                                                             <div class="card card-body mt-2">

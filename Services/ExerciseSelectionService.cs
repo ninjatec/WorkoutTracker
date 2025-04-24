@@ -16,6 +16,7 @@ namespace WorkoutTrackerWeb.Services
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<ExerciseSelectionService> _logger;
+        private readonly JsonSerializerOptions _jsonOptions;
 
         public ExerciseSelectionService(
             IServiceProvider serviceProvider,
@@ -23,6 +24,13 @@ namespace WorkoutTrackerWeb.Services
         {
             _serviceProvider = serviceProvider;
             _logger = logger;
+            
+            // Setup consistent JSON options for serialization/deserialization
+            _jsonOptions = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                WriteIndented = false
+            };
         }
 
         /// <summary>
@@ -40,7 +48,7 @@ namespace WorkoutTrackerWeb.Services
                 var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
 
                 // Serialize the API exercise results to store in the database
-                string apiResultsJson = JsonSerializer.Serialize(apiExercises);
+                string apiResultsJson = JsonSerializer.Serialize(apiExercises, _jsonOptions);
                 
                 var pendingSelection = new PendingExerciseSelection
                 {
@@ -134,7 +142,7 @@ namespace WorkoutTrackerWeb.Services
             List<ExerciseApiResponse> apiExercises = null;
             try
             {
-                apiExercises = JsonSerializer.Deserialize<List<ExerciseApiResponse>>(pendingSelection.ApiResults);
+                apiExercises = JsonSerializer.Deserialize<List<ExerciseApiResponse>>(pendingSelection.ApiResults, _jsonOptions);
             }
             catch (Exception ex)
             {
@@ -148,6 +156,14 @@ namespace WorkoutTrackerWeb.Services
             }
             
             var selectedApiExercise = apiExercises[selectedApiExerciseIndex];
+            
+            // Check if this is a word permutation match and log it for analytics
+            if (!string.IsNullOrEmpty(selectedApiExercise.SearchInfo) && 
+                selectedApiExercise.SearchInfo.Contains("Word Order Match:"))
+            {
+                _logger.LogInformation("Applying word order match to exercise '{Name}': {SearchInfo}", 
+                    exerciseType.Name, selectedApiExercise.SearchInfo);
+            }
             
             bool changed = false;
             
@@ -228,7 +244,7 @@ namespace WorkoutTrackerWeb.Services
             List<ExerciseApiResponse> apiExercises = null;
             try
             {
-                apiExercises = JsonSerializer.Deserialize<List<ExerciseApiResponse>>(pendingSelection.ApiResults);
+                apiExercises = JsonSerializer.Deserialize<List<ExerciseApiResponse>>(pendingSelection.ApiResults, _jsonOptions);
             }
             catch (Exception ex)
             {
@@ -242,6 +258,14 @@ namespace WorkoutTrackerWeb.Services
             }
             
             var selectedApiExercise = apiExercises[selectedApiExerciseIndex];
+            
+            // Check if this is a word permutation match and log it for analytics
+            if (!string.IsNullOrEmpty(selectedApiExercise.SearchInfo) && 
+                selectedApiExercise.SearchInfo.Contains("Word Order Match:"))
+            {
+                _logger.LogInformation("Applying word order match to exercise '{Name}': {SearchInfo}", 
+                    exerciseType.Name, selectedApiExercise.SearchInfo);
+            }
             
             bool changed = false;
             
@@ -301,7 +325,7 @@ namespace WorkoutTrackerWeb.Services
         {
             try
             {
-                selection.ApiExerciseOptions = JsonSerializer.Deserialize<List<ExerciseApiResponse>>(selection.ApiResults);
+                selection.ApiExerciseOptions = JsonSerializer.Deserialize<List<ExerciseApiResponse>>(selection.ApiResults, _jsonOptions);
                 
                 if (context == null)
                 {
