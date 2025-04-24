@@ -64,8 +64,8 @@ spec:
   - wot.ninjatec.co.uk
   - www.workouttracker.online
   - workouttracker.online
-  secret: ambassador-certs.emissary
-  secret_namespacing: true
+  secret: ambassador-certs
+  secret_namespacing: false
   min_tls_version: v1.2
   cipher_suites:
   - ECDHE-ECDSA-AES128-GCM-SHA256
@@ -74,21 +74,6 @@ spec:
   - ECDHE-RSA-AES256-GCM-SHA384
   - ECDHE-ECDSA-CHACHA20-POLY1305
   - ECDHE-RSA-CHACHA20-POLY1305
-
-#---
-#apiVersion: getambassador.io/v3alpha1
-#kind: TLSContext
-#metadata:
-#  name: tls-context-workouttracker
-#  namespace: emissary
-#spec:
-#  alpn_protocols: h2,http/1.1
-#  hosts:
-#  - www.workouttracker.online
-#  secret: ambassador-certs-wot
-#  secret_namespacing: false
-#  min_tls_version: v1.2
-#  
 
 ---
 apiVersion: getambassador.io/v3alpha1
