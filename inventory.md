@@ -705,3 +705,71 @@ The application includes a comprehensive log level configuration system with the
    - Role-based access control (Admin role required)
    - Audit logging for log level changes
    - User tracking for configuration updates
+
+### Admin Metrics Dashboard Components
+
+| Component | Purpose |
+|-----------|---------|
+| `/Areas/Admin/Pages/Metrics/Index.cshtml` | Main metrics dashboard Razor Page with tabbed interface |
+| `/Areas/Admin/Pages/Metrics/Index.cshtml.cs` | Dashboard code-behind with metrics data loading logic |
+| `/wwwroot/js/admin-metrics.js` | Client-side JavaScript for chart rendering and real-time updates |
+| `/wwwroot/css/admin-metrics.css` | Dashboard-specific styling for metrics visualization |
+| `UserActivityMetrics` | Class for collecting and analyzing user engagement data |
+| `SystemMetrics` | Class for system resource monitoring and health statistics |
+| `WorkoutMetrics` | Class for workout activity and exercise popularity tracking |
+| `PerformanceMetrics` | Class for application performance monitoring |
+| `HealthMetrics` | Class for service health status visualization |
+
+### Metrics Dashboard Features
+
+The admin metrics dashboard provides comprehensive monitoring and visualization capabilities:
+
+1. **System Metrics Display**:
+   - Real-time CPU, memory, and disk usage monitoring
+   - Database connection pool visualization with active/max connections
+   - Redis cache performance monitoring with hit rate metrics
+   - Hangfire queue statistics with job processing rates
+   - Exception tracking with recent error display
+   - Auto-refresh functionality with configurable intervals
+
+2. **User Activity Analysis**:
+   - Daily/weekly/monthly active user charts
+   - User registration trend visualization
+   - Login success/failure rate monitoring
+   - User retention analysis with cohort visualization
+   - User engagement patterns with session frequency metrics
+   - Geographic distribution map of user logins
+
+3. **Workout Statistics**:
+   - Session, set, and rep creation trends over time
+   - Exercise popularity charts with usage frequency
+   - Workout duration and intensity analysis
+   - Session completion rate tracking
+   - Personal record achievement rate visualization
+   - Time-of-day workout pattern analysis
+
+4. **Performance Monitoring**:
+   - HTTP request duration histograms by endpoint
+   - Database query performance visualization
+   - API response time tracking with percentiles
+   - Page load time visualization by route
+   - Resource utilization trend analysis
+   - Error rate visualization with drill-down capability
+
+5. **Health Status Dashboard**:
+   - Service dependency status indicators
+   - Historical uptime tracking with SLA calculations
+   - Circuit breaker state visualization
+   - Health check response time tracking
+   - Service dependency failure impact analysis
+
+6. **Implementation Details**:
+   - Chart.js integration for responsive data visualization
+   - SignalR for real-time metric updates
+   - Responsive layout with Bootstrap 5 grid system
+   - Role-based access control (Admin role required)
+   - Tab-based navigation for metric categories
+   - Configurable refresh intervals for data freshness
+   - Export functionality for metrics data (CSV/PDF)
+   - Date range selection for historical analysis
+   - Admin-only access via role-based authorization

@@ -43,6 +43,9 @@
                 <a asp-area="Admin" asp-page="/Versions/Index" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Versions") == true ? "active" : "")">
                     <i class="bi bi-tag me-2"></i> Version Management
                 </a>
+                <a asp-area="Admin" asp-page="/Metrics/Index" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Metrics") == true ? "active" : "")">
+                    <i class="bi bi-bar-chart-fill me-2"></i> Metrics Dashboard
+                </a>
                 <div class="list-group-item list-group-item-primary">
                     <i class="bi bi-gear me-2"></i> System Settings
                 </div>

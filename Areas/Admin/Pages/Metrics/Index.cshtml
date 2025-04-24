@@ -1,0 +1,645 @@
+@page
+@model WorkoutTrackerWeb.Areas.Admin.Pages.Metrics.IndexModel
+@{
+    ViewData["Title"] = "System Metrics Dashboard";
+}
+
+<link rel="stylesheet" href="~/css/admin-metrics.css" asp-append-version="true" />
+
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>System Metrics Dashboard</h1>
+        <div>
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-secondary dropdown-toggle" id="refreshRateDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span id="currentRefreshRate">Refresh: 30s</span>
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="refreshRateDropdown">
+                    <li><a class="dropdown-item refresh-option" href="#" data-seconds="0">Manual Refresh</a></li>
+                    <li><a class="dropdown-item refresh-option" href="#" data-seconds="10">10 seconds</a></li>
+                    <li><a class="dropdown-item refresh-option" href="#" data-seconds="30">30 seconds</a></li>
+                    <li><a class="dropdown-item refresh-option" href="#" data-seconds="60">1 minute</a></li>
+                    <li><a class="dropdown-item refresh-option" href="#" data-seconds="300">5 minutes</a></li>
+                </ul>
+            </div>
+            <button id="refreshButton" class="btn btn-primary">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Metrics Category Tabs -->
+    <ul class="nav nav-tabs mb-4" id="metricsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="system-tab" data-bs-toggle="tab" data-bs-target="#system-metrics" type="button" role="tab" aria-controls="system-metrics" aria-selected="true">
+                <i class="bi bi-cpu"></i> System
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#user-metrics" type="button" role="tab" aria-controls="user-metrics" aria-selected="false">
+                <i class="bi bi-people"></i> Users
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="workouts-tab" data-bs-toggle="tab" data-bs-target="#workout-metrics" type="button" role="tab" aria-controls="workout-metrics" aria-selected="false">
+                <i class="bi bi-activity"></i> Workouts
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="performance-tab" data-bs-toggle="tab" data-bs-target="#performance-metrics" type="button" role="tab" aria-controls="performance-metrics" aria-selected="false">
+                <i class="bi bi-speedometer"></i> Performance
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="health-tab" data-bs-toggle="tab" data-bs-target="#health-metrics" type="button" role="tab" aria-controls="health-metrics" aria-selected="false">
+                <i class="bi bi-heart-pulse"></i> Health
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="metricsTabContent">
+        <!-- System Metrics Tab -->
+        <div class="tab-pane fade show active" id="system-metrics" role="tabpanel" aria-labelledby="system-tab">
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Server Resources</h5>
+                            <span class="badge bg-info" id="system-last-update">Last update: @DateTime.Now.ToString("HH:mm:ss")</span>
+                        </div>
+                        <div class="card-body">
+                            <h6>CPU Usage</h6>
+                            <div class="progress mb-3" style="height: 25px;">
+                                <div class="progress-bar bg-primary" role="progressbar" style="width: @Model.CpuUsage%" aria-valuenow="@Model.CpuUsage" aria-valuemin="0" aria-valuemax="100">@Model.CpuUsage%</div>
+                            </div>
+                            
+                            <h6>Memory Usage</h6>
+                            <div class="progress mb-3" style="height: 25px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: @Model.MemoryUsage%" aria-valuenow="@Model.MemoryUsage" aria-valuemin="0" aria-valuemax="100">@Model.MemoryUsage%</div>
+                            </div>
+                            
+                            <h6>Disk Usage</h6>
+                            <div class="progress mb-3" style="height: 25px;">
+                                <div class="progress-bar bg-warning" role="progressbar" style="width: @Model.DiskUsage%" aria-valuenow="@Model.DiskUsage" aria-valuemin="0" aria-valuemax="100">@Model.DiskUsage%</div>
+                            </div>
+                            
+                            <div class="small text-muted mt-2">
+                                <p><strong>Process Uptime:</strong> @Model.ProcessUptime</p>
+                                <p><strong>Server Time:</strong> <span id="serverTime">@DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")</span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Database Connection Pool</h5>
+                        </div>
+                        <div class="card-body chart-card-body">
+                            <div class="chart-container">
+                                <canvas id="dbConnectionChart"></canvas>
+                            </div>
+                            <div class="mt-2">
+                                <div class="d-flex justify-content-between">
+                                    <span><strong>Active Connections:</strong> @Model.ActiveConnections</span>
+                                    <span><strong>Pool Size:</strong> @Model.MaxConnections</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span><strong>Query Time (avg):</strong> @Model.AvgQueryTime ms</span>
+                                    <span><strong>Failed Queries:</strong> @Model.FailedQueries</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Redis Cache</h5>
+                        </div>
+                        <div class="card-body chart-card-body">
+                            <div class="chart-container">
+                                <canvas id="redisCacheChart"></canvas>
+                            </div>
+                            <div class="mt-2 small">
+                                <div class="d-flex justify-content-between">
+                                    <span><strong>Hit Rate:</strong> @Model.CacheHitRate%</span>
+                                    <span><strong>Memory Usage:</strong> @Model.CacheMemoryUsage MB</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span><strong>Total Keys:</strong> @Model.CacheKeys</span>
+                                    <span><strong>Expiring Keys:</strong> @Model.CacheExpiringKeys</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Hangfire Job Queue</h5>
+                        </div>
+                        <div class="card-body chart-card-body">
+                            <div class="chart-container">
+                                <canvas id="hangfireQueueChart"></canvas>
+                            </div>
+                            <div class="mt-2 small">
+                                <div class="d-flex justify-content-between">
+                                    <span><strong>Enqueued:</strong> @Model.JobsEnqueued</span>
+                                    <span><strong>Processing:</strong> @Model.JobsProcessing</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span><strong>Succeeded:</strong> @Model.JobsSucceeded</span>
+                                    <span><strong>Failed:</strong> @Model.JobsFailed</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Recent Exceptions</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group list-group-flush" style="max-height: 180px; overflow-y: auto;">
+                                @foreach (var error in Model.RecentExceptions)
+                                {
+                                    <div class="list-group-item p-2">
+                                        <div class="d-flex justify-content-between">
+                                            <span class="fw-bold text-danger">@error.Type</span>
+                                            <small class="text-muted">@error.Time.ToString("HH:mm:ss")</small>
+                                        </div>
+                                        <p class="mb-0 small">@error.Message</p>
+                                    </div>
+                                }
+                                @if (!Model.RecentExceptions.Any())
+                                {
+                                    <div class="text-center text-muted p-3">
+                                        <i class="bi bi-check-circle"></i> No recent exceptions recorded
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- User Metrics Tab -->
+        <div class="tab-pane fade" id="user-metrics" role="tabpanel" aria-labelledby="users-tab">
+            <div class="row">
+                <div class="col-md-8 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">User Activity Trends</h5>
+                        </div>
+                        <div class="card-body chart-card-body">
+                            <div class="chart-container chart-medium">
+                                <canvas id="userActivityChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">User Statistics</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>Total Users:</span>
+                                <span class="badge bg-primary rounded-pill">@Model.TotalUsers</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>Active Today:</span>
+                                <span class="badge bg-success rounded-pill">@Model.ActiveUsersToday</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>Active This Week:</span>
+                                <span class="badge bg-info rounded-pill">@Model.ActiveUsersWeek</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>Active This Month:</span>
+                                <span class="badge bg-secondary rounded-pill">@Model.ActiveUsersMonth</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>New Users (30d):</span>
+                                <span class="badge bg-warning text-dark rounded-pill">@Model.NewUsers30Days</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Login Success/Failure Rate</h5>
+                        </div>
+                        <div class="card-body chart-card-body">
+                            <div class="chart-container">
+                                <canvas id="loginRateChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">User Retention</h5>
+                        </div>
+                        <div class="card-body chart-card-body">
+                            <div class="chart-container">
+                                <canvas id="retentionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Workout Metrics Tab -->
+        <div class="tab-pane fade" id="workout-metrics" role="tabpanel" aria-labelledby="workouts-tab">
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Workout Activity Over Time</h5>
+                        </div>
+                        <div class="card-body chart-card-body">
+                            <div class="chart-container chart-medium">
+                                <canvas id="workoutActivityChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Popular Exercise Types</h5>
+                        </div>
+                        <div class="card-body chart-card-body">
+                            <div class="chart-container chart-medium">
+                                <canvas id="exercisePopularityChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Workout Statistics</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>Total Sessions:</span>
+                                <span class="badge bg-primary rounded-pill">@Model.TotalSessions</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>Total Sets:</span>
+                                <span class="badge bg-success rounded-pill">@Model.TotalSets</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>Total Reps:</span>
+                                <span class="badge bg-info rounded-pill">@Model.TotalReps</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>Avg. Session Duration:</span>
+                                <span class="badge bg-secondary rounded-pill">@Model.AvgSessionDuration min</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>Avg. Sets Per Session:</span>
+                                <span class="badge bg-warning text-dark rounded-pill">@Model.AvgSetsPerSession</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Workout Duration Trend</h5>
+                        </div>
+                        <div class="card-body chart-card-body">
+                            <div class="chart-container">
+                                <canvas id="workoutDurationChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Workout Time of Day</h5>
+                        </div>
+                        <div class="card-body chart-card-body">
+                            <div class="chart-container">
+                                <canvas id="workoutTimeOfDayChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Performance Metrics Tab -->
+        <div class="tab-pane fade" id="performance-metrics" role="tabpanel" aria-labelledby="performance-tab">
+            <div class="row">
+                <div class="col-md-12 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">HTTP Request Duration by Endpoint</h5>
+                        </div>
+                        <div class="card-body chart-card-body">
+                            <div class="chart-container chart-medium">
+                                <canvas id="httpDurationChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Database Query Performance</h5>
+                        </div>
+                        <div class="card-body chart-card-body">
+                            <div class="chart-container">
+                                <canvas id="dbPerformanceChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Error Rate by Hour</h5>
+                        </div>
+                        <div class="card-body chart-card-body">
+                            <div class="chart-container">
+                                <canvas id="errorRateChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Slowest Endpoints (Last 24 Hours)</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Endpoint</th>
+                                            <th>Avg. Response Time</th>
+                                            <th>P95 Response Time</th>
+                                            <th>Request Count</th>
+                                            <th>Error Rate</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var endpoint in Model.SlowestEndpoints)
+                                        {
+                                            <tr>
+                                                <td>@endpoint.Path</td>
+                                                <td>@endpoint.AvgResponseTime ms</td>
+                                                <td>@endpoint.P95ResponseTime ms</td>
+                                                <td>@endpoint.RequestCount</td>
+                                                <td>
+                                                    <span class="badge @(endpoint.ErrorRate < 1 ? "bg-success" : endpoint.ErrorRate < 5 ? "bg-warning text-dark" : "bg-danger")">
+                                                        @endpoint.ErrorRate%
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Health Metrics Tab -->
+        <div class="tab-pane fade" id="health-metrics" role="tabpanel" aria-labelledby="health-tab">
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Service Health Status</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group">
+                                @foreach (var service in Model.ServiceHealth)
+                                {
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="bi @(service.IsHealthy ? "bi-check-circle-fill text-success" : "bi-exclamation-circle-fill text-danger")"></i>
+                                            <span class="ms-2">@service.Name</span>
+                                        </div>
+                                        <div>
+                                            <span class="badge @(service.IsHealthy ? "bg-success" : "bg-danger")">
+                                                @(service.IsHealthy ? "Healthy" : "Unhealthy")
+                                            </span>
+                                            <small class="ms-2 text-muted">
+                                                @service.LastChecked.ToString("HH:mm:ss")
+                                            </small>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h5 class="mb-0">Circuit Breaker Status</h5>
+                        </div>
+                        <div class="card-body chart-card-body">
+                            <div class="list-group mb-3">
+                                @foreach (var breaker in Model.CircuitBreakers)
+                                {
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <i class="bi @(breaker.State == "Closed" ? "bi-unlock-fill text-success" : breaker.State == "HalfOpen" ? "bi-dash-circle-fill text-warning" : "bi-lock-fill text-danger")"></i>
+                                            <span class="ms-2">@breaker.Name</span>
+                                        </div>
+                                        <div>
+                                            <span class="badge @(breaker.State == "Closed" ? "bg-success" : breaker.State == "HalfOpen" ? "bg-warning text-dark" : "bg-danger")">
+                                                @breaker.State
+                                            </span>
+                                            <small class="ms-2 text-muted" title="Last state change">
+                                                @breaker.LastStateChange.ToString("HH:mm:ss")
+                                            </small>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                            
+                            <div>
+                                <h6>Circuit Breaker Events (Last 24h)</h6>
+                                <div class="chart-container">
+                                    <canvas id="circuitBreakerChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Health Check Response Times (ms)</h5>
+                        </div>
+                        <div class="card-body chart-card-body">
+                            <div class="chart-container chart-medium">
+                                <canvas id="healthCheckTimesChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">System Uptime History</h5>
+                            <div>
+                                <select id="uptimePeriod" class="form-select form-select-sm">
+                                    <option value="7">Last 7 days</option>
+                                    <option value="30" selected>Last 30 days</option>
+                                    <option value="90">Last 90 days</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="card-body chart-card-body">
+                            <div class="d-flex justify-content-between mb-2">
+                                <div>
+                                    <strong>Overall SLA:</strong> 
+                                    <span class="badge @(Model.OverallSla >= 99.9 ? "bg-success" : Model.OverallSla >= 99.0 ? "bg-warning text-dark" : "bg-danger")">
+                                        @Model.OverallSla.ToString("F2")%
+                                    </span>
+                                </div>
+                                <div>
+                                    <strong>Last Outage:</strong> 
+                                    <span>@(Model.LastOutage.HasValue ? Model.LastOutage.Value.ToString("yyyy-MM-dd HH:mm") : "None recorded")</span>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="uptimeHistoryChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="~/js/admin-metrics.js" asp-append-version="true"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize charts with placeholder data
+            initializeCharts();
+            
+            // Set up refresh rate dropdown
+            setupRefreshRate();
+            
+            // Initial update of server time
+            updateServerTime();
+        });
+        
+        function setupRefreshRate() {
+            const refreshOptions = document.querySelectorAll('.refresh-option');
+            const currentRefreshRate = document.getElementById('currentRefreshRate');
+            const refreshButton = document.getElementById('refreshButton');
+            
+            let refreshInterval;
+            let currentSeconds = 30; // Default refresh rate
+            
+            refreshOptions.forEach(option => {
+                option.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    const seconds = parseInt(this.getAttribute('data-seconds'));
+                    currentSeconds = seconds;
+                    
+                    // Clear existing interval
+                    if (refreshInterval) {
+                        clearInterval(refreshInterval);
+                    }
+                    
+                    // Set new interval if seconds > 0
+                    if (seconds > 0) {
+                        currentRefreshRate.textContent = `Refresh: ${seconds}s`;
+                        refreshInterval = setInterval(refreshData, seconds * 1000);
+                    } else {
+                        currentRefreshRate.textContent = 'Manual Refresh';
+                    }
+                });
+            });
+            
+            // Set up manual refresh button
+            refreshButton.addEventListener('click', refreshData);
+            
+            // Set initial interval
+            refreshInterval = setInterval(refreshData, currentSeconds * 1000);
+        }
+        
+        function refreshData() {
+            // Make AJAX call to get updated metrics data
+            // For now, we'll just show a simulated refresh
+            const systemLastUpdate = document.getElementById('system-last-update');
+            systemLastUpdate.textContent = 'Last update: ' + new Date().toLocaleTimeString();
+            
+            // Update server time
+            updateServerTime();
+            
+            // In a real implementation, you would fetch data from the server and update charts
+            simulateChartUpdates();
+        }
+        
+        function updateServerTime() {
+            const serverTimeElement = document.getElementById('serverTime');
+            const now = new Date();
+            serverTimeElement.textContent = now.toISOString().replace('T', ' ').substring(0, 19);
+        }
+        
+        function simulateChartUpdates() {
+            // This would be replaced with real data updates in production
+            console.log('Refreshing metrics data...');
+        }
+    </script>
+}
