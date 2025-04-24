@@ -45,6 +45,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Register handler for connectionStatus events - match server casing
+    connection.on("connectionStatus", (data) => {
+        console.log("Connection status update:", data);
+        // This handler ensures the connectionStatus event from the server is properly received
+    });
+
     connection.on("UpdateProgress", (progress) => {
         const progressBar = document.getElementById("importProgress");
         const progressStatus = document.getElementById("importStatus");
