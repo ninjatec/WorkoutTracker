@@ -435,6 +435,7 @@ try
 
     // Register our alerting background job service
     builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsService>();
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsRegistration>();
 
     // Configure distributed cache using Redis
     if (builder.Environment.IsDevelopment())
@@ -923,9 +924,23 @@ try
         Log.Error(ex, "Error initializing Hangfire schema");
     }
 
-    // Register Hangfire background jobs
-    // This needs to happen AFTER all services are registered
-    WorkoutTrackerWeb.Services.Hangfire.AlertingJobs.RegisterAlertingJobs();
+    // Register Hangfire background jobs using the service-based API
+    try {
+        using (var scope = app.Services.CreateScope())
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogInformation("Registering alerting jobs through service-based API");
+            
+            var alertingJobsRegistration = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsRegistration>();
+            alertingJobsRegistration.RegisterAlertingJobs();
+            
+            logger.LogInformation("Alerting jobs registered successfully");
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Error registering alerting jobs");
+    }
 
     // Add request metrics middleware before routing
     app.UseHttpMetrics();

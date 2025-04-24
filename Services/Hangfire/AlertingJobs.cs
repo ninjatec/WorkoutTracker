@@ -9,22 +9,36 @@ using WorkoutTrackerWeb.Services.Alerting;
 
 namespace WorkoutTrackerWeb.Services.Hangfire
 {
-    public static class AlertingJobs
+    public class AlertingJobsRegistration
     {
-        // Register alerting jobs with Hangfire
-        public static void RegisterAlertingJobs()
+        private readonly IRecurringJobManager _recurringJobManager;
+        private readonly ILogger<AlertingJobsRegistration> _logger;
+
+        public AlertingJobsRegistration(
+            IRecurringJobManager recurringJobManager,
+            ILogger<AlertingJobsRegistration> logger)
         {
+            _recurringJobManager = recurringJobManager;
+            _logger = logger;
+        }
+
+        public void RegisterAlertingJobs()
+        {
+            _logger.LogInformation("Registering alerting jobs with Hangfire");
+            
             // Check alert thresholds every 5 minutes
-            RecurringJob.AddOrUpdate<AlertingJobsService>(
+            _recurringJobManager.AddOrUpdate<AlertingJobsService>(
                 "check-alert-thresholds",
                 service => service.CheckAlertThresholdsAsync(),
                 "*/5 * * * *"); // Cron expression for every 5 minutes
             
             // Run alert maintenance job daily at 2 AM
-            RecurringJob.AddOrUpdate<AlertingJobsService>(
+            _recurringJobManager.AddOrUpdate<AlertingJobsService>(
                 "alert-maintenance",
                 service => service.PerformAlertMaintenanceAsync(),
                 "0 2 * * *"); // Cron expression for 2 AM daily
+                
+            _logger.LogInformation("Alert jobs registered successfully");
         }
     }
 

@@ -264,12 +264,19 @@
 ---
 
 [ ] Implement dedicated Hangfire worker pod for background processing
- - [ ] Configure Hangfire server components for separation
-   - [ ] Create HangfireServerConfiguration class to centralize server settings
-   - [ ] Implement environment-based configuration for worker vs. application pods
-   - [ ] Add configuration flag for enabling/disabling job processing
-   - [ ] Refactor Hangfire initialization in Program.cs to support role-based startup
-   - [ ] Configure Hangfire dashboard to show distributed server status
+ - [x] Configure Hangfire server components for separation
+   - [x] Create HangfireServerConfiguration class to centralize server settings
+   - [x] Implement environment-based configuration for worker vs. application pods
+   - [x] Add configuration flag for enabling/disabling job processing
+   - [x] Refactor Hangfire initialization in Program.cs to support role-based startup
+   - [x] Configure Hangfire dashboard to show distributed server status
+
+ - [x] Update service-based APIs for background processing
+   - [x] Fix exception issues with RecurringJob static API
+   - [x] Implement service-based IRecurringJobManager instead of static RecurringJob class
+   - [x] Create AlertingJobsRegistration service for job registration
+   - [x] Update dependency injection to properly register Hangfire service components
+   - [x] Use scoped service approach for proper initialization and dependency resolution
 
  - [ ] Update application pods to disable job processing
    - [ ] Add environment variable HANGFIRE_PROCESSING_ENABLED for role detection
@@ -278,58 +285,9 @@
    - [ ] Implement health checks specific to client-only role
    - [ ] Ensure SignalR connections work properly without worker components
 
- - [ ] Develop dedicated worker pod implementation
-   - [ ] Create specialized Dockerfile for worker-only deployment
-   - [ ] Implement worker-specific Program.cs initialization logic
-   - [ ] Configure worker to ignore web requests and process jobs only
-   - [ ] Add worker-specific logging configuration with job processing focus
-   - [ ] Implement graceful shutdown for in-progress job handling
+---
+---
 
- - [ ] Create Kubernetes configuration for worker deployment
-   - [ ] Create new worker-deployment.yaml for Hangfire worker pods
-   - [ ] Configure worker pods with appropriate resource allocations
-   - [ ] Set worker-specific environment variables and configuration
-   - [ ] Implement worker pod scaling based on job queue metrics
-   - [ ] Configure liveness and readiness probes for worker pods
-   - [ ] Add separate service definition for worker management
-
- - [ ] Update deployment script for multi-pod architecture
-   - [ ] Modify scripts/publish_to_prod.sh to build worker image
-   - [ ] Update script to tag and push worker-specific container image
-   - [ ] Add logic to update worker-deployment.yaml with new version
-   - [ ] Configure script to deploy both app and worker pods in correct order
-   - [ ] Add verification steps for worker pod deployment
-   - [ ] Implement rollback mechanism for failed multi-pod deployments
-
- - [ ] Implement job queue monitoring and autoscaling
-   - [ ] Add Prometheus metrics for job queue length and processing rate
-   - [ ] Implement HorizontalPodAutoscaler for worker pods based on queue metrics
-   - [ ] Create alert rules for abnormal job processing patterns
-   - [ ] Add dashboard panel for worker pod status monitoring
-   - [ ] Implement retry strategy specific to distributed processing
-
- - [ ] Implement resilience and failover mechanisms
-   - [ ] Configure proper shutdown grace period for worker pods
-   - [ ] Implement job continuation on worker pod restart
-   - [ ] Add circuit breaker for database connection issues
-   - [ ] Configure backoff strategy for recurring jobs during outages
-   - [ ] Implement job migration between worker instances
-
- - [ ] Test and validate distributed processing
-   - [ ] Create load testing suite for background job processing
-   - [ ] Test scale-up and scale-down scenarios under various loads
-   - [ ] Verify proper job distribution across multiple worker pods
-   - [ ] Test failure scenarios and recovery mechanisms
-   - [ ] Validate monitoring and alerting functionality
-
- - [ ] Update documentation
-   - [ ] Update README.md with distributed processing architecture
-   - [ ] Add worker pod components to inventory.md
-   - [ ] Create operations guide for managing worker pods
-   - [ ] Update deployment documentation with new Kubernetes configurations
-   - [ ] Document scaling strategies and failure handling procedures
-
-  ## Integrate wth Apple
 [ ] Allow Import from apple via HealthKit
  - [ ] Set up HealthKit integration prerequisites
    - [ ] Add HealthKit entitlements to the iOS app manifest
