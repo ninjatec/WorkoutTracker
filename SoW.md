@@ -156,7 +156,6 @@
 ---
 ---
 
-
 [ ] Update sessions pages to support sequence numbers
  - [ ] Add migration to formally add SequenceNum column to Set table with default value
    - [ ] Create new migration for adding SequenceNum column to the Set table
@@ -190,7 +189,6 @@
 
 ---
 ---
-
 
 [ ] Implement workout data sharing functionality
  - [x] Create shared workout link system
@@ -261,6 +259,75 @@
    - [ ] Add helpful descriptions and examples for API usage
    - [ ] Configure ReDoc as an alternative documentation viewer
    - [ ] Implement rate-limiting on Swagger endpoints in non-production
+
+---
+---
+
+[ ] Implement dedicated Hangfire worker pod for background processing
+ - [ ] Configure Hangfire server components for separation
+   - [ ] Create HangfireServerConfiguration class to centralize server settings
+   - [ ] Implement environment-based configuration for worker vs. application pods
+   - [ ] Add configuration flag for enabling/disabling job processing
+   - [ ] Refactor Hangfire initialization in Program.cs to support role-based startup
+   - [ ] Configure Hangfire dashboard to show distributed server status
+
+ - [ ] Update application pods to disable job processing
+   - [ ] Add environment variable HANGFIRE_PROCESSING_ENABLED for role detection
+   - [ ] Modify Program.cs to check for processing role before initializing job server
+   - [ ] Configure application pods to only run Hangfire client components
+   - [ ] Implement health checks specific to client-only role
+   - [ ] Ensure SignalR connections work properly without worker components
+
+ - [ ] Develop dedicated worker pod implementation
+   - [ ] Create specialized Dockerfile for worker-only deployment
+   - [ ] Implement worker-specific Program.cs initialization logic
+   - [ ] Configure worker to ignore web requests and process jobs only
+   - [ ] Add worker-specific logging configuration with job processing focus
+   - [ ] Implement graceful shutdown for in-progress job handling
+
+ - [ ] Create Kubernetes configuration for worker deployment
+   - [ ] Create new worker-deployment.yaml for Hangfire worker pods
+   - [ ] Configure worker pods with appropriate resource allocations
+   - [ ] Set worker-specific environment variables and configuration
+   - [ ] Implement worker pod scaling based on job queue metrics
+   - [ ] Configure liveness and readiness probes for worker pods
+   - [ ] Add separate service definition for worker management
+
+ - [ ] Update deployment script for multi-pod architecture
+   - [ ] Modify scripts/publish_to_prod.sh to build worker image
+   - [ ] Update script to tag and push worker-specific container image
+   - [ ] Add logic to update worker-deployment.yaml with new version
+   - [ ] Configure script to deploy both app and worker pods in correct order
+   - [ ] Add verification steps for worker pod deployment
+   - [ ] Implement rollback mechanism for failed multi-pod deployments
+
+ - [ ] Implement job queue monitoring and autoscaling
+   - [ ] Add Prometheus metrics for job queue length and processing rate
+   - [ ] Implement HorizontalPodAutoscaler for worker pods based on queue metrics
+   - [ ] Create alert rules for abnormal job processing patterns
+   - [ ] Add dashboard panel for worker pod status monitoring
+   - [ ] Implement retry strategy specific to distributed processing
+
+ - [ ] Implement resilience and failover mechanisms
+   - [ ] Configure proper shutdown grace period for worker pods
+   - [ ] Implement job continuation on worker pod restart
+   - [ ] Add circuit breaker for database connection issues
+   - [ ] Configure backoff strategy for recurring jobs during outages
+   - [ ] Implement job migration between worker instances
+
+ - [ ] Test and validate distributed processing
+   - [ ] Create load testing suite for background job processing
+   - [ ] Test scale-up and scale-down scenarios under various loads
+   - [ ] Verify proper job distribution across multiple worker pods
+   - [ ] Test failure scenarios and recovery mechanisms
+   - [ ] Validate monitoring and alerting functionality
+
+ - [ ] Update documentation
+   - [ ] Update README.md with distributed processing architecture
+   - [ ] Add worker pod components to inventory.md
+   - [ ] Create operations guide for managing worker pods
+   - [ ] Update deployment documentation with new Kubernetes configurations
+   - [ ] Document scaling strategies and failure handling procedures
 
   ## Integrate wth Apple
 [ ] Allow Import from apple via HealthKit
@@ -405,3 +472,87 @@
    - [ ] Implement integration tests for export process
    - [ ] Add user guide for HealthKit export workflow
    - [ ] Document iOS companion app export functionality
+
+## Admin Metrics Dashboard
+[ ] Implement comprehensive admin metrics dashboard
+ - [ ] Create dedicated metrics visualization page
+   - [ ] Design and implement Admin/Pages/Metrics/Index.cshtml Razor Page
+   - [ ] Create sidebar navigation link in _AdminLayout.cshtml
+   - [ ] Implement responsive design with Bootstrap 5 grid system
+   - [ ] Add role-based authorization requiring Admin role
+   - [ ] Create tab-based interface for different metric categories
+
+ - [ ] Implement real-time system metrics display
+   - [ ] Create SystemMetricsViewComponent for server statistics
+   - [ ] Add CPU, memory, and disk usage monitoring panels
+   - [ ] Implement database connection pool visualization
+   - [ ] Create Redis cache hit/miss ratio display
+   - [ ] Add Hangfire queue length and processing rate panels
+   - [ ] Implement auto-refresh functionality with configurable intervals
+
+ - [ ] Build user activity metrics section
+   - [ ] Create UserActivityViewComponent for engagement statistics
+   - [ ] Implement daily/weekly/monthly active user charts
+   - [ ] Add user registration trend visualization
+   - [ ] Create login success/failure rate display
+   - [ ] Implement user retention analysis charts
+   - [ ] Add cohort analysis for user engagement patterns
+   - [ ] Create geographic distribution map of user logins
+
+ - [ ] Develop workout statistics visualization
+   - [ ] Create WorkoutMetricsViewComponent for usage statistics
+   - [ ] Implement charts for sessions, sets, and reps created over time
+   - [ ] Add exercise type popularity visualization
+   - [ ] Create workout duration and intensity trend analysis
+   - [ ] Implement completion rate statistics for workout sessions
+   - [ ] Add personal record achievement rate visualization
+   - [ ] Create time-of-day workout pattern analysis
+
+ - [ ] Implement performance metrics dashboard
+   - [ ] Create PerformanceMetricsViewComponent for system performance
+   - [ ] Add HTTP request duration histograms by endpoint
+   - [ ] Implement database query performance visualization
+   - [ ] Create API response time tracking with percentiles
+   - [ ] Add page load time visualization by route
+   - [ ] Implement resource utilization trend charts
+   - [ ] Create error rate visualization with drill-down capability
+
+ - [ ] Add health check status dashboard
+   - [ ] Create HealthCheckViewComponent for service health visualization
+   - [ ] Implement service dependency diagram with status indicators
+   - [ ] Add historical uptime tracking with SLA calculation
+   - [ ] Create circuit breaker state visualization
+   - [ ] Implement health check response time tracking
+   - [ ] Add service dependency failure impact analysis
+
+ - [ ] Build alerting and notification system
+   - [ ] Create AlertingService for threshold-based notifications
+   - [ ] Implement alert configuration interface with thresholds
+   - [ ] Add email notification for critical metric thresholds
+   - [ ] Create in-app notification system for warnings
+   - [ ] Implement alert history and acknowledgment tracking
+   - [ ] Add escalation policy configuration for unresolved alerts
+
+ - [ ] Implement export and reporting functionality
+   - [ ] Create PDF/CSV export for dashboard metrics
+   - [ ] Implement scheduled report generation and delivery
+   - [ ] Add custom date range selection for metric analysis
+   - [ ] Create report template configuration system
+   - [ ] Implement comparison view for different time periods
+   - [ ] Add annotation capability for correlation analysis
+
+ - [ ] Enhance metric collection system
+   - [ ] Expand WorkoutTrackerMetrics class with additional metrics
+   - [ ] Add custom dimensions to existing metrics for better analysis
+   - [ ] Implement client-side performance metric collection
+   - [ ] Create business-focused KPI metrics collection
+   - [ ] Add custom metric definition interface for administrators
+   - [ ] Implement metric aggregation for high-cardinality data points
+
+ - [ ] Documentation and testing
+   - [ ] Create admin guide for metrics dashboard usage
+   - [ ] Add metrics dashboard components to inventory.md
+   - [ ] Implement unit tests for metric calculation logic
+   - [ ] Create integration tests for dashboard components
+   - [ ] Document alert threshold recommendations
+   - [ ] Add performance impact analysis of metric collection
