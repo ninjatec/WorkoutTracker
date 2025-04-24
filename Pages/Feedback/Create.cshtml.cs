@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Extensions.Logging;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services;
 using WorkoutTrackerWeb.Services.Email;

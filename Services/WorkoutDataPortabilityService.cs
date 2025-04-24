@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using System.Linq;
 
@@ -13,7 +13,6 @@ namespace WorkoutTrackerWeb.Services
 {
     public class WorkoutDataPortabilityService
     {
-        private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger<WorkoutDataPortabilityService> _logger;
         private readonly IServiceProvider _serviceProvider;
 
@@ -21,19 +20,21 @@ namespace WorkoutTrackerWeb.Services
         public Action<JobProgress> OnProgressUpdate { get; set; }
 
         public WorkoutDataPortabilityService(
-            WorkoutTrackerWebContext context, 
             ILogger<WorkoutDataPortabilityService> logger,
             IServiceProvider serviceProvider)
         {
-            _context = context;
             _logger = logger;
             _serviceProvider = serviceProvider;
         }
 
         public async Task<WorkoutExport> ExportUserDataAsync(int userId, DateTime? startDate = null, DateTime? endDate = null)
         {
+            // Create a new DB context for this operation
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
+            
             // Get user info
-            var user = await _context.User.FindAsync(userId);
+            var user = await context.User.FindAsync(userId);
             if (user == null)
             {
                 throw new InvalidOperationException("User not found");
@@ -51,7 +52,7 @@ namespace WorkoutTrackerWeb.Services
             };
 
             // Prepare query for sessions based on provided date range
-            var sessionQuery = _context.Session.Where(s => s.UserId == userId);
+            var sessionQuery = context.Session.Where(s => s.UserId == userId);
             if (startDate.HasValue)
             {
                 sessionQuery = sessionQuery.Where(s => s.datetime >= startDate.Value);
@@ -121,7 +122,7 @@ namespace WorkoutTrackerWeb.Services
             }
 
             // Add all exercise types
-            var exerciseTypes = await _context.ExerciseType.ToListAsync();
+            var exerciseTypes = await context.ExerciseType.ToListAsync();
             foreach (var exerciseType in exerciseTypes)
             {
                 export.ExerciseTypes.Add(new ExerciseTypeExport
@@ -132,7 +133,7 @@ namespace WorkoutTrackerWeb.Services
             }
 
             // Add all set types
-            var setTypes = await _context.Settype.ToListAsync();
+            var setTypes = await context.Settype.ToListAsync();
             foreach (var setType in setTypes)
             {
                 export.SetTypes.Add(new SetTypeExport
@@ -155,6 +156,10 @@ namespace WorkoutTrackerWeb.Services
         {
             try
             {
+                // Create a new DB context for this operation
+                using var scope = _serviceProvider.CreateScope();
+                var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
+                
                 // Report initial progress
                 ReportProgress("Starting import...", 0, 100, "Parsing JSON data");
 
@@ -180,9 +185,9 @@ namespace WorkoutTrackerWeb.Services
                 {
                     foreach (var exerciseType in import.ExerciseTypes)
                     {
-                        if (!await _context.ExerciseType.AnyAsync(e => e.Name == exerciseType.Name))
+                        if (!await context.ExerciseType.AnyAsync(e => e.Name == exerciseType.Name))
                         {
-                            _context.ExerciseType.Add(new ExerciseType
+                            context.ExerciseType.Add(new ExerciseType
                             {
                                 Name = exerciseType.Name,
                                 Description = exerciseType.Description
@@ -199,9 +204,9 @@ namespace WorkoutTrackerWeb.Services
                 {
                     foreach (var setType in import.SetTypes)
                     {
-                        if (!await _context.Settype.AnyAsync(s => s.Name == setType.Name))
+                        if (!await context.Settype.AnyAsync(s => s.Name == setType.Name))
                         {
-                            _context.Settype.Add(new Settype
+                            context.Settype.Add(new Settype
                             {
                                 Name = setType.Name,
                                 Description = setType.Description
@@ -213,7 +218,7 @@ namespace WorkoutTrackerWeb.Services
                     }
                 }
 
-                await _context.SaveChangesAsync();
+                await context.SaveChangesAsync();
                 ReportProgress("Base types imported", 20, 100, "Beginning session import");
 
                 // Import sessions and their related data
@@ -232,7 +237,7 @@ namespace WorkoutTrackerWeb.Services
                         ReportProgress($"Importing session {currentSession}/{sessionCount}", 
                             percentComplete, 100, sessionExport.Name);
                             
-                        if (skipExisting && await _context.Session.AnyAsync(s => 
+                        if (skipExisting && await context.Session.AnyAsync(s => 
                             s.UserId == userId && 
                             s.Name == sessionExport.Name && 
                             s.datetime == sessionExport.DateTime))
@@ -250,13 +255,13 @@ namespace WorkoutTrackerWeb.Services
                             UserId = userId
                         };
 
-                        _context.Session.Add(session);
-                        await _context.SaveChangesAsync(); // Save to get session ID
+                        context.Session.Add(session);
+                        await context.SaveChangesAsync(); // Save to get session ID
                         importedItems.Add($"Session: {sessionExport.Name} ({sessionExport.DateTime})");
 
                         // Load existing exercise and set types for reference
-                        var exerciseTypes = await _context.ExerciseType.ToDictionaryAsync(e => e.Name, e => e);
-                        var setTypes = await _context.Settype.ToDictionaryAsync(s => s.Name, s => s);
+                        var exerciseTypes = await context.ExerciseType.ToDictionaryAsync(e => e.Name, e => e);
+                        var setTypes = await context.Settype.ToDictionaryAsync(s => s.Name, s => s);
 
                         if (sessionExport.Sets != null && sessionExport.Sets.Count > 0)
                         {
@@ -273,8 +278,8 @@ namespace WorkoutTrackerWeb.Services
                                 {
                                     // Create new exercise type if it doesn't exist
                                     exerciseType = new ExerciseType { Name = setExport.ExerciseTypeName };
-                                    _context.ExerciseType.Add(exerciseType);
-                                    await _context.SaveChangesAsync();
+                                    context.ExerciseType.Add(exerciseType);
+                                    await context.SaveChangesAsync();
                                     exerciseTypes[exerciseType.Name] = exerciseType;
                                     importedItems.Add($"Exercise Type: {exerciseType.Name}");
                                 }
@@ -290,8 +295,8 @@ namespace WorkoutTrackerWeb.Services
                                 {
                                     // Create new set type if it doesn't exist
                                     setType = new Settype { Name = setExport.SetTypeName };
-                                    _context.Settype.Add(setType);
-                                    await _context.SaveChangesAsync();
+                                    context.Settype.Add(setType);
+                                    await context.SaveChangesAsync();
                                     setTypes[setType.Name] = setType;
                                     importedItems.Add($"Set Type: {setType.Name}");
                                 }
@@ -308,8 +313,8 @@ namespace WorkoutTrackerWeb.Services
                                     SessionId = session.SessionId
                                 };
 
-                                _context.Set.Add(set);
-                                await _context.SaveChangesAsync(); // Save to get set ID
+                                context.Set.Add(set);
+                                await context.SaveChangesAsync(); // Save to get set ID
 
                                 // Add reps if present
                                 if (setExport.Reps != null && setExport.Reps.Count > 0)
@@ -324,10 +329,10 @@ namespace WorkoutTrackerWeb.Services
                                             SetsSetId = set.SetId
                                         };
 
-                                        _context.Rep.Add(rep);
+                                        context.Rep.Add(rep);
                                     }
 
-                                    await _context.SaveChangesAsync();
+                                    await context.SaveChangesAsync();
                                 }
                             }
                         }

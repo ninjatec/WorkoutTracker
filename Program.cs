@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Data;
-using WorkoutTrackerweb.Data;  // Adding this namespace that contains WorkoutTrackerWebContext
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Session;
@@ -39,31 +38,10 @@ using StackExchange.Redis;
 using HealthChecks.Redis;
 using HealthChecks.System;
 using Microsoft.AspNetCore.HttpOverrides;
-
-// Configure Serilog with dynamic log level management
-Log.Logger = new LoggerConfiguration()
-    // Use our dynamic log level provider
-    .ConfigureWithDynamicLevels()
-    .Enrich.FromLogContext()
-    .Enrich.WithMachineName()
-    .Enrich.WithEnvironmentName()
-    .Enrich.WithProperty("Application", "WorkoutTracker")
-    // Log to Console with a custom format - this will go to stdout in containers
-    .WriteTo.Console(
-        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Properties:j}{NewLine}{Exception}"
-    )
-    // Keep security logging for audit purposes
-    .WriteTo.File(
-        path: "logs/security-.log",
-        rollingInterval: RollingInterval.Day,
-        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {AppVersion} {SourceContext}{NewLine}{Message:lj}{NewLine}{Exception}{NewLine}",
-        shared: true)
-    .WriteTo.File(
-        path: "logs/security-events-.json",
-        rollingInterval: RollingInterval.Day,
-        formatter: new Serilog.Formatting.Json.JsonFormatter(),
-        shared: true)
-    .CreateLogger();
+using WorkoutTrackerWeb.Services.TempData;
+using Microsoft.EntityFrameworkCore.SqlServer;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -209,6 +187,52 @@ builder.Services.AddHangfireServer(options => {
     }
 });
 
+// Helper method to get SQL connection options with pooling and resilience settings
+Func<string, Action<SqlServerDbContextOptionsBuilder>, DbContextOptionsBuilder> getSqlOptions = (connString, sqlOptionsAction) =>
+{
+    // Get connection pooling settings from configuration
+    var poolingConfig = builder.Configuration.GetSection("DatabaseConnectionPooling");
+    int maxPoolSize = poolingConfig.GetValue<int>("MaxPoolSize", 200);
+    int minPoolSize = poolingConfig.GetValue<int>("MinPoolSize", 10);
+    int connectionLifetime = poolingConfig.GetValue<int>("ConnectionLifetime", 300);
+    bool connectionResetEnabled = poolingConfig.GetValue<bool>("ConnectionResetEnabled", true);
+    int loadBalanceTimeout = poolingConfig.GetValue<int>("LoadBalanceTimeout", 30);
+    int retryCount = poolingConfig.GetValue<int>("RetryCount", 5);
+    int retryInterval = poolingConfig.GetValue<int>("RetryInterval", 10);
+    
+    // Build connection string with additional connection pooling parameters
+    var sqlConnectionBuilder = new SqlConnectionStringBuilder(connString)
+    {
+        MaxPoolSize = maxPoolSize,
+        MinPoolSize = minPoolSize,
+        ConnectTimeout = loadBalanceTimeout,
+        LoadBalanceTimeout = loadBalanceTimeout,
+        ConnectRetryCount = retryCount,
+        ConnectRetryInterval = retryInterval
+    };
+
+    // Add additional parameters to connection string directly
+    string enhancedConnectionString = sqlConnectionBuilder.ConnectionString;
+    if (connectionLifetime > 0)
+    {
+        enhancedConnectionString += $";Connection Lifetime={connectionLifetime}";
+    }
+    
+    // Add connection reset parameter directly to connection string - only on Windows
+    if (connectionResetEnabled && OperatingSystem.IsWindows())
+    {
+        enhancedConnectionString += $";Connection Reset=true";
+    }
+    
+    // Create options builder with the enhanced connection string and SQL Server options
+    var optionsBuilder = new DbContextOptionsBuilder<WorkoutTrackerWebContext>();
+    optionsBuilder.UseSqlServer(enhancedConnectionString, sqlOptionsAction)
+        .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
+        .EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
+        
+    return optionsBuilder;
+};
+
 // Configure DataProtectionKeysDbContext for persistent key storage
 builder.Services.AddDbContext<DataProtectionKeysDbContext>(options =>
     options.UseSqlServer(connectionString));
@@ -352,13 +376,24 @@ builder.Services.AddScoped<BackgroundJobService>();
 builder.Services.AddScoped<WorkoutDataService>();
 
 // Register API Ninjas integration services
+var apiNinjasKey = builder.Configuration["ApiKeys:ApiNinjas"];
+if (string.IsNullOrEmpty(apiNinjasKey))
+{
+    Log.Warning("API Ninjas key is not configured. Exercise enrichment functionality will not work correctly.");
+}
+else
+{
+    Log.Information("API Ninjas key is configured successfully.");
+}
+
 builder.Services.AddHttpClient("ExerciseApi", client =>
 {
     client.BaseAddress = new Uri("https://api.api-ninjas.com/v1/exercises");
-    client.DefaultRequestHeaders.Add("X-Api-Key", builder.Configuration["ApiKeys:ApiNinjas"]);
+    client.DefaultRequestHeaders.Add("X-Api-Key", apiNinjasKey);
 });
 builder.Services.AddScoped<ExerciseApiService>();
 builder.Services.AddScoped<ExerciseTypeService>();
+builder.Services.AddScoped<ExerciseSelectionService>();
 
 // Register our HelpService
 builder.Services.AddScoped<HelpService>();
@@ -490,6 +525,9 @@ builder.Services.Configure<JsonSessionSerializerOptions>(options =>
     options.WriteIndented = false; // Keep session state compact
     options.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
 });
+
+// Add custom TempData type conversion to handle Guid to string conversion
+builder.Services.AddTempDataTypeConverter();
 
 // Add CORS policy for production domains
 builder.Services.AddCors(options =>
@@ -639,6 +677,71 @@ builder.Services.AddDbContext<WorkoutTrackerWebContext>(options =>
     })
     .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking) // Set default behavior to NoTracking
     .EnableSensitiveDataLogging(builder.Environment.IsDevelopment()); // Only in development
+});
+
+// Update DbContextFactory registration to avoid scoped service from singleton
+builder.Services.AddSingleton<IDbContextFactory<WorkoutTrackerWebContext>>(serviceProvider =>
+{
+    var connectionString = builder.Configuration.GetConnectionString("WorkoutTrackerWebContext") ?? 
+                           throw new InvalidOperationException("Connection string 'WorkoutTrackerWebContext' not found.");
+    
+    // Get connection pooling settings from configuration
+    var poolingConfig = builder.Configuration.GetSection("DatabaseConnectionPooling");
+    int maxPoolSize = poolingConfig.GetValue<int>("MaxPoolSize", 200);
+    int minPoolSize = poolingConfig.GetValue<int>("MinPoolSize", 10);
+    int connectionLifetime = poolingConfig.GetValue<int>("ConnectionLifetime", 300);
+    bool connectionResetEnabled = poolingConfig.GetValue<bool>("ConnectionResetEnabled", true);
+    int loadBalanceTimeout = poolingConfig.GetValue<int>("LoadBalanceTimeout", 30);
+    int retryCount = poolingConfig.GetValue<int>("RetryCount", 5);
+    int retryInterval = poolingConfig.GetValue<int>("RetryInterval", 10);
+    
+    // Build connection string with additional connection pooling parameters
+    var sqlConnectionBuilder = new SqlConnectionStringBuilder(connectionString)
+    {
+        MaxPoolSize = maxPoolSize,
+        MinPoolSize = minPoolSize,
+        ConnectTimeout = loadBalanceTimeout,
+        LoadBalanceTimeout = loadBalanceTimeout,
+        ConnectRetryCount = retryCount,
+        ConnectRetryInterval = retryInterval
+    };
+
+    // Add additional parameters to connection string directly
+    string enhancedConnectionString = sqlConnectionBuilder.ConnectionString;
+    if (connectionLifetime > 0)
+    {
+        enhancedConnectionString += $";Connection Lifetime={connectionLifetime}";
+    }
+    
+    // Add connection reset parameter directly to connection string - only on Windows
+    if (connectionResetEnabled && OperatingSystem.IsWindows())
+    {
+        enhancedConnectionString += $";Connection Reset=true";
+    }
+    
+    // Create factory options that will be used to create context instances
+    var optionsBuilder = new DbContextOptionsBuilder<WorkoutTrackerWebContext>();
+    optionsBuilder.UseSqlServer(enhancedConnectionString, sqlOptions => 
+    {
+        // Enhanced retry logic for transient SQL errors
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: retryCount,
+            maxRetryDelay: TimeSpan.FromSeconds(retryInterval),
+            errorNumbersToAdd: new[] { 4060, 40197, 40501, 40613, 49918, 4221, 1205, 233, 64, -2 });
+            
+        // Connection resiliency settings
+        sqlOptions.CommandTimeout(30); // Set reasonable command timeout
+        sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "dbo");
+        
+        // Connection pooling optimizations
+        sqlOptions.MinBatchSize(5);
+        sqlOptions.MaxBatchSize(100);
+    })
+    .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking) 
+    .EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
+    
+    // Create and return a factory instead of using PooledDbContextFactory
+    return new DbContextFactory<WorkoutTrackerWebContext>(optionsBuilder.Options);
 });
 
 // Configure application cookie settings for authentication

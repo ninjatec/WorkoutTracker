@@ -6,15 +6,15 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Models;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 
 namespace WorkoutTrackerWeb.Pages.Reps
 {
     public class DetailsModel : PageModel
     {
-        private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
+        private readonly WorkoutTrackerWeb.Data.WorkoutTrackerWebContext _context;
 
-        public DetailsModel(WorkoutTrackerweb.Data.WorkoutTrackerWebContext context)
+        public DetailsModel(WorkoutTrackerWeb.Data.WorkoutTrackerWebContext context)
         {
             _context = context;
         }

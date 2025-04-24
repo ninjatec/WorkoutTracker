@@ -1,5 +1,5 @@
 using WorkoutTrackerWeb.Data;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -17,7 +17,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
         public SelectList SessionNameSL { get; set; }
 
         public async Task PopulateDropDownListsAsync(
-            WorkoutTrackerweb.Data.WorkoutTrackerWebContext context,
+            WorkoutTrackerWeb.Data.WorkoutTrackerWebContext context,
             UserService userService,
             object selectedExerciseType = null,
             object selectedSetType = null,

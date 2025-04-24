@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using WorkoutTrackerWeb.Attributes;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services;
 using Microsoft.Extensions.Caching.Distributed;

@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Areas.Admin.ViewModels;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services;

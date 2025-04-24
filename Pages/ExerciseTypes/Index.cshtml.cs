@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Models;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 
 namespace WorkoutTrackerWeb.Pages.ExerciseTypes
 {

@@ -12,8 +12,8 @@ using WorkoutTrackerWeb.Data;
 namespace WorkoutTrackerWeb.Migrations
 {
     [DbContext(typeof(WorkoutTrackerWebContext))]
-    [Migration("20250424072750_ExtendExerciseTypeWithApiFields")]
-    partial class ExtendExerciseTypeWithApiFields
+    [Migration("20250424094349_AddPendingExerciseSelection")]
+    partial class AddPendingExerciseSelection
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -347,6 +347,46 @@ namespace WorkoutTrackerWeb.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("LoginHistory");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.PendingExerciseSelection", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ApiResults")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ExerciseName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ExerciseTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsResolved")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("JobId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("SelectedApiExerciseIndex")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PendingExerciseSelection");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Rep", b =>

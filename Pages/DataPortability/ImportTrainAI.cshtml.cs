@@ -13,7 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.IO;
 using System.Linq;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Hubs;
 using WorkoutTrackerWeb.Services;
 using WorkoutTrackerWeb.Pages.BackgroundJobs;
@@ -251,11 +251,11 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                 string connectionId = HttpContext.Connection.Id;
                 if (!string.IsNullOrEmpty(connectionId))
                 {
-                    await _hubContext.Clients.Client(connectionId).SendAsync("ReceiveProgress", initialProgress);
+                    await _hubContext.Clients.Client(connectionId).SendAsync("receiveProgress", initialProgress);
                     _logger.LogInformation("Sent initial progress update to connectionId={ConnectionId}", connectionId);
                 }
                 
-                await _hubContext.Clients.Group($"job_{jobId}").SendAsync("ReceiveProgress", initialProgress);
+                await _hubContext.Clients.Group($"job_{jobId}").SendAsync("receiveProgress", initialProgress);
                 _logger.LogInformation("Sent initial progress update to job group={JobGroup}", $"job_{jobId}");
             }
             catch (Exception ex)

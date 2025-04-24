@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using WorkoutTrackerWeb.Models;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 
 namespace WorkoutTrackerWeb.Data
 {

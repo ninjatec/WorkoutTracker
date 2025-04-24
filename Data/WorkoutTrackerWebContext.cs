@@ -7,7 +7,7 @@ using WorkoutTrackerWeb.Models;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 
-namespace WorkoutTrackerweb.Data
+namespace WorkoutTrackerWeb.Data
 {
     public class WorkoutTrackerWebContext : DbContext
     {
@@ -33,6 +33,7 @@ namespace WorkoutTrackerweb.Data
         public DbSet<WorkoutTrackerWeb.Models.GlossaryTerm> GlossaryTerm { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.LoginHistory> LoginHistory { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.ShareToken> ShareToken { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.PendingExerciseSelection> PendingExerciseSelection { get; set; } = default!;
 
         // Helper method to get the current user's own User record
         public async Task<User> GetCurrentUserAsync()

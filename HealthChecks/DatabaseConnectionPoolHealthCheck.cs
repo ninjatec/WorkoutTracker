@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Services;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 
 namespace WorkoutTrackerWeb.HealthChecks
 {

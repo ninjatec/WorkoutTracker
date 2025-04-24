@@ -1,7 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using Microsoft.AspNetCore.Identity;
 using System.Linq;
@@ -14,7 +14,6 @@ namespace WorkoutTrackerWeb.Services
 {
     public class WorkoutDataService
     {
-        private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger<WorkoutDataService> _logger;
         private readonly IDistributedCache _cache;
         private readonly IServiceProvider _serviceProvider;
@@ -24,12 +23,10 @@ namespace WorkoutTrackerWeb.Services
         public Action<JobProgress> OnProgressUpdate { get; set; }
         
         public WorkoutDataService(
-            WorkoutTrackerWebContext context,
             ILogger<WorkoutDataService> logger,
             IDistributedCache cache,
             IServiceProvider serviceProvider)
         {
-            _context = context;
             _logger = logger;
             _cache = cache;
             _serviceProvider = serviceProvider;
@@ -55,8 +52,12 @@ namespace WorkoutTrackerWeb.Services
         {
             _logger.LogInformation($"Starting to delete all workout data for user {identityUserId}");
             
+            // Create a new DB context for this operation
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
+            
             // First get the application User record associated with the Identity user
-            var user = await _context.User
+            var user = await context.User
                 .FirstOrDefaultAsync(u => u.IdentityUserId == identityUserId);
 
             if (user == null)
@@ -65,7 +66,6 @@ namespace WorkoutTrackerWeb.Services
                 _logger.LogWarning($"User with IdentityUserId {identityUserId} not found directly");
                 
                 // Try to find the identity user first
-                using var scope = _serviceProvider.CreateScope();
                 var userManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
                 var identityUser = await userManager.FindByIdAsync(identityUserId);
                 
@@ -83,29 +83,29 @@ namespace WorkoutTrackerWeb.Services
                     Name = identityUser.UserName ?? "User" // Use username or fallback
                 };
                 
-                _context.User.Add(user);
-                await _context.SaveChangesAsync();
+                context.User.Add(user);
+                await context.SaveChangesAsync();
                 
                 _logger.LogInformation($"Created new user for identity user {identityUserId}: User ID {user.UserId}");
             }
             
             // Calculate total count of items to delete for progress tracking
-            var totalSessions = await _context.Session.CountAsync(s => s.UserId == user.UserId);
-            var sessionIds = await _context.Session
+            var totalSessions = await context.Session.CountAsync(s => s.UserId == user.UserId);
+            var sessionIds = await context.Session
                 .Where(s => s.UserId == user.UserId)
                 .Select(s => s.SessionId)
                 .ToListAsync();
                 
-            var totalSets = await _context.Set
+            var totalSets = await context.Set
                 .Where(s => sessionIds.Contains(s.SessionId))
                 .CountAsync();
                 
-            var setIds = await _context.Set
+            var setIds = await context.Set
                 .Where(s => sessionIds.Contains(s.SessionId))
                 .Select(s => s.SetId)
                 .ToListAsync();
                 
-            var totalReps = await _context.Rep
+            var totalReps = await context.Rep
                 .Where(r => setIds.Contains(r.SetsSetId ?? 0))
                 .CountAsync();
             
@@ -116,11 +116,11 @@ namespace WorkoutTrackerWeb.Services
             ReportProgress("Starting deletion", 0, totalItems, deletedItems, "Preparing");
             
             // Use EF Core's execution strategy to handle transactions with retry
-            var strategy = _context.Database.CreateExecutionStrategy();
+            var strategy = context.Database.CreateExecutionStrategy();
             
             await strategy.ExecuteAsync(async () => {
                 // Use a transaction to ensure all deletions succeed or none do
-                using var transaction = await _context.Database.BeginTransactionAsync();
+                using var transaction = await context.Database.BeginTransactionAsync();
                 try
                 {
                     // First, bulk delete all reps directly with a single SQL operation
@@ -131,7 +131,7 @@ namespace WorkoutTrackerWeb.Services
                         INNER JOIN Session ses ON s.SessionId = ses.SessionId
                         WHERE ses.UserId = @userId";
                     
-                    int repsDeleted = await _context.Database.ExecuteSqlRawAsync(deleteRepsQuery, 
+                    int repsDeleted = await context.Database.ExecuteSqlRawAsync(deleteRepsQuery, 
                         new Microsoft.Data.SqlClient.SqlParameter("@userId", user.UserId));
                     
                     deletedItems += repsDeleted > 0 ? repsDeleted : totalReps;
@@ -146,7 +146,7 @@ namespace WorkoutTrackerWeb.Services
                         INNER JOIN Session ses ON s.SessionId = ses.SessionId
                         WHERE ses.UserId = @userId";
                     
-                    int setsDeleted = await _context.Database.ExecuteSqlRawAsync(deleteSetsQuery, 
+                    int setsDeleted = await context.Database.ExecuteSqlRawAsync(deleteSetsQuery, 
                         new Microsoft.Data.SqlClient.SqlParameter("@userId", user.UserId));
                     
                     deletedItems += setsDeleted > 0 ? setsDeleted : totalSets;
@@ -160,7 +160,7 @@ namespace WorkoutTrackerWeb.Services
                         DELETE FROM Session
                         WHERE UserId = @userId";
                     
-                    int sessionsDeleted = await _context.Database.ExecuteSqlRawAsync(deleteSessionsQuery, 
+                    int sessionsDeleted = await context.Database.ExecuteSqlRawAsync(deleteSessionsQuery, 
                         new Microsoft.Data.SqlClient.SqlParameter("@userId", user.UserId));
                     
                     deletedItems += sessionsDeleted > 0 ? sessionsDeleted : totalSessions;
@@ -199,10 +199,14 @@ namespace WorkoutTrackerWeb.Services
             int deletedItems = 0;
             int processedSessions = 0;
             
+            // Create a new DB context for this operation
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
+            
             // Process sessions in batches
             while (true)
             {
-                var sessionBatch = await _context.Session
+                var sessionBatch = await context.Session
                     .Where(s => s.UserId == userId)
                     .Take(BatchSize)
                     .ToListAsync();
@@ -213,7 +217,7 @@ namespace WorkoutTrackerWeb.Services
                 }
 
                 // Create a local execution strategy for each batch
-                var strategy = _context.Database.CreateExecutionStrategy();
+                var strategy = context.Database.CreateExecutionStrategy();
                 
                 await strategy.ExecuteAsync(async () => {
                     foreach (var session in sessionBatch)
@@ -224,7 +228,7 @@ namespace WorkoutTrackerWeb.Services
                             totalItems, deletedItems, $"Session {processedSessions}");
                         
                         // Get all sets for this session to optimize queries
-                        var sets = await _context.Set
+                        var sets = await context.Set
                             .Where(s => s.SessionId == session.SessionId)
                             .ToListAsync();
                             
@@ -233,7 +237,7 @@ namespace WorkoutTrackerWeb.Services
                             // Delete reps in batches for performance
                             while (true)
                             {
-                                var repsBatch = await _context.Rep
+                                var repsBatch = await context.Rep
                                     .Where(r => r.SetsSetId == set.SetId)
                                     .Take(BatchSize)
                                     .ToListAsync();
@@ -243,8 +247,8 @@ namespace WorkoutTrackerWeb.Services
                                     break;
                                 }
 
-                                _context.Rep.RemoveRange(repsBatch);
-                                await _context.SaveChangesAsync();
+                                context.Rep.RemoveRange(repsBatch);
+                                await context.SaveChangesAsync();
                                 deletedItems += repsBatch.Count;
                                 
                                 ReportProgress("Deleting reps", 
@@ -256,8 +260,8 @@ namespace WorkoutTrackerWeb.Services
                         // Delete all sets for this session at once
                         if (sets.Any())
                         {
-                            _context.Set.RemoveRange(sets);
-                            await _context.SaveChangesAsync();
+                            context.Set.RemoveRange(sets);
+                            await context.SaveChangesAsync();
                             deletedItems += sets.Count;
                             
                             ReportProgress("Deleting sets", 
@@ -267,8 +271,8 @@ namespace WorkoutTrackerWeb.Services
                     }
                     
                     // Delete the processed session batch
-                    _context.Session.RemoveRange(sessionBatch);
-                    await _context.SaveChangesAsync();
+                    context.Session.RemoveRange(sessionBatch);
+                    await context.SaveChangesAsync();
                     deletedItems += sessionBatch.Count;
                 });
                 

@@ -1,5 +1,5 @@
 using WorkoutTrackerWeb.Data;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
@@ -17,7 +17,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
         // Method to populate exercise types dropdown
         // No user filtering since exercise types are shared across all users
         public async Task PopulateExerciseTypeDropDownListAsync(
-            WorkoutTrackerweb.Data.WorkoutTrackerWebContext context,
+            WorkoutTrackerWeb.Data.WorkoutTrackerWebContext context,
             object selectedExerciseType = null)
         {
             var exerciseTypeQuery = from et in context.ExerciseType

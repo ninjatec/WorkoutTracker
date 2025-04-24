@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using WorkoutTrackerWeb.Models;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
@@ -16,12 +16,12 @@ namespace WorkoutTrackerWeb.Pages.Sets
 {
     public class CreateModel : SetInputPageModel
     {
-        private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
+        private readonly WorkoutTrackerWeb.Data.WorkoutTrackerWebContext _context;
         private readonly UserService _userService;
         private readonly IDistributedCache _cache;
 
         public CreateModel(
-            WorkoutTrackerweb.Data.WorkoutTrackerWebContext context,
+            WorkoutTrackerWeb.Data.WorkoutTrackerWebContext context,
             UserService userService,
             IDistributedCache cache)
         {

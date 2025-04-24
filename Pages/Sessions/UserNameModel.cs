@@ -11,7 +11,7 @@ namespace WorkoutTrackerWeb.Pages.Sessions
     {
         public SelectList UserNameSL { get; set; }
 
-        public void PopulateUserNameDropDownList(WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context, 
+        public void PopulateUserNameDropDownList(WorkoutTrackerWeb.Data.WorkoutTrackerWebContext _context, 
             object selectedUser = null)
         {
             var userQuery = from u in _context.User

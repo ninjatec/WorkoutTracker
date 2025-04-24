@@ -15,20 +15,13 @@ namespace WorkoutTrackerWeb.Services
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<ExerciseApiService> _logger;
-        private readonly string _apiKey;
 
         public ExerciseApiService(
-            HttpClient httpClient,
-            IConfiguration configuration,
+            IHttpClientFactory httpClientFactory,
             ILogger<ExerciseApiService> logger)
         {
-            _httpClient = httpClient;
+            _httpClient = httpClientFactory.CreateClient("ExerciseApi");
             _logger = logger;
-            _apiKey = configuration["APIKeys:NinjaAPI"];
-
-            _httpClient.DefaultRequestHeaders.Accept.Clear();
-            _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            _httpClient.DefaultRequestHeaders.Add("X-Api-Key", _apiKey);
         }
 
         /// <summary>

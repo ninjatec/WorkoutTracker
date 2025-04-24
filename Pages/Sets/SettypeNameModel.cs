@@ -6,7 +6,7 @@ using System.Linq;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using WorkoutTrackerWeb.Models;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 
 namespace WorkoutTrackerWeb.Pages.Sets
 {
@@ -14,7 +14,7 @@ namespace WorkoutTrackerWeb.Pages.Sets
     {
         public SelectList SettypeNameSL { get; set; }
 
-        public void PopulateSettypeNameDropDownList(WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context, 
+        public void PopulateSettypeNameDropDownList(WorkoutTrackerWeb.Data.WorkoutTrackerWebContext _context, 
             object selectedSettype = null)
         {
             var settypeQuery = from s in _context.Settype

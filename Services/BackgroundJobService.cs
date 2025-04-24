@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Hubs;
 using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 using System.Linq;
 using Microsoft.EntityFrameworkCore; // Add this for Entity Framework extensions
 using Newtonsoft.Json; // Add this for JSON serialization
@@ -79,7 +79,7 @@ namespace WorkoutTrackerWeb.Services
                 using (var scope = _serviceProvider.CreateScope())
                 {
                     var workoutDataService = scope.ServiceProvider.GetRequiredService<WorkoutDataService>();
-                    var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerweb.Data.WorkoutTrackerWebContext>();
+                    var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWeb.Data.WorkoutTrackerWebContext>();
                     var userManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<Microsoft.AspNetCore.Identity.IdentityUser>>();
                     
                     // Initialize progress reporting with retries for connection issues
@@ -425,7 +425,7 @@ namespace WorkoutTrackerWeb.Services
                     {
                         try
                         {
-                            await _hubContext.Clients.Client(connectionId).SendAsync("ReceiveProgress", progress);
+                            await _hubContext.Clients.Client(connectionId).SendAsync("receiveProgress", progress);
                             _logger.LogDebug("Sent progress update to connectionId={ConnectionId}: {Status} {PercentComplete}%", 
                                 connectionId, progress.Status, progress.PercentComplete);
                         }
@@ -439,7 +439,7 @@ namespace WorkoutTrackerWeb.Services
                     if (!string.IsNullOrEmpty(jobId))
                     {
                         string groupName = $"job_{jobId}";
-                        await _hubContext.Clients.Group(groupName).SendAsync("ReceiveProgress", progress);
+                        await _hubContext.Clients.Group(groupName).SendAsync("receiveProgress", progress);
                         _logger.LogDebug("Sent progress update to group {GroupName}: {Status} {PercentComplete}%", 
                             groupName, progress.Status, progress.PercentComplete);
                     }

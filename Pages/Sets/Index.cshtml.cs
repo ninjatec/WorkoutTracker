@@ -7,19 +7,19 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Models;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Services;
 
 namespace WorkoutTrackerWeb.Pages.Sets
 {
     public class IndexModel : PageModel
     {
-        private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
+        private readonly WorkoutTrackerWeb.Data.WorkoutTrackerWebContext _context;
         private readonly UserService _userService;
         private readonly int _pageSize = 20; // Increase page size for better user experience
 
         public IndexModel(
-            WorkoutTrackerweb.Data.WorkoutTrackerWebContext context,
+            WorkoutTrackerWeb.Data.WorkoutTrackerWebContext context,
             UserService userService)
         {
             _context = context;

@@ -6,15 +6,15 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Models;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 
 namespace WorkoutTrackerWeb.Pages.Settypes
 {
     public class DeleteModel : PageModel
     {
-        private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
+        private readonly WorkoutTrackerWeb.Data.WorkoutTrackerWebContext _context;
 
-        public DeleteModel(WorkoutTrackerweb.Data.WorkoutTrackerWebContext context)
+        public DeleteModel(WorkoutTrackerWeb.Data.WorkoutTrackerWebContext context)
         {
             _context = context;
         }

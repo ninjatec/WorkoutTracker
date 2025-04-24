@@ -7,18 +7,18 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Models;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Services;
 
 namespace WorkoutTrackerWeb.Pages.Sets
 {
     public class EditModel : SetInputPageModel
     {
-        private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
+        private readonly WorkoutTrackerWeb.Data.WorkoutTrackerWebContext _context;
         private readonly UserService _userService;
 
         public EditModel(
-            WorkoutTrackerweb.Data.WorkoutTrackerWebContext context,
+            WorkoutTrackerWeb.Data.WorkoutTrackerWebContext context,
             UserService userService)
         {
             _context = context;

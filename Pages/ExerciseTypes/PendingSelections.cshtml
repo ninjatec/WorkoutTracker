@@ -1,0 +1,162 @@
+@page
+@model WorkoutTrackerWeb.Pages.ExerciseTypes.PendingSelectionsModel
+@{
+    ViewData["Title"] = "Pending Exercise Selections";
+}
+
+<h1>Pending Exercise Selections</h1>
+
+<div class="alert alert-info" role="alert">
+    <i class="fas fa-info-circle"></i> This page shows all pending exercise selections that require your input to complete the enrichment process.
+    These selections may come from current or previous enrichment jobs.
+</div>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    var statusClass = Model.StatusMessage.StartsWith("Error") ? "danger" : "success";
+    <div class="alert alert-@statusClass alert-dismissible fade show" role="alert">
+        @Model.StatusMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (Model.PendingSelectionsCount == 0)
+{
+    <div class="alert alert-success">
+        <i class="fas fa-check-circle"></i> There are no pending exercise selections that need your input.
+    </div>
+}
+else
+{
+    <div class="card mb-4" id="pendingSelectionsSection">
+        <div class="card-header bg-warning text-dark">
+            <h5>
+                <i class="fas fa-exclamation-triangle"></i> 
+                @Model.PendingSelectionsCount Exercise@(Model.PendingSelectionsCount == 1 ? "" : "s") Need@(Model.PendingSelectionsCount == 1 ? "s" : "") Your Input
+            </h5>
+        </div>
+        <div class="card-body">
+            <p>
+                We found multiple potential matches from the API for these exercises. Please select the best match for each one:
+            </p>
+            
+            <div class="accordion" id="pendingSelectionsAccordion">
+                @foreach (var pendingSelection in Model.PendingSelections)
+                {
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading-@pendingSelection.Id">
+                            <button class="accordion-button" type="button" data-bs-toggle="collapse" 
+                                    data-bs-target="#collapse-@pendingSelection.Id" aria-expanded="true" 
+                                    aria-controls="collapse-@pendingSelection.Id">
+                                <strong>@pendingSelection.ExerciseName</strong> - Select Best Match 
+                                (@pendingSelection.ApiExerciseOptions.Count options)
+                            </button>
+                        </h2>
+                        <div id="collapse-@pendingSelection.Id" class="accordion-collapse collapse show" 
+                             aria-labelledby="heading-@pendingSelection.Id" data-bs-parent="#pendingSelectionsAccordion">
+                            <div class="accordion-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-12">
+                                        <div class="card bg-light">
+                                            <div class="card-header">
+                                                <h6>Current Exercise Data</h6>
+                                            </div>
+                                            <div class="card-body">
+                                                <p><strong>Name:</strong> @pendingSelection.ExerciseType?.Name</p>
+                                                <p><strong>Type:</strong> @(pendingSelection.ExerciseType?.Type ?? "<em>Empty</em>")</p>
+                                                <p><strong>Muscle:</strong> @(pendingSelection.ExerciseType?.Muscle ?? "<em>Empty</em>")</p>
+                                                <p><strong>Equipment:</strong> @(pendingSelection.ExerciseType?.Equipment ?? "<em>Empty</em>")</p>
+                                                <p><strong>Difficulty:</strong> @(pendingSelection.ExerciseType?.Difficulty ?? "<em>Empty</em>")</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <h6>Select the best match from the API:</h6>
+                                
+                                <form method="post" asp-page-handler="ResolveSelection">
+                                    <input type="hidden" name="pendingSelectionId" value="@pendingSelection.Id" />
+                                    
+                                    <div class="list-group">
+                                        @for (int i = 0; i < pendingSelection.ApiExerciseOptions.Count; i++)
+                                        {
+                                            var apiExercise = pendingSelection.ApiExerciseOptions[i];
+                                            <div class="list-group-item list-group-item-action">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="selectedApiExerciseIndex" 
+                                                           id="option-@pendingSelection.Id-@i" value="@i" required
+                                                           @(i == 0 ? "checked" : "")>
+                                                    <label class="form-check-label w-100" for="option-@pendingSelection.Id-@i">
+                                                        <div class="d-flex justify-content-between">
+                                                            <h6>@apiExercise.Name</h6>
+                                                            <span class="badge rounded-pill bg-info">
+                                                                @apiExercise.Type / @apiExercise.Muscle
+                                                            </span>
+                                                        </div>
+                                                        
+                                                        <div class="row mt-2">
+                                                            <div class="col-md-6">
+                                                                <p><strong>Type:</strong> @apiExercise.Type</p>
+                                                                <p><strong>Muscle:</strong> @apiExercise.Muscle</p>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <p><strong>Equipment:</strong> @apiExercise.Equipment</p>
+                                                                <p><strong>Difficulty:</strong> @apiExercise.Difficulty</p>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <div class="collapse" id="instructions-@pendingSelection.Id-@i">
+                                                            <div class="card card-body mt-2">
+                                                                <h6>Instructions:</h6>
+                                                                <p>@apiExercise.Instructions</p>
+                                                            </div>
+                                                        </div>
+                                                        
+                                                        <button class="btn btn-sm btn-outline-secondary mt-2" type="button" 
+                                                                data-bs-toggle="collapse" data-bs-target="#instructions-@pendingSelection.Id-@i" 
+                                                                aria-expanded="false" aria-controls="instructions-@pendingSelection.Id-@i">
+                                                            Show/Hide Instructions
+                                                        </button>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                    
+                                    <div class="mt-3">
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="fas fa-check"></i> Apply Selected Match
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<div class="mb-3">
+    <a asp-page="./EnrichExercises" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Enrich Exercises
+    </a>
+    <a asp-page="./Index" class="btn btn-secondary">
+        <i class="fas fa-list"></i> Back to Exercise List
+    </a>
+</div>
+
+@section Scripts {
+    <script>
+        // Initialize all accordions as collapsed
+        document.addEventListener('DOMContentLoaded', function() {
+            const accordions = document.querySelectorAll('.accordion-collapse');
+            for (let i = 0; i < accordions.length; i++) {
+                if (i > 0) { // Keep the first one expanded
+                    accordions[i].classList.remove('show');
+                }
+            }
+        });
+    </script>
+}

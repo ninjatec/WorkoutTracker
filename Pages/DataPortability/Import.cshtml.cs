@@ -187,11 +187,11 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                 string connectionId = HttpContext.Connection.Id;
                 if (!string.IsNullOrEmpty(connectionId))
                 {
-                    await _hubContext.Clients.Client(connectionId).SendAsync("ReceiveProgress", initialProgress);
+                    await _hubContext.Clients.Client(connectionId).SendAsync("receiveProgress", initialProgress);
                     _logger.LogInformation("Sent initial progress update to connectionId={ConnectionId}", connectionId);
                 }
                 
-                await _hubContext.Clients.Group($"job_{jobId}").SendAsync("ReceiveProgress", initialProgress);
+                await _hubContext.Clients.Group($"job_{jobId}").SendAsync("receiveProgress", initialProgress);
                 _logger.LogInformation("Sent initial progress update to job group={JobGroup}", $"job_{jobId}");
             }
             catch (Exception ex)

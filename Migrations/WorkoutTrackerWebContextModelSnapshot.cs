@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using WorkoutTrackerweb.Data;
+using WorkoutTrackerWeb.Data;
 
 #nullable disable
 
@@ -344,6 +344,46 @@ namespace WorkoutTrackerWeb.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("LoginHistory");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.PendingExerciseSelection", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ApiResults")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ExerciseName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ExerciseTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsResolved")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("JobId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("SelectedApiExerciseIndex")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PendingExerciseSelection");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Rep", b =>
