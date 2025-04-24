@@ -142,6 +142,21 @@ namespace WorkoutTrackerWeb.Controllers
                                 }
                             }
                         }
+                        
+                        // If no progress found but job is still in progress, provide a fallback progress
+                        // to prevent UI from getting stuck at upload completion
+                        var state = jobData.State;
+                        if (state == "Processing" || state == "Enqueued")
+                        {
+                            // For jobs that are processing but have no explicit progress data,
+                            // return a generic progress object to keep the UI updated
+                            return new JobProgress
+                            {
+                                Status = $"Processing job in {state} state...",
+                                PercentComplete = state == "Processing" ? 30 : 10, // Show some progress to indicate activity
+                                Details = "Please wait while your file is being processed"
+                            };
+                        }
                     }
                 }
                 

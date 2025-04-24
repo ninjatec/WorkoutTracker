@@ -300,6 +300,14 @@
                                 progressSection.classList.remove('d-none');
                                 progressStatus.textContent = `File uploaded successfully. Starting import process...`;
                                 progressDetails.textContent = `File size: ${response.fileSizeMb} MB. Job ID: ${response.jobId}`;
+                                
+                                // Reset the progress bar to show starting state for processing
+                                progressBar.style.width = '5%';
+                                progressBar.setAttribute('aria-valuenow', 5);
+                                progressBar.textContent = '5%';
+                                progressBar.classList.add('bg-info');
+                                progressBar.classList.add('progress-bar-animated');
+                                progressBar.classList.add('progress-bar-striped');
                             }, 1000);
                             
                             // Register for updates on the new job
@@ -660,6 +668,13 @@
                                 
                                 if (data.progress.details) {
                                     progressDetails.textContent = data.progress.details;
+                                }
+                            } else {
+                                // Make sure we always show some progress to avoid getting stuck at upload completion
+                                if (progressBar.getAttribute('aria-valuenow') < 10) {
+                                    progressBar.style.width = '10%';
+                                    progressBar.setAttribute('aria-valuenow', 10);
+                                    progressBar.textContent = '10%';
                                 }
                             }
                             
