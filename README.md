@@ -100,6 +100,7 @@ Production Site running on wot.ninjatec.co.uk
   - Automated versioning during build and deployment
   - Docker image tagging by version
   - Database deployment version history
+- **Alerting System**: Real-time notifications for system metrics and user events
 
 ## Technology Stack
 

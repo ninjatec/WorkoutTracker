@@ -11,6 +11,7 @@ using WorkoutTrackerWeb.Services.Session;
 using WorkoutTrackerWeb.Services.VersionManagement;
 using WorkoutTrackerWeb.Services.Hangfire;
 using WorkoutTrackerWeb.Services.Logging; // Add the Logging namespace for extension methods
+using WorkoutTrackerWeb.Services.Alerting; // Add the Alerting namespace
 using WorkoutTrackerWeb.Middleware;
 using WorkoutTrackerWeb.Hubs;
 using Microsoft.AspNetCore.Identity.UI.Services;
@@ -428,6 +429,12 @@ try
 
     // Register DatabaseResilienceService for connection pooling and retry logic
     builder.Services.AddSingleton<DatabaseResilienceService>();
+
+    // Register alerting services
+    builder.Services.AddScoped<IAlertingService, AlertingService>();
+
+    // Register our alerting background job service
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsService>();
 
     // Configure distributed cache using Redis
     if (builder.Environment.IsDevelopment())
@@ -915,6 +922,10 @@ try
     {
         Log.Error(ex, "Error initializing Hangfire schema");
     }
+
+    // Register Hangfire background jobs
+    // This needs to happen AFTER all services are registered
+    WorkoutTrackerWeb.Services.Hangfire.AlertingJobs.RegisterAlertingJobs();
 
     // Add request metrics middleware before routing
     app.UseHttpMetrics();

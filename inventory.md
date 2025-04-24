@@ -4,6 +4,78 @@
 
 WorkoutTracker is a fitness tracking application built with ASP.NET Core, using the Razor Pages architecture. This document provides a comprehensive inventory of the system components, their relationships, and key implementations.
 
+## Inventory
+
+This document maintains an up-to-date inventory of all features, components, and modules in the Workout Tracker system.
+
+### Core Features
+- User Authentication and Authorization
+- Workout Session Management
+- Exercise Tracking
+- Set and Rep Recording
+- Progress Visualization
+- Sharing Capabilities
+- Data Import/Export
+- Report Generation
+- Exercise Library with API Integration
+- User Preference Management
+- Responsive Mobile-Friendly UI
+- Admin Dashboard
+- Metric Collection
+- Alert System
+
+### Technology Stack
+- ASP.NET Core 9
+- Entity Framework Core
+- SQL Server Database
+- Redis Cache
+- Bootstrap 5
+- SignalR for Real-time Updates
+- Hangfire for Background Jobs
+- Serilog for Structured Logging
+- Chart.js for Data Visualization
+- DataTables for Interactive Tables
+- Azure/Kubernetes Deployment Support
+
+### Application Components
+- User Management
+- Workout Management
+- Exercise Library
+- Authentication System
+- Sharing System with Secure Tokens
+- Reporting Engine
+- Admin Area
+- Import/Export System
+- Scheduling System
+- Health Monitoring
+- Alerting System
+
+### Data Models
+- User
+- WorkoutSession
+- Exercise
+- Set
+- Rep
+- ExerciseType
+- UserProfile
+- ShareToken
+- LoginHistory
+- NotificationPreference
+- Report
+- Metric
+- Alert
+- AlertThreshold
+- Notification
+- AlertHistory
+
+### Integrations
+- Exercise API (API Ninjas)
+- Email Service
+- Export to CSV/JSON
+- Import from TrainAI format
+- Prometheus Metrics
+- Health Checks
+
 ## Project Structure
 
 ### Core Areas
@@ -213,6 +285,72 @@ While the primary UI is built with Razor Pages, the application includes API fun
   - Maintaining version history
   - Docker image tagging
   - Kubernetes deployment management
+
+#### Alert
+- Represents system-generated alerts for various conditions
+- Properties:
+  - Id, Title, Message, Severity (Critical, Warning, Info)
+  - CreatedAt, UpdatedAt, ResolvedAt, Status (Active, Acknowledged, Resolved)
+  - Source, Category, AcknowledgedById, ResolvedById, RelatedEntityId, RelatedEntityType
+  - AutoResolveAfter, IsAutoResolvable, ResolutionNotes, NotificationSent
+- Relationships:
+  - Many-to-one with User (acknowledger and resolver)
+  - Polymorphic relationship to related entity (optional)
+- Features:
+  - Severity-based categorization
+  - Status tracking workflow (Active → Acknowledged → Resolved)
+  - Automatic resolution capability for transient issues
+  - Audit fields tracking who acknowledged and resolved
+  - Source identification for troubleshooting
+
+#### AlertThreshold
+- Defines conditions for generating alerts based on metrics
+- Properties:
+  - Id, Name, Description, MetricName, Comparison (GreaterThan, LessThan, Equal)
+  - ThresholdValue, Severity, Enabled, Category
+  - ConsecutiveOccurrences, EvaluationFrequency, LastEvaluated
+  - CreatedBy, CreatedAt, UpdatedAt
+- Relationships:
+  - Many-to-one with User (creator)
+  - One-to-many with Alerts
+- Features:
+  - Configurable thresholds for different metrics
+  - Multiple comparison operators
+  - Severity level assignment
+  - Consecutive occurrence detection to prevent flapping
+  - Configurable evaluation frequency
+
+#### Notification
+- Tracks alert notifications sent to users
+- Properties:
+  - Id, AlertId, UserId, Channel (Email, InApp, SMS)
+  - SentAt, DeliveredAt, ReadAt, Status (Queued, Sent, Delivered, Read, Failed)
+  - FailureReason, RetryCount, Content
+- Relationships:
+  - Many-to-one with Alert
+  - Many-to-one with User (recipient)
+- Features:
+  - Multi-channel notification support
+  - Delivery status tracking
+  - Retry mechanism for failed notifications
+  - Read receipt functionality
+  - Historical record of notification content
+
+#### NotificationPreference
+- User preferences for alert notifications
+- Properties:
+  - Id, UserId, AlertCategory, Severity
+  - EmailEnabled, InAppEnabled, SMSEnabled
+  - QuietHoursStart, QuietHoursEnd, QuietHoursEnabled
+  - CreatedAt, UpdatedAt
+- Relationships:
+  - Many-to-one with User
+- Features:
+  - Channel-specific opt-in/opt-out
+  - Severity-based filtering
+  - Category-based filtering
+  - Quiet hours configuration for non-critical alerts
+  - Default preferences with user overrides
 
 ## Features and Workflows
 
@@ -574,202 +712,150 @@ The import process follows these steps:
    - Reps with weights and success tracking
    - Exercise type catalog
 
-## Recent Changes
+### Alert System
 
-1. **Fixed namespace capitalization inconsistency**:
-   - Corrected lowercase "WorkoutTrackerweb" references to "WorkoutTrackerWeb" with proper capitalization
-   - Fixed build errors related to namespace confusion across the codebase
-   - Ensured namespace consistency across all project files
-   - Aligned filenames and namespace references for better maintainability
-   - Improved compiler support and code navigation
+1. **Alert Management**:
+   - Comprehensive alerting system for system health and user activity monitoring
+   - Threshold-based alert generation for various metrics
+   - Multi-level severity categorization (Critical, Warning, Info)
+   - Status workflow tracking (Active → Acknowledged → Resolved)
+   - Assignment and ownership tracking
+   - Resolution notes and audit trail
 
-2. **API Ninjas Integration for Exercise Types**:
-   - Extended ExerciseType model with API-related fields (Type, Muscle, Equipment, Difficulty, Instructions, IsFromApi, LastUpdated)
-   - Implemented ExerciseApiService for communication with the API Ninjas exercise API
-   - Created ExerciseTypeService for managing exercise data operations
-   - Developed ApiImport admin page for searching and importing exercises
-   - Enhanced ExerciseTypes views with API-sourced exercise indicators
-   - Implemented exercise filtering by type, muscle, difficulty, and equipment
-   - Added related exercise suggestions based on muscle group
-   - Created secure API key management with configuration in user secrets and Kubernetes
-   - Updated Edit and Create pages to support extended exercise information
-   - Added functionality to enrich existing exercises with API data
-   - Created bulk enrichment tool for exercises with missing information
-   - Implemented database migration for schema changes
+2. **Alert Components**:
+   - `AlertService`: Central service for alert creation, acknowledgment, and resolution
+   - `AlertThresholdService`: Service for evaluating metric thresholds and triggering alerts
+   - `NotificationService`: Multi-channel notification delivery system
+   - `AlertBackgroundService`: Background service for periodic threshold evaluation
+   - `AlertsController`: API endpoints for alert management
+   - `AlertHub`: SignalR hub for real-time alert notifications
+   - `/Areas/Admin/Pages/Alerts/`: Razor Pages for alert management interface
 
-3. **Database Connection Pooling Optimization**:
-   - Implemented advanced connection pooling configuration in appsettings.json
-   - Created DbConnectionResilienceMiddleware to handle transient database errors
-   - Developed DatabaseResilienceService with circuit breaker pattern implementation
-   - Added database connection pool health check for monitoring
-   - Enhanced WorkoutTrackerWebContext with optimized pooling settings
-   - Added error handling page for database connection issues
-   - Configured SqlConnectionStringBuilder with customizable connection parameters
+3. **Alert Dashboard**:
+   - Real-time display of active alerts with severity indicators
+   - Filtering by status, severity, category, and date range
+   - Bulk acknowledgment and resolution capabilities
+   - Timeline visualization for alert history
+   - Trend analysis for recurring issues
+   - User-specific views based on assigned alerts
 
-4. **Bootstrap Migration**: Upgraded from Bootstrap 4 to Bootstrap 5 for improved UI and performance
-   - Updated DataTables integration to use Bootstrap 5 CSS and JS
-   - Updated all layout files to use Bootstrap 5 syntax (data-bs-* attributes)
-   - Replaced form-group with spacing utilities (mb-3) in form components
-   - Updated badge classes to use Bootstrap 5 naming conventions (bg-* instead of badge-*)
-   - Replaced form-inline with row and col utility classes for better responsive behavior
-   - Updated form-control-label to form-label for better accessibility
-   - Implemented Bootstrap 5 form-select class for dropdown elements
-   - Added Bootstrap Icons for improved iconography
+4. **Notification System**:
+   - Multi-channel delivery (Email, In-App, SMS)
+   - User preference management for notification channels
+   - Quiet hours configuration for non-critical alerts
+   - Delivery tracking with read receipts
+   - Email template system for consistent formatting
+   - Batching for preventing notification storms
+   - Throttling for high-volume alert situations
 
-5. **Architecture Migration**: Converted from MVC to Razor Pages for improved separation of concerns
-   - Replaced controllers with page models for better encapsulation
-   - Organized UI components by feature area rather than controller/action pattern
-   - Implemented handler methods (OnGet, OnPost) instead of controller actions
-   - Maintained API controllers for specific REST endpoints and backward compatibility
-   - Enhanced testability with more isolated page models
-   - Migrated BackgroundJobsController to Razor Pages for better code organization
-   - Implemented role-based authorization at the page model level
-
-6. **Workout Sharing Improvements**:
-   - Implemented secure token validation system
-   - Added granular permission controls for feature access
-   - Created consistent shared layout with status information
-   - Enhanced navigation between shared workout views
-
-7. **Performance Enhancements**:
-   - Added Redis distributed caching for report pages
-   - Implemented SignalR Redis backplane for multi-container scaling
-   - Optimized database queries with improved pagination and filtering
-
-8. **Security Updates**:
-   - Enhanced token validation with rate limiting
-   - Implemented IP tracking for shared access
-   - Added comprehensive audit logging for token usage
-
-9. **UI Improvements**:
-   - Replaced modal dialogs with inline forms for better accessibility
-   - Implemented accordion-based interfaces for token management
-   - Added responsive design enhancements for mobile compatibility
-
-10. **Code Cleanup**:
-    - Removed unused pages (`TestEmail.cshtml`, `/Pages/Users/` directory, `BackgroundJobs/Index.cshtml`)
-    - Updated navigation references to use Admin area for user management
-    - Consolidated user management in Admin area
-
-11. **Background Job System Enhancements**:
-    - Added background job support for standard JSON imports
-    - Implemented JobProgress model for consistent progress reporting
-    - Created JobStatusController API for polling job status
-    - Enhanced ImportProgressHub for real-time updates
-    - Added client-side failover mechanism for when SignalR is unavailable
-    - Improved error handling with detailed job status reporting
-    - Added support for job progress persistence
-    - Implemented job ID tracking for both CSV and JSON imports
-    - Enhanced UI for job progress with status indicators
-    - Created standardized pattern for background job operations
-    - Improved resource cleanup after job completion
-
-### Logging Configuration Components
-
-| Component | Purpose |
-|-----------|---------|
-| `LogLevelSettings` | Entity model for storing log level configuration in the database |
-| `LogLevelOverride` | Entity model for source-specific logging overrides |
-| `ILoggingService` | Interface defining the contract for runtime log level management |
-| `LoggingService` | Service implementation for managing log levels at runtime |
-| `DynamicLogLevelProvider` | Static provider for Serilog dynamic log level switches |
-| `LoggingExtensions` | Extension methods for configuring Serilog with dynamic levels |
-| `LogLevelConfigurationHostedService` | Background service to apply log settings at startup |
-| `/Areas/Admin/Pages/Logging/Configure.cshtml` | Admin UI for managing log levels |
-
-### LogLevel Configuration System
-
-The application includes a comprehensive log level configuration system with the following features:
-
-1. **Runtime Log Level Management**:
-   - Dynamic adjustment of log levels without application restart
-   - Source-specific overrides for targeted debugging
-   - Global default log level control
-   - Persistent settings stored in database
-
-2. **Admin Interface**:
-   - UI for adjusting log levels at `/Admin/Logging/Configure`
-   - Dropdown selection for global log level
-   - Source-specific override management
-   - Visual status indicators for current log levels
-   - Security controls with admin-only access
-
-3. **Implementation Details**:
-   - Integration with Serilog's LoggingLevelSwitch
-   - LogLevel configuration stored in SQL Server
-   - Real-time application of log level changes
-   - Default log levels for new installations
-   - Automatic application of settings at startup
-
-4. **Security Features**:
-   - Role-based access control (Admin role required)
-   - Audit logging for log level changes
-   - User tracking for configuration updates
-
-### Admin Metrics Dashboard Components
-
-| Component | Purpose |
-|-----------|---------|
-| `/Areas/Admin/Pages/Metrics/Index.cshtml` | Main metrics dashboard Razor Page with tabbed interface |
-| `/Areas/Admin/Pages/Metrics/Index.cshtml.cs` | Dashboard code-behind with metrics data loading logic |
-| `/wwwroot/js/admin-metrics.js` | Client-side JavaScript for chart rendering and real-time updates |
-| `/wwwroot/css/admin-metrics.css` | Dashboard-specific styling for metrics visualization |
-| `UserActivityMetrics` | Class for collecting and analyzing user engagement data |
-| `SystemMetrics` | Class for system resource monitoring and health statistics |
-| `WorkoutMetrics` | Class for workout activity and exercise popularity tracking |
-| `PerformanceMetrics` | Class for application performance monitoring |
-| `HealthMetrics` | Class for service health status visualization |
-
-### Metrics Dashboard Features
-
-The admin metrics dashboard provides comprehensive monitoring and visualization capabilities:
-
-1. **System Metrics Display**:
-   - Real-time CPU, memory, and disk usage monitoring
-   - Database connection pool visualization with active/max connections
-   - Redis cache performance monitoring with hit rate metrics
-   - Hangfire queue statistics with job processing rates
-   - Exception tracking with recent error display
-   - Auto-refresh functionality with configurable intervals
-
-2. **User Activity Analysis**:
-   - Daily/weekly/monthly active user charts
-   - User registration trend visualization
-   - Login success/failure rate monitoring
-   - User retention analysis with cohort visualization
-   - User engagement patterns with session frequency metrics
-   - Geographic distribution map of user logins
-
-3. **Workout Statistics**:
-   - Session, set, and rep creation trends over time
-   - Exercise popularity charts with usage frequency
-   - Workout duration and intensity analysis
-   - Session completion rate tracking
-   - Personal record achievement rate visualization
-   - Time-of-day workout pattern analysis
-
-4. **Performance Monitoring**:
-   - HTTP request duration histograms by endpoint
-   - Database query performance visualization
-   - API response time tracking with percentiles
-   - Page load time visualization by route
-   - Resource utilization trend analysis
-   - Error rate visualization with drill-down capability
-
-5. **Health Status Dashboard**:
-   - Service dependency status indicators
-   - Historical uptime tracking with SLA calculations
-   - Circuit breaker state visualization
-   - Health check response time tracking
-   - Service dependency failure impact analysis
+5. **Threshold Configuration**:
+   - Admin interface for threshold management
+   - Support for multiple comparison operators
+   - Consecutive occurrence detection to prevent alert flapping
+   - Time-based thresholds for trend detection
+   - Category and severity assignment for generated alerts
+   - Enable/disable toggle for individual thresholds
+   - Testing capability for threshold validation
 
 6. **Implementation Details**:
-   - Chart.js integration for responsive data visualization
-   - SignalR for real-time metric updates
-   - Responsive layout with Bootstrap 5 grid system
-   - Role-based access control (Admin role required)
-   - Tab-based navigation for metric categories
-   - Configurable refresh intervals for data freshness
-   - Export functionality for metrics data (CSV/PDF)
-   - Date range selection for historical analysis
-   - Admin-only access via role-based authorization
+   - Integration with system metrics collection
+   - Database-backed alert storage for persistence
+   - SignalR for real-time notifications
+   - Email integration for critical alerts
+   - Mobile-responsive alert dashboard
+   - Role-based access for alert management
+   - Historical alert data for trend analysis
+   - Auto-resolution capability for transient issues
+
+7. **Alert Types**:
+   - System health (CPU, memory, disk usage)
+   - Database performance (connection pool, query times)
+   - API response time anomalies
+   - Authentication anomalies (failed login attempts)
+   - Background job failures
+   - Data import/export issues
+   - User activity patterns (suspicious login locations)
+   - Redis cache performance degradation
+   - Feature usage statistics
+   - Error rate monitoring
+
+### Alert System Components
+
+| Component | Purpose |
+|-----------|---------|
+| `Alert` | Entity model for representing system-generated alerts |
+| `AlertThreshold` | Entity model for threshold-based alert generation |
+| `Notification` | Entity model for tracking alert notifications sent to users |
+| `NotificationPreference` | Entity model for user notification preferences |
+| `IAlertService` | Interface for alert management contract |
+| `AlertService` | Service implementation for alert CRUD operations |
+| `IAlertThresholdService` | Interface for threshold evaluation |
+| `AlertThresholdService` | Service for evaluating metrics against thresholds |
+| `INotificationService` | Interface for notification delivery |
+| `NotificationService` | Service for multi-channel alert notifications |
+| `AlertBackgroundService` | Background service for periodic threshold evaluation |
+| `AlertHub` | SignalR hub for real-time alert notifications |
+| `/Areas/Admin/Pages/Alerts/` | Alert management Razor Pages |
+| `/api/Alerts` | REST API endpoints for alert interaction |
+
+### Alert System Features
+
+The alerting system provides comprehensive monitoring and notification capabilities:
+
+1. **Alert Management**:
+   - CRUD operations for system-generated alerts
+   - Status workflow (Active → Acknowledged → Resolved)
+   - Severity-based categorization (Critical, Warning, Info)
+   - Source and category tracking for organization
+   - Resolution notes and audit trail
+   - Automatic and manual resolution support
+
+2. **Threshold Configuration**:
+   - Admin interface for threshold management
+   - Multiple comparison operators (>, <, =, etc.)
+   - Consecutive occurrence detection
+   - Evaluation frequency configuration
+   - Automatic alert generation when thresholds are exceeded
+   - Category and severity assignment
+
+3. **Notification System**:
+   - Multi-channel delivery (Email, In-App, SMS)
+   - User preference management by alert category and severity
+   - Quiet hours configuration
+   - Delivery status tracking
+   - Retry mechanism for failed notifications
+   - Read receipt functionality
+
+4. **Admin Dashboard**:
+   - Real-time alert monitoring dashboard
+   - Filtering by status, severity, and category
+   - Bulk operations for alert management
+   - Timeline visualization of alert history
+   - Trend analysis for recurring issues
+   - Notification log review
+
+5. **Integration Points**:
+   - SignalR for real-time updates
+   - Email service for notification delivery
+   - System metrics collection for threshold evaluation
+   - Health check system for automatic alerting
+   - Background job system for failure alerting
+   - Database performance monitoring
+   - User authentication anomaly detection
+
+6. **Security Features**:
+   - Role-based access control
+   - Audit logging for all alert actions
+   - Secure notification delivery
+   - Rate limiting for notification sending
+   - IP-based anomaly detection for login alerts
+
+7. **Implementation Details**:
+   - Entity Framework Core for data persistence
+   - SignalR for real-time communications
+   - Background services for automated threshold checking
+   - Email templates for consistent notification formatting
+   - Responsive design for mobile compatibility
+   - Chart.js for trend visualization
+   - Bootstrap 5 for UI components
+   - Role-based security with ASP.NET Core Identity

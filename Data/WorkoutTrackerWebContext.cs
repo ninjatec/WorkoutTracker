@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Models;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
+using WorkoutTrackerWeb.Models.Alerting;
 
 namespace WorkoutTrackerWeb.Data
 {
@@ -34,6 +35,12 @@ namespace WorkoutTrackerWeb.Data
         public DbSet<WorkoutTrackerWeb.Models.LoginHistory> LoginHistory { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.ShareToken> ShareToken { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.PendingExerciseSelection> PendingExerciseSelection { get; set; } = default!;
+
+        // Alerting system DbSets
+        public DbSet<WorkoutTrackerWeb.Models.Alerting.AlertThreshold> AlertThreshold { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.Alerting.Alert> Alert { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.Alerting.AlertHistory> AlertHistory { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.Alerting.Notification> Notification { get; set; } = default!;
 
         // Helper method to get the current user's own User record
         public async Task<User> GetCurrentUserAsync()
@@ -134,6 +141,32 @@ namespace WorkoutTrackerWeb.Data
             // ShareTokens are filtered by the current user (only see your own tokens unless admin)
             modelBuilder.Entity<ShareToken>()
                 .HasQueryFilter(st => _currentUserId == null || st.User.IdentityUserId == _currentUserId);
+                
+            // Configure alerting system relationships
+            modelBuilder.Entity<Alert>()
+                .HasOne(a => a.AlertThreshold)
+                .WithMany()
+                .HasForeignKey(a => a.AlertThresholdId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.Alert)
+                .WithMany()
+                .HasForeignKey(n => n.AlertId)
+                .OnDelete(DeleteBehavior.SetNull);
+                
+            // Configure indexes for alerting system
+            modelBuilder.Entity<AlertThreshold>()
+                .HasIndex(at => at.MetricName);
+                
+            modelBuilder.Entity<Alert>()
+                .HasIndex(a => a.TriggeredAt);
+                
+            modelBuilder.Entity<AlertHistory>()
+                .HasIndex(ah => ah.TriggeredAt);
+                
+            modelBuilder.Entity<Notification>()
+                .HasIndex(n => new { n.UserId, n.IsRead });
         }
     }
 }

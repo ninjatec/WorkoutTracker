@@ -1,0 +1,117 @@
+@page
+@model WorkoutTrackerWeb.Pages.Notifications.IndexModel
+@{
+    ViewData["Title"] = "My Notifications";
+}
+
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1>My Notifications</h1>
+                <div>
+                    @if (Model.UnreadCount > 0)
+                    {
+                        <form method="post" class="d-inline">
+                            <button type="submit" class="btn btn-outline-primary" asp-page-handler="MarkAllRead">
+                                <i class="fas fa-check-double"></i> Mark All as Read
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.StatusMessage != null)
+    {
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <partial name="_StatusMessage" model="Model.StatusMessage" />
+            </div>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Notifications</h6>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="showReadSwitch" 
+                               @(Model.IncludeRead ? "checked" : "") onchange="toggleReadNotifications()">
+                        <label class="form-check-label" for="showReadSwitch">Show Read Notifications</label>
+                    </div>
+                </div>
+                <div class="card-body">
+                    @if (Model.Notifications != null && Model.Notifications.Any())
+                    {
+                        <div class="list-group">
+                            @foreach (var notification in Model.Notifications)
+                            {
+                                <div class="list-group-item list-group-item-action @(!notification.IsRead ? "bg-light" : "")" 
+                                     id="notification-@notification.Id">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h5 class="mb-1">
+                                            @if (!notification.IsRead)
+                                            {
+                                                <span class="badge rounded-pill bg-primary me-2">New</span>
+                                            }
+                                            @notification.Title
+                                        </h5>
+                                        <small class="text-muted">@notification.CreatedAt.ToString("g")</small>
+                                    </div>
+                                    <p class="mb-1">@notification.Message</p>
+                                    <div class="d-flex justify-content-between align-items-center mt-2">
+                                        <small class="text-muted">
+                                            @if (notification.IsRead)
+                                            {
+                                                <span>Read @notification.ReadAt?.ToString("g")</span>
+                                            }
+                                            else
+                                            {
+                                                <span>Unread</span>
+                                            }
+                                        </small>
+                                        <div>
+                                            @if (!string.IsNullOrEmpty(notification.Url))
+                                            {
+                                                <a href="@notification.Url" class="btn btn-sm btn-info me-2">
+                                                    <i class="fas fa-external-link-alt"></i> View
+                                                </a>
+                                            }
+                                            @if (!notification.IsRead)
+                                            {
+                                                <form method="post" class="d-inline">
+                                                    <input type="hidden" name="notificationId" value="@notification.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-secondary" asp-page-handler="MarkRead">
+                                                        <i class="fas fa-check"></i> Mark Read
+                                                    </button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <i class="fas fa-bell-slash me-2"></i> You have no notifications.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function toggleReadNotifications() {
+            const checked = document.getElementById('showReadSwitch').checked;
+            window.location.href = '?includeRead=' + (checked ? 'true' : 'false');
+        }
+    </script>
+}

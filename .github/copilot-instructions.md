@@ -1,6 +1,7 @@
 - Be casual unless otherwise specified
 - ALWAYS reference the SoW WiP Readme Inventory and Models to build context.
 - ALWAYS ensure the codebase comiles withut error before a task is considered complete
+- ALWAYS use --context on dotnet ef commands
 - Be terse and concise
 - Do not apologize
 - User razorpages and not MVC
