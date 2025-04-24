@@ -1,0 +1,16 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ambassador-certs-multi
+  namespace: emissary
+spec:
+  secretName: ambassador-certs
+  duration: 2160h # 90 days
+  renewBefore: 360h # 15 days
+  dnsNames:
+  - wot.ninjatec.co.uk
+  - workouttracker.online
+  - www.workouttracker.online
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer

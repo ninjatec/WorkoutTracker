@@ -27,9 +27,9 @@ spec:
   acmeProvider:
     authority: none
   tlsSecret:
-    name: ambassador-certs
+    name: ambassador-certs-wot
   tlsContext:
-    name: tls-context-wot
+    name: tls-context-workouttracker
   requestPolicy:
     insecure:
       action: Redirect
@@ -45,9 +45,9 @@ spec:
   acmeProvider:
     authority: none
   tlsSecret:
-    name: ambassador-certs
+    name: ambassador-certs-wot
   tlsContext:
-    name: tls-context-wot
+    name: tls-context-workouttracker
   requestPolicy:
     insecure:
       action: Redirect
@@ -62,9 +62,29 @@ spec:
   alpn_protocols: h2,http/1.1
   hosts:
   - wot.ninjatec.co.uk
+  secret: ambassador-certs
+  secret_namespacing: false
+  min_tls_version: v1.2
+  cipher_suites:
+  - ECDHE-ECDSA-AES128-GCM-SHA256
+  - ECDHE-RSA-AES128-GCM-SHA256
+  - ECDHE-ECDSA-AES256-GCM-SHA384
+  - ECDHE-RSA-AES256-GCM-SHA384
+  - ECDHE-ECDSA-CHACHA20-POLY1305
+  - ECDHE-RSA-CHACHA20-POLY1305
+
+---
+apiVersion: getambassador.io/v3alpha1
+kind: TLSContext
+metadata:
+  name: tls-context-workouttracker
+  namespace: emissary
+spec:
+  alpn_protocols: h2,http/1.1
+  hosts:
   - www.workouttracker.online
   - workouttracker.online
-  secret: ambassador-certs
+  secret: ambassador-certs-wot
   secret_namespacing: false
   min_tls_version: v1.2
   cipher_suites:
