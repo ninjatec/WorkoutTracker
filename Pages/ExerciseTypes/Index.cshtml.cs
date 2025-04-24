@@ -12,21 +12,93 @@ namespace WorkoutTrackerWeb.Pages.ExerciseTypes
 {
     public class IndexModel : PageModel
     {
-        private readonly WorkoutTrackerweb.Data.WorkoutTrackerWebContext _context;
+        private readonly WorkoutTrackerWebContext _context;
 
-        public IndexModel(WorkoutTrackerweb.Data.WorkoutTrackerWebContext context)
+        public IndexModel(WorkoutTrackerWebContext context)
         {
             _context = context;
         }
 
-        public IList<ExerciseType> ExerciseTypes { get;set; } = default!;
+        public IList<ExerciseType> ExerciseTypes { get; set; }
+        
+        public string NameSort { get; set; }
+        public string TypeSort { get; set; }
+        public string MuscleSort { get; set; }
+        public string CurrentFilter { get; set; }
+        public string CurrentSort { get; set; }
+        
+        public int PageIndex { get; set; }
+        public int TotalPages { get; set; }
+        public bool HasPreviousPage => PageIndex > 1;
+        public bool HasNextPage => PageIndex < TotalPages;
 
-        public async Task OnGetAsync()
+        public async Task OnGetAsync(string sortOrder, string currentFilter, string searchString, int? pageIndex)
         {
-            if (_context.ExerciseType != null)
+            // Set up sorting options
+            CurrentSort = sortOrder;
+            NameSort = string.IsNullOrEmpty(sortOrder) ? "name_desc" : "";
+            TypeSort = sortOrder == "type" ? "type_desc" : "type";
+            MuscleSort = sortOrder == "muscle" ? "muscle_desc" : "muscle";
+            
+            // Handle search and paging
+            if (searchString != null)
             {
-                ExerciseTypes = await _context.ExerciseType.OrderBy(e => e.Name).ToListAsync();
+                pageIndex = 1;
             }
+            else
+            {
+                searchString = currentFilter;
+            }
+            
+            CurrentFilter = searchString;
+            
+            // Create IQueryable for the ExerciseType
+            IQueryable<ExerciseType> exerciseTypesIQ = _context.ExerciseType;
+            
+            // Apply filter if search string is provided
+            if (!string.IsNullOrEmpty(searchString))
+            {
+                exerciseTypesIQ = exerciseTypesIQ.Where(e => 
+                    e.Name.Contains(searchString) ||
+                    e.Type.Contains(searchString) ||
+                    e.Muscle.Contains(searchString) ||
+                    e.Difficulty.Contains(searchString) ||
+                    e.Equipment.Contains(searchString)
+                );
+            }
+            
+            // Apply sorting
+            exerciseTypesIQ = sortOrder switch
+            {
+                "name_desc" => exerciseTypesIQ.OrderByDescending(e => e.Name),
+                "type" => exerciseTypesIQ.OrderBy(e => e.Type).ThenBy(e => e.Name),
+                "type_desc" => exerciseTypesIQ.OrderByDescending(e => e.Type).ThenBy(e => e.Name),
+                "muscle" => exerciseTypesIQ.OrderBy(e => e.Muscle).ThenBy(e => e.Name),
+                "muscle_desc" => exerciseTypesIQ.OrderByDescending(e => e.Muscle).ThenBy(e => e.Name),
+                _ => exerciseTypesIQ.OrderBy(e => e.Name),
+            };
+            
+            // Set up pagination
+            int pageSize = 20;
+            int totalItems = await exerciseTypesIQ.CountAsync();
+            TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+            PageIndex = pageIndex ?? 1;
+            
+            // Ensure PageIndex is valid
+            if (PageIndex < 1)
+            {
+                PageIndex = 1;
+            }
+            else if (PageIndex > TotalPages && TotalPages > 0)
+            {
+                PageIndex = TotalPages;
+            }
+            
+            // Get the page of data
+            ExerciseTypes = await exerciseTypesIQ
+                .Skip((PageIndex - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
         }
     }
 }

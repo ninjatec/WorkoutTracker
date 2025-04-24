@@ -6,6 +6,20 @@ Production Site running on wot.ninjatec.co.uk
 
 ## Features
 
+- **API Ninjas Integration for Exercise Types**: Rich exercise database from external API
+  - Comprehensive exercise data with over 600 available exercises
+  - Detailed instructions for proper exercise execution
+  - Categorization by muscle group, difficulty level, and equipment
+  - Filtering by exercise type, muscle, difficulty, and equipment
+  - Admin interface for searching and importing exercises
+  - Automatic updates for API-sourced exercises
+  - Visual indicators for API-sourced vs. manually created exercises
+  - Related exercise suggestions based on muscle groups
+  - Secure API key management with configuration
+  - **Exercise enrichment tool to populate missing details in existing exercises**
+  - **Bulk enrichment capability for multiple exercises at once**
+  - **Intelligent matching of manually created exercises to API data**
+
 - **Dynamic Log Level Configuration**: Runtime control of application logging levels
   - Admin interface for adjusting log levels without application restart
   - Global default log level configuration

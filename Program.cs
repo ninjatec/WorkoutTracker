@@ -351,6 +351,15 @@ builder.Services.AddScoped<BackgroundJobService>();
 // Register WorkoutDataService
 builder.Services.AddScoped<WorkoutDataService>();
 
+// Register API Ninjas integration services
+builder.Services.AddHttpClient("ExerciseApi", client =>
+{
+    client.BaseAddress = new Uri("https://api.api-ninjas.com/v1/exercises");
+    client.DefaultRequestHeaders.Add("X-Api-Key", builder.Configuration["ApiKeys:ApiNinjas"]);
+});
+builder.Services.AddScoped<ExerciseApiService>();
+builder.Services.AddScoped<ExerciseTypeService>();
+
 // Register our HelpService
 builder.Services.AddScoped<HelpService>();
 

@@ -1,4 +1,76 @@
 # Statement of Works
+## Workout templates / planning
+
+## Update help pages
+
+## Expand excercise types 
+[x] Expand excercise types with integration to https://www.api-ninjas.com/api/exercises
+ - [x] Set up API Ninjas integration
+   - [x] Create ExerciseApiService to handle API communication
+   - [x] Implement secure API key storage and configuration
+   - [x] Add rate limiting support to prevent API quota exhaustion
+   - [x] Implement HTTP client factory pattern for resilient API calls
+   - [x] Add proper error handling and logging for API failures
+
+ - [x] Develop exercise data models
+   - [x] Create ExerciseApiResponse model matching API Ninjas schema
+   - [x] Implement mapping between API data and ExerciseType model
+   - [x] Add support for extended attributes (muscle groups, difficulty, instructions)
+   - [x] Create ExerciseTypeExtended model for storing additional metadata
+   - [x] Update database schema to accommodate new exercise attributes
+
+ - [x] Create Admin UI for exercise management
+   - [x] Add "Import from API" button to ExerciseTypes/Index page
+   - [x] Create exercise search interface with filtering options (muscle group, difficulty, type)
+   - [x] Implement paginated results for large API responses
+   - [x] Add preview functionality before importing exercises
+   - [x] Create bulk selection and import capabilities
+   - [x] Implement duplicate detection and handling
+
+ - [x] Enhance exercise type views with new metadata
+   - [x] Update ExerciseTypes/Details.cshtml to show extended attributes
+   - [x] Add muscle group visualization with SVG body map
+   - [x] Create collapsible exercise instructions section
+   - [x] Implement difficulty indicator with visual cues
+   - [x] Add equipment requirements section to exercise details
+   - [x] Create related/alternative exercises section
+
+ - [x] Implement background processing for large imports
+   - [x] Add Hangfire job for bulk exercise import
+   - [x] Create progress tracking with SignalR notifications
+   - [x] Implement cancellation support for ongoing imports
+   - [x] Add retry mechanism for failed API requests
+   - [x] Create import history and audit trail
+
+ - [x] Build exercise data caching system
+   - [x] Implement local database cache of API responses
+   - [x] Add cache invalidation strategy with reasonable TTL
+   - [x] Create background refresh job for popular exercises
+   - [x] Implement cache warming on application startup
+   - [x] Add manual cache refresh option in admin interface
+
+ - [x] Enhance user workout experience with new data
+   - [x] Update set creation flow to show exercise instructions
+   - [x] Add muscle group highlighting when selecting exercises
+   - [x] Implement exercise difficulty warning for beginners
+   - [x] Create "similar exercises" recommendations
+   - [x] Add exercise rotation suggestions to avoid overtraining
+
+ - [x] Develop reporting and analytics enhancements
+   - [x] Create muscle group balance analysis in Reports page
+   - [x] Add exercise variety metrics to user dashboard
+   - [x] Implement exercise difficulty progression tracking
+   - [x] Create workout completeness score based on muscle groups
+   - [x] Add intelligent workout suggestions based on history
+
+ - [x] Add documentation and testing
+   - [x] Update README.md with API integration details
+   - [x] Add new components to inventory.md
+   - [x] Create unit tests for API service and mapping logic
+   - [x] Implement integration tests for import process
+   - [x] Add user guide for exercise search and details features
+
+
 ## Admin Functions
 [x] Log Level
 - [x] Add the Ability to manage the log level and control from a link under the System Settings link from the admin dashboard
@@ -189,3 +261,147 @@
    - [ ] Add helpful descriptions and examples for API usage
    - [ ] Configure ReDoc as an alternative documentation viewer
    - [ ] Implement rate-limiting on Swagger endpoints in non-production
+
+  ## Integrate wth Apple
+[ ] Allow Import from apple via HealthKit
+ - [ ] Set up HealthKit integration prerequisites
+   - [ ] Add HealthKit entitlements to the iOS app manifest
+   - [ ] Configure proper privacy descriptions in Info.plist for HealthKit data access
+   - [ ] Create HealthKit authorization manager to request user permissions
+   - [ ] Implement secure credential storage for HealthKit authorization tokens
+   - [ ] Add appropriate error handling for permission denials
+
+ - [ ] Create HealthKit data extraction service
+   - [ ] Develop HealthKitService to connect to Apple's HealthKit API
+   - [ ] Implement query functionality for workout data (HKWorkout objects)
+   - [ ] Add support for extracting workout details including duration, energy burned, and distance
+   - [ ] Create mappers for HKWorkoutActivityType to system ExerciseTypes
+   - [ ] Implement date range filtering for selective imports
+   - [ ] Add workout metadata extraction for comprehensive imports
+
+ - [ ] Develop workout sample extraction
+   - [ ] Create query handlers for HKSample objects to extract detailed metrics
+   - [ ] Add support for reading heart rate data during workouts
+   - [ ] Implement extraction of sets and reps from workout segments (HKWorkoutEvent)
+   - [ ] Add weight and resistance reading from relevant samples
+   - [ ] Create workout route extraction for GPS-based workouts
+
+ - [ ] Implement HealthKit data transformation layer
+   - [ ] Create HealthKitImportData wrapper class similar to TrainAIImportData
+   - [ ] Develop HealthKitWorkout model to map Apple's workout data structure
+   - [ ] Implement intelligent exercise type mapping with Levenshtein distance
+   - [ ] Add workout metadata normalization for system compatibility
+   - [ ] Create set detection algorithm for strength training workouts
+   - [ ] Develop rep counting logic from motion/accelerometer data
+
+ - [ ] Extend BackgroundJobService for HealthKit imports
+   - [ ] Add QueueHealthKitImport method to background job service
+   - [ ] Create ProcessHealthKitImportAsync method for background processing
+   - [ ] Implement progress tracking with existing JobProgress infrastructure
+   - [ ] Add error handling with appropriate user feedback
+   - [ ] Implement connection resilience for long-running imports
+   - [ ] Add duplicate detection similar to existing import functionality
+
+ - [ ] Develop iOS/macOS companion app for HealthKit access
+   - [ ] Create a simple iOS/macOS app to authorize HealthKit access
+   - [ ] Implement secure data export functionality to JSON format
+   - [ ] Add OAuth-based authentication with main web application
+   - [ ] Create secure file transfer for workout data
+   - [ ] Implement webhook callback for import completion notification
+   - [ ] Add progress status display during export/import process
+
+ - [ ] Create HealthKit import user interface
+   - [ ] Create new ImportHealthKit.cshtml Razor Page
+   - [ ] Implement file upload with drag-and-drop support
+   - [ ] Add instructions for exporting from Apple Health
+   - [ ] Create authentication flow for direct HealthKit access
+   - [ ] Implement real-time progress updates using existing SignalR hub
+   - [ ] Add success/failure notifications with detailed feedback
+
+ - [ ] Implement data validation and mapping
+   - [ ] Create schema validation for HealthKit JSON format
+   - [ ] Implement data sanitization for imported values
+   - [ ] Add unit conversion between Apple units and system units
+   - [ ] Create intensity mapping from heart rate zones to workout intensity
+   - [ ] Develop confidence scoring for import accuracy
+   - [ ] Add import summary with mapping results
+
+ - [ ] Update documentation and testing
+   - [ ] Update README.md with HealthKit import instructions
+   - [ ] Add HealthKit components to inventory.md
+   - [ ] Create unit tests for HealthKit data parsing
+   - [ ] Implement integration tests for the import process
+   - [ ] Add user guide section for HealthKit import workflow
+   - [ ] Document iOS companion app setup process
+
+[ ] Allow Export to apple via HealthKit
+ - [ ] Set up HealthKit integration prerequisites
+   - [ ] Configure HealthKit entitlements in the iOS app manifest
+   - [ ] Add appropriate privacy descriptions to Info.plist for writing to HealthKit
+   - [ ] Implement HealthKit availability checking mechanism 
+   - [ ] Add permission request flow for write access to HealthKit
+   - [ ] Create error handling for permission denials and unsupported devices
+
+ - [ ] Design and implement data transformation service
+   - [ ] Create HealthKitExportService to handle data conversion
+   - [ ] Develop mapping between system ExerciseTypes and HKWorkoutActivityType
+   - [ ] Implement workout metadata formatting (duration, calories, distance)
+   - [ ] Add support for exporting heart rate data when available
+   - [ ] Create unit conversion utilities for system-to-Apple metrics
+   - [ ] Implement JSON schema validation for export data
+
+ - [ ] Develop workout data export core functionality
+   - [ ] Create HKWorkout object builder from system workout sessions
+   - [ ] Implement HKWorkoutBuilder for creating complex workouts
+   - [ ] Add support for workout events to represent sets and reps
+   - [ ] Implement route data generation for outdoor activities 
+   - [ ] Create proper metadata tagging for exported workouts
+   - [ ] Add data validation to ensure HealthKit compatibility
+
+ - [ ] Implement export background processing
+   - [ ] Extend BackgroundJobService with QueueHealthKitExport method
+   - [ ] Create ProcessHealthKitExportAsync for handling exports in background
+   - [ ] Implement job progress tracking with existing infrastructure
+   - [ ] Add resilient connection handling for exports
+   - [ ] Create retry mechanisms for failed export attempts
+   - [ ] Add conflict resolution for duplicate workout detection
+
+ - [ ] Develop iOS/macOS export functionality
+   - [ ] Expand companion app with export capabilities
+   - [ ] Add HKWorkoutSession creation from exported data
+   - [ ] Implement batch workout saving to HealthKit
+   - [ ] Add proper attribution and source tagging
+   - [ ] Create robust error handling for failed saves
+   - [ ] Implement secure authentication between web app and companion app
+
+ - [ ] Create export user interface
+   - [ ] Add export option to existing Export.cshtml page
+   - [ ] Create ExportToHealthKit.cshtml page for dedicated HealthKit export
+   - [ ] Implement workout selection interface for partial exports
+   - [ ] Add date range filtering for selective exports
+   - [ ] Create real-time progress tracking using existing SignalR hub
+   - [ ] Add success/failure notifications with detailed feedback
+
+ - [ ] Add export configuration options
+   - [ ] Create user preferences for default export behavior
+   - [ ] Implement workout type mapping configuration
+   - [ ] Add toggles for including different data types (heart rate, routes, etc.)
+   - [ ] Create data conflict resolution strategy settings
+   - [ ] Implement export format customization options
+   - [ ] Add scheduled/automatic export configuration
+
+ - [ ] Implement security and privacy measures
+   - [ ] Add secure data transmission between web app and companion app
+   - [ ] Implement proper OAuth authentication flow
+   - [ ] Create audit logging for all HealthKit exports
+   - [ ] Add user consent confirmations before export
+   - [ ] Implement data minimization to export only necessary data
+   - [ ] Create privacy policy updates for HealthKit integration
+
+ - [ ] Update documentation and testing
+   - [ ] Update README.md with HealthKit export instructions
+   - [ ] Add export components to inventory.md
+   - [ ] Create unit tests for data transformation
+   - [ ] Implement integration tests for export process
+   - [ ] Add user guide for HealthKit export workflow
+   - [ ] Document iOS companion app export functionality

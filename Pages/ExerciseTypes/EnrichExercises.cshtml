@@ -1,0 +1,85 @@
+@page
+@model WorkoutTrackerWeb.Pages.ExerciseTypes.EnrichExercisesModel
+@{
+    ViewData["Title"] = "Enrich Exercises";
+}
+
+<h1>Enrich Exercises</h1>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Exercise Data Enrichment</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    This tool will search for manually created exercises with empty fields and attempt to populate them with data from the API Ninjas service.
+                </p>
+                <p>
+                    The following fields will be enriched if empty:
+                </p>
+                <ul>
+                    <li>Exercise Type (cardio, strength, etc.)</li>
+                    <li>Muscle Group</li>
+                    <li>Equipment</li>
+                    <li>Difficulty</li>
+                    <li>Instructions</li>
+                </ul>
+                
+                @if (!string.IsNullOrEmpty(Model.StatusMessage))
+                {
+                    var statusClass = Model.StatusMessage.StartsWith("Error") ? "danger" : "success";
+                    <div class="alert alert-@statusClass alert-dismissible fade show" role="alert">
+                        @Model.StatusMessage
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                }
+                
+                <form method="post">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-magic"></i> Find and Enrich Exercises
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        @if (Model.EnrichmentResult != null)
+        {
+            <div class="card">
+                <div class="card-header">
+                    <h5>Enrichment Results</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <p><strong>Exercises Found:</strong> @Model.EnrichmentResult.Value.found</p>
+                        <p><strong>Successfully Enriched:</strong> @Model.EnrichmentResult.Value.enriched</p>
+                        <p><strong>Failed to Enrich:</strong> @Model.EnrichmentResult.Value.failed</p>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a asp-page="./Index" class="btn btn-primary">
+                        <i class="fas fa-list"></i> Back to Exercise List
+                    </a>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <p>This tool will search for exercises that have empty fields and attempt to populate them with data from the API.</p>
+                        <p>The enrichment process matches exercise names with the API and only updates fields that are currently empty.</p>
+                        <p>Click the button above to start the enrichment process.</p>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a asp-page="./Index" class="btn btn-secondary">
+                        <i class="fas fa-list"></i> Back to Exercise List
+                    </a>
+                </div>
+            </div>
+        }
+    </div>
+</div>

@@ -576,7 +576,21 @@ The import process follows these steps:
 
 ## Recent Changes
 
-1. **Database Connection Pooling Optimization**:
+1. **API Ninjas Integration for Exercise Types**:
+   - Extended ExerciseType model with API-related fields (Type, Muscle, Equipment, Difficulty, Instructions, IsFromApi, LastUpdated)
+   - Implemented ExerciseApiService for communication with the API Ninjas exercise API
+   - Created ExerciseTypeService for managing exercise data operations
+   - Developed ApiImport admin page for searching and importing exercises
+   - Enhanced ExerciseTypes views with API-sourced exercise indicators
+   - Implemented exercise filtering by type, muscle, difficulty, and equipment
+   - Added related exercise suggestions based on muscle group
+   - Created secure API key management with configuration in user secrets and Kubernetes
+   - Updated Edit and Create pages to support extended exercise information
+   - Added functionality to enrich existing exercises with API data
+   - Created bulk enrichment tool for exercises with missing information
+   - Implemented database migration for schema changes
+
+2. **Database Connection Pooling Optimization**:
    - Implemented advanced connection pooling configuration in appsettings.json
    - Created DbConnectionResilienceMiddleware to handle transient database errors
    - Developed DatabaseResilienceService with circuit breaker pattern implementation
@@ -585,7 +599,7 @@ The import process follows these steps:
    - Added error handling page for database connection issues
    - Configured SqlConnectionStringBuilder with customizable connection parameters
 
-2. **Bootstrap Migration**: Upgraded from Bootstrap 4 to Bootstrap 5 for improved UI and performance
+3. **Bootstrap Migration**: Upgraded from Bootstrap 4 to Bootstrap 5 for improved UI and performance
    - Updated DataTables integration to use Bootstrap 5 CSS and JS
    - Updated all layout files to use Bootstrap 5 syntax (data-bs-* attributes)
    - Replaced form-group with spacing utilities (mb-3) in form components
@@ -595,7 +609,7 @@ The import process follows these steps:
    - Implemented Bootstrap 5 form-select class for dropdown elements
    - Added Bootstrap Icons for improved iconography
 
-3. **Architecture Migration**: Converted from MVC to Razor Pages for improved separation of concerns
+4. **Architecture Migration**: Converted from MVC to Razor Pages for improved separation of concerns
    - Replaced controllers with page models for better encapsulation
    - Organized UI components by feature area rather than controller/action pattern
    - Implemented handler methods (OnGet, OnPost) instead of controller actions
@@ -604,44 +618,44 @@ The import process follows these steps:
    - Migrated BackgroundJobsController to Razor Pages for better code organization
    - Implemented role-based authorization at the page model level
 
-4. **Workout Sharing Improvements**:
+5. **Workout Sharing Improvements**:
    - Implemented secure token validation system
    - Added granular permission controls for feature access
    - Created consistent shared layout with status information
    - Enhanced navigation between shared workout views
 
-5. **Performance Enhancements**:
+6. **Performance Enhancements**:
    - Added Redis distributed caching for report pages
    - Implemented SignalR Redis backplane for multi-container scaling
    - Optimized database queries with improved pagination and filtering
 
-6. **Security Updates**:
+7. **Security Updates**:
    - Enhanced token validation with rate limiting
    - Implemented IP tracking for shared access
    - Added comprehensive audit logging for token usage
 
-7. **UI Improvements**:
+8. **UI Improvements**:
    - Replaced modal dialogs with inline forms for better accessibility
    - Implemented accordion-based interfaces for token management
    - Added responsive design enhancements for mobile compatibility
 
-8. **Code Cleanup**:
+9. **Code Cleanup**:
    - Removed unused pages (`TestEmail.cshtml`, `/Pages/Users/` directory, `BackgroundJobs/Index.cshtml`)
    - Updated navigation references to use Admin area for user management
    - Consolidated user management in Admin area
 
-9. **Background Job System Enhancements**:
-   - Added background job support for standard JSON imports
-   - Implemented JobProgress model for consistent progress reporting
-   - Created JobStatusController API for polling job status
-   - Enhanced ImportProgressHub for real-time updates
-   - Added client-side failover mechanism for when SignalR is unavailable
-   - Improved error handling with detailed job status reporting
-   - Added support for job progress persistence
-   - Implemented job ID tracking for both CSV and JSON imports
-   - Enhanced UI for job progress with status indicators
-   - Created standardized pattern for background job operations
-   - Improved resource cleanup after job completion
+10. **Background Job System Enhancements**:
+    - Added background job support for standard JSON imports
+    - Implemented JobProgress model for consistent progress reporting
+    - Created JobStatusController API for polling job status
+    - Enhanced ImportProgressHub for real-time updates
+    - Added client-side failover mechanism for when SignalR is unavailable
+    - Improved error handling with detailed job status reporting
+    - Added support for job progress persistence
+    - Implemented job ID tracking for both CSV and JSON imports
+    - Enhanced UI for job progress with status indicators
+    - Created standardized pattern for background job operations
+    - Improved resource cleanup after job completion
 
 ### Logging Configuration Components
 

@@ -2,24 +2,168 @@
 @model WorkoutTrackerWeb.Pages.ExerciseTypes.DetailsModel
 
 @{
-    ViewData["Title"] = "Details";
+    ViewData["Title"] = "Exercise Details";
 }
 
-<h1>Details</h1>
+<h1>Exercise Details</h1>
 
-<div>
-    <h4>Exercise Type</h4>
-    <hr />
-    <dl class="row">
-        <dt class="col-sm-2">
-            @Html.DisplayNameFor(model => model.ExerciseType.Name)
-        </dt>
-        <dd class="col-sm-10">
-            @Html.DisplayFor(model => model.ExerciseType.Name)
-        </dd>
-    </dl>
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    var statusClass = Model.StatusMessage.StartsWith("Error") ? "danger" : "success";
+    <div class="alert alert-@statusClass alert-dismissible fade show" role="alert">
+        @Model.StatusMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4>@Model.ExerciseType.Name</h4>
+                <div>
+                    @if (Model.ExerciseType.IsFromApi)
+                    {
+                        <span class="badge bg-info text-white">API Sourced</span>
+                    }
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">
+                                @Html.DisplayNameFor(model => model.ExerciseType.Type)
+                            </dt>
+                            <dd class="col-sm-8">
+                                @Html.DisplayFor(model => model.ExerciseType.Type)
+                            </dd>
+                            
+                            <dt class="col-sm-4">
+                                @Html.DisplayNameFor(model => model.ExerciseType.Muscle)
+                            </dt>
+                            <dd class="col-sm-8">
+                                @Html.DisplayFor(model => model.ExerciseType.Muscle)
+                            </dd>
+                            
+                            <dt class="col-sm-4">
+                                @Html.DisplayNameFor(model => model.ExerciseType.Difficulty)
+                            </dt>
+                            <dd class="col-sm-8">
+                                @Html.DisplayFor(model => model.ExerciseType.Difficulty)
+                            </dd>
+                            
+                            <dt class="col-sm-4">
+                                @Html.DisplayNameFor(model => model.ExerciseType.Equipment)
+                            </dt>
+                            <dd class="col-sm-8">
+                                @Html.DisplayFor(model => model.ExerciseType.Equipment)
+                            </dd>
+                            
+                            <dt class="col-sm-4">
+                                @Html.DisplayNameFor(model => model.ExerciseType.Description)
+                            </dt>
+                            <dd class="col-sm-8">
+                                @Html.DisplayFor(model => model.ExerciseType.Description)
+                            </dd>
+                            
+                            @if (Model.ExerciseType.IsFromApi && Model.ExerciseType.LastUpdated.HasValue)
+                            {
+                                <dt class="col-sm-4">
+                                    @Html.DisplayNameFor(model => model.ExerciseType.LastUpdated)
+                                </dt>
+                                <dd class="col-sm-8">
+                                    @Model.ExerciseType.LastUpdated.Value.ToString("g")
+                                </dd>
+                            }
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        @if (!string.IsNullOrEmpty(Model.ExerciseType.Instructions))
+                        {
+                            <div class="card h-100">
+                                <div class="card-header">
+                                    <h5>Instructions</h5>
+                                </div>
+                                <div class="card-body">
+                                    <p style="white-space: pre-line;">@Model.ExerciseType.Instructions</p>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <a asp-page="./Edit" asp-route-id="@Model.ExerciseType?.ExerciseTypeId" class="btn btn-primary">
+                    <i class="fas fa-edit"></i> Edit
+                </a>
+                <a asp-page="./Index" class="btn btn-secondary">
+                    <i class="fas fa-list"></i> Back to List
+                </a>
+                @if (User.IsInRole("Admin"))
+                {
+                    <a asp-page="./ApiImport" class="btn btn-info">
+                        <i class="fas fa-cloud-download-alt"></i> Import from API
+                    </a>
+                    
+                    @if (!Model.ExerciseType.IsFromApi && (string.IsNullOrEmpty(Model.ExerciseType.Type) || 
+                        string.IsNullOrEmpty(Model.ExerciseType.Muscle) || 
+                        string.IsNullOrEmpty(Model.ExerciseType.Equipment) || 
+                        string.IsNullOrEmpty(Model.ExerciseType.Difficulty) || 
+                        string.IsNullOrEmpty(Model.ExerciseType.Instructions)))
+                    {
+                        <form method="post" class="d-inline">
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-magic"></i> Enrich from API
+                            </button>
+                        </form>
+                    }
+                }
+            </div>
+        </div>
+    </div>
 </div>
-<div>
-    <a asp-page="./Edit" asp-route-id="@Model.ExerciseType?.ExerciseTypeId">Edit</a> |
-    <a asp-page="./Index">Back to List</a>
-</div>
+
+@if (Model.RelatedExercises != null && Model.RelatedExercises.Any())
+{
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Similar Exercises for @Model.ExerciseType.Muscle</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Difficulty</th>
+                                    <th>Equipment</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var exercise in Model.RelatedExercises)
+                                {
+                                    <tr>
+                                        <td>@exercise.Name</td>
+                                        <td>@exercise.Type</td>
+                                        <td>@exercise.Difficulty</td>
+                                        <td>@exercise.Equipment</td>
+                                        <td>
+                                            <a asp-page="./Details" asp-route-id="@exercise.ExerciseTypeId" class="btn btn-sm btn-info">
+                                                <i class="fas fa-info-circle"></i> Details
+                                            </a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
