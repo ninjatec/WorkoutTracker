@@ -494,6 +494,78 @@ try
         options.Cookie.Name = "WorkoutTracker.Session";
     });
 
+    // Add Output Cache with Redis as the backing store if Redis is configured
+    if (builder.Services.Any(s => s.ServiceType == typeof(IConnectionMultiplexer)))
+    {
+        // Use Redis as distributed cache for OutputCache in production
+        builder.Services.AddStackExchangeRedisOutputCache(options =>
+        {
+            options.Configuration = builder.Configuration.GetConnectionString("Redis") ?? 
+                                Environment.GetEnvironmentVariable("ConnectionStrings__Redis") ?? 
+                                "redis-master.web.svc.cluster.local:6379,abortConnect=false";
+            options.InstanceName = "WorkoutTracker:OutputCache:";
+        });
+        Log.Information("Configured OutputCache with Redis backend");
+    }
+    else 
+    {
+        // Use memory cache in development
+        builder.Services.AddOutputCache();
+        Log.Information("Configured OutputCache with memory backend");
+    }
+
+    // Configure OutputCache policies
+    builder.Services.AddOutputCache(options =>
+    {
+        // Default policy for static content
+        options.AddPolicy("StaticContent", builder => 
+            builder.Cache()
+                   .Expire(TimeSpan.FromHours(12))
+                   .Tag("static-content"));
+                   
+        // Policy for content that varies by ID
+        options.AddPolicy("StaticContentWithId", builder => 
+            builder.Cache()
+                   .Expire(TimeSpan.FromHours(12))
+                   .SetVaryByRouteValue("id")
+                   .Tag("static-content-with-id"));
+                   
+        // Policy for help articles that change less frequently
+        options.AddPolicy("HelpContent", builder => 
+            builder.Cache()
+                   .Expire(TimeSpan.FromDays(1))
+                   .SetVaryByRouteValue("id")
+                   .SetVaryByRouteValue("category")
+                   .Tag("help-content"));
+                   
+        // Policy for glossary content
+        options.AddPolicy("GlossaryContent", builder => 
+            builder.Cache()
+                   .Expire(TimeSpan.FromDays(1))
+                   .Tag("glossary-content"));
+                   
+        // Policy for exercise library content with shorter expiration
+        options.AddPolicy("ExerciseLibrary", builder => 
+            builder.Cache()
+                   .Expire(TimeSpan.FromHours(6))
+                   .SetVaryByQuery("category", "search")
+                   .Tag("exercise-library"));
+        
+        // Policy for shared workout reports
+        options.AddPolicy("SharedWorkoutReports", builder => 
+            builder.Cache()
+                   .Expire(TimeSpan.FromHours(6))
+                   .SetVaryByQuery("token", "period")
+                   .Tag("shared-workout-reports"));
+        
+        // Policy for shared workout pages
+        options.AddPolicy("SharedWorkout", builder => 
+            builder.Cache()
+                   .Expire(TimeSpan.FromHours(3))
+                   .SetVaryByQuery("token")
+                   .Tag("shared-workout"));
+    });
+
     // Add custom session serialization to use System.Text.Json for better performance
     builder.Services.AddOptions<SessionOptions>()
         .Configure<IDistributedCache>((options, cache) => 
@@ -946,6 +1018,9 @@ try
     app.UseCors("ProductionDomainPolicy");
 
     app.UseRouting();
+
+    // Use OutputCache middleware after routing but before session and auth
+    app.UseOutputCache();
 
     // Enable session - only register once
     app.UseSession();

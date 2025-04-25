@@ -1,11 +1,13 @@
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Services;
 
 namespace WorkoutTrackerWeb.Pages.Shared
 {
+    [OutputCache(PolicyName = "StaticContent")]
     public class PrivacyModel : SharedPageModel
     {
         public PrivacyModel(

@@ -3,11 +3,13 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.OutputCaching;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services;
 
 namespace WorkoutTrackerWeb.Pages.Help
 {
+    [OutputCache(PolicyName = "GlossaryContent")]
     public class GlossaryModel : PageModel
     {
         private readonly HelpService _helpService;

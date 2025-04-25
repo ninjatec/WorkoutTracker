@@ -2,11 +2,13 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.OutputCaching;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services;
 
 namespace WorkoutTrackerWeb.Pages.Help
 {
+    [OutputCache(PolicyName = "HelpContent")]
     public class CategoryModel : PageModel
     {
         private readonly HelpService _helpService;

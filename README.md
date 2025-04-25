@@ -366,6 +366,21 @@ The application provides comprehensive data portability features:
 
 ## Recent Updates
 
+- **Implemented Output Caching for Static Content**:
+  - Added Redis-backed output caching for production environments
+  - Configured memory-based output caching for development environments
+  - Created specialized cache policies for different content types:
+    - StaticContent: 12-hour cache for fully static pages
+    - StaticContentWithId: 12-hour cache that varies by route ID
+    - HelpContent: 24-hour cache for help articles with category/ID variation
+    - GlossaryContent: 24-hour cache for glossary pages
+    - ExerciseLibrary: 6-hour cache with query parameter variation
+    - SharedWorkoutReports: 6-hour cache for shared reports with token/period parameters
+    - SharedWorkout: 3-hour cache for shared workout pages with token variation
+  - Applied appropriate caching policies to all static and rarely changing pages
+  - Implemented tag-based cache invalidation for targeted content updates
+  - Configured NoStore option for dynamic search pages to exempt from caching
+
 - **Fixed namespace capitalization inconsistency**:
   - Corrected lowercase "WorkoutTrackerweb" references to "WorkoutTrackerWeb" with proper capitalization
   - Fixed build errors related to namespace confusion across the codebase

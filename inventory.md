@@ -36,6 +36,7 @@ This document maintains an up-to-date inventory of all features, components, and
 - Chart.js for Data Visualization
 - DataTables for Interactive Tables
 - Azure/Kubernetes Deployment Support
+- Output Caching with Redis Backplane
 
 ### Application Components
 - User Management
@@ -75,6 +76,29 @@ This document maintains an up-to-date inventory of all features, components, and
 - Import from TrainAI format
 - Prometheus Metrics
 - Health Checks
+
+### Caching Components
+
+| Component | Purpose |
+|-----------|---------|
+| `OutputCache Middleware` | ASP.NET Core middleware for caching page output to improve performance |
+| `Redis OutputCache Provider` | Distributed cache provider for output caching using Redis in production |
+| `Memory OutputCache Provider` | Local memory-based cache for development environments |
+| `Cache Policies` | Specialized caching strategies for different content types |
+| `Cache Tags` | Content identification for targeted cache invalidation |
+| `CacheVaryByQuery/RouteValue` | Cache variations based on query parameters or route values |
+
+### Caching Policies
+
+| Policy | Duration | Purpose | Variations |
+|--------|----------|---------|------------|
+| `StaticContent` | 12 hours | Fully static pages with no dynamic content | None |
+| `StaticContentWithId` | 12 hours | Static content that varies by route ID | ID route value |
+| `HelpContent` | 24 hours | Help articles and categories | ID and category route values |
+| `GlossaryContent` | 24 hours | Glossary pages with terminology definitions | None |
+| `ExerciseLibrary` | 6 hours | Exercise library with periodic updates | Category and search query parameters |
+| `SharedWorkoutReports` | 6 hours | Shared reports that vary by token and period | Token and period query parameters |
+| `SharedWorkout` | 3 hours | Shared workout pages with token-based access | Token query parameter |
 
 ## Project Structure
 

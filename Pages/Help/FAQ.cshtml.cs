@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace WorkoutTrackerWeb.Pages.Help
 {
+    [OutputCache(PolicyName = "StaticContent")]
     public class FAQModel : PageModel
     {
         public Dictionary<string, List<(string question, string answer)>> FaqCategories { get; private set; }

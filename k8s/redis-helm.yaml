@@ -31,6 +31,7 @@ data:
           cpu: 500m
       podLabels:
         app.kubernetes.io/component: master
+      enableServiceLinks: true
     
     replica:
       replicaCount: 2
@@ -57,6 +58,9 @@ data:
         limits:
           memory: 128Mi
           cpu: 100m
+      enableServiceLinks: true
+      #masterService:
+      #  enabled: true
     
     # Explicitly specify service names to match application expectations      
     service:

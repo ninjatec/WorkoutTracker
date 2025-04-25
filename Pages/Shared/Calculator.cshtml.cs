@@ -8,9 +8,11 @@ using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace WorkoutTrackerWeb.Pages.Shared
 {
+    [OutputCache(PolicyName = "SharedWorkout")]
     public class CalculatorModel : SharedPageModel
     {
         private readonly WorkoutTrackerWebContext _context;

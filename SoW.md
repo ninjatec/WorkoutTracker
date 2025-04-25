@@ -3,157 +3,7 @@
 
 ## Update help pages
 
-## Expand excercise types 
-[x] Expand excercise types with integration to https://www.api-ninjas.com/api/exercises
- - [x] Set up API Ninjas integration
-   - [x] Create ExerciseApiService to handle API communication
-   - [x] Implement secure API key storage and configuration
-   - [x] Add rate limiting support to prevent API quota exhaustion
-   - [x] Implement HTTP client factory pattern for resilient API calls
-   - [x] Add proper error handling and logging for API failures
 
- - [x] Develop exercise data models
-   - [x] Create ExerciseApiResponse model matching API Ninjas schema
-   - [x] Implement mapping between API data and ExerciseType model
-   - [x] Add support for extended attributes (muscle groups, difficulty, instructions)
-   - [x] Create ExerciseTypeExtended model for storing additional metadata
-   - [x] Update database schema to accommodate new exercise attributes
-
- - [x] Create Admin UI for exercise management
-   - [x] Add "Import from API" button to ExerciseTypes/Index page
-   - [x] Create exercise search interface with filtering options (muscle group, difficulty, type)
-   - [x] Implement paginated results for large API responses
-   - [x] Add preview functionality before importing exercises
-   - [x] Create bulk selection and import capabilities
-   - [x] Implement duplicate detection and handling
-
- - [x] Enhance exercise type views with new metadata
-   - [x] Update ExerciseTypes/Details.cshtml to show extended attributes
-   - [x] Add muscle group visualization with SVG body map
-   - [x] Create collapsible exercise instructions section
-   - [x] Implement difficulty indicator with visual cues
-   - [x] Add equipment requirements section to exercise details
-   - [x] Create related/alternative exercises section
-
- - [x] Implement background processing for large imports
-   - [x] Add Hangfire job for bulk exercise import
-   - [x] Create progress tracking with SignalR notifications
-   - [x] Implement cancellation support for ongoing imports
-   - [x] Add retry mechanism for failed API requests
-   - [x] Create import history and audit trail
-
- - [x] Build exercise data caching system
-   - [x] Implement local database cache of API responses
-   - [x] Add cache invalidation strategy with reasonable TTL
-   - [x] Create background refresh job for popular exercises
-   - [x] Implement cache warming on application startup
-   - [x] Add manual cache refresh option in admin interface
-
- - [x] Enhance user workout experience with new data
-   - [x] Update set creation flow to show exercise instructions
-   - [x] Add muscle group highlighting when selecting exercises
-   - [x] Implement exercise difficulty warning for beginners
-   - [x] Create "similar exercises" recommendations
-   - [x] Add exercise rotation suggestions to avoid overtraining
-
- - [x] Develop reporting and analytics enhancements
-   - [x] Create muscle group balance analysis in Reports page
-   - [x] Add exercise variety metrics to user dashboard
-   - [x] Implement exercise difficulty progression tracking
-   - [x] Create workout completeness score based on muscle groups
-   - [x] Add intelligent workout suggestions based on history
-
- - [x] Add documentation and testing
-   - [x] Update README.md with API integration details
-   - [x] Add new components to inventory.md
-   - [x] Create unit tests for API service and mapping logic
-   - [x] Implement integration tests for import process
-   - [x] Add user guide for exercise search and details features
-
-
-## Admin Functions
-[x] Log Level
-- [x] Add the Ability to manage the log level and control from a link under the System Settings link from the admin dashboard
- - [x] Implement log level configuration system
-   - [x] Create LogLevel configuration model/entity to store settings
-   - [x] Add LoggingService to manage log level changes at runtime
-   - [x] Implement configuration persistence in database
-   - [x] Create interface for logging providers to adapt to level changes
-   - [x] Add configuration reload mechanism for real-time changes
-
- - [x] Develop admin UI for log management
-   - [x] Create LogLevel admin page accessible from System Settings
-   - [x] Implement dropdown selection for global log level (Debug, Info, Warning, Error, Critical)
-   - [x] Add category-specific log level controls for granular management
-
-
- - [x] Enhance logging infrastructure
-   - [x] Implement structured logging with Serilog
-   - [x] Add log enrichment with contextual information (user, request, etc.)
-   - [x] Create log sinks for different output targets (file, console, database)
-
- - [x] Implement security and access controls
-   - [x] Restrict log management to admin users only
-   - [x] Add audit logging for log level changes
-
- - [x] Update documentation
-   - [x] Document logging architecture in README.md
-   - [x] Update inventory.md with new logging components
-
----
----
-
-[x] Update the Import page DataPortability/Import to use background jobs worker hangfire
- - [x] Add background job support to standard JSON import functionality
-   - [x] Refactor WorkoutDataPortabilityService to support async background processing
-   - [x] Create job progress model similar to existing ImportTrainAI implementation
-   - [x] Add support for SignalR progress updates in the WorkoutDataPortabilityService
-   - [x] Implement proper error handling and job status reporting
-   - [x] Update service to support both direct and background processing modes
- 
- - [x] Enhance BackgroundJobService to handle JSON imports
-   - [x] Add method to queue JSON imports as background jobs 
-   - [x] Implement progress tracking for JSON imports
-   - [x] Create job completion notification mechanism
-   - [x] Add error handling and job failure recovery
-   - [x] Ensure proper cleanup of resources after job completion
-
- - [x] Update Import page UI for background processing
-   - [x] Add real-time progress tracking with SignalR
-   - [x] Create progress bar and status indicators 
-   - [x] Implement connection state display (connected/disconnected)
-   - [x] Add fallback polling for job status when SignalR is unavailable
-   - [x] Display detailed import progress information
-
- - [x] Integrate with ImportProgressHub for real-time updates
-   - [x] Extend ImportProgressHub to support standard JSON imports
-   - [x] Implement client-side SignalR connection in Import.cshtml
-   - [x] Add code to register for job-specific updates
-   - [x] Handle reconnection scenarios and progress synchronization
-   - [x] Ensure proper job group management in the hub
-
- - [x] Update Import.cshtml.cs page model
-   - [x] Refactor OnPostAsync to use background job processing
-   - [x] Add JobId property to track background jobs
-   - [x] Implement job status checking functionality 
-   - [x] Add error message retrieval from failed jobs
-   - [x] Provide initial progress update when job starts
-
- - [x] Implement job status persistence and monitoring
-   - [x] Save job metadata for user reference
-   - [x] Add job status polling endpoint for fallback scenarios
-   - [x] Create job cancellation functionality
-   - [x] Implement job cleanup for completed/failed imports
-   - [x] Add job history display for users to track past imports
-
- - [x] Add testing and documentation
-   - [x] Create unit tests for background job processing
-   - [x] Test with large import files to verify performance
-   - [x] Test error scenarios and recovery mechanisms
-   - [x] Update inventory.md with new components
-   - [x] Document the implementation in code comments
-
----
 ---
 
 [ ] Update sessions pages to support sequence numbers
@@ -212,62 +62,6 @@
    - [ ] Update README.md with sharing functionality details
    - [ ] Update inventory.md with new sharing components
    - [ ] Create user guide for sharing workout data
-
----
----
-
-[x] Optimize for multi-container deployment
- - [x] Implement Redis for distributed session state
-   - [x] Replace SQL Server session state with Redis distributed cache
-   - [x] Update `Program.cs` to use Redis for session state
-   - [x] Configure proper serialization for session state
- - [x] Add database connection pooling optimization
-   - [x] Configure connection pooling settings in DbContext
-   - [x] Add connection resiliency with retry policies
-   - [x] Implement circuit breaker pattern for database connections
- - [x] Update documentation
-   - [x] Update `README.md` with multi-container architecture details
-   - [x] Update `inventory.md` with new components and relationships
-   - [x] Create architecture diagram showing container interactions
-
----
----
-
-[x] Implement dedicated Hangfire worker pod for background processing
- - [x] Configure Hangfire server components for separation
-   - [x] Create HangfireServerConfiguration class to centralize server settings
-   - [x] Implement environment-based configuration for worker vs. application pods
-   - [x] Add configuration flag for enabling/disabling job processing
-   - [x] Refactor Hangfire initialization in Program.cs to support role-based startup
-   - [x] Configure Hangfire dashboard to show distributed server status
-
- - [x] Update service-based APIs for background processing
-   - [x] Fix exception issues with RecurringJob static API
-   - [x] Implement service-based IRecurringJobManager instead of static RecurringJob class
-   - [x] Create AlertingJobsRegistration service for job registration
-   - [x] Update dependency injection to properly register Hangfire service components
-   - [x] Use scoped service approach for proper initialization and dependency resolution
-
- - [x] Update application pods to disable job processing
-   - [x] Add environment variable HANGFIRE_PROCESSING_ENABLED for role detection
-   - [x] Modify Program.cs to check for processing role before initializing job server
-   - [x] Configure application pods to only run Hangfire client components
-   - [x] Implement health checks specific to client-only role
-   - [x] Ensure SignalR connections work properly without worker components
-
- - [x] Add Kubernetes configuration for worker pods
-   - [x] Create dedicated Kubernetes deployment manifest
-   - [x] Configure resource limits and requests for worker pods
-   - [x] Add proper health probes for worker-only roles
-   - [x] Ensure proper secrets and configuration access
-   - [x] Document worker deployment architecture
-   
- - [x] Update diagnostics and monitoring
-   - [x] Add server role information to diagnostics page
-   - [x] Create UI to display processing role and status
-   - [x] Implement queue and worker count monitoring
-   - [x] Add logging for role-based initialization
-   - [x] Document worker configuration options
 
 ---
 ---
@@ -498,3 +292,155 @@
    - [x] Create integration tests for dashboard components
    - [x] Document alert threshold recommendations
    - [x] Add performance impact analysis of metric collection
+
+   ## Expand excercise types 
+[x] Expand excercise types with integration to https://www.api-ninjas.com/api/exercises
+ - [x] Set up API Ninjas integration
+   - [x] Create ExerciseApiService to handle API communication
+   - [x] Implement secure API key storage and configuration
+   - [x] Add rate limiting support to prevent API quota exhaustion
+   - [x] Implement HTTP client factory pattern for resilient API calls
+   - [x] Add proper error handling and logging for API failures
+
+ - [x] Develop exercise data models
+   - [x] Create ExerciseApiResponse model matching API Ninjas schema
+   - [x] Implement mapping between API data and ExerciseType model
+   - [x] Add support for extended attributes (muscle groups, difficulty, instructions)
+   - [x] Create ExerciseTypeExtended model for storing additional metadata
+   - [x] Update database schema to accommodate new exercise attributes
+
+ - [x] Create Admin UI for exercise management
+   - [x] Add "Import from API" button to ExerciseTypes/Index page
+   - [x] Create exercise search interface with filtering options (muscle group, difficulty, type)
+   - [x] Implement paginated results for large API responses
+   - [x] Add preview functionality before importing exercises
+   - [x] Create bulk selection and import capabilities
+   - [x] Implement duplicate detection and handling
+
+ - [x] Enhance exercise type views with new metadata
+   - [x] Update ExerciseTypes/Details.cshtml to show extended attributes
+   - [x] Add muscle group visualization with SVG body map
+   - [x] Create collapsible exercise instructions section
+   - [x] Implement difficulty indicator with visual cues
+   - [x] Add equipment requirements section to exercise details
+   - [x] Create related/alternative exercises section
+
+ - [x] Implement background processing for large imports
+   - [x] Add Hangfire job for bulk exercise import
+   - [x] Create progress tracking with SignalR notifications
+   - [x] Implement cancellation support for ongoing imports
+   - [x] Add retry mechanism for failed API requests
+   - [x] Create import history and audit trail
+
+ - [x] Build exercise data caching system
+   - [x] Implement local database cache of API responses
+   - [x] Add cache invalidation strategy with reasonable TTL
+   - [x] Create background refresh job for popular exercises
+   - [x] Implement cache warming on application startup
+   - [x] Add manual cache refresh option in admin interface
+
+ - [x] Enhance user workout experience with new data
+   - [x] Update set creation flow to show exercise instructions
+   - [x] Add muscle group highlighting when selecting exercises
+   - [x] Implement exercise difficulty warning for beginners
+   - [x] Create "similar exercises" recommendations
+   - [x] Add exercise rotation suggestions to avoid overtraining
+
+ - [x] Develop reporting and analytics enhancements
+   - [x] Create muscle group balance analysis in Reports page
+   - [x] Add exercise variety metrics to user dashboard
+   - [x] Implement exercise difficulty progression tracking
+   - [x] Create workout completeness score based on muscle groups
+   - [x] Add intelligent workout suggestions based on history
+
+ - [x] Add documentation and testing
+   - [x] Update README.md with API integration details
+   - [x] Add new components to inventory.md
+   - [x] Create unit tests for API service and mapping logic
+   - [x] Implement integration tests for import process
+   - [x] Add user guide for exercise search and details features
+
+
+## Admin Functions
+[x] Log Level
+- [x] Add the Ability to manage the log level and control from a link under the System Settings link from the admin dashboard
+ - [x] Implement log level configuration system
+   - [x] Create LogLevel configuration model/entity to store settings
+   - [x] Add LoggingService to manage log level changes at runtime
+   - [x] Implement configuration persistence in database
+   - [x] Create interface for logging providers to adapt to level changes
+   - [x] Add configuration reload mechanism for real-time changes
+
+ - [x] Develop admin UI for log management
+   - [x] Create LogLevel admin page accessible from System Settings
+   - [x] Implement dropdown selection for global log level (Debug, Info, Warning, Error, Critical)
+   - [x] Add category-specific log level controls for granular management
+
+
+ - [x] Enhance logging infrastructure
+   - [x] Implement structured logging with Serilog
+   - [x] Add log enrichment with contextual information (user, request, etc.)
+   - [x] Create log sinks for different output targets (file, console, database)
+
+ - [x] Implement security and access controls
+   - [x] Restrict log management to admin users only
+   - [x] Add audit logging for log level changes
+
+ - [x] Update documentation
+   - [x] Document logging architecture in README.md
+   - [x] Update inventory.md with new logging components
+
+---
+---
+
+[x] Update the Import page DataPortability/Import to use background jobs worker hangfire
+ - [x] Add background job support to standard JSON import functionality
+   - [x] Refactor WorkoutDataPortabilityService to support async background processing
+   - [x] Create job progress model similar to existing ImportTrainAI implementation
+   - [x] Add support for SignalR progress updates in the WorkoutDataPortabilityService
+   - [x] Implement proper error handling and job status reporting
+   - [x] Update service to support both direct and background processing modes
+ 
+ - [x] Enhance BackgroundJobService to handle JSON imports
+   - [x] Add method to queue JSON imports as background jobs 
+   - [x] Implement progress tracking for JSON imports
+   - [x] Create job completion notification mechanism
+   - [x] Add error handling and job failure recovery
+   - [x] Ensure proper cleanup of resources after job completion
+
+ - [x] Update Import page UI for background processing
+   - [x] Add real-time progress tracking with SignalR
+   - [x] Create progress bar and status indicators 
+   - [x] Implement connection state display (connected/disconnected)
+   - [x] Add fallback polling for job status when SignalR is unavailable
+   - [x] Display detailed import progress information
+
+ - [x] Integrate with ImportProgressHub for real-time updates
+   - [x] Extend ImportProgressHub to support standard JSON imports
+   - [x] Implement client-side SignalR connection in Import.cshtml
+   - [x] Add code to register for job-specific updates
+   - [x] Handle reconnection scenarios and progress synchronization
+   - [x] Ensure proper job group management in the hub
+
+ - [x] Update Import.cshtml.cs page model
+   - [x] Refactor OnPostAsync to use background job processing
+   - [x] Add JobId property to track background jobs
+   - [x] Implement job status checking functionality 
+   - [x] Add error message retrieval from failed jobs
+   - [x] Provide initial progress update when job starts
+
+ - [x] Implement job status persistence and monitoring
+   - [x] Save job metadata for user reference
+   - [x] Add job status polling endpoint for fallback scenarios
+   - [x] Create job cancellation functionality
+   - [x] Implement job cleanup for completed/failed imports
+   - [x] Add job history display for users to track past imports
+
+ - [x] Add testing and documentation
+   - [x] Create unit tests for background job processing
+   - [x] Test with large import files to verify performance
+   - [x] Test error scenarios and recovery mechanisms
+   - [x] Update inventory.md with new components
+   - [x] Document the implementation in code comments
+
+---
