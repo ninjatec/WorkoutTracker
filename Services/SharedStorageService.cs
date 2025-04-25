@@ -70,44 +70,105 @@ namespace WorkoutTrackerWeb.Services
 
             var db = _redis.GetDatabase();
             
-            // Test if we're on a read-only replica by trying to ping with a small write operation
-            try
+            int retryCount = 0;
+            int maxRetries = 3;
+            int baseDelayMs = 200;
+
+            while (retryCount < maxRetries)
             {
-                // Create a unique test key that won't interfere with real data
-                string testKey = $"redis:master:writetest:{Guid.NewGuid()}";
-                bool isWritable = db.StringSet(testKey, "test", TimeSpan.FromSeconds(5));
-                
-                if (!isWritable)
+                try
+                {
+                    if (!_redis.IsConnected)
+                    {
+                        _logger.LogWarning("Redis is not connected. Attempt {RetryCount}/{MaxRetries} to reconnect...", 
+                            retryCount + 1, maxRetries);
+                        // Wait before retry with exponential backoff
+                        int delayMs = baseDelayMs * (int)Math.Pow(2, retryCount);
+                        Task.Delay(delayMs).Wait(); // Small delay before retry
+                        retryCount++;
+                        continue;
+                    }
+
+                    // Create a unique test key that won't interfere with real data
+                    string testKey = $"redis:master:writetest:{Guid.NewGuid()}";
+                    
+                    // Use SetAsync instead of StringSet to avoid blocking
+                    var setTask = db.StringSetAsync(testKey, "test", TimeSpan.FromSeconds(5));
+                    
+                    // Wait with timeout to avoid hanging indefinitely
+                    if (!setTask.Wait(TimeSpan.FromSeconds(5)))
+                    {
+                        throw new TimeoutException("Redis write test timed out after 5 seconds");
+                    }
+                    
+                    // If we get here, the write was successful
+                    return db;
+                }
+                catch (RedisConnectionException connEx)
+                {
+                    _logger.LogWarning(connEx, "Redis connection error. Attempt {RetryCount}/{MaxRetries}. Will retry.", 
+                        retryCount + 1, maxRetries);
+                    
+                    // Wait before retry with exponential backoff
+                    int delayMs = baseDelayMs * (int)Math.Pow(2, retryCount);
+                    Task.Delay(delayMs).Wait();
+                    retryCount++;
+                }
+                catch (RedisCommandException ex) when (ex.Message.Contains("READONLY"))
                 {
                     _logger.LogWarning("Connected to a read-only Redis replica. Attempting to find writable master...");
                     
-                    // Try to find a writable endpoint
-                    foreach (var endpoint in _redis.GetEndPoints())
+                    try
                     {
-                        var server = _redis.GetServer(endpoint);
-                        if (!server.IsReplica)
+                        // Try to find a writable endpoint
+                        foreach (var endpoint in _redis.GetEndPoints())
                         {
-                            _logger.LogInformation("Found master Redis server at {Endpoint}", endpoint);
-                            // We still use the same connection but now we're confident we have a master
-                            return db;
+                            var server = _redis.GetServer(endpoint);
+                            if (!server.IsReplica)
+                            {
+                                _logger.LogInformation("Found master Redis server at {Endpoint}", endpoint);
+                                // Found a master server, retry write test
+                                break;
+                            }
                         }
+                        
+                        // Wait before retry with exponential backoff
+                        int delayMs = baseDelayMs * (int)Math.Pow(2, retryCount);
+                        Task.Delay(delayMs).Wait();
+                        retryCount++;
                     }
-                    
-                    _logger.LogError("All Redis endpoints are read-only! File operations that write will fail.");
+                    catch (Exception endpointEx)
+                    {
+                        _logger.LogError(endpointEx, "Error while trying to find Redis master endpoint");
+                        throw new InvalidOperationException("Cannot determine Redis master endpoint", endpointEx);
+                    }
                 }
-                
-                return db;
+                catch (Exception ex)
+                {
+                    if (retryCount < maxRetries - 1)
+                    {
+                        _logger.LogWarning(ex, "Error checking Redis write capability. Attempt {RetryCount}/{MaxRetries}. Will retry.", 
+                            retryCount + 1, maxRetries);
+                        
+                        // Wait before retry with exponential backoff
+                        int delayMs = baseDelayMs * (int)Math.Pow(2, retryCount);
+                        Task.Delay(delayMs).Wait();
+                        retryCount++;
+                    }
+                    else
+                    {
+                        _logger.LogError(ex, "Error checking Redis write capability after {RetryCount} attempts", maxRetries);
+                        
+                        // Last resort: return the database even if we couldn't verify write capability
+                        _logger.LogWarning("Returning Redis database connection without write verification. Operations may fail.");
+                        return db;
+                    }
+                }
             }
-            catch (RedisCommandException ex) when (ex.Message.Contains("READONLY"))
-            {
-                _logger.LogWarning("Connected to a read-only Redis replica and cannot write. Error: {Message}", ex.Message);
-                throw new InvalidOperationException("Cannot perform write operations on a read-only Redis replica", ex);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error checking Redis write capability");
-                return db; // Return the database anyway and let the operation try
-            }
+            
+            // If we exit the loop, we've failed all retries
+            _logger.LogError("Failed to get a writable Redis connection after {MaxRetries} attempts", maxRetries);
+            return db; // Return the database anyway as a last resort
         }
 
         public async Task<string> StoreFileAsync(Stream fileStream, string fileExtension = "", TimeSpan? expiry = null)
@@ -123,6 +184,15 @@ namespace WorkoutTrackerWeb.Services
             
             // Use GetWritableDatabase to ensure we're writing to a master, not a replica
             var db = GetWritableDatabase();
+            
+            // If we couldn't get a Redis database but Redis is configured, this is an error
+            if (db == null && _redis != null)
+            {
+                _logger.LogError("Failed to get a writable Redis connection for storing file");
+                throw new InvalidOperationException("Failed to get a writable Redis connection for storing file");
+            }
+            
+            // If Redis is not configured, fall back to local filesystem
             if (db == null && _redis == null)
             {
                 // We're in development mode with local filesystem storage
@@ -150,74 +220,145 @@ namespace WorkoutTrackerWeb.Services
                 }
             }
 
-            try
+            int retryCount = 0;
+            int maxRetries = 3;
+            int retryDelayMs = 500;
+            
+            while (retryCount < maxRetries)
             {
-                _logger.LogInformation("Storing file in shared storage with ID: {FileId}", fileId);
-                
-                // Store file metadata
-                await db.HashSetAsync(metaKey, new HashEntry[]
-                {
-                    new HashEntry("extension", fileExtension),
-                    new HashEntry("created", DateTimeOffset.UtcNow.ToUnixTimeSeconds())
-                });
-
-                // Apply expiry to metadata if specified
-                if (expiry.HasValue)
-                {
-                    await db.KeyExpireAsync(metaKey, expiry.Value);
-                }
-
-                // Store file content in chunks for large files
-                byte[] buffer = new byte[CHUNK_SIZE];
-                int bytesRead;
-                long position = 0;
-
-                while ((bytesRead = await fileStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
-                {
-                    if (bytesRead < buffer.Length)
-                    {
-                        Array.Resize(ref buffer, bytesRead);
-                    }
-
-                    string chunkKey = $"{fileKey}:{position}";
-                    await db.StringSetAsync(chunkKey, buffer);
-                    
-                    // Apply expiry to chunk if specified
-                    if (expiry.HasValue)
-                    {
-                        await db.KeyExpireAsync(chunkKey, expiry.Value);
-                    }
-
-                    position += bytesRead;
-                }
-
-                // Store total size in metadata
-                await db.HashSetAsync(metaKey, "size", position);
-
-                _logger.LogInformation("File stored successfully in shared storage. ID: {FileId}, Size: {Size} bytes", fileId, position);
-                return fileId;
-            }
-            catch (RedisCommandException ex) when (ex.Message.Contains("READONLY"))
-            {
-                _logger.LogError(ex, "Cannot store file - connected to a read-only Redis replica. File ID: {FileId}", fileId);
-                throw new InvalidOperationException($"Cannot store file - connected to a read-only Redis replica. File ID: {fileId}", ex);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error storing file in shared storage: {Message}", ex.Message);
-                
-                // Clean up any chunks that may have been created
                 try
                 {
-                    await CleanupFileAsync(fileId);
+                    _logger.LogInformation("Storing file in shared storage with ID: {FileId}", fileId);
+                    
+                    // Store file metadata with retry
+                    await db.HashSetAsync(metaKey, new HashEntry[]
+                    {
+                        new HashEntry("extension", fileExtension),
+                        new HashEntry("created", DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+                    });
+
+                    // Apply expiry to metadata if specified
+                    if (expiry.HasValue)
+                    {
+                        await db.KeyExpireAsync(metaKey, expiry.Value);
+                    }
+
+                    // Store file content in chunks for large files
+                    byte[] buffer = new byte[CHUNK_SIZE];
+                    int bytesRead;
+                    long position = 0;
+
+                    while ((bytesRead = await fileStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                    {
+                        if (bytesRead < buffer.Length)
+                        {
+                            Array.Resize(ref buffer, bytesRead);
+                        }
+
+                        // Use retry for each chunk
+                        bool chunkStored = false;
+                        int chunkRetryCount = 0;
+                        
+                        while (!chunkStored && chunkRetryCount < 3)
+                        {
+                            try 
+                            {
+                                string chunkKey = $"{fileKey}:{position}";
+                                await db.StringSetAsync(chunkKey, buffer);
+                                
+                                // Apply expiry to chunk if specified
+                                if (expiry.HasValue)
+                                {
+                                    await db.KeyExpireAsync(chunkKey, expiry.Value);
+                                }
+                                
+                                chunkStored = true;
+                            }
+                            catch (Exception ex)
+                            {
+                                chunkRetryCount++;
+                                if (chunkRetryCount >= 3)
+                                {
+                                    _logger.LogError(ex, "Failed to store chunk at position {Position} after 3 retries", position);
+                                    throw;
+                                }
+                                
+                                _logger.LogWarning(ex, "Error storing chunk at position {Position}. Retry {RetryCount}/3", 
+                                    position, chunkRetryCount);
+                                await Task.Delay(retryDelayMs);
+                            }
+                        }
+
+                        position += bytesRead;
+                    }
+
+                    // Store total size in metadata
+                    await db.HashSetAsync(metaKey, "size", position);
+
+                    _logger.LogInformation("File stored successfully in shared storage. ID: {FileId}, Size: {Size} bytes", fileId, position);
+                    return fileId;
                 }
-                catch
+                catch (RedisCommandException ex) when (ex.Message.Contains("READONLY"))
                 {
-                    // Ignore cleanup errors
+                    retryCount++;
+                    if (retryCount >= maxRetries)
+                    {
+                        _logger.LogError(ex, "Cannot store file - connected to a read-only Redis replica. File ID: {FileId}", fileId);
+                        
+                        // Try to clean up any partial data that may have been created
+                        try { await CleanupFileAsync(fileId); } catch { /* Ignore cleanup errors */ }
+                        
+                        throw new InvalidOperationException($"Cannot store file - connected to a read-only Redis replica. File ID: {fileId}", ex);
+                    }
+                    
+                    _logger.LogWarning(ex, "Connected to a read-only Redis replica. Attempt {RetryCount}/{MaxRetries}", 
+                        retryCount, maxRetries);
+                        
+                    // Try to get a writable connection again
+                    db = GetWritableDatabase();
+                    if (db == null)
+                    {
+                        _logger.LogError("Failed to get a writable Redis connection after retry");
+                        throw new InvalidOperationException("Failed to get a writable Redis connection after retry");
+                    }
+                    
+                    await Task.Delay(retryDelayMs * retryCount);
                 }
-                
-                throw;
+                catch (RedisConnectionException connEx)
+                {
+                    retryCount++;
+                    if (retryCount >= maxRetries)
+                    {
+                        _logger.LogError(connEx, "Cannot store file - Redis connection issue. File ID: {FileId}", fileId);
+                        
+                        // Try to clean up any partial data that may have been created
+                        try { await CleanupFileAsync(fileId); } catch { /* Ignore cleanup errors */ }
+                        
+                        throw;
+                    }
+                    
+                    _logger.LogWarning(connEx, "Redis connection issue. Attempt {RetryCount}/{MaxRetries}", 
+                        retryCount, maxRetries);
+                    
+                    // Try to get a writable connection again
+                    db = GetWritableDatabase();
+                    
+                    await Task.Delay(retryDelayMs * retryCount);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error storing file in shared storage: {Message}", ex.Message);
+                    
+                    // Clean up any chunks that may have been created
+                    try { await CleanupFileAsync(fileId); } catch { /* Ignore cleanup errors */ }
+                    
+                    throw;
+                }
             }
+            
+            // This should not be reached due to the exception in the last retry, but just in case
+            _logger.LogError("Failed to store file after {MaxRetries} retries", maxRetries);
+            throw new InvalidOperationException($"Failed to store file after {maxRetries} retries");
         }
 
         public async Task<string> StoreFileFromPathAsync(string filePath, TimeSpan? expiry = null)
@@ -383,6 +524,13 @@ namespace WorkoutTrackerWeb.Services
             string metaKey = $"{fileKey}{META_SUFFIX}";
             var db = GetWritableDatabase();
             
+            // Early exit if we failed to get a writable database connection
+            if (db == null && _redis != null)
+            {
+                _logger.LogWarning("Could not get a writable Redis connection for cleanup. File ID: {FileId}", fileId);
+                return;
+            }
+            
             try {
                 // Get size to know how many chunks to delete
                 HashEntry[] metaEntries = await db.HashGetAllAsync(metaKey);
@@ -395,14 +543,46 @@ namespace WorkoutTrackerWeb.Services
                     while (position < size)
                     {
                         string chunkKey = $"{fileKey}:{position}";
-                        var chunk = await db.StringGetAsync(chunkKey);
+                        RedisValue chunk = RedisValue.Null;
+                        
+                        try
+                        {
+                            // Use a timeout for the get operation to prevent hanging
+                            var getTask = db.StringGetAsync(chunkKey);
+                            if (await Task.WhenAny(getTask, Task.Delay(5000)) == getTask)
+                            {
+                                chunk = await getTask;
+                            }
+                            else
+                            {
+                                _logger.LogWarning("Timeout getting chunk at position {Position} for file {FileId}", position, fileId);
+                                // Move to next chunk to avoid getting stuck
+                                position += CHUNK_SIZE;
+                                continue;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Error getting chunk at position {Position} for file {FileId}", position, fileId);
+                            // Move to next chunk to avoid getting stuck
+                            position += CHUNK_SIZE;
+                            continue;
+                        }
                         
                         if (!chunk.IsNull)
                         {
-                            await db.KeyDeleteAsync(chunkKey);
-                            // Convert RedisValue to byte array to get the length
-                            byte[] bytes = chunk;
-                            position += bytes.Length;
+                            try 
+                            {
+                                await db.KeyDeleteAsync(chunkKey);
+                                byte[] bytes = chunk;
+                                position += bytes.Length;
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "Error deleting chunk at position {Position} for file {FileId}", position, fileId);
+                                // Move to next chunk to avoid getting stuck
+                                position += CHUNK_SIZE;
+                            }
                         }
                         else
                         {
@@ -414,15 +594,53 @@ namespace WorkoutTrackerWeb.Services
                 else
                 {
                     // If we can't get size, try to delete chunks using a pattern search
-                    var server = _redis.GetServer(_redis.GetEndPoints()[0]);
-                    foreach (var key in server.Keys(pattern: $"{fileKey}:*"))
+                    try
                     {
-                        await db.KeyDeleteAsync(key);
+                        if (_redis.GetEndPoints().Length > 0)
+                        {
+                            var server = _redis.GetServer(_redis.GetEndPoints()[0]);
+                            
+                            // Use a timeout for the KEYS operation to prevent hanging
+                            var keysTask = Task.Run(() => server.Keys(pattern: $"{fileKey}:*").ToArray());
+                            RedisKey[] keys;
+                            
+                            if (await Task.WhenAny(keysTask, Task.Delay(10000)) == keysTask)
+                            {
+                                keys = await keysTask;
+                                
+                                foreach (var key in keys)
+                                {
+                                    try 
+                                    {
+                                        await db.KeyDeleteAsync(key);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        _logger.LogWarning(ex, "Error deleting key {Key} for file {FileId}", key, fileId);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                _logger.LogWarning("Timeout searching for chunk keys for file {FileId}", fileId);
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error searching for chunk keys for file {FileId}", fileId);
                     }
                 }
                 
-                // Delete metadata
-                await db.KeyDeleteAsync(metaKey);
+                // Delete metadata as the last step
+                try
+                {
+                    await db.KeyDeleteAsync(metaKey);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error deleting metadata for file {FileId}", fileId);
+                }
             }
             catch (RedisCommandException ex) when (ex.Message.Contains("READONLY"))
             {
