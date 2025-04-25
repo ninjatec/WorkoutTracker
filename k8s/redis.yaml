@@ -182,6 +182,22 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  name: redis-master
+  namespace: web
+  labels:
+    app: redis
+spec:
+  selector:
+    statefulset.kubernetes.io/pod-name: redis-0
+  ports:
+  - port: 6379
+    targetPort: 6379
+    name: redis
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
   name: redis-sentinel
   namespace: web
   labels:
