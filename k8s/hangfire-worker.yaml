@@ -24,7 +24,7 @@ spec:
       - name: regcred
       containers:
       - name: workout-tracker-worker
-        image: ninjatec/workout-tracker:1.8.1.4
+        image: ninjatec/workout-tracker:1.8.1.5
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
@@ -63,7 +63,7 @@ spec:
               name: workouttracker-secrets
               key: ConnectionStrings__WorkoutTrackerWebContext
         - name: ConnectionStrings__Redis
-          value: "redis.web.svc.cluster.local:6379"
+          value: "redis-master.web.svc.cluster.local:6379"
         - name: EmailSettings__MailServer
           valueFrom:
             secretKeyRef:
