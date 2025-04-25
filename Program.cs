@@ -337,15 +337,6 @@ try
             try {
                 var redisOptions = ConfigureRedisOptions(redisConfigString);
                 
-                // Add additional settings specifically for master/replica scenarios
-                redisOptions.CommandFlags = CommandFlags.PreferMaster;  // Always prefer master for commands
-                
-                // Set write operations to only go to master nodes
-                if (redisOptions.CommandMap == null)
-                {
-                    redisOptions.CommandMap = CommandMap.Create(new HashSet<string>(), false);
-                }
-                
                 // Create a new multiplexer with these options
                 var connection = ConnectionMultiplexer.Connect(redisOptions);
                 
@@ -360,11 +351,6 @@ try
                         hasWritableEndpoint = true;
                         break;
                     }
-                }
-                
-                if (!hasWritableEndpoint)
-                {
-                    logger.LogWarning("No master Redis endpoints found! Write operations will fail.");
                 }
                 
                 // Set up event handlers for connection management
@@ -1128,7 +1114,6 @@ static ConfigurationOptions ConfigureRedisOptions(string connectionString)
     
     // Critical settings for handling master/replica scenarios
     options.AllowAdmin = true; // Needed to query node types
-    options.CommandMap = CommandMap.Create(new HashSet<string>(), false); // Default CommandMap
     options.TieBreaker = ""; // Don't use tiebreakers which can be problematic
     
     // Configure write operations to only go to master nodes

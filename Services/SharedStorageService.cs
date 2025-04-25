@@ -87,11 +87,11 @@ namespace WorkoutTrackerWeb.Services
                         continue;
                     }
 
-                    // Get the database with explicit write flag for master node
-                    var db = _redis.GetDatabase(flags: CommandFlags.PreferMaster);
+                    // Get the database
+                    var db = _redis.GetDatabase();
                     
                     // Identify master nodes explicitly
-                    EndPoint masterEndpoint = null;
+                    System.Net.EndPoint masterEndpoint = null;
                     foreach (var endpoint in _redis.GetEndPoints())
                     {
                         var server = _redis.GetServer(endpoint);
@@ -112,11 +112,8 @@ namespace WorkoutTrackerWeb.Services
                     // Create a unique test key that won't interfere with real data
                     string testKey = $"redis:master:writetest:{Guid.NewGuid()}";
                     
-                    // Set explicit command flags to always use master for write operations
-                    var writeFlags = CommandFlags.PreferMaster | CommandFlags.DemandMaster;
-                    
                     // Use SetAsync instead of StringSet to avoid blocking
-                    var setTask = db.StringSetAsync(testKey, "test", TimeSpan.FromSeconds(5), flags: writeFlags);
+                    var setTask = db.StringSetAsync(testKey, "test", TimeSpan.FromSeconds(5));
                     
                     // Wait with timeout to avoid hanging indefinitely
                     if (!setTask.Wait(TimeSpan.FromSeconds(5)))
@@ -184,7 +181,7 @@ namespace WorkoutTrackerWeb.Services
                         
                         // Last resort: return the database even if we couldn't verify write capability
                         _logger.LogWarning("Returning Redis database connection without write verification. Operations may fail.");
-                        return _redis.GetDatabase(flags: CommandFlags.PreferMaster);
+                        return _redis.GetDatabase();
                     }
                 }
             }
