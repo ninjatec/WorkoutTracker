@@ -68,8 +68,6 @@ namespace WorkoutTrackerWeb.Services
                 return null;
             }
 
-            var db = _redis.GetDatabase();
-            
             int retryCount = 0;
             int maxRetries = 3;
             int baseDelayMs = 200;
@@ -89,16 +87,46 @@ namespace WorkoutTrackerWeb.Services
                         continue;
                     }
 
+                    // Get the database with explicit write flag for master node
+                    var db = _redis.GetDatabase(flags: CommandFlags.PreferMaster);
+                    
+                    // Identify master nodes explicitly
+                    EndPoint masterEndpoint = null;
+                    foreach (var endpoint in _redis.GetEndPoints())
+                    {
+                        var server = _redis.GetServer(endpoint);
+                        if (!server.IsReplica)
+                        {
+                            _logger.LogDebug("Found master Redis node at {Endpoint}", endpoint);
+                            masterEndpoint = endpoint;
+                            break;
+                        }
+                    }
+                    
+                    if (masterEndpoint == null)
+                    {
+                        _logger.LogWarning("No master Redis node found in the cluster! Write operations will fail.");
+                        throw new InvalidOperationException("No master Redis node available for write operations");
+                    }
+
                     // Create a unique test key that won't interfere with real data
                     string testKey = $"redis:master:writetest:{Guid.NewGuid()}";
                     
+                    // Set explicit command flags to always use master for write operations
+                    var writeFlags = CommandFlags.PreferMaster | CommandFlags.DemandMaster;
+                    
                     // Use SetAsync instead of StringSet to avoid blocking
-                    var setTask = db.StringSetAsync(testKey, "test", TimeSpan.FromSeconds(5));
+                    var setTask = db.StringSetAsync(testKey, "test", TimeSpan.FromSeconds(5), flags: writeFlags);
                     
                     // Wait with timeout to avoid hanging indefinitely
                     if (!setTask.Wait(TimeSpan.FromSeconds(5)))
                     {
                         throw new TimeoutException("Redis write test timed out after 5 seconds");
+                    }
+                    
+                    if (!setTask.Result)
+                    {
+                        throw new InvalidOperationException("Redis write test failed - SET operation returned false");
                     }
                     
                     // If we get here, the write was successful
@@ -114,22 +142,17 @@ namespace WorkoutTrackerWeb.Services
                     Task.Delay(delayMs).Wait();
                     retryCount++;
                 }
-                catch (RedisCommandException ex) when (ex.Message.Contains("READONLY"))
+                catch (RedisCommandException ex) when (ex.Message.Contains("READONLY") || ex.Message.Contains("replica"))
                 {
-                    _logger.LogWarning("Connected to a read-only Redis replica. Attempting to find writable master...");
+                    _logger.LogWarning("Connected to a read-only Redis replica. Attempting to find writable master. Error: {Error}", ex.Message);
                     
                     try
                     {
-                        // Try to find a writable endpoint
-                        foreach (var endpoint in _redis.GetEndPoints())
+                        // Force a reconnection attempt to find a master
+                        var connection = _redis as ConnectionMultiplexer;
+                        if (connection != null)
                         {
-                            var server = _redis.GetServer(endpoint);
-                            if (!server.IsReplica)
-                            {
-                                _logger.LogInformation("Found master Redis server at {Endpoint}", endpoint);
-                                // Found a master server, retry write test
-                                break;
-                            }
+                            connection.Configure(); // Trigger configuration refresh
                         }
                         
                         // Wait before retry with exponential backoff
@@ -139,7 +162,7 @@ namespace WorkoutTrackerWeb.Services
                     }
                     catch (Exception endpointEx)
                     {
-                        _logger.LogError(endpointEx, "Error while trying to find Redis master endpoint");
+                        _logger.LogError(endpointEx, "Error while trying to reconfigure Redis connection");
                         throw new InvalidOperationException("Cannot determine Redis master endpoint", endpointEx);
                     }
                 }
@@ -161,14 +184,14 @@ namespace WorkoutTrackerWeb.Services
                         
                         // Last resort: return the database even if we couldn't verify write capability
                         _logger.LogWarning("Returning Redis database connection without write verification. Operations may fail.");
-                        return db;
+                        return _redis.GetDatabase(flags: CommandFlags.PreferMaster);
                     }
                 }
             }
             
             // If we exit the loop, we've failed all retries
             _logger.LogError("Failed to get a writable Redis connection after {MaxRetries} attempts", maxRetries);
-            return db; // Return the database anyway as a last resort
+            throw new InvalidOperationException($"Failed to get a writable Redis connection after {maxRetries} attempts");
         }
 
         public async Task<string> StoreFileAsync(Stream fileStream, string fileExtension = "", TimeSpan? expiry = null)

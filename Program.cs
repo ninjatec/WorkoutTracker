@@ -271,16 +271,7 @@ try
                                         Environment.GetEnvironmentVariable("ConnectionStrings__Redis") ?? 
                                         "redis-master.web.svc.cluster.local:6379,abortConnect=false";
                                         
-                var redisOptions = ConfigurationOptions.Parse(redisConnectionString);
-                
-                redisOptions.DefaultVersion = new Version(7, 0, 0);
-                redisOptions.KeepAlive = 180;
-                redisOptions.ConnectTimeout = 10000; // 10 seconds
-                redisOptions.SyncTimeout = 10000;    // 10 seconds
-                redisOptions.AbortOnConnectFail = false; // Don't fail if Redis is temporarily unavailable
-                redisOptions.ReconnectRetryPolicy = new ExponentialRetry(5000);
-                // Add connection resiliency
-                redisOptions.ConnectRetry = 5; 
+                var redisOptions = ConfigureRedisOptions(redisConnectionString);
                 
                 builder.Services.AddSignalR(options => {
                     options.EnableDetailedErrors = true;
@@ -338,37 +329,45 @@ try
                          "redis-master.web.svc.cluster.local:6379,abortConnect=false";
 
     try {
-        var redisOptions = ConfigurationOptions.Parse(redisConfigString);
-        redisOptions.DefaultVersion = new Version(7, 0, 0);
-        redisOptions.ConnectRetry = 5;
-        redisOptions.SyncTimeout = 15000; // 15 seconds
-        redisOptions.ConnectTimeout = 15000; // 15 seconds
-        redisOptions.ReconnectRetryPolicy = new ExponentialRetry(5000, 10000); // Start at 5s, max 10s
-        redisOptions.AbortOnConnectFail = false;
-        redisOptions.KeepAlive = 60;
-        redisOptions.ClientName = "WorkoutTrackerCache";
-        
-        // Check if we're actually using Redis Sentinel
-        bool isSentinel = redisConfigString.Contains("sentinel") || 
-                          redisOptions.EndPoints.Count > 1;
-        
-        // Only apply Sentinel-specific configuration if actually using Sentinel
-        if (isSentinel) {
-            Log.Information("Configuring Redis with Sentinel support");
-            // Explicitly prefer primary/master nodes for write operations
-            redisOptions.TieBreaker = "";
-            redisOptions.CommandMap = CommandMap.Create(new HashSet<string>(), false);
-            // Standard Redis Sentinel master name
-            redisOptions.ServiceName = "mymaster"; 
-        } else {
-            Log.Information("Configuring Redis standalone connection");
-        }
+        var redisOptions = ConfigureRedisOptions(redisConfigString);
         
         // Register the ConnectionMultiplexer as a singleton
         builder.Services.AddSingleton<IConnectionMultiplexer>(sp => {
             var logger = sp.GetRequiredService<ILogger<Program>>();
             try {
+                var redisOptions = ConfigureRedisOptions(redisConfigString);
+                
+                // Add additional settings specifically for master/replica scenarios
+                redisOptions.CommandFlags = CommandFlags.PreferMaster;  // Always prefer master for commands
+                
+                // Set write operations to only go to master nodes
+                if (redisOptions.CommandMap == null)
+                {
+                    redisOptions.CommandMap = CommandMap.Create(new HashSet<string>(), false);
+                }
+                
+                // Create a new multiplexer with these options
                 var connection = ConnectionMultiplexer.Connect(redisOptions);
+                
+                // Verify we have a master connection
+                var hasWritableEndpoint = false;
+                foreach (var endpoint in connection.GetEndPoints())
+                {
+                    var server = connection.GetServer(endpoint);
+                    if (!server.IsReplica)
+                    {
+                        logger.LogInformation("Connected to master Redis server at {Endpoint}", endpoint);
+                        hasWritableEndpoint = true;
+                        break;
+                    }
+                }
+                
+                if (!hasWritableEndpoint)
+                {
+                    logger.LogWarning("No master Redis endpoints found! Write operations will fail.");
+                }
+                
+                // Set up event handlers for connection management
                 connection.ConnectionFailed += (_, e) => {
                     logger.LogWarning("Redis connection failed: {EndPoint}, {FailureType}", e.EndPoint, e.FailureType);
                 };
@@ -378,6 +377,7 @@ try
                 connection.ErrorMessage += (_, e) => {
                     logger.LogWarning("Redis error: {Message}", e.Message);
                 };
+                
                 return connection;
             } catch (Exception ex) {
                 logger.LogError(ex, "Failed to create Redis connection");
@@ -1110,6 +1110,35 @@ catch (Exception ex)
 finally
 {
     Log.CloseAndFlush();
+}
+
+// Configure Redis options with proper master/replica handling
+static ConfigurationOptions ConfigureRedisOptions(string connectionString)
+{
+    var options = ConfigurationOptions.Parse(connectionString);
+    
+    // Basic connection settings
+    options.DefaultVersion = new Version(7, 0, 0);
+    options.KeepAlive = 180;
+    options.ConnectTimeout = 10000; // 10 seconds
+    options.SyncTimeout = 10000;    // 10 seconds
+    options.AbortOnConnectFail = false; // Don't fail if Redis is temporarily unavailable
+    options.ReconnectRetryPolicy = new ExponentialRetry(5000);
+    options.ConnectRetry = 5;
+    
+    // Critical settings for handling master/replica scenarios
+    options.AllowAdmin = true; // Needed to query node types
+    options.CommandMap = CommandMap.Create(new HashSet<string>(), false); // Default CommandMap
+    options.TieBreaker = ""; // Don't use tiebreakers which can be problematic
+    
+    // Configure write operations to only go to master nodes
+    options.ConfigCheckSeconds = 5; // Check for configuration changes frequently
+    options.ConfigurationChannel = ""; // Don't use pub/sub for config
+    
+    // Set client name for diagnostics
+    options.ClientName = "WorkoutTrackerCache";
+    
+    return options;
 }
 
 // Monitoring metrics class - moved to end of file to fix build error
