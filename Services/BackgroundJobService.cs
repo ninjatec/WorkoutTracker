@@ -22,15 +22,18 @@ namespace WorkoutTrackerWeb.Services
         private readonly ILogger<BackgroundJobService> _logger;
         private readonly IServiceProvider _serviceProvider;
         private readonly IHubContext<ImportProgressHub> _hubContext;
+        private readonly ISharedStorageService _sharedStorageService;
 
         public BackgroundJobService(
             ILogger<BackgroundJobService> logger,
             IServiceProvider serviceProvider,
-            IHubContext<ImportProgressHub> hubContext)
+            IHubContext<ImportProgressHub> hubContext,
+            ISharedStorageService sharedStorageService)
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
             _hubContext = hubContext;
+            _sharedStorageService = sharedStorageService;
         }
 
         // Queue delete all workout data as a background job
@@ -958,11 +961,40 @@ namespace WorkoutTrackerWeb.Services
                     throw new ArgumentException("File not found or invalid file path", nameof(filePath));
                 }
                 
-                // Create a serialization-friendly parameter object
+                // Store file in shared storage
+                string fileId = null;
+                try
+                {
+                    // Use a reasonable expiry time for the file (24 hours)
+                    fileId = _sharedStorageService.StoreFileFromPathAsync(filePath, TimeSpan.FromHours(24)).GetAwaiter().GetResult();
+                    _logger.LogInformation("File stored in shared storage with ID: {FileId}", fileId);
+                    
+                    // Delete the local file if requested and we've successfully copied to shared storage
+                    if (deleteFileWhenDone && File.Exists(filePath))
+                    {
+                        try
+                        {
+                            File.Delete(filePath);
+                            _logger.LogInformation("Deleted local file after storing in shared storage: {FilePath}", filePath);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to delete local file after storing in shared storage: {FilePath}", filePath);
+                            // Continue anyway since we've got the file in shared storage
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to store file in shared storage: {FilePath}", filePath);
+                    throw new InvalidOperationException("Failed to store file in shared storage. Please try again or contact support.", ex);
+                }
+                
+                // Create a serialization-friendly parameter object that now uses fileId instead of filePath
                 var importData = new TrainAICsvImportData
                 {
                     UserId = userId,
-                    FilePath = filePath,
+                    FileId = fileId, // Using fileId instead of filePath
                     ConnectionId = connectionId,
                     DeleteFileWhenDone = deleteFileWhenDone
                 };
@@ -991,6 +1023,21 @@ namespace WorkoutTrackerWeb.Services
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error when queuing TrainAI CSV file import job");
+                    
+                    // Clean up the file in shared storage if we failed to queue the job
+                    if (!string.IsNullOrEmpty(fileId))
+                    {
+                        try
+                        {
+                            _sharedStorageService.DeleteFileAsync(fileId).ConfigureAwait(false).GetAwaiter().GetResult();
+                            _logger.LogInformation("Deleted file from shared storage after job queue failure: {FileId}", fileId);
+                        }
+                        catch (Exception cleanupEx)
+                        {
+                            _logger.LogWarning(cleanupEx, "Failed to delete file from shared storage after job queue failure: {FileId}", fileId);
+                        }
+                    }
+                    
                     throw;
                 }
                 
@@ -1008,19 +1055,19 @@ namespace WorkoutTrackerWeb.Services
         {
             // Extract parameters from the data wrapper
             int userId = importData.UserId;
-            string filePath = importData.FilePath;
+            string fileId = importData.FileId;
             string connectionId = importData.ConnectionId;
             bool deleteFileWhenDone = importData.DeleteFileWhenDone;
             
-            _logger.LogInformation("Starting TrainAI CSV import from file: UserId={UserId}, FilePath={FilePath}", 
-                userId, filePath);
+            _logger.LogInformation("Starting TrainAI CSV import from file: UserId={UserId}, FileId={FileId}", 
+                userId, fileId);
                 
             // Delegate to the actual implementation
-            await ImportTrainAICsvFromFileAsync(userId, filePath, connectionId, deleteFileWhenDone);
+            await ImportTrainAICsvFromFileAsync(userId, fileId, connectionId, deleteFileWhenDone);
         }
         
         // This method will be called by Hangfire in the background to process TrainAI CSV from a file
-        private async Task ImportTrainAICsvFromFileAsync(int userId, string filePath, string connectionId, bool deleteFileWhenDone)
+        private async Task ImportTrainAICsvFromFileAsync(int userId, string fileId, string connectionId, bool deleteFileWhenDone)
         {
             // Get job ID from context
             string jobId = "unknown";
@@ -1039,11 +1086,24 @@ namespace WorkoutTrackerWeb.Services
                 _logger.LogWarning(ex, "Failed to get job ID from context");
             }
             
-            _logger.LogInformation("Starting background TrainAI CSV file import for user {UserId}, job {JobId}, file {FilePath}", 
-                userId, jobId, filePath);
+            _logger.LogInformation("Starting background TrainAI CSV file import for user {UserId}, job {JobId}, file {FileId}", 
+                userId, jobId, fileId);
             
             try
             {
+                // Retrieve the file from shared storage
+                string filePath = null;
+                try
+                {
+                    filePath = await _sharedStorageService.RetrieveFileToPathAsync(fileId);
+                    _logger.LogInformation("Retrieved file from shared storage: {FilePath}", filePath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to retrieve file from shared storage: {FileId}", fileId);
+                    throw new InvalidOperationException("Failed to retrieve file from shared storage. Please try again or contact support.", ex);
+                }
+                
                 // Verify the file exists
                 if (!System.IO.File.Exists(filePath))
                 {
@@ -1167,16 +1227,16 @@ namespace WorkoutTrackerWeb.Services
             finally
             {
                 // Clean up the temporary file if requested
-                if (deleteFileWhenDone && !string.IsNullOrEmpty(filePath) && System.IO.File.Exists(filePath))
+                if (deleteFileWhenDone && !string.IsNullOrEmpty(fileId))
                 {
                     try 
                     {
-                        System.IO.File.Delete(filePath);
-                        _logger.LogInformation("Deleted temporary import file: {FilePath}", filePath);
+                        await _sharedStorageService.DeleteFileAsync(fileId);
+                        _logger.LogInformation("Deleted temporary import file from shared storage: {FileId}", fileId);
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Error deleting temporary import file: {FilePath}", filePath);
+                        _logger.LogWarning(ex, "Error deleting temporary import file from shared storage: {FileId}", fileId);
                     }
                 }
             }
@@ -1218,7 +1278,7 @@ namespace WorkoutTrackerWeb.Services
     public class TrainAICsvImportData
     {
         public int UserId { get; set; }
-        public string FilePath { get; set; }
+        public string FileId { get; set; }
         public string ConnectionId { get; set; }
         public bool DeleteFileWhenDone { get; set; }
     }

@@ -31,6 +31,7 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
         private readonly UserManager<IdentityUser> _userManager;
         private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger<ImportTrainAIModel> _logger;
+        private readonly ISharedStorageService _sharedStorageService;
 
         public ImportTrainAIModel(
             TrainAIImportService importService,
@@ -38,7 +39,8 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
             IHubContext<ImportProgressHub> hubContext,
             UserManager<IdentityUser> userManager,
             WorkoutTrackerWebContext context,
-            ILogger<ImportTrainAIModel> logger)
+            ILogger<ImportTrainAIModel> logger,
+            ISharedStorageService sharedStorageService)
         {
             _importService = importService;
             _backgroundJobService = backgroundJobService;
@@ -46,6 +48,7 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
             _userManager = userManager;
             _context = context;
             _logger = logger;
+            _sharedStorageService = sharedStorageService;
         }
 
         [BindProperty]

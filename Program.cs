@@ -340,6 +340,84 @@ try
         throw; // Re-throw as this is a critical error
     }
 
+    // Add Redis for distributed caching and shared storage
+    var redisConfigString = builder.Configuration.GetConnectionString("Redis") ?? 
+                         Environment.GetEnvironmentVariable("ConnectionStrings__Redis") ?? 
+                         "redis-master.web.svc.cluster.local:6379,abortConnect=false";
+
+    try {
+        var redisOptions = ConfigurationOptions.Parse(redisConfigString);
+        redisOptions.DefaultVersion = new Version(7, 0, 0);
+        redisOptions.ConnectRetry = 5;
+        redisOptions.SyncTimeout = 15000; // 15 seconds
+        redisOptions.ConnectTimeout = 15000; // 15 seconds
+        redisOptions.ReconnectRetryPolicy = new ExponentialRetry(5000, 10000); // Start at 5s, max 10s
+        redisOptions.AbortOnConnectFail = false;
+        redisOptions.KeepAlive = 60;
+        redisOptions.ClientName = "WorkoutTrackerCache";
+        
+        // Check if we're actually using Redis Sentinel
+        bool isSentinel = redisConfigString.Contains("sentinel") || 
+                          redisOptions.EndPoints.Count > 1;
+        
+        // Only apply Sentinel-specific configuration if actually using Sentinel
+        if (isSentinel) {
+            Log.Information("Configuring Redis with Sentinel support");
+            // Explicitly prefer primary/master nodes for write operations
+            redisOptions.TieBreaker = "";
+            redisOptions.CommandMap = CommandMap.Create(new HashSet<string>(), false);
+            // Standard Redis Sentinel master name
+            redisOptions.ServiceName = "mymaster"; 
+        } else {
+            Log.Information("Configuring Redis standalone connection");
+        }
+        
+        // Register the ConnectionMultiplexer as a singleton
+        builder.Services.AddSingleton<IConnectionMultiplexer>(sp => {
+            var logger = sp.GetRequiredService<ILogger<Program>>();
+            try {
+                var connection = ConnectionMultiplexer.Connect(redisOptions);
+                connection.ConnectionFailed += (_, e) => {
+                    logger.LogWarning("Redis connection failed: {EndPoint}, {FailureType}", e.EndPoint, e.FailureType);
+                };
+                connection.ConnectionRestored += (_, e) => {
+                    logger.LogInformation("Redis connection restored: {EndPoint}", e.EndPoint);
+                };
+                connection.ErrorMessage += (_, e) => {
+                    logger.LogWarning("Redis error: {Message}", e.Message);
+                };
+                return connection;
+            } catch (Exception ex) {
+                logger.LogError(ex, "Failed to create Redis connection");
+                throw;
+            }
+        });
+        
+        builder.Services.AddStackExchangeRedisCache(options =>
+        {
+            options.ConfigurationOptions = redisOptions;
+            options.InstanceName = "WorkoutTracker:";
+        });
+        
+        // Register the shared storage service
+        builder.Services.AddScoped<ISharedStorageService, RedisSharedStorageService>();
+        
+        Log.Information("Configured Redis distributed cache for production using {ConnectionString} with enhanced resilience", redisConfigString);
+    } catch (Exception ex) {
+        // Fallback to in-memory cache if Redis configuration fails
+        Log.Error(ex, "Failed to configure Redis distributed cache, falling back to in-memory cache");
+        builder.Services.AddDistributedMemoryCache();
+        
+        // Register mock shared storage service for development
+        builder.Services.AddScoped<ISharedStorageService>(sp => {
+            // Create a mock implementation for development that uses local filesystem
+            var logger = sp.GetRequiredService<ILogger<RedisSharedStorageService>>();
+            return new RedisSharedStorageService(null, logger);
+        });
+        
+        Log.Warning("Using in-memory distributed cache in production due to Redis configuration failure");
+    }
+
     // Add MVC services for Area support
     builder.Services.AddMvc();
 
@@ -409,67 +487,6 @@ try
     // Register our alerting background job service
     builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsService>();
     builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsRegistration>();
-
-    // Configure distributed cache using Redis
-    if (builder.Environment.IsDevelopment())
-    {
-        // In development, use SQL Server distributed cache
-        builder.Services.AddDistributedSqlServerCache(options =>
-        {
-            options.ConnectionString = connectionString;
-            options.SchemaName = "dbo";
-            options.TableName = "SessionCache";
-        });
-        Log.Information("Configured SQL Server distributed cache for development");
-    }
-    else
-    {
-        // In production, use Redis distributed cache
-        var redisConnectionString = builder.Configuration.GetConnectionString("Redis") ?? 
-                                 Environment.GetEnvironmentVariable("ConnectionStrings__Redis") ?? 
-                                 "redis-master.web.svc.cluster.local:6379,abortConnect=false";
-
-        try {
-            var redisOptions = ConfigurationOptions.Parse(redisConnectionString);
-            redisOptions.DefaultVersion = new Version(7, 0, 0);
-            redisOptions.ConnectRetry = 5;
-            redisOptions.SyncTimeout = 15000; // 15 seconds
-            redisOptions.ConnectTimeout = 15000; // 15 seconds
-            redisOptions.ReconnectRetryPolicy = new ExponentialRetry(5000, 10000); // Start at 5s, max 10s
-            redisOptions.AbortOnConnectFail = false;
-            redisOptions.KeepAlive = 60;
-            redisOptions.ClientName = "WorkoutTrackerCache";
-            
-            // Check if we're actually using Redis Sentinel
-            bool isSentinel = redisConnectionString.Contains("sentinel") || 
-                              redisOptions.EndPoints.Count > 1;
-            
-            // Only apply Sentinel-specific configuration if actually using Sentinel
-            if (isSentinel) {
-                Log.Information("Configuring Redis with Sentinel support");
-                // Explicitly prefer primary/master nodes for write operations
-                redisOptions.TieBreaker = "";
-                redisOptions.CommandMap = CommandMap.Create(new HashSet<string>(), false);
-                // Standard Redis Sentinel master name
-                redisOptions.ServiceName = "mymaster"; 
-            } else {
-                Log.Information("Configuring Redis standalone connection");
-            }
-            
-            builder.Services.AddStackExchangeRedisCache(options =>
-            {
-                options.ConfigurationOptions = redisOptions;
-                options.InstanceName = "WorkoutTracker:";
-            });
-            
-            Log.Information("Configured Redis distributed cache for production using {ConnectionString} with enhanced resilience", redisConnectionString);
-        } catch (Exception ex) {
-            // Fallback to in-memory cache if Redis configuration fails
-            Log.Error(ex, "Failed to configure Redis distributed cache, falling back to in-memory cache");
-            builder.Services.AddDistributedMemoryCache();
-            Log.Warning("Using in-memory distributed cache in production due to Redis configuration failure");
-        }
-    }
 
     // Add session state with Redis caching and JSON serialization
     builder.Services.AddSession(options =>
