@@ -47,6 +47,8 @@ namespace WorkoutTrackerWeb.Services
         private const string KEY_PREFIX = "file:";
         private const string META_SUFFIX = ":meta";
         private const int CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+        private const int MAX_RETRIES = 3;
+        private const int RETRY_DELAY_MS = 500;
 
         public RedisSharedStorageService(
             IConnectionMultiplexer redis,
@@ -54,6 +56,58 @@ namespace WorkoutTrackerWeb.Services
         {
             _redis = redis;
             _logger = logger;
+        }
+
+        // Helper method to get a database connection with write capability
+        private IDatabase GetWritableDatabase()
+        {
+            if (_redis == null)
+            {
+                // In development mode or when Redis is configured as null, the local filesystem version is used
+                _logger.LogWarning("Redis connection is null, returning empty database implementation. Using local filesystem storage.");
+                return null;
+            }
+
+            var db = _redis.GetDatabase();
+            
+            // Test if we're on a read-only replica by trying to ping with a small write operation
+            try
+            {
+                // Create a unique test key that won't interfere with real data
+                string testKey = $"redis:master:writetest:{Guid.NewGuid()}";
+                bool isWritable = db.StringSet(testKey, "test", TimeSpan.FromSeconds(5));
+                
+                if (!isWritable)
+                {
+                    _logger.LogWarning("Connected to a read-only Redis replica. Attempting to find writable master...");
+                    
+                    // Try to find a writable endpoint
+                    foreach (var endpoint in _redis.GetEndPoints())
+                    {
+                        var server = _redis.GetServer(endpoint);
+                        if (!server.IsReplica)
+                        {
+                            _logger.LogInformation("Found master Redis server at {Endpoint}", endpoint);
+                            // We still use the same connection but now we're confident we have a master
+                            return db;
+                        }
+                    }
+                    
+                    _logger.LogError("All Redis endpoints are read-only! File operations that write will fail.");
+                }
+                
+                return db;
+            }
+            catch (RedisCommandException ex) when (ex.Message.Contains("READONLY"))
+            {
+                _logger.LogWarning("Connected to a read-only Redis replica and cannot write. Error: {Message}", ex.Message);
+                throw new InvalidOperationException("Cannot perform write operations on a read-only Redis replica", ex);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking Redis write capability");
+                return db; // Return the database anyway and let the operation try
+            }
         }
 
         public async Task<string> StoreFileAsync(Stream fileStream, string fileExtension = "", TimeSpan? expiry = null)
@@ -66,7 +120,35 @@ namespace WorkoutTrackerWeb.Services
             string fileId = $"{Guid.NewGuid()}";
             string fileKey = $"{KEY_PREFIX}{fileId}";
             string metaKey = $"{fileKey}{META_SUFFIX}";
-            var db = _redis.GetDatabase();
+            
+            // Use GetWritableDatabase to ensure we're writing to a master, not a replica
+            var db = GetWritableDatabase();
+            if (db == null && _redis == null)
+            {
+                // We're in development mode with local filesystem storage
+                _logger.LogWarning("Redis is not configured, falling back to local filesystem storage");
+                // Create a temp file to simulate Redis storage in development
+                string tempDir = Path.GetTempPath();
+                string tempFileName = $"{fileId}{fileExtension}";
+                string tempFilePath = Path.Combine(tempDir, tempFileName);
+                
+                try
+                {
+                    using (var outputStream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write))
+                    {
+                        await fileStream.CopyToAsync(outputStream);
+                    }
+                    
+                    _logger.LogInformation("File stored successfully in local filesystem. ID: {FileId}, Path: {FilePath}", 
+                        fileId, tempFilePath);
+                    return fileId;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error storing file in local filesystem: {Message}", ex.Message);
+                    throw;
+                }
+            }
 
             try
             {
@@ -115,12 +197,24 @@ namespace WorkoutTrackerWeb.Services
                 _logger.LogInformation("File stored successfully in shared storage. ID: {FileId}, Size: {Size} bytes", fileId, position);
                 return fileId;
             }
+            catch (RedisCommandException ex) when (ex.Message.Contains("READONLY"))
+            {
+                _logger.LogError(ex, "Cannot store file - connected to a read-only Redis replica. File ID: {FileId}", fileId);
+                throw new InvalidOperationException($"Cannot store file - connected to a read-only Redis replica. File ID: {fileId}", ex);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error storing file in shared storage: {Message}", ex.Message);
                 
                 // Clean up any chunks that may have been created
-                await CleanupFileAsync(fileId);
+                try
+                {
+                    await CleanupFileAsync(fileId);
+                }
+                catch
+                {
+                    // Ignore cleanup errors
+                }
                 
                 throw;
             }
@@ -254,8 +348,20 @@ namespace WorkoutTrackerWeb.Services
                 throw new ArgumentNullException(nameof(fileId));
             }
 
-            await CleanupFileAsync(fileId);
-            _logger.LogInformation("File deleted from shared storage: {FileId}", fileId);
+            try {
+                await CleanupFileAsync(fileId);
+                _logger.LogInformation("File deleted from shared storage: {FileId}", fileId);
+            }
+            catch (RedisCommandException ex) when (ex.Message.Contains("READONLY"))
+            {
+                _logger.LogError(ex, "Cannot delete file - connected to a read-only Redis replica. File ID: {FileId}", fileId);
+                throw new InvalidOperationException($"Cannot delete file - connected to a read-only Redis replica. File ID: {fileId}", ex);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting file from shared storage: {FileId}, {Message}", fileId, ex.Message);
+                throw;
+            }
         }
 
         public async Task<bool> FileExistsAsync(string fileId)
@@ -275,47 +381,59 @@ namespace WorkoutTrackerWeb.Services
         {
             string fileKey = $"{KEY_PREFIX}{fileId}";
             string metaKey = $"{fileKey}{META_SUFFIX}";
-            var db = _redis.GetDatabase();
+            var db = GetWritableDatabase();
             
-            // Get size to know how many chunks to delete
-            HashEntry[] metaEntries = await db.HashGetAllAsync(metaKey);
-            var meta = metaEntries.ToDictionary(h => (string)h.Name, h => (string)h.Value);
-            
-            if (meta.TryGetValue("size", out string sizeStr) && long.TryParse(sizeStr, out long size))
-            {
-                // Delete all chunks
-                long position = 0;
-                while (position < size)
+            try {
+                // Get size to know how many chunks to delete
+                HashEntry[] metaEntries = await db.HashGetAllAsync(metaKey);
+                var meta = metaEntries.ToDictionary(h => (string)h.Name, h => (string)h.Value);
+                
+                if (meta.TryGetValue("size", out string sizeStr) && long.TryParse(sizeStr, out long size))
                 {
-                    string chunkKey = $"{fileKey}:{position}";
-                    var chunk = await db.StringGetAsync(chunkKey);
-                    
-                    if (!chunk.IsNull)
+                    // Delete all chunks
+                    long position = 0;
+                    while (position < size)
                     {
-                        await db.KeyDeleteAsync(chunkKey);
-                        // Convert RedisValue to byte array to get the length
-                        byte[] bytes = chunk;
-                        position += bytes.Length;
-                    }
-                    else
-                    {
-                        // If chunk is missing, assume fixed size and move to next one
-                        position += CHUNK_SIZE;
+                        string chunkKey = $"{fileKey}:{position}";
+                        var chunk = await db.StringGetAsync(chunkKey);
+                        
+                        if (!chunk.IsNull)
+                        {
+                            await db.KeyDeleteAsync(chunkKey);
+                            // Convert RedisValue to byte array to get the length
+                            byte[] bytes = chunk;
+                            position += bytes.Length;
+                        }
+                        else
+                        {
+                            // If chunk is missing, assume fixed size and move to next one
+                            position += CHUNK_SIZE;
+                        }
                     }
                 }
-            }
-            else
-            {
-                // If we can't get size, try to delete chunks using a pattern search
-                var server = _redis.GetServer(_redis.GetEndPoints()[0]);
-                foreach (var key in server.Keys(pattern: $"{fileKey}:*"))
+                else
                 {
-                    await db.KeyDeleteAsync(key);
+                    // If we can't get size, try to delete chunks using a pattern search
+                    var server = _redis.GetServer(_redis.GetEndPoints()[0]);
+                    foreach (var key in server.Keys(pattern: $"{fileKey}:*"))
+                    {
+                        await db.KeyDeleteAsync(key);
+                    }
                 }
+                
+                // Delete metadata
+                await db.KeyDeleteAsync(metaKey);
             }
-            
-            // Delete metadata
-            await db.KeyDeleteAsync(metaKey);
+            catch (RedisCommandException ex) when (ex.Message.Contains("READONLY"))
+            {
+                _logger.LogError(ex, "Cannot delete file data - connected to a read-only Redis replica. File ID: {FileId}", fileId);
+                throw new InvalidOperationException($"Cannot delete file data - connected to a read-only Redis replica. File ID: {fileId}", ex);
+            }
+            catch (Exception ex) 
+            {
+                _logger.LogError(ex, "Error while cleaning up file: {FileId}", fileId);
+                throw;
+            }
         }
     }
 }

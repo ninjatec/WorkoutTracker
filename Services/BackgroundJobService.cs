@@ -1088,31 +1088,70 @@ namespace WorkoutTrackerWeb.Services
             
             _logger.LogInformation("Starting background TrainAI CSV file import for user {UserId}, job {JobId}, file {FileId}", 
                 userId, jobId, fileId);
+                
+            string filePath = null;
             
             try
             {
-                // Retrieve the file from shared storage
-                string filePath = null;
-                try
+                // Retrieve the file from shared storage with retries
+                int maxRetries = 3;
+                int retryDelay = 1000; // Initial delay in milliseconds
+                Exception lastException = null;
+                
+                for (int retry = 0; retry < maxRetries; retry++)
                 {
-                    filePath = await _sharedStorageService.RetrieveFileToPathAsync(fileId);
-                    _logger.LogInformation("Retrieved file from shared storage: {FilePath}", filePath);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to retrieve file from shared storage: {FileId}", fileId);
-                    throw new InvalidOperationException("Failed to retrieve file from shared storage. Please try again or contact support.", ex);
+                    try
+                    {
+                        if (retry > 0)
+                        {
+                            _logger.LogWarning("Retry {RetryCount}/{MaxRetries} retrieving file from shared storage: {FileId}", 
+                                retry, maxRetries, fileId);
+                            await Task.Delay(retryDelay * (int)Math.Pow(2, retry - 1)); // Exponential backoff
+                        }
+                        
+                        filePath = await _sharedStorageService.RetrieveFileToPathAsync(fileId);
+                        _logger.LogInformation("Retrieved file from shared storage: {FilePath} (FileId: {FileId})", filePath, fileId);
+                        
+                        if (File.Exists(filePath))
+                        {
+                            break; // Successfully retrieved the file
+                        }
+                        else
+                        {
+                            throw new FileNotFoundException($"Retrieved file path exists in storage but not on disk: {filePath}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        lastException = ex;
+                        _logger.LogError(ex, "Attempt {RetryCount}/{MaxRetries} - Failed to retrieve file from shared storage: {FileId}", 
+                            retry + 1, maxRetries, fileId);
+                        
+                        // If last retry, propagate exception
+                        if (retry == maxRetries - 1)
+                        {
+                            throw new InvalidOperationException(
+                                $"Failed to retrieve file from shared storage after {maxRetries} attempts. Please try again or contact support.", 
+                                lastException);
+                        }
+                    }
                 }
                 
-                // Verify the file exists
-                if (!System.IO.File.Exists(filePath))
+                // Verify the file exists and has content
+                if (!File.Exists(filePath))
                 {
                     throw new FileNotFoundException($"The import file was not found at path: {filePath}");
                 }
                 
-                // Get the file size for progress reporting
                 var fileInfo = new FileInfo(filePath);
+                if (fileInfo.Length == 0)
+                {
+                    throw new InvalidOperationException($"The import file is empty: {filePath}");
+                }
+                
                 long fileSize = fileInfo.Length;
+                _logger.LogInformation("File size: {FileSizeBytes} bytes ({FileSizeMB:F2}MB)", 
+                    fileSize, fileSize / (1024.0 * 1024.0));
                 
                 // Create a new service scope to get required services
                 using (var scope = _serviceProvider.CreateScope())
