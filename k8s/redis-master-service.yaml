@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/name: redis
 spec:
   selector:
-    statefulset.kubernetes.io/pod-name: redis-node-0
+    statefulset.kubernetes.io/pod-name: redis-node-1
   ports:
   - name: redis
     port: 6379

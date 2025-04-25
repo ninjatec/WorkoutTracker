@@ -29,6 +29,8 @@ data:
         limits:
           memory: 256Mi
           cpu: 500m
+      podLabels:
+        app.kubernetes.io/component: master
     
     replica:
       replicaCount: 2
@@ -42,6 +44,8 @@ data:
         limits:
           memory: 256Mi
           cpu: 500m
+      podLabels:
+        app.kubernetes.io/component: replica
     
     sentinel:
       enabled: true
@@ -49,7 +53,7 @@ data:
       resources:
         requests:
           memory: 32Mi
-          cpu: 50m
+        cpu: 50m
         limits:
           memory: 128Mi
           cpu: 100m
