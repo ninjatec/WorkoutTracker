@@ -145,31 +145,23 @@ try
             PrepareSchemaIfNecessary = true // Enable auto schema creation
         }));
 
-    // Add Hangfire server conditionally based on server configuration
-    builder.Services.AddHangfireServer(options => {
-        // Default options are fine
-    });
-
-    // Configure HangfireServerConfiguration to determine if this instance processes jobs
+    // Get Hangfire configuration to determine if we should register this instance as a server
     using (var scope = builder.Services.BuildServiceProvider().CreateScope())
     {
         var hangfireConfig = scope.ServiceProvider.GetRequiredService<HangfireServerConfiguration>();
-        // If processing is not enabled, we'll disable the server
-        if (!hangfireConfig.IsProcessingEnabled) 
+        
+        // Only add Hangfire server if processing is enabled
+        if (hangfireConfig.IsProcessingEnabled) 
         {
-            Log.Information("Hangfire processing is disabled for this instance");
-            
-            // Find the service descriptor for BackgroundJobServerHostedService in a safer way
-            var serviceDescriptor = builder.Services.FirstOrDefault(d => d.ServiceType == typeof(BackgroundJobServerHostedService));
-            if (serviceDescriptor != null)
-            {
-                builder.Services.Remove(serviceDescriptor);
-                Log.Information("Removed BackgroundJobServerHostedService from the service collection");
-            }
-            else
-            {
-                Log.Warning("Could not find BackgroundJobServerHostedService to remove");
-            }
+            Log.Information("Registering this instance as a Hangfire server with {WorkerCount} workers", hangfireConfig.WorkerCount);
+            builder.Services.AddHangfireServer(options => {
+                // Let the configuration service configure the options
+                hangfireConfig.ConfigureServerOptions(options);
+            });
+        }
+        else
+        {
+            Log.Information("Hangfire processing is disabled for this instance - NOT registering as a server");
         }
     }
 

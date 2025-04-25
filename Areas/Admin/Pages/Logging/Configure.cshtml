@@ -77,11 +77,26 @@
                         <div class="mb-3">
                             <label for="sourceContext" class="form-label">Source Context</label>
                             <select name="sourceContext" id="sourceContext" class="form-select">
-                                @foreach (var context in Model.CommonSourceContexts)
-                                {
-                                    <option value="@context">@context</option>
-                                }
+                                <optgroup label="Application">
+                                    @foreach (var context in Model.CommonSourceContexts.Where(c => c.StartsWith("WorkoutTrackerWeb")))
+                                    {
+                                        <option value="@context">@context</option>
+                                    }
+                                </optgroup>
+                                <optgroup label="Hangfire">
+                                    @foreach (var context in Model.CommonSourceContexts.Where(c => c.Contains("Hangfire")))
+                                    {
+                                        <option value="@context">@context</option>
+                                    }
+                                </optgroup>
+                                <optgroup label="Microsoft & Framework">
+                                    @foreach (var context in Model.CommonSourceContexts.Where(c => c.StartsWith("Microsoft") || c.StartsWith("System")))
+                                    {
+                                        <option value="@context">@context</option>
+                                    }
+                                </optgroup>
                             </select>
+                            <div class="form-text">Select a component to override its log level</div>
                         </div>
                         
                         <div class="mb-3">
@@ -122,19 +137,35 @@
                             <tr>
                                 <th>Source Context</th>
                                 <th>Log Level</th>
+                                <th>Category</th>
                                 <th width="120">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach (var item in Model.CurrentSettings.Overrides)
                             {
-                                <tr>
+                                string category = "Other";
+                                string rowClass = "";
+                                
+                                if (item.SourceContext.StartsWith("WorkoutTrackerWeb")) {
+                                    category = "Application";
+                                }
+                                else if (item.SourceContext.Contains("Hangfire")) {
+                                    category = "Hangfire";
+                                    rowClass = "table-info";
+                                }
+                                else if (item.SourceContext.StartsWith("Microsoft") || item.SourceContext.StartsWith("System")) {
+                                    category = "Framework";
+                                }
+                                
+                                <tr class="@rowClass" data-context="@item.SourceContext">
                                     <td>@item.SourceContext</td>
                                     <td>
                                         <span class="badge @Model.GetLogLevelBadgeClass(item.LogLevel)">
                                             @item.LogLevel
                                         </span>
                                     </td>
+                                    <td>@category</td>
                                     <td>
                                         <form method="post" asp-page-handler="RemoveOverride" style="display: inline-block;">
                                             <input type="hidden" name="sourceContext" value="@item.SourceContext" />

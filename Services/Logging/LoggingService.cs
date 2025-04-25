@@ -28,7 +28,13 @@ namespace WorkoutTrackerWeb.Services.Logging
             "WorkoutTrackerWeb",
             "WorkoutTrackerWeb.Services",
             "WorkoutTrackerWeb.Pages",
-            "System.Net.Http"
+            "System.Net.Http",
+            "Hangfire",
+            "Hangfire.Server",
+            "Hangfire.Client", 
+            "Hangfire.SqlServer",
+            "Hangfire.Storage",
+            "WorkoutTrackerWeb.Services.Hangfire"
         };
 
         public LoggingService(
@@ -221,6 +227,16 @@ namespace WorkoutTrackerWeb.Services.Logging
                         new LogLevelOverride
                         {
                             SourceContext = "Microsoft.EntityFrameworkCore",
+                            LogLevel = LogEventLevel.Warning
+                        },
+                        new LogLevelOverride
+                        {
+                            SourceContext = "Hangfire",
+                            LogLevel = LogEventLevel.Information
+                        },
+                        new LogLevelOverride
+                        {
+                            SourceContext = "Hangfire.Server",
                             LogLevel = LogEventLevel.Warning
                         }
                     }
