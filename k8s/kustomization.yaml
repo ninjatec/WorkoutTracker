@@ -9,4 +9,5 @@ resources:
   - ambassador.yaml
   - mapping.yaml
   - hangfire-worker.yaml
+  - redis-master-service.yaml
 

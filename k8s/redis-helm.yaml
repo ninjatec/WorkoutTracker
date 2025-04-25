@@ -29,7 +29,7 @@ data:
         limits:
           memory: 256Mi
           cpu: 500m
-      
+    
     replica:
       replicaCount: 2
       persistence:
@@ -53,6 +53,27 @@ data:
         limits:
           memory: 128Mi
           cpu: 100m
+    
+    # Explicitly specify service names to match application expectations      
+    service:
+      # Create explicit master service with specific name
+      master:
+        enabled: true
+        type: ClusterIP
+        ports:
+          redis: 6379
+        annotations: {}
+        # Force the name of the service
+        name: redis-master
+      
+      # Create explicit replica service with specific name
+      replica:
+        enabled: true
+        type: ClusterIP
+        ports:
+          redis: 6379
+        annotations: {}
+        name: redis-replicas
           
     # Redis metrics via Prometheus exporter
     metrics:
