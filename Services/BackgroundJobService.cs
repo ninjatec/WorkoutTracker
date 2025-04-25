@@ -1093,6 +1093,14 @@ namespace WorkoutTrackerWeb.Services
             
             try
             {
+                // First check if the file exists in shared storage
+                bool fileExists = await _sharedStorageService.FileExistsAsync(fileId);
+                if (!fileExists)
+                {
+                    _logger.LogWarning("File with ID {FileId} not found in shared storage", fileId);
+                    throw new FileNotFoundException($"File with ID {fileId} not found in shared storage");
+                }
+
                 // Retrieve the file from shared storage with retries
                 int maxRetries = 3;
                 int retryDelay = 1000; // Initial delay in milliseconds
@@ -1105,7 +1113,7 @@ namespace WorkoutTrackerWeb.Services
                         if (retry > 0)
                         {
                             _logger.LogWarning("Retry {RetryCount}/{MaxRetries} retrieving file from shared storage: {FileId}", 
-                                retry, maxRetries, fileId);
+                                retry + 1, maxRetries, fileId);
                             await Task.Delay(retryDelay * (int)Math.Pow(2, retry - 1)); // Exponential backoff
                         }
                         
@@ -1276,6 +1284,20 @@ namespace WorkoutTrackerWeb.Services
                     catch (Exception ex)
                     {
                         _logger.LogWarning(ex, "Error deleting temporary import file from shared storage: {FileId}", fileId);
+                    }
+                }
+                
+                // Also clean up the local file path if it exists and differs from the original file
+                if (deleteFileWhenDone && !string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+                {
+                    try 
+                    {
+                        File.Delete(filePath);
+                        _logger.LogInformation("Deleted local temporary file: {FilePath}", filePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error deleting local temporary file: {FilePath}", filePath);
                     }
                 }
             }

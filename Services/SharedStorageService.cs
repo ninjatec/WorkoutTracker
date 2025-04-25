@@ -323,7 +323,7 @@ namespace WorkoutTrackerWeb.Services
                     retryCount++;
                     if (retryCount >= maxRetries)
                     {
-                        _logger.LogError(ex, "Cannot store file - connected to a read-only Redis replica. File ID: {FileId}", fileId);
+                        _logger.LogError(ex, "Cannot store file - connected to a read-only Redis replica. File ID: {fileId}", fileId);
                         
                         // Try to clean up any partial data that may have been created
                         try { await CleanupFileAsync(fileId); } catch { /* Ignore cleanup errors */ }
@@ -408,9 +408,52 @@ namespace WorkoutTrackerWeb.Services
                 throw new ArgumentNullException(nameof(fileId));
             }
 
+            // Handle development mode with local filesystem
+            if (_redis == null)
+            {
+                _logger.LogWarning("Redis is not configured, using local filesystem storage for file retrieval");
+                string tempDir = Path.GetTempPath();
+                
+                // Try to find the file by ID in temp directory
+                try
+                {
+                    string[] possibleFiles = Directory.GetFiles(tempDir, $"{fileId}*");
+                    if (possibleFiles.Length > 0)
+                    {
+                        string filePath = possibleFiles[0];
+                        string extension = Path.GetExtension(filePath);
+                        var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                        
+                        _logger.LogInformation("File retrieved successfully from local filesystem. ID: {FileId}, Path: {FilePath}", 
+                            fileId, filePath);
+                            
+                        return (fileStream, extension);
+                    }
+                    
+                    _logger.LogWarning("File not found in local filesystem: {FileId}", fileId);
+                    throw new FileNotFoundException($"File not found in local filesystem: {fileId}");
+                }
+                catch (Exception ex) when (!(ex is FileNotFoundException))
+                {
+                    _logger.LogError(ex, "Error retrieving file from local filesystem: {FileId}", fileId);
+                    throw;
+                }
+            }
+
             string fileKey = $"{KEY_PREFIX}{fileId}";
             string metaKey = $"{fileKey}{META_SUFFIX}";
+            
+            // Get database with null check
+            if (_redis == null)
+            {
+                throw new InvalidOperationException("Redis connection is not available");
+            }
+            
             var db = _redis.GetDatabase();
+            if (db == null) 
+            {
+                throw new InvalidOperationException("Failed to get Redis database for file retrieval");
+            }
 
             // Check if file exists
             if (!await db.KeyExistsAsync(metaKey))
@@ -509,13 +552,53 @@ namespace WorkoutTrackerWeb.Services
                 throw new ArgumentNullException(nameof(fileId));
             }
 
-            try {
+            // Handle local filesystem storage in development mode
+            if (_redis == null)
+            {
+                _logger.LogWarning("Redis is not configured, attempting to delete from local filesystem: {FileId}", fileId);
+                string tempDir = Path.GetTempPath();
+                try
+                {
+                    string[] possibleFiles = Directory.GetFiles(tempDir, $"{fileId}*");
+                    bool deleted = false;
+                    
+                    foreach (string filePath in possibleFiles)
+                    {
+                        try
+                        {
+                            File.Delete(filePath);
+                            deleted = true;
+                            _logger.LogInformation("Deleted file from local filesystem: {FilePath}", filePath);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to delete file from local filesystem: {FilePath}", filePath);
+                        }
+                    }
+                    
+                    if (!deleted)
+                    {
+                        _logger.LogWarning("No matching files found in local filesystem for deletion: {FileId}", fileId);
+                    }
+                    
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error deleting file from local filesystem: {FileId}", fileId);
+                    throw;
+                }
+            }
+
+            // Use Redis storage
+            try 
+            {
                 await CleanupFileAsync(fileId);
                 _logger.LogInformation("File deleted from shared storage: {FileId}", fileId);
             }
             catch (RedisCommandException ex) when (ex.Message.Contains("READONLY"))
             {
-                _logger.LogError(ex, "Cannot delete file - connected to a read-only Redis replica. File ID: {FileId}", fileId);
+                _logger.LogError(ex, "Cannot delete file - connected to a read-only Redis replica. File ID: {fileId}", fileId);
                 throw new InvalidOperationException($"Cannot delete file - connected to a read-only Redis replica. File ID: {fileId}", ex);
             }
             catch (Exception ex)
@@ -532,14 +615,56 @@ namespace WorkoutTrackerWeb.Services
                 return false;
             }
 
-            string metaKey = $"{KEY_PREFIX}{fileId}{META_SUFFIX}";
-            var db = _redis.GetDatabase();
-            
-            return await db.KeyExistsAsync(metaKey);
+            // Handle local filesystem storage in development mode
+            if (_redis == null)
+            {
+                _logger.LogWarning("Redis is not configured, checking local filesystem for file: {FileId}", fileId);
+                string tempDir = Path.GetTempPath();
+                try
+                {
+                    string[] possibleFiles = Directory.GetFiles(tempDir, $"{fileId}*");
+                    bool exists = possibleFiles.Length > 0;
+                    
+                    _logger.LogInformation("File existence check in local filesystem: {FileId}, exists: {Exists}", fileId, exists);
+                    return exists;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error checking file existence in local filesystem: {FileId}", fileId);
+                    return false;
+                }
+            }
+
+            // Use Redis storage
+            try
+            {
+                string metaKey = $"{KEY_PREFIX}{fileId}{META_SUFFIX}";
+                var db = _redis.GetDatabase();
+                
+                if (db == null)
+                {
+                    throw new InvalidOperationException("Failed to get Redis database for file existence check");
+                }
+                
+                return await db.KeyExistsAsync(metaKey);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking if file exists in shared storage: {FileId}", fileId);
+                return false;
+            }
         }
 
         private async Task CleanupFileAsync(string fileId)
         {
+            // Handle local filesystem storage in development mode
+            if (_redis == null)
+            {
+                // Already handled by DeleteFileAsync, so just return
+                _logger.LogDebug("CleanupFileAsync called in local filesystem mode, delegating to DeleteFileAsync");
+                return;
+            }
+
             string fileKey = $"{KEY_PREFIX}{fileId}";
             string metaKey = $"{fileKey}{META_SUFFIX}";
             var db = GetWritableDatabase();
@@ -547,7 +672,7 @@ namespace WorkoutTrackerWeb.Services
             // Early exit if we failed to get a writable database connection
             if (db == null && _redis != null)
             {
-                _logger.LogWarning("Could not get a writable Redis connection for cleanup. File ID: {FileId}", fileId);
+                _logger.LogWarning("Could not get a writable Redis connection for cleanup. File ID: {fileId}", fileId);
                 return;
             }
             
@@ -575,7 +700,7 @@ namespace WorkoutTrackerWeb.Services
                             }
                             else
                             {
-                                _logger.LogWarning("Timeout getting chunk at position {Position} for file {FileId}", position, fileId);
+                                _logger.LogWarning("Timeout getting chunk at position {Position} for file {fileId}", position, fileId);
                                 // Move to next chunk to avoid getting stuck
                                 position += CHUNK_SIZE;
                                 continue;
@@ -583,7 +708,7 @@ namespace WorkoutTrackerWeb.Services
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogWarning(ex, "Error getting chunk at position {Position} for file {FileId}", position, fileId);
+                            _logger.LogWarning(ex, "Error getting chunk at position {Position} for file {fileId}", position, fileId);
                             // Move to next chunk to avoid getting stuck
                             position += CHUNK_SIZE;
                             continue;
@@ -599,7 +724,7 @@ namespace WorkoutTrackerWeb.Services
                             }
                             catch (Exception ex)
                             {
-                                _logger.LogWarning(ex, "Error deleting chunk at position {Position} for file {FileId}", position, fileId);
+                                _logger.LogWarning(ex, "Error deleting chunk at position {Position} for file {fileId}", position, fileId);
                                 // Move to next chunk to avoid getting stuck
                                 position += CHUNK_SIZE;
                             }
@@ -636,19 +761,19 @@ namespace WorkoutTrackerWeb.Services
                                     }
                                     catch (Exception ex)
                                     {
-                                        _logger.LogWarning(ex, "Error deleting key {Key} for file {FileId}", key, fileId);
+                                        _logger.LogWarning(ex, "Error deleting key {Key} for file {fileId}", key, fileId);
                                     }
                                 }
                             }
                             else
                             {
-                                _logger.LogWarning("Timeout searching for chunk keys for file {FileId}", fileId);
+                                _logger.LogWarning("Timeout searching for chunk keys for file {fileId}", fileId);
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "Error searching for chunk keys for file {FileId}", fileId);
+                        _logger.LogWarning(ex, "Error searching for chunk keys for file {fileId}", fileId);
                     }
                 }
                 
@@ -659,17 +784,17 @@ namespace WorkoutTrackerWeb.Services
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Error deleting metadata for file {FileId}", fileId);
+                    _logger.LogWarning(ex, "Error deleting metadata for file {fileId}", fileId);
                 }
             }
             catch (RedisCommandException ex) when (ex.Message.Contains("READONLY"))
             {
-                _logger.LogError(ex, "Cannot delete file data - connected to a read-only Redis replica. File ID: {FileId}", fileId);
+                _logger.LogError(ex, "Cannot delete file data - connected to a read-only Redis replica. File ID: {fileId}", fileId);
                 throw new InvalidOperationException($"Cannot delete file data - connected to a read-only Redis replica. File ID: {fileId}", ex);
             }
             catch (Exception ex) 
             {
-                _logger.LogError(ex, "Error while cleaning up file: {FileId}", fileId);
+                _logger.LogError(ex, "Error while cleaning up file: {fileId}", fileId);
                 throw;
             }
         }

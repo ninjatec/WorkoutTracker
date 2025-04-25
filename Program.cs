@@ -1104,7 +1104,6 @@ static ConfigurationOptions ConfigureRedisOptions(string connectionString)
     var options = ConfigurationOptions.Parse(connectionString);
     
     // Basic connection settings
-    options.DefaultVersion = new Version(7, 0, 0);
     options.KeepAlive = 180;
     options.ConnectTimeout = 10000; // 10 seconds
     options.SyncTimeout = 10000;    // 10 seconds
