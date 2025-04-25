@@ -264,19 +264,19 @@
 ---
 
 [ ] Implement dedicated Hangfire worker pod for background processing
- - [x] Configure Hangfire server components for separation
-   - [x] Create HangfireServerConfiguration class to centralize server settings
-   - [x] Implement environment-based configuration for worker vs. application pods
-   - [x] Add configuration flag for enabling/disabling job processing
-   - [x] Refactor Hangfire initialization in Program.cs to support role-based startup
-   - [x] Configure Hangfire dashboard to show distributed server status
+ - [ ] Configure Hangfire server components for separation
+   - [ ] Create HangfireServerConfiguration class to centralize server settings
+   - [ ] Implement environment-based configuration for worker vs. application pods
+   - [ ] Add configuration flag for enabling/disabling job processing
+   - [ ] Refactor Hangfire initialization in Program.cs to support role-based startup
+   - [ ] Configure Hangfire dashboard to show distributed server status
 
- - [x] Update service-based APIs for background processing
-   - [x] Fix exception issues with RecurringJob static API
-   - [x] Implement service-based IRecurringJobManager instead of static RecurringJob class
-   - [x] Create AlertingJobsRegistration service for job registration
-   - [x] Update dependency injection to properly register Hangfire service components
-   - [x] Use scoped service approach for proper initialization and dependency resolution
+ - [ ] Update service-based APIs for background processing
+   - [ ] Fix exception issues with RecurringJob static API
+   - [ ] Implement service-based IRecurringJobManager instead of static RecurringJob class
+   - [ ] Create AlertingJobsRegistration service for job registration
+   - [ ] Update dependency injection to properly register Hangfire service components
+   - [ ] Use scoped service approach for proper initialization and dependency resolution
 
  - [ ] Update application pods to disable job processing
    - [ ] Add environment variable HANGFIRE_PROCESSING_ENABLED for role detection
