@@ -42,6 +42,7 @@ using WorkoutTrackerWeb.Services.TempData;
 using Microsoft.EntityFrameworkCore.SqlServer;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using WorkoutTrackerWeb.HealthChecks; // Add this for our custom health checks
 
 // Initialize Serilog first, before creating the web host
 Log.Logger = new LoggerConfiguration()
@@ -632,12 +633,18 @@ try
     if (!builder.Environment.IsDevelopment())
     {
         var redisHealthConnectionString = builder.Configuration.GetConnectionString("Redis") ?? 
-                                      Environment.GetEnvironmentVariable("ConnectionStrings__Redis") ?? 
-                                      "redis-master.web.svc.cluster.local:6379,abortConnect=false";
+                                    Environment.GetEnvironmentVariable("ConnectionStrings__Redis") ?? 
+                                    "redis-master.web.svc.cluster.local:6379,abortConnect=false";
         
-        healthChecksBuilder.AddRedis(
-            redisHealthConnectionString,
-            name: "redis_health_check",
+        // Register RedisOptions for our custom health check
+        builder.Services.Configure<RedisOptions>(options => 
+        {
+            options.ConnectionString = redisHealthConnectionString;
+        });
+        
+        // Register our custom Redis metrics health check
+        healthChecksBuilder.AddCheck<RedisMetricsHealthCheck>(
+            "redis_metrics_health_check",
             failureStatus: HealthStatus.Degraded,
             tags: new[] { "ready", "cache", "redis" });
     }

@@ -9,8 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Data;
-using Serilog;
-using ILogger = Serilog.ILogger;
+using Microsoft.Extensions.Logging;
 
 namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
 {
@@ -18,14 +17,14 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
     public class IndexModel : PageModel
     {
         private readonly WorkoutTrackerWebContext _context;
-        private readonly ILogger _logger;
+        private readonly ILogger<IndexModel> _logger;
         private readonly IHttpClientFactory _httpClientFactory;
 
-        public IndexModel(WorkoutTrackerWebContext context, IHttpClientFactory httpClientFactory)
+        public IndexModel(WorkoutTrackerWebContext context, IHttpClientFactory httpClientFactory, ILogger<IndexModel> logger)
         {
             _context = context;
             _httpClientFactory = httpClientFactory;
-            _logger = Log.ForContext<IndexModel>();
+            _logger = logger;
         }
 
         // System metrics properties
@@ -84,7 +83,7 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Error loading metrics dashboard");
+                _logger.LogError(ex, "Error loading metrics dashboard");
                 throw;
             }
         }
@@ -158,10 +157,12 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
             MaxConnections = 100;
             AvgQueryTime = Math.Round(random.NextDouble() * 15, 2);
             FailedQueries = random.Next(0, 5);
-            CacheHitRate = Math.Round(random.NextDouble() * 40 + 60, 2);
-            CacheMemoryUsage = Math.Round(random.NextDouble() * 200, 2);
-            CacheKeys = random.Next(500, 2000);
-            CacheExpiringKeys = random.Next(50, 300);
+            
+            // Redis metrics - Will be populated with real data below if Redis health check is successful
+            CacheHitRate = 0;
+            CacheMemoryUsage = 0;
+            CacheKeys = 0;
+            CacheExpiringKeys = 0;
             
             // Hangfire metrics
             JobsEnqueued = random.Next(0, 10);
@@ -254,7 +255,7 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
             }
             catch (Exception ex)
             {
-                _logger.Warning(ex, "Error checking database health");
+                _logger.LogWarning(ex, "Error checking database health");
                 ServiceHealth.Add(new ServiceHealthInfo 
                 { 
                     Name = "Database", 
@@ -270,6 +271,127 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
                 {
                     var client = _httpClientFactory.CreateClient();
                     var redisResponse = await client.GetAsync(new Uri($"{Request.Scheme}://{Request.Host}/health/redis"));
+                    
+                    if (redisResponse.IsSuccessStatusCode)
+                    {
+                        var jsonContent = await redisResponse.Content.ReadAsStringAsync();
+                        try
+                        {
+                            var healthData = JsonSerializer.Deserialize<JsonElement>(jsonContent);
+                            
+                            // Navigate the standard health check response structure
+                            if (healthData.TryGetProperty("entries", out var entries) && 
+                                entries.TryGetProperty("redis_health_check", out var redisCheck) &&
+                                redisCheck.TryGetProperty("data", out var redisData))
+                            {
+                                // Extract Redis metrics from the data field
+                                if (redisData.TryGetProperty("hitRate", out var hitRate))
+                                {
+                                    CacheHitRate = hitRate.GetDouble();
+                                }
+                                
+                                if (redisData.TryGetProperty("usedMemoryMB", out var memoryUsage))
+                                {
+                                    CacheMemoryUsage = memoryUsage.GetDouble();
+                                }
+                                
+                                if (redisData.TryGetProperty("keyCount", out var keyCount))
+                                {
+                                    CacheKeys = keyCount.GetInt32();
+                                }
+                                
+                                if (redisData.TryGetProperty("expiringKeys", out var expiringKeys))
+                                {
+                                    CacheExpiringKeys = expiringKeys.GetInt32();
+                                }
+                                
+                                // If no metrics were found, use fallback values based on server stats
+                                if (CacheHitRate == 0 && CacheMemoryUsage == 0 && CacheKeys == 0)
+                                {
+                                    // Try to extract from server stats if available
+                                    if (redisData.TryGetProperty("serverStats", out var serverStats))
+                                    {
+                                        if (serverStats.TryGetProperty("used_memory_human", out var usedMemory))
+                                        {
+                                            string memoryString = usedMemory.GetString();
+                                            if (memoryString.EndsWith("M", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                if (double.TryParse(memoryString.TrimEnd('M', 'm'), out double memory))
+                                                {
+                                                    CacheMemoryUsage = memory;
+                                                }
+                                            }
+                                        }
+                                        
+                                        if (serverStats.TryGetProperty("keyspace_hits", out var hits) && 
+                                            serverStats.TryGetProperty("keyspace_misses", out var misses))
+                                        {
+                                            long hitCount = hits.GetInt64();
+                                            long missCount = misses.GetInt64();
+                                            
+                                            if (hitCount + missCount > 0)
+                                            {
+                                                CacheHitRate = Math.Round(100.0 * hitCount / (hitCount + missCount), 2);
+                                            }
+                                        }
+                                        
+                                        if (serverStats.TryGetProperty("db0", out var db0))
+                                        {
+                                            string dbStats = db0.GetString();
+                                            if (dbStats.Contains("keys="))
+                                            {
+                                                int startIndex = dbStats.IndexOf("keys=") + 5;
+                                                int endIndex = dbStats.IndexOf(",", startIndex);
+                                                if (endIndex > startIndex)
+                                                {
+                                                    if (int.TryParse(dbStats.Substring(startIndex, endIndex - startIndex), out int keys))
+                                                    {
+                                                        CacheKeys = keys;
+                                                    }
+                                                }
+                                            }
+                                            
+                                            if (dbStats.Contains("expires="))
+                                            {
+                                                int startIndex = dbStats.IndexOf("expires=") + 8;
+                                                int endIndex = dbStats.IndexOf(",", startIndex);
+                                                if (endIndex == -1) endIndex = dbStats.Length;
+                                                
+                                                if (endIndex > startIndex)
+                                                {
+                                                    if (int.TryParse(dbStats.Substring(startIndex, endIndex - startIndex), out int expires))
+                                                    {
+                                                        CacheExpiringKeys = expires;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                _logger.LogInformation("Successfully retrieved Redis metrics: Hit Rate={HitRate}%, Memory={Memory}MB, Keys={Keys}, Expiring={Expiring}",
+                                    CacheHitRate, CacheMemoryUsage, CacheKeys, CacheExpiringKeys);
+                            }
+                        }
+                        catch (JsonException jex)
+                        {
+                            _logger.LogWarning(jex, "Error parsing Redis health check response");
+                            // Default to random values if JSON parsing fails
+                            CacheHitRate = random.Next(60, 99);
+                            CacheMemoryUsage = random.Next(50, 200);
+                            CacheKeys = random.Next(500, 2000);
+                            CacheExpiringKeys = random.Next(50, 300);
+                        }
+                    }
+                    else
+                    {
+                        // If health check fails, use random values
+                        CacheHitRate = random.Next(60, 99);
+                        CacheMemoryUsage = random.Next(50, 200);
+                        CacheKeys = random.Next(500, 2000);
+                        CacheExpiringKeys = random.Next(50, 300);
+                    }
+
                     ServiceHealth.Add(new ServiceHealthInfo 
                     { 
                         Name = "Redis Cache", 
@@ -279,6 +401,12 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
                 }
                 else
                 {
+                    // On localhost, use random values
+                    CacheHitRate = random.Next(60, 99);
+                    CacheMemoryUsage = random.Next(50, 200);
+                    CacheKeys = random.Next(500, 2000);
+                    CacheExpiringKeys = random.Next(50, 300);
+                    
                     ServiceHealth.Add(new ServiceHealthInfo 
                     { 
                         Name = "Redis Cache", 
@@ -289,7 +417,13 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
             }
             catch (Exception ex)
             {
-                _logger.Warning(ex, "Error checking Redis health");
+                _logger.LogWarning(ex, "Error checking Redis health");
+                // Fallback to random values on error
+                CacheHitRate = random.Next(60, 99);
+                CacheMemoryUsage = random.Next(50, 200);
+                CacheKeys = random.Next(500, 2000);
+                CacheExpiringKeys = random.Next(50, 300);
+                
                 ServiceHealth.Add(new ServiceHealthInfo 
                 { 
                     Name = "Redis Cache", 
@@ -330,7 +464,7 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
                     }
                     catch (JsonException jex)
                     {
-                        _logger.Warning(jex, "Error parsing email health check response");
+                        _logger.LogWarning(jex, "Error parsing email health check response");
                     }
                 }
                 
@@ -343,7 +477,7 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
             }
             catch (Exception ex)
             {
-                _logger.Warning(ex, "Error checking email service health");
+                _logger.LogWarning(ex, "Error checking email service health");
                 ServiceHealth.Add(new ServiceHealthInfo 
                 { 
                     Name = "Email Service", 
