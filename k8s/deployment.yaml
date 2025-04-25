@@ -23,7 +23,7 @@ spec:
       - name: regcred
       containers:
       - name: workout-tracker
-        image: ninjatec/workout-tracker:1.7.4.7
+        image: ninjatec/workout-tracker:1.8.0.1
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
@@ -68,8 +68,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
+        - name: HANGFIRE_PROCESSING_ENABLED
+          value: "false"
         - name: HANGFIRE_WORKER_COUNT
-          value: "4"
+          value: "0"
         - name: ConnectionStrings__DefaultConnection
           valueFrom:
             secretKeyRef:
