@@ -1,0 +1,212 @@
+/* Responsive Utilities for WorkoutTracker
+ * Mobile-first CSS structure with progressive enhancement
+ */
+
+/* Base mobile-first variables */
+:root {
+  --touch-target-size: 44px;     /* Minimum touch target size for accessibility */
+  --form-control-height: 48px;   /* Comfortable form field height for mobile input */
+  --mobile-spacing: 16px;        /* Standard spacing for mobile interfaces */
+  --table-font-size-mobile: 14px;/* Smaller font size for tables on mobile */
+  --btn-mobile-padding: 12px 16px; /* Comfortable button padding for touch targets */
+}
+
+/* Default - Mobile First (base styles, no media query necessary) */
+html {
+  touch-action: manipulation; /* Prevents delays on touch events */
+  -webkit-text-size-adjust: 100%; /* Prevents iOS text size adjust after orientation change */
+}
+
+/* Touch-friendly sizing for interactive elements */
+.btn, 
+.nav-link,
+.form-control,
+.dropdown-item {
+  min-height: var(--touch-target-size);
+  line-height: 1.3;
+}
+
+/* Improved tap targets for mobile */
+.btn {
+  padding: var(--btn-mobile-padding);
+  margin-bottom: var(--mobile-spacing);
+}
+
+/* Make links and buttons more tappable */
+.nav-link, 
+.dropdown-item {
+  padding: 12px 16px;
+}
+
+/* Helper class for responsive tables */
+.table-responsive-improved {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-collapse: collapse;
+}
+
+/* Better form fields for mobile */
+.form-control {
+  height: var(--form-control-height);
+}
+
+/* Mobile-specific styles for input groups */
+.input-group {
+  width: 100%;
+  margin-bottom: var(--mobile-spacing);
+}
+
+/* Improved button groups for mobile */
+.btn-group, 
+.btn-group-vertical {
+  display: flex;
+  width: 100%;
+  margin-bottom: var(--mobile-spacing);
+}
+
+/* Card refinements for mobile */
+.card {
+  margin-bottom: var(--mobile-spacing);
+}
+
+/* Spacing utilities */
+.mb-mobile-4 {
+  margin-bottom: var(--mobile-spacing) !important;
+}
+
+.mt-mobile-4 {
+  margin-top: var(--mobile-spacing) !important;
+}
+
+/* Mobile-first screens - assuming mobile is the default */
+
+/* Small devices (landscape phones, 576px and up) */
+@media (min-width: 576px) {
+  :root {
+    --mobile-spacing: 20px;
+  }
+  
+  /* Reset full-width behavior for larger screens */
+  .btn-group, 
+  .btn-group-vertical {
+    width: auto;
+  }
+  
+  /* More space between items on larger screens */
+  .nav-link, 
+  .dropdown-item {
+    padding: 8px 16px;
+  }
+}
+
+/* Medium devices (tablets, 768px and up) */
+@media (min-width: 768px) {
+  :root {
+    --mobile-spacing: 24px;
+  }
+  
+  /* Adjust spacing for larger screens */
+  .mb-mobile-4 {
+    margin-bottom: 1.5rem !important;
+  }
+  
+  .mt-mobile-4 {
+    margin-top: 1.5rem !important;
+  }
+}
+
+/* Large devices (desktops, 992px and up) */
+@media (min-width: 992px) {
+  /* Additional styles for desktops */
+}
+
+/* Extra large devices (large desktops, 1200px and up) */
+@media (min-width: 1200px) {
+  /* Additional styles for large desktops */
+}
+
+/* Responsive table styles */
+.responsive-table {
+  width: 100%;
+}
+
+/* On small screens, convert table to blocks */
+@media (max-width: 767px) {
+  .responsive-table thead {
+    display: none; /* Hide headers on mobile */
+  }
+  
+  .responsive-table tbody tr {
+    display: block;
+    border: 1px solid #dee2e6;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    border-radius: 4px;
+  }
+  
+  .responsive-table tbody td {
+    display: block;
+    text-align: right;
+    border: none;
+    position: relative;
+    padding-left: 50%;
+    min-height: 30px;
+  }
+  
+  .responsive-table tbody td::before {
+    content: attr(data-label);
+    position: absolute;
+    left: 0;
+    width: 45%;
+    padding-right: 10px;
+    text-align: left;
+    font-weight: bold;
+  }
+}
+
+/* Utility classes for mobile-specific layouts */
+.mobile-only {
+  display: none;
+}
+
+.desktop-only {
+  display: block;
+}
+
+@media (max-width: 767px) {
+  .mobile-only {
+    display: block;
+  }
+  
+  .desktop-only {
+    display: none;
+  }
+}
+
+/* Improved form field layouts for mobile */
+@media (max-width: 576px) {
+  .form-row {
+    flex-direction: column;
+  }
+  
+  .form-row > .col,
+  .form-row > [class*="col-"] {
+    padding-right: 0;
+    padding-left: 0;
+  }
+}
+
+/* Special support for mobile view layouts */
+.mobile-card-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--mobile-spacing);
+}
+
+@media (min-width: 768px) {
+  .mobile-card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+}

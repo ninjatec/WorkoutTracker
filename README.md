@@ -6,6 +6,15 @@ Production Site running on wot.ninjatec.co.uk
 
 ## Features
 
+- **Enhanced Responsive Design**: Full mobile optimization across the application
+  - Mobile-first CSS architecture with progressive enhancement
+  - Responsive table transformations for better data consumption on mobile
+  - Form optimizations for touch-friendly inputs and improved mobile UX
+  - Mobile-specific layouts for complex data pages
+  - Consistent viewport meta tags across all template types
+  - CSS component system with modular stylesheets for maintainability
+  - JavaScript utilities for automatically enhancing tables on mobile
+
 - **API Ninjas Integration for Exercise Types**: Rich exercise database from external API
   - Comprehensive exercise data with over 600 available exercises
   - Detailed instructions for proper exercise execution
@@ -365,6 +374,19 @@ The application provides comprehensive data portability features:
   - Data validation and sanitization
 
 ## Recent Updates
+
+- **Enhanced Mobile-First Responsive Design**:
+  - Implemented mobile-first CSS architecture with progressive enhancement
+  - Created component-based responsive CSS structure for better maintainability
+  - Added touch-friendly optimizations for mobile interfaces
+  - Implemented responsive table transformations for better mobile data display
+  - Added specialized form controls optimized for touch input
+  - Created mobile-specific layouts for complex data pages
+  - Implemented consistent viewport meta tags across all templates
+  - Fixed admin layout CSS syntax issues for better rendering
+  - Added JavaScript utilities for automatically enhancing tables on mobile
+  - Enhanced mobile support for workout tracking and data entry
+  - Optimized forms with larger touch targets and improved mobile spacing
 
 - **Implemented Output Caching for Static Content**:
   - Added Redis-backed output caching for production environments

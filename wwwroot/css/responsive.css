@@ -1,0 +1,42 @@
+/* Main Responsive Styles for WorkoutTracker
+ * Imports all mobile optimization components
+ */
+
+/* Import responsive components */
+@import url('./responsive/responsive-utilities.css');
+@import url('./responsive/responsive-tables.css');
+@import url('./responsive/responsive-forms.css');
+@import url('./responsive/mobile-layouts.css');
+
+/* Global touch-friendly adjustments */
+html {
+  /* Ensure proper viewport behavior on all devices */
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  /* Prevent fixed positioning issues on iOS */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Enhanced touch target sizing */
+.btn,
+.nav-link,
+.form-control,
+.form-select,
+.dropdown-item {
+  min-height: var(--touch-target-size, 44px);
+}
+
+/* Fix spacing issues for mobile */
+.container-mobile-friendly {
+  padding-left: max(env(safe-area-inset-left), 16px);
+  padding-right: max(env(safe-area-inset-right), 16px);
+  padding-bottom: max(env(safe-area-inset-bottom), 16px);
+}
+
+/* Mobile footer adjustments for notched devices */
+.footer {
+  padding-bottom: max(env(safe-area-inset-bottom), 16px);
+}

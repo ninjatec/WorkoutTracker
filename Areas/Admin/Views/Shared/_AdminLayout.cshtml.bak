@@ -125,7 +125,7 @@
             white-space: nowrap;
         }
         
-        @@media (max-width: 767px) {
+        @media (max-width: 767px) {
             .admin-header {
                 padding: 0.75rem 0;
             }
