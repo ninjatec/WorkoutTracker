@@ -6,7 +6,7 @@ metadata:
   labels:
     app: workouttracker-hangfire-worker
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: workouttracker-hangfire-worker
@@ -51,7 +51,7 @@ spec:
         - name: HANGFIRE_PROCESSING_ENABLED
           value: "true"
         - name: HANGFIRE_WORKER_COUNT
-          value: "8"
+          value: "4"
         - name: ConnectionStrings__DefaultConnection
           valueFrom:
             secretKeyRef:
