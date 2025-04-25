@@ -9,36 +9,61 @@ using WorkoutTrackerWeb.Services.Alerting;
 
 namespace WorkoutTrackerWeb.Services.Hangfire
 {
+    /// <summary>
+    /// Registers Hangfire recurring jobs for the alerting system
+    /// </summary>
     public class AlertingJobsRegistration
     {
         private readonly IRecurringJobManager _recurringJobManager;
         private readonly ILogger<AlertingJobsRegistration> _logger;
+        private readonly HangfireServerConfiguration _serverConfiguration;
 
         public AlertingJobsRegistration(
             IRecurringJobManager recurringJobManager,
+            HangfireServerConfiguration serverConfiguration,
             ILogger<AlertingJobsRegistration> logger)
         {
-            _recurringJobManager = recurringJobManager;
-            _logger = logger;
+            _recurringJobManager = recurringJobManager ?? throw new ArgumentNullException(nameof(recurringJobManager));
+            _serverConfiguration = serverConfiguration ?? throw new ArgumentNullException(nameof(serverConfiguration));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
+        /// <summary>
+        /// Registers alerting jobs with Hangfire recurring job manager
+        /// Jobs will be registered regardless of whether processing is enabled on this node
+        /// </summary>
         public void RegisterAlertingJobs()
         {
             _logger.LogInformation("Registering alerting jobs with Hangfire");
+            
+            // Register jobs that will be picked up by worker nodes
+            // We register these regardless of whether processing is enabled on this node
             
             // Check alert thresholds every 5 minutes
             _recurringJobManager.AddOrUpdate<AlertingJobsService>(
                 "check-alert-thresholds",
                 service => service.CheckAlertThresholdsAsync(),
-                "*/5 * * * *"); // Cron expression for every 5 minutes
+                "*/5 * * * *", // Cron expression for every 5 minutes
+                new RecurringJobOptions
+                {
+                    // This queue name should align with worker node configuration
+                    // Use the default queue so it works with existing configuration
+                    QueueName = "default"
+                });
             
             // Run alert maintenance job daily at 2 AM
             _recurringJobManager.AddOrUpdate<AlertingJobsService>(
                 "alert-maintenance",
                 service => service.PerformAlertMaintenanceAsync(),
-                "0 2 * * *"); // Cron expression for 2 AM daily
+                "0 2 * * *", // Cron expression for 2 AM daily
+                new RecurringJobOptions
+                {
+                    // Use the default queue so it works with existing configuration
+                    QueueName = "default"
+                });
                 
-            _logger.LogInformation("Alert jobs registered successfully");
+            _logger.LogInformation("Alert jobs registered successfully. Processing enabled: {ProcessingEnabled}", 
+                _serverConfiguration.IsProcessingEnabled);
         }
     }
 

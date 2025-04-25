@@ -95,6 +95,17 @@
   - User validation for token ownership
   - Confirmation dialogs for destructive actions
 
+### 10. Hangfire Server Components Separation
+- Created `HangfireServerConfiguration` class to centralize server settings
+- Implemented role-based initialization for processing vs. non-processing nodes
+- Updated `AlertingJobsRegistration` to support worker/application role separation
+- Modified Program.cs to conditionally enable Hangfire processing based on configuration
+- Added dedicated worker pod deployment configuration for Kubernetes
+- Created diagnostic UI for monitoring server configuration and role
+- Updated appsettings.json with Hangfire-specific configuration section
+- Added environment variable support for Kubernetes deployment
+- Added documentation for Hangfire worker setup
+
 ## Next Steps
 
 ### 2. Guest Access

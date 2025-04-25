@@ -8,4 +8,5 @@ resources:
   - secrets.yaml
   - ambassador.yaml
   - mapping.yaml
+  - hangfire-worker.yaml
 

@@ -88,19 +88,11 @@ Production Site running on wot.ninjatec.co.uk
   - Server status monitoring for background processing
   - Detailed job information with arguments and execution timeline
   - Job filtering by status, type, and queue
+  - **Role-based Hangfire processing with dedicated worker pods**
+  - **Environment variable configuration for pod-specific roles**
+  - **Centralized server configuration with diagnostic UI**
+  - **Queue-based job processing with prioritization**
 - **Health Monitoring**: Comprehensive health checks and metrics collection for production monitoring
-- **Help Center**: Complete help documentation with search, FAQs, glossary, and video tutorials
-- **Seed Data**: Pre-populated exercise types, set types, help content, and glossary terms for immediate use
-- **Version Management**: Complete version tracking system with:
-  - Semantic versioning (major.minor.patch.build)
-  - Version history display in the application footer
-  - Admin version management interface
-  - Automatic version tracking in logs for troubleshooting
-  - Git commit hash tracking for traceability
-  - Automated versioning during build and deployment
-  - Docker image tagging by version
-  - Database deployment version history
-- **Alerting System**: Real-time notifications for system metrics and user events
 
 ## Technology Stack
 

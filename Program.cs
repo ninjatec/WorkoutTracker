@@ -126,6 +126,9 @@ try
     // Register HttpClientFactory
     builder.Services.AddHttpClient();
 
+    // Register HangfireServerConfiguration first so it's available for service configuration
+    builder.Services.AddSingleton<HangfireServerConfiguration>();
+
     // Configure Hangfire for background processing
     builder.Services.AddHangfire(configuration => configuration
         .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
@@ -139,67 +142,36 @@ try
             UseRecommendedIsolationLevel = true,
             DisableGlobalLocks = false, // Enable global locks for distributed environment
             SchemaName = "HangFire",
-            PrepareSchemaIfNecessary = true // This is the key fix - enable auto schema creation
+            PrepareSchemaIfNecessary = true // Enable auto schema creation
         }));
 
-    // Add Hangfire processing server with distributed configuration
+    // Add Hangfire server conditionally based on server configuration
     builder.Services.AddHangfireServer(options => {
-        // Get environment variables for Kubernetes pod/node info if available
-        string podName = Environment.GetEnvironmentVariable("POD_NAME") ?? "local";
-        string nodeName = Environment.GetEnvironmentVariable("NODE_NAME") ?? Environment.MachineName;
-        string environmentName = builder.Environment.EnvironmentName;
-
-        // Get server name settings from configuration
-        string configuredServerName = builder.Configuration["Hangfire:ServerName"];
-        bool useStaticServerName = !string.IsNullOrEmpty(configuredServerName);
-        
-        // Parse worker count from environment or use available processors
-        if (int.TryParse(Environment.GetEnvironmentVariable("HANGFIRE_WORKER_COUNT"), out int workerCount) && workerCount > 0)
-        {
-            options.WorkerCount = workerCount;
-        }
-        else if (int.TryParse(builder.Configuration["Hangfire:WorkerCount"], out workerCount) && workerCount > 0)
-        {
-            options.WorkerCount = workerCount;
-        }
-        else 
-        {
-            // Default to at least 4 workers
-            options.WorkerCount = Math.Max(Environment.ProcessorCount, 4);
-        }
-        
-        // In production, use a more stable server identifier to avoid proliferation
-        // of server entries that can cause missed jobs
-        if (useStaticServerName && !builder.Environment.IsDevelopment()) 
-        {
-            // Use the configured static name plus the node/pod if available
-            options.ServerName = $"{configuredServerName}:{nodeName}:{podName}";
-            Log.Information("Using configured static Hangfire server name: {ServerName}", options.ServerName);
-        }
-        else
-        {
-            // Create a unique but identifiable server name using pod and node info
-            options.ServerName = $"{environmentName}-server:{nodeName}:{podName}:{Guid.NewGuid().ToString().Substring(0, 8)}";
-            Log.Information("Using dynamic Hangfire server name: {ServerName}", options.ServerName);
-        }
-        
-        // Define critical job queue with priority over default
-        options.Queues = new[] { "critical", "default" };
-        
-        // Optimize polling intervals for better responsiveness
-        options.SchedulePollingInterval = TimeSpan.FromSeconds(15); 
-        options.ServerCheckInterval = TimeSpan.FromMinutes(1);
-        options.ServerTimeout = TimeSpan.FromMinutes(5);
-        options.ShutdownTimeout = TimeSpan.FromSeconds(30);
-        
-        // Add heartbeat interval from config if available
-        if (TimeSpan.TryParse(builder.Configuration["Hangfire:HeartbeatInterval"], out TimeSpan heartbeatInterval) && 
-            heartbeatInterval > TimeSpan.Zero)
-        {
-            options.HeartbeatInterval = heartbeatInterval;
-            Log.Information("Using configured Hangfire heartbeat interval: {HeartbeatInterval}", heartbeatInterval);
-        }
+        // Default options are fine
     });
+
+    // Configure HangfireServerConfiguration to determine if this instance processes jobs
+    using (var scope = builder.Services.BuildServiceProvider().CreateScope())
+    {
+        var hangfireConfig = scope.ServiceProvider.GetRequiredService<HangfireServerConfiguration>();
+        // If processing is not enabled, we'll disable the server
+        if (!hangfireConfig.IsProcessingEnabled) 
+        {
+            Log.Information("Hangfire processing is disabled for this instance");
+            
+            // Find the service descriptor for BackgroundJobServerHostedService in a safer way
+            var serviceDescriptor = builder.Services.FirstOrDefault(d => d.ServiceType == typeof(BackgroundJobServerHostedService));
+            if (serviceDescriptor != null)
+            {
+                builder.Services.Remove(serviceDescriptor);
+                Log.Information("Removed BackgroundJobServerHostedService from the service collection");
+            }
+            else
+            {
+                Log.Warning("Could not find BackgroundJobServerHostedService to remove");
+            }
+        }
+    }
 
     // Helper method to get SQL connection options with pooling and resilience settings
     Func<string, Action<SqlServerDbContextOptionsBuilder>, DbContextOptionsBuilder> getSqlOptions = (connString, sqlOptionsAction) =>

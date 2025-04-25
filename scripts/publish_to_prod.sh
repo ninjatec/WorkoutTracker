@@ -143,16 +143,27 @@ if ! push_with_retry "${DOCKER_REPO}:latest"; then
     echo -e "${YELLOW}Warning: Failed to push latest tag, but continuing with deployment since versioned image was pushed.${NC}"
 fi
 
-# 7. Update Kubernetes deployment
-echo -e "${YELLOW}Updating Kubernetes deployment...${NC}"
+# 7. Update Kubernetes deployments
+echo -e "${YELLOW}Updating Kubernetes deployments...${NC}"
 
-# Update the image tag in the deployment YAML
+# Update the image tag in the main deployment YAML
+echo -e "${YELLOW}Updating main application deployment...${NC}"
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # macOS syntax
     sed -i '' "s|image: ${DOCKER_REPO}:.*|image: ${DOCKER_REPO}:${VERSION}|" ./k8s/deployment.yaml
 else
     # Linux syntax
     sed -i "s|image: ${DOCKER_REPO}:.*|image: ${DOCKER_REPO}:${VERSION}|" ./k8s/deployment.yaml
+fi
+
+# Update the image tag in the Hangfire worker deployment YAML
+echo -e "${YELLOW}Updating Hangfire worker deployment...${NC}"
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS syntax
+    sed -i '' "s|image: ${DOCKER_REPO}:.*|image: ${DOCKER_REPO}:${VERSION}|" ./k8s/hangfire-worker.yaml
+else
+    # Linux syntax
+    sed -i "s|image: ${DOCKER_REPO}:.*|image: ${DOCKER_REPO}:${VERSION}|" ./k8s/hangfire-worker.yaml
 fi
 
 # Apply Kubernetes manifests individually instead of using kustomization
@@ -163,6 +174,8 @@ kubectl apply -f ./k8s/secrets.yaml
 kubectl apply -f ./k8s/deployment.yaml
 kubectl apply -f ./k8s/service.yaml
 kubectl apply -f ./k8s/mapping.yaml
+# Apply the Hangfire worker deployment
+kubectl apply -f ./k8s/hangfire-worker.yaml
 
 # 8. Add version details to database
 echo -e "${YELLOW}Updating version in database...${NC}"
@@ -178,6 +191,7 @@ echo -e "${YELLOW}Executing database version update...${NC}"
 # Commit k8s changes to git
 echo -e "${YELLOW}Committing version changes to git...${NC}"
 git add ./k8s/deployment.yaml
+git add ./k8s/hangfire-worker.yaml
 git add ./version.json
 git add ./version_update.sql
 git commit -m "Deploy version ${VERSION}"
@@ -187,6 +201,11 @@ echo -e "${GREEN}Committed k8s changes for version ${VERSION}${NC}"
 echo -e "${YELLOW}Pushing changes to remote repository...${NC}"
 git push
 echo -e "${GREEN}Changes pushed to remote repository${NC}"
+
+# 9. Check deployment status for both main app and worker
+echo -e "${YELLOW}Checking deployment status...${NC}"
+kubectl rollout status deployment/workouttracker -n web
+kubectl rollout status deployment/workouttracker-hangfire-worker -n web
 
 echo -e "${GREEN}======================================================${NC}"
 echo -e "${GREEN}  Deployment Complete!                               ${NC}"

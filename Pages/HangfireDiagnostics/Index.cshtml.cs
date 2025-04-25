@@ -19,6 +19,7 @@ namespace WorkoutTrackerWeb.Pages.HangfireDiagnostics
         private readonly ILogger<IndexModel> _logger;
         private readonly IHangfireInitializationService _hangfireInitService;
         private readonly BackgroundJobService _backgroundJobService;
+        private readonly HangfireServerConfiguration _serverConfiguration;
         private readonly string _connectionString;
 
         public bool IsHangfireWorking { get; private set; }
@@ -26,16 +27,22 @@ namespace WorkoutTrackerWeb.Pages.HangfireDiagnostics
         public Dictionary<string, int> JobCounts { get; private set; }
         public string DiagnosticInfo { get; private set; }
         public string ErrorMessage { get; private set; }
+        public bool IsProcessingEnabled { get; private set; }
+        public int WorkerCount { get; private set; }
+        public string ServerName { get; private set; }
+        public string[] Queues { get; private set; }
 
         public IndexModel(
             ILogger<IndexModel> logger,
             IHangfireInitializationService hangfireInitService,
             BackgroundJobService backgroundJobService,
+            HangfireServerConfiguration serverConfiguration,
             IConfiguration configuration)
         {
             _logger = logger;
             _hangfireInitService = hangfireInitService;
             _backgroundJobService = backgroundJobService;
+            _serverConfiguration = serverConfiguration;
             _connectionString = configuration.GetConnectionString("DefaultConnection");
         }
 
@@ -45,6 +52,12 @@ namespace WorkoutTrackerWeb.Pages.HangfireDiagnostics
             
             try
             {
+                // Get server configuration information
+                IsProcessingEnabled = _serverConfiguration.IsProcessingEnabled;
+                WorkerCount = _serverConfiguration.WorkerCount;
+                ServerName = _serverConfiguration.ServerName;
+                Queues = _serverConfiguration.Queues;
+                
                 // Create a test job to verify Hangfire is working
                 TestJobId = BackgroundJob.Enqueue(() => Console.WriteLine("Hangfire test job executed at: " + DateTime.Now));
                 IsHangfireWorking = !string.IsNullOrEmpty(TestJobId);

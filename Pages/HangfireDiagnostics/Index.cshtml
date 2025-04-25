@@ -27,6 +27,39 @@
             </div>
         }
         
+        <h2>Server Configuration</h2>
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Server Role</h5>
+                        <p>
+                            <strong>Processing:</strong> 
+                            @if (Model.IsProcessingEnabled)
+                            {
+                                <span class="badge bg-success">Enabled</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning">Disabled</span>
+                            }
+                        </p>
+                        <p><strong>Worker Count:</strong> @Model.WorkerCount</p>
+                        <p><strong>Server Name:</strong> @Model.ServerName</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Queues</h5>
+                        <ul class="list-group">
+                            @foreach (var queue in Model.Queues)
+                            {
+                                <li class="list-group-item">@queue</li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         <h2>Hangfire Status</h2>
         <div class="card mb-4">
             <div class="card-body">

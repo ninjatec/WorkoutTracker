@@ -233,57 +233,41 @@
 ---
 ---
 
-[ ] Add swagger for API endpoints but disable in production
- - [ ] Set up Swagger documentation
-   - [ ] Install required NuGet packages (Swashbuckle.AspNetCore)
-   - [ ] Configure Swagger in Program.cs with appropriate API information
-   - [ ] Add XML documentation file configuration to project file
-   - [ ] Set up security definitions for authentication methods
- - [ ] Enhance API endpoints for Swagger
-   - [ ] Add appropriate XML documentation comments to API controllers and methods
-   - [ ] Configure proper response types and status codes for better Swagger docs
-   - [ ] Implement example values for request and response models
-   - [ ] Add operation IDs for improved client generation
- - [ ] Configure environment-specific behavior
-   - [ ] Enable Swagger UI only in development/test environments
-   - [ ] Implement security measures to prevent production access
-   - [ ] Add environment tag to API documentation
-   - [ ] Configure CORS for Swagger UI in development only
- - [ ] Implement proper authentication in Swagger
-   - [ ] Configure JWT authentication flow in Swagger UI
-   - [ ] Add OAuth2 configuration for token-based endpoints
-   - [ ] Set up proper security requirements for protected endpoints
-   - [ ] Test authentication flows through Swagger UI
- - [ ] Create Swagger documentation portal
-   - [ ] Style Swagger UI with application branding
-   - [ ] Add helpful descriptions and examples for API usage
-   - [ ] Configure ReDoc as an alternative documentation viewer
-   - [ ] Implement rate-limiting on Swagger endpoints in non-production
+[x] Implement dedicated Hangfire worker pod for background processing
+ - [x] Configure Hangfire server components for separation
+   - [x] Create HangfireServerConfiguration class to centralize server settings
+   - [x] Implement environment-based configuration for worker vs. application pods
+   - [x] Add configuration flag for enabling/disabling job processing
+   - [x] Refactor Hangfire initialization in Program.cs to support role-based startup
+   - [x] Configure Hangfire dashboard to show distributed server status
 
----
----
+ - [x] Update service-based APIs for background processing
+   - [x] Fix exception issues with RecurringJob static API
+   - [x] Implement service-based IRecurringJobManager instead of static RecurringJob class
+   - [x] Create AlertingJobsRegistration service for job registration
+   - [x] Update dependency injection to properly register Hangfire service components
+   - [x] Use scoped service approach for proper initialization and dependency resolution
 
-[ ] Implement dedicated Hangfire worker pod for background processing
- - [ ] Configure Hangfire server components for separation
-   - [ ] Create HangfireServerConfiguration class to centralize server settings
-   - [ ] Implement environment-based configuration for worker vs. application pods
-   - [ ] Add configuration flag for enabling/disabling job processing
-   - [ ] Refactor Hangfire initialization in Program.cs to support role-based startup
-   - [ ] Configure Hangfire dashboard to show distributed server status
+ - [x] Update application pods to disable job processing
+   - [x] Add environment variable HANGFIRE_PROCESSING_ENABLED for role detection
+   - [x] Modify Program.cs to check for processing role before initializing job server
+   - [x] Configure application pods to only run Hangfire client components
+   - [x] Implement health checks specific to client-only role
+   - [x] Ensure SignalR connections work properly without worker components
 
- - [ ] Update service-based APIs for background processing
-   - [ ] Fix exception issues with RecurringJob static API
-   - [ ] Implement service-based IRecurringJobManager instead of static RecurringJob class
-   - [ ] Create AlertingJobsRegistration service for job registration
-   - [ ] Update dependency injection to properly register Hangfire service components
-   - [ ] Use scoped service approach for proper initialization and dependency resolution
-
- - [ ] Update application pods to disable job processing
-   - [ ] Add environment variable HANGFIRE_PROCESSING_ENABLED for role detection
-   - [ ] Modify Program.cs to check for processing role before initializing job server
-   - [ ] Configure application pods to only run Hangfire client components
-   - [ ] Implement health checks specific to client-only role
-   - [ ] Ensure SignalR connections work properly without worker components
+ - [x] Add Kubernetes configuration for worker pods
+   - [x] Create dedicated Kubernetes deployment manifest
+   - [x] Configure resource limits and requests for worker pods
+   - [x] Add proper health probes for worker-only roles
+   - [x] Ensure proper secrets and configuration access
+   - [x] Document worker deployment architecture
+   
+ - [x] Update diagnostics and monitoring
+   - [x] Add server role information to diagnostics page
+   - [x] Create UI to display processing role and status
+   - [x] Implement queue and worker count monitoring
+   - [x] Add logging for role-based initialization
+   - [x] Document worker configuration options
 
 ---
 ---

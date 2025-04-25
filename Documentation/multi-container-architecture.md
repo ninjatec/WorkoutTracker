@@ -22,6 +22,19 @@
 │  │         │                │                │       │      │
 │  └─────────┼────────────────┼────────────────┼───────┘      │
 │            │                │                │              │
+│            │                │                │              │
+│  ┌─────────┴────────────────┴────────────────┴───────┐      │
+│  │                                                   │      │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐│      │
+│  │  │ Hangfire    │  │ Hangfire    │  │ Hangfire    ││      │
+│  │  │ Worker 1    │  │ Worker 2    │  │ Worker N    ││      │
+│  │  │             │  │             │  │             ││      │
+│  │  │ Background  │  │ Background  │  │ Background  ││      │
+│  │  │ Processing  │  │ Processing  │  │ Processing  ││      │
+│  │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘│      │
+│  │         │                │                │       │      │
+│  └─────────┼────────────────┼────────────────┼───────┘      │
+│            │                │                │              │
 │            ▼                ▼                ▼              │
 │  ┌─────────────────────────────────────────────────────┐    │
 │  │                                                     │    │
@@ -60,6 +73,54 @@
    - Shared cache invalidation across containers
    - Distributed locking for concurrency-sensitive operations
 
+5. **Web App Containers → Hangfire Workers**
+   - Job scheduling (web apps) to job processing (workers)
+   - Web apps enqueue jobs but don't process them
+   - Workers dedicated to background processing with higher resource allocation
+
+## Role-Based Deployments
+
+The application uses a role-based deployment model that separates job processing from web request handling:
+
+1. **Web App Pods**
+   - Handle HTTP requests, render UI, and API calls
+   - Enqueue background jobs but don't process them
+   - Configure with `HANGFIRE_PROCESSING_ENABLED=false`
+   - Optimized for frontend responsiveness
+
+2. **Hangfire Worker Pods**
+   - Dedicated to background job processing
+   - No HTTP traffic handling, only job execution
+   - Configure with `HANGFIRE_PROCESSING_ENABLED=true`
+   - Higher worker count and resource allocation
+   - Can be scaled independently from web pods
+
+This separation provides several benefits:
+- Better resource utilization - web pods can focus on handling user requests
+- Improved scalability - scale workers based on job queue size
+- Enhanced reliability - worker pods can have higher resource limits
+- Isolated failures - problems in job processing don't affect web response
+
+## Hangfire Configuration
+
+### Web Pod Configuration
+```yaml
+env:
+- name: HANGFIRE_PROCESSING_ENABLED
+  value: "false"
+- name: HANGFIRE_WORKER_COUNT
+  value: "0"
+```
+
+### Worker Pod Configuration
+```yaml
+env:
+- name: HANGFIRE_PROCESSING_ENABLED
+  value: "true"
+- name: HANGFIRE_WORKER_COUNT
+  value: "8"
+```
+
 ## Resilience Patterns
 
 1. **Circuit Breaker**
@@ -77,6 +138,7 @@
    - Prometheus metrics for container health
    - Database connection pool health checks
    - Redis connectivity monitoring
+   - Hangfire server status monitoring
 
 4. **Graceful Degradation**
    - Fallback mechanisms when Redis is unavailable
@@ -87,6 +149,7 @@
 
 1. **Horizontal Scaling**
    - Add more Web App containers as load increases
+   - Scale Hangfire worker pods based on job queue size
    - SignalR backplane maintains connection consistency
    - Session persistence regardless of container instances
 
@@ -99,3 +162,8 @@
    - Connection pooling optimization for efficient use of resources
    - Consider read replicas for reporting-heavy workloads
    - Database sharding for very large datasets
+
+4. **Worker Pod Scaling**
+   - Use Horizontal Pod Autoscaler (HPA) to scale workers based on CPU/memory
+   - Consider custom metrics for scaling based on job queue size
+   - Separate worker pods for different job types using queue configuration
