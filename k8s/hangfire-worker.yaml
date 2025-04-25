@@ -1,19 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: workouttracker
+  name: workouttracker-hangfire-worker
   namespace: web
   labels:
-    app: workouttracker
+    app: workouttracker-hangfire-worker
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: workouttracker
+      app: workouttracker-hangfire-worker
   template:
     metadata:
       labels:
-        app: workouttracker
+        app: workouttracker-hangfire-worker
+        role: worker
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: "/metrics"
@@ -22,34 +23,37 @@ spec:
       imagePullSecrets:
       - name: regcred
       containers:
-      - name: workout-tracker
+      - name: workout-tracker-worker
         image: ninjatec/workout-tracker:1.8.0.3
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
         resources:
           requests:
-            memory: "128Mi"
-            cpu: "250m"
+            memory: "256Mi"
+            cpu: "500m"
           limits:
             memory: "1024Mi"
             cpu: "2000m"
         livenessProbe:
-          tcpSocket:
+          httpGet:
+            path: /health/live
             port: 8080
           initialDelaySeconds: 30
           periodSeconds: 15
           timeoutSeconds: 5
           failureThreshold: 3
         readinessProbe:
-          tcpSocket:
+          httpGet:
+            path: /health/ready
             port: 8080
           initialDelaySeconds: 15
           periodSeconds: 10
           timeoutSeconds: 3
           failureThreshold: 3
         startupProbe:
-          tcpSocket:
+          httpGet:
+            path: /health/ready
             port: 8080
           initialDelaySeconds: 30
           periodSeconds: 10
@@ -69,9 +73,9 @@ spec:
             fieldRef:
               fieldPath: spec.nodeName
         - name: HANGFIRE_PROCESSING_ENABLED
-          value: "false"
+          value: "true"
         - name: HANGFIRE_WORKER_COUNT
-          value: "0"
+          value: "8"
         - name: ConnectionStrings__DefaultConnection
           valueFrom:
             secretKeyRef:
