@@ -180,23 +180,38 @@ namespace WorkoutTrackerWeb.Services
                     }
                     else if (fields[0].StartsWith("Workout End", StringComparison.OrdinalIgnoreCase) && fields.Count > 1)
                     {
-                        currentWorkout.EndTime = DateTime.Parse(fields[1], CultureInfo.InvariantCulture);
+                        if (DateTime.TryParse(fields[1], CultureInfo.InvariantCulture, out DateTime endTime))
+                        {
+                            currentWorkout.EndTime = endTime;
+                        }
                     }
                     else if (fields[0].StartsWith("Total Duration", StringComparison.OrdinalIgnoreCase) && fields.Count > 1)
                     {
-                        currentWorkout.TotalDuration = int.Parse(fields[1], CultureInfo.InvariantCulture);
+                        if (fields[1] != "N/A" && int.TryParse(fields[1], NumberStyles.Any, CultureInfo.InvariantCulture, out int duration))
+                        {
+                            currentWorkout.TotalDuration = duration;
+                        }
                     }
                     else if (fields[0].StartsWith("Total Sets", StringComparison.OrdinalIgnoreCase) && fields.Count > 1)
                     {
-                        currentWorkout.TotalSets = int.Parse(fields[1], CultureInfo.InvariantCulture);
+                        if (fields[1] != "N/A" && int.TryParse(fields[1], NumberStyles.Any, CultureInfo.InvariantCulture, out int totalSets))
+                        {
+                            currentWorkout.TotalSets = totalSets;
+                        }
                     }
                     else if (fields[0].StartsWith("Burned Calories", StringComparison.OrdinalIgnoreCase) && fields.Count > 1)
                     {
-                        currentWorkout.BurnedCalories = int.Parse(fields[1], CultureInfo.InvariantCulture);
+                        if (fields[1] != "N/A" && int.TryParse(fields[1], NumberStyles.Any, CultureInfo.InvariantCulture, out int calories))
+                        {
+                            currentWorkout.BurnedCalories = calories;
+                        }
                     }
                     else if (fields[0].StartsWith("Total TVL", StringComparison.OrdinalIgnoreCase) && fields.Count > 1)
                     {
-                        currentWorkout.TotalTVL = decimal.Parse(fields[1], CultureInfo.InvariantCulture);
+                        if (fields[1] != "N/A" && decimal.TryParse(fields[1], NumberStyles.Any, CultureInfo.InvariantCulture, out decimal tvl))
+                        {
+                            currentWorkout.TotalTVL = tvl;
+                        }
                     }
                     // Parse exercise data - ensure we have enough fields and it's not a header row
                     else if (fields[0] != "All Sets" && fields[0] != "Exercise" && !string.IsNullOrWhiteSpace(fields[0]) && fields.Count >= 3)
