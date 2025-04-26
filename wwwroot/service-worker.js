@@ -4,7 +4,7 @@
  */
 
 // Cache names with versioning
-const STATIC_CACHE_VERSION = 'workouttracker-static-v1.4';
+const STATIC_CACHE_VERSION = 'workouttracker-static-v1.5';
 const DYNAMIC_CACHE_VERSION = 'workouttracker-dynamic-v1.3';
 const ASSET_CACHE_VERSION = 'workouttracker-assets-v1.2';
 
@@ -23,11 +23,8 @@ const STATIC_RESOURCES = [
     '/lib/bootstrap/dist/js/bootstrap.bundle.min.js',
     '/lib/jquery/dist/jquery.min.js',
     '/images/Logo_Without_Words.png',
-    '/images/Logo_With_words.png',
-    // These are now local files to avoid CSP issues
-    '/lib/bootstrap-icons/font/bootstrap-icons.css',
-    '/lib/bootstrap-icons/font/fonts/bootstrap-icons.woff',
-    '/lib/bootstrap-icons/font/fonts/bootstrap-icons.woff2'
+    '/images/Logo_With_words.png'
+    // Removed bootstrap-icons files that don't exist
 ];
 
 // Pages that should work offline
@@ -156,6 +153,10 @@ self.addEventListener('fetch', event => {
                                     cache.put(event.request, networkResponse.clone());
                                 });
                             return networkResponse;
+                        })
+                        .catch(error => {
+                            console.warn(`[Service Worker] Failed to fetch: ${event.request.url} - ${error.message}`);
+                            return cachedResponse || new Response(null, { status: 404 });
                         });
                     return cachedResponse || fetchPromise;
                 })
