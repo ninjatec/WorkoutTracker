@@ -1,33 +1,33 @@
 /**
  * Service Worker for WorkoutTracker
- * Provides offline capabilities and asset caching
+ * Provides offline functionality and caching
  */
 
-// Cache versions - update these when files change
-const STATIC_CACHE_VERSION = 'static-v1';
-const DYNAMIC_CACHE_VERSION = 'dynamic-v1';
-const ASSET_CACHE_VERSION = 'assets-v1';
+// Cache names with versioning
+const STATIC_CACHE_VERSION = 'workouttracker-static-v1.3';
+const DYNAMIC_CACHE_VERSION = 'workouttracker-dynamic-v1.3';
+const ASSET_CACHE_VERSION = 'workouttracker-assets-v1.2';
 
-// Resources to cache immediately during install
+// Static resources to cache on install
 const STATIC_RESOURCES = [
     '/',
     '/offline',
     '/css/site.css',
     '/css/responsive.css',
+    '/css/shared.css',
     '/js/site.js',
     '/js/module-loader.js',
     '/js/modules/common.js',
-    '/js/lazy-loading.js',
-    '/js/progressive-images.js',
-    '/js/responsive-tables.js',
-    '/js/mobile-navigation.js',
+    '/js/modules/home.js',
     '/lib/bootstrap/dist/css/bootstrap.min.css',
     '/lib/bootstrap/dist/js/bootstrap.bundle.min.js',
     '/lib/jquery/dist/jquery.min.js',
-    '/lib/microsoft/signalr/dist/browser/signalr.min.js',
     '/images/Logo_Without_Words.png',
     '/images/Logo_With_words.png',
-    'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css'
+    // These are now local files to avoid CSP issues
+    '/lib/bootstrap-icons/font/bootstrap-icons.css',
+    '/lib/bootstrap-icons/font/fonts/bootstrap-icons.woff',
+    '/lib/bootstrap-icons/font/fonts/bootstrap-icons.woff2'
 ];
 
 // Pages that should work offline
@@ -103,20 +103,22 @@ self.addEventListener('fetch', event => {
         event.respondWith(
             fetch(event.request)
                 .then(response => {
-                    // Cache successful responses
-                    if (response.ok) {
-                        cacheResponse(event.request, response.clone());
-                    }
+                    // Cache a copy of the response
+                    const responseClone = response.clone();
+                    caches.open(DYNAMIC_CACHE_VERSION)
+                        .then(cache => {
+                            cache.put(event.request, responseClone);
+                        });
                     return response;
                 })
                 .catch(() => {
-                    console.log('[Service Worker] Serving critical page from cache', event.request.url);
+                    // If network fails, try to return from cache
                     return caches.match(event.request)
                         .then(cachedResponse => {
                             if (cachedResponse) {
                                 return cachedResponse;
                             }
-                            // If not in cache, serve offline page
+                            // If not in cache, return offline page
                             return caches.match('/offline');
                         });
                 })
@@ -124,163 +126,107 @@ self.addEventListener('fetch', event => {
         return;
     }
     
-    // Handle static assets with Cache First strategy
-    if (isStaticAsset(event.request)) {
+    // For CSS, JS, and images - use cache first, then network (stale-while-revalidate)
+    if (isAssetRequest(event.request)) {
         event.respondWith(
             caches.match(event.request)
                 .then(cachedResponse => {
-                    if (cachedResponse) {
-                        // Return cached response and update in background
-                        updateCacheInBackground(event.request);
-                        return cachedResponse;
-                    }
-                    
-                    // Not in cache, try network
-                    return fetch(event.request)
-                        .then(response => {
-                            // Cache successful responses
-                            if (response.ok) {
-                                cacheResponse(event.request, response.clone());
-                            }
-                            return response;
-                        })
-                        .catch(() => {
-                            // If it's an image, return a fallback
-                            if (event.request.url.match(/\.(jpg|jpeg|png|gif|webp|svg)$/)) {
-                                return caches.match('/images/offline-placeholder.png');
-                            }
-                            // For other static assets, fail silently
-                            return new Response(null, { status: 404 });
+                    // Return cached version immediately if available
+                    const fetchPromise = fetch(event.request)
+                        .then(networkResponse => {
+                            // Update cache with new version
+                            caches.open(ASSET_CACHE_VERSION)
+                                .then(cache => {
+                                    cache.put(event.request, networkResponse.clone());
+                                });
+                            return networkResponse;
                         });
+                    return cachedResponse || fetchPromise;
                 })
         );
         return;
     }
     
-    // Default: Network First strategy with dynamic caching for other requests
+    // For other requests - network first with cache fallback
     event.respondWith(
         fetch(event.request)
             .then(response => {
-                // Cache successful responses that aren't for API calls
-                if (response.ok && !url.pathname.startsWith('/api/')) {
-                    cacheResponse(event.request, response.clone(), DYNAMIC_CACHE_VERSION);
+                // Don't cache responses with error status codes
+                if (!response.ok) {
+                    throw Error(response.statusText);
                 }
+                
+                // Cache a copy of successful responses
+                const responseClone = response.clone();
+                caches.open(DYNAMIC_CACHE_VERSION)
+                    .then(cache => {
+                        cache.put(event.request, responseClone);
+                    });
                 return response;
             })
             .catch(() => {
-                console.log('[Service Worker] Serving from cache after network failure', event.request.url);
+                // If network fails, try to return from cache
                 return caches.match(event.request)
                     .then(cachedResponse => {
                         if (cachedResponse) {
                             return cachedResponse;
                         }
                         
-                        // If it's a page, serve the offline page
-                        if (event.request.headers.get('Accept').includes('text/html')) {
+                        // If it's a page request, return offline page
+                        if (isHtmlRequest(event.request)) {
                             return caches.match('/offline');
                         }
                         
-                        // Otherwise fail silently
+                        // For non-HTML requests with no cache, return nothing
                         return new Response(null, { status: 404 });
                     });
             })
     );
 });
 
-/**
- * Update a cached response in the background
- * @param {Request} request - The request to update
- */
-function updateCacheInBackground(request) {
-    setTimeout(() => {
-        fetch(request).then(response => {
-            if (response.ok) {
-                cacheResponse(request, response);
-            }
-        });
-    }, 1000);
-}
-
-/**
- * Cache a response
- * @param {Request} request - The request that was made
- * @param {Response} response - The response to cache
- * @param {string} cacheName - The cache to use (defaults to static cache)
- */
-function cacheResponse(request, response, cacheName = STATIC_CACHE_VERSION) {
-    // Only cache GET requests
-    if (request.method !== 'GET') return;
-    
-    // Determine correct cache based on resource type
-    let targetCache = cacheName;
-    if (request.url.match(/\.(jpg|jpeg|png|gif|webp|svg)$/)) {
-        targetCache = ASSET_CACHE_VERSION;
-    }
-    
-    // Clone the response before caching
-    const clonedResponse = response.clone();
-    
-    caches.open(targetCache).then(cache => {
-        cache.put(request, clonedResponse);
-    });
-}
-
-/**
- * Check if a request is for a critical page that should work offline
- * @param {Request} request - The request to check
- * @returns {boolean} - True if this is a critical page
- */
+// Check if a request is for a critical page that should work offline
 function isCriticalRequest(request) {
-    // Only consider HTML requests for pages
-    if (!request.headers.get('Accept').includes('text/html')) {
-        return false;
-    }
-    
     const url = new URL(request.url);
     const path = url.pathname;
     
-    // Check exact matches
+    // Check for exact matches
     if (CRITICAL_PAGES.includes(path)) {
         return true;
     }
     
-    // Check regex patterns
-    for (const pattern of CRITICAL_PAGES) {
-        if (pattern instanceof RegExp && pattern.test(path)) {
-            return true;
+    // Check for pattern matches
+    return CRITICAL_PAGES.some(pattern => {
+        if (typeof pattern === 'object' && pattern instanceof RegExp) {
+            return pattern.test(path);
         }
-    }
-    
-    return false;
+        return false;
+    });
 }
 
-/**
- * Check if a request is for a static asset
- * @param {Request} request - The request to check
- * @returns {boolean} - True if this is a static asset
- */
-function isStaticAsset(request) {
+// Check if the request is for an asset (CSS, JS, images, fonts)
+function isAssetRequest(request) {
     const url = new URL(request.url);
+    const path = url.pathname;
     
-    // Check file extensions
-    if (url.pathname.match(/\.(css|js|png|jpg|jpeg|gif|webp|svg|woff|woff2|ttf|eot|ico)$/)) {
-        return true;
-    }
+    return path.endsWith('.css') || 
+           path.endsWith('.js') || 
+           path.endsWith('.png') || 
+           path.endsWith('.jpg') || 
+           path.endsWith('.jpeg') || 
+           path.endsWith('.gif') || 
+           path.endsWith('.svg') || 
+           path.endsWith('.woff') || 
+           path.endsWith('.woff2') || 
+           path.endsWith('.ttf') || 
+           path.endsWith('.eot');
+}
+
+// Check if the request is for an HTML page
+function isHtmlRequest(request) {
+    const url = new URL(request.url);
+    const path = url.pathname;
     
-    // Check paths
-    if (url.pathname.startsWith('/css/') ||
-        url.pathname.startsWith('/js/') ||
-        url.pathname.startsWith('/lib/') ||
-        url.pathname.startsWith('/images/')) {
-        return true;
-    }
-    
-    // Check CDN URLs for common static assets
-    if (url.hostname.includes('cdn.jsdelivr.net') ||
-        url.hostname.includes('fonts.googleapis.com') ||
-        url.hostname.includes('fonts.gstatic.com')) {
-        return true;
-    }
-    
-    return false;
+    // If path has no extension, it's likely a page
+    const hasExtension = /\.[a-zA-Z0-9]+$/.test(path);
+    return !hasExtension || path.endsWith('.html') || path.endsWith('.htm');
 }
