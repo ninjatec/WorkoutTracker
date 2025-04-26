@@ -2,6 +2,7 @@
 - ALWAYS ensure the codebase comiles withut error before a task is considered complete
 - ALWAYS use --context on dotnet ef commands
 - AVOID repeating work already complete
+- do not use System.Data.SqlClient package. prefer Microsoft.Data.SqlClient
 - Do not apologize
 - User razorpages and not MVC
 - Use .net core 9

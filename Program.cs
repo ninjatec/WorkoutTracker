@@ -32,7 +32,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Hangfire;
 using Hangfire.SqlServer;
 using Hangfire.Dashboard;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.StaticFiles;
 using StackExchange.Redis;
 using HealthChecks.Redis;
