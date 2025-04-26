@@ -12,8 +12,14 @@ public class IndexModel : PageModel
         _logger = logger;
     }
 
-    public void OnGet()
+    public IActionResult OnGet()
     {
+        // If user is not authenticated, redirect to login page
+        if (!User.Identity.IsAuthenticated)
+        {
+            return RedirectToPage("/Account/Login");
+        }
 
+        return Page();
     }
 }

@@ -166,17 +166,6 @@ else
     sed -i "s|image: ${DOCKER_REPO}:.*|image: ${DOCKER_REPO}:${VERSION}|" ./k8s/hangfire-worker.yaml
 fi
 
-# Apply Kubernetes manifests individually instead of using kustomization
-echo -e "${YELLOW}Applying Kubernetes manifests...${NC}"
-kubectl apply -f ./k8s/namespace.yaml
-kubectl apply -f ./k8s/regcred.yaml
-kubectl apply -f ./k8s/secrets.yaml
-kubectl apply -f ./k8s/deployment.yaml
-kubectl apply -f ./k8s/service.yaml
-kubectl apply -f ./k8s/mapping.yaml
-# Apply the Hangfire worker deployment
-kubectl apply -f ./k8s/hangfire-worker.yaml
-
 # 8. Add version details to database
 echo -e "${YELLOW}Updating version in database...${NC}"
 # Create a simple SQL file to update the version in the database
@@ -201,6 +190,17 @@ echo -e "${GREEN}Committed k8s changes for version ${VERSION}${NC}"
 echo -e "${YELLOW}Pushing changes to remote repository...${NC}"
 git push
 echo -e "${GREEN}Changes pushed to remote repository${NC}"
+
+# Apply Kubernetes manifests individually instead of using kustomization
+echo -e "${YELLOW}Applying Kubernetes manifests...${NC}"
+kubectl apply -f ./k8s/namespace.yaml
+kubectl apply -f ./k8s/regcred.yaml
+kubectl apply -f ./k8s/secrets.yaml
+kubectl apply -f ./k8s/deployment.yaml
+kubectl apply -f ./k8s/service.yaml
+kubectl apply -f ./k8s/mapping.yaml
+# Apply the Hangfire worker deployment
+kubectl apply -f ./k8s/hangfire-worker.yaml
 
 # 9. Check deployment status for both main app and worker
 echo -e "${YELLOW}Checking deployment status...${NC}"

@@ -7,10 +7,11 @@
   --background-light: #ECEFF1;  /* Very light gray with blue tint */
   --text-dark: #263238;         /* Very dark steel */
   --text-light: #FAFAFA;        /* Off-white */
+  --text-muted: #495057;        /* Darker grey for better contrast (was #6c757d in Bootstrap) */
   --error-color: #CF6679;       /* Muted red for errors */
   --success-color: #80CBC4;     /* Muted teal for success */
-  --tab-active-color: #465A65;  /* Color for active tabs - matches primary */
-  --tab-active-border: #465A65; /* Border color for active tabs */
+  --tab-active-color: #6e8895;  /* Color for active tabs - matches primary */
+  --tab-active-border: #6e8895; /* Border color for active tabs */
 }
 
 html {
@@ -163,9 +164,30 @@ table {
   text-decoration: underline;
 }
 
-/* Original code for form controls */
+/* Improve text contrast by making text darker */
+.text-muted {
+  color: var(--text-muted) !important; /* Override Bootstrap's text-muted */
+}
+
+/* Ensure all muted text has better contrast */
+.small, small, .text-secondary {
+  color: var(--text-muted) !important;
+}
+
+/* Improve placeholder text visibility */
+::placeholder {
+  color: var(--text-muted) !important;
+  opacity: 0.8 !important;
+}
+
+/* Ensure form text has proper contrast */
+.form-text {
+  color: var(--text-muted) !important;
+}
+
+/* Original code with improved contrast */
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
-  color: var(--secondary-color);
+  color: var(--text-muted);
   text-align: end;
 }
 
@@ -254,10 +276,9 @@ a:focus, button:focus {
 
 /* Improved tab styling for consistent appearance across site */
 .nav-tabs .nav-link {
-  color: #495057;
-  background-color: rgba(0, 0, 0, 0.03);
+  color: #dae2eb !important; /* Explicit color instead of using CSS variable */
   border-radius: 0;
-  border: 1px solid transparent;
+  border: 1px solid #dee2e6;
   border-bottom: none;
   transition: all 0.2s ease;
   position: relative;
@@ -265,17 +286,9 @@ a:focus, button:focus {
 }
 
 .nav-tabs .nav-link:hover {
-  color: var(--primary-color);
-  background-color: rgba(70, 90, 101, 0.08);
-  border-color: transparent;
-}
-
-.nav-tabs .nav-link.active {
-  color: var(--tab-active-color);
-  background-color: #fff;
-  border-color: #dee2e6 #dee2e6 #fff;
-  border-top: 3px solid var(--tab-active-border);
-  font-weight: 600;
+  color: var(--primary-color) !important;
+  background-color: rgba(255, 255, 255, 0.95); /* Even lighter on hover */
+  border-color: #dee2e6;
 }
 
 /* Fix for tab visibility in different contexts */
