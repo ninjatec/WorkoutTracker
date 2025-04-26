@@ -88,6 +88,11 @@ This document maintains an up-to-date inventory of all features, components, and
 | `responsive-data.css` | Special layouts for data-heavy pages on mobile |
 | `responsive-layouts.css` | Additional layout components for mobile adaptation |
 | `responsive-tables.js` | JavaScript utility for table transformations |
+| `mobile-navigation.js` | JavaScript for mobile navigation gestures and haptic feedback |
+| `mobile-bottom-navigation` | Fixed bottom navigation bar component for critical actions |
+| `mobile-context-navigation` | Alternative to traditional breadcrumbs for mobile |
+| `mobile-swipe-gestures` | Touch gestures for common actions like edit and delete |
+| `mobile-pull-to-refresh` | Pull-to-refresh functionality for data lists |
 | `container-mobile-friendly` | Container class with optimized mobile padding/margins |
 | `Enhanced Viewport Meta Tags` | Complete viewport configuration for mobile devices |
 

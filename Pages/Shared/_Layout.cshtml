@@ -19,13 +19,13 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body>
+<body class="mobile-bottom-nav-active">
     <header>
         <nav class="navbar navbar-expand-sm navbar-dark border-bottom box-shadow mb-3">
             <div class="container-fluid container-mobile-friendly">
                 <a class="navbar-brand" asp-area="" asp-page="/Index">
                     <img src="~/images/Logo_Without_Words.png" alt="Workout Tracker Logo" class="navbar-logo" />
-                    WorkoutTracker.online
+                    <span class="desktop-only">WorkoutTracker.online</span>
                 </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
                         aria-expanded="false" aria-label="Toggle navigation">
@@ -91,10 +91,112 @@
         </nav>
     </header>
     
+    <!-- Mobile Context Navigation -->
+    <div class="mobile-context-nav container-mobile-friendly">
+        <a href="#" class="mobile-context-nav-item" id="currentContextPath">
+            <i class="bi bi-house"></i> Home
+        </a>
+    </div>
+    
     <div class="container container-mobile-friendly">
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
+    </div>
+
+    <!-- Session Navigation Shortcuts -->
+    <div class="session-shortcuts">
+        <button type="button" class="session-shortcut-button" id="sessionShortcutButton">
+            <i class="bi bi-plus"></i>
+        </button>
+        <div class="session-shortcut-menu" id="sessionShortcutMenu">
+            <a href="/Sessions/Create" class="session-shortcut-menu-item">
+                <i class="bi bi-plus-circle"></i> New Session
+            </a>
+            <a href="/Sessions/Index" class="session-shortcut-menu-item">
+                <i class="bi bi-list-check"></i> All Sessions
+            </a>
+            <a href="/Reports/Index" class="session-shortcut-menu-item">
+                <i class="bi bi-graph-up"></i> Reports
+            </a>
+            <a href="/Calculator/OneRepMax" class="session-shortcut-menu-item">
+                <i class="bi bi-calculator"></i> 1RM Calculator
+            </a>
+        </div>
+    </div>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="mobile-bottom-nav">
+        <div class="mobile-bottom-nav-container">
+            <a href="/Index" class="mobile-nav-item" id="navHome">
+                <i class="bi bi-house"></i>
+                <span>Home</span>
+            </a>
+            <a href="/Sessions/Index" class="mobile-nav-item" id="navWorkouts">
+                <i class="bi bi-list-check"></i>
+                <span>Workouts</span>
+            </a>
+            <a href="/Sessions/Create" class="mobile-nav-item" id="navAdd">
+                <i class="bi bi-plus-circle"></i>
+                <span>Add</span>
+            </a>
+            <a href="/Reports/Index" class="mobile-nav-item" id="navReports">
+                <i class="bi bi-graph-up"></i>
+                <span>Reports</span>
+            </a>
+            <a href="#" class="mobile-nav-item" id="navMore" data-bs-toggle="offcanvas" data-bs-target="#mobileMenuOffcanvas">
+                <i class="bi bi-three-dots"></i>
+                <span>More</span>
+            </a>
+        </div>
+    </nav>
+    
+    <!-- Mobile More Menu (Off-canvas) -->
+    <div class="offcanvas offcanvas-bottom" tabindex="-1" id="mobileMenuOffcanvas" aria-labelledby="mobileMenuOffcanvasLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="mobileMenuOffcanvasLabel">More Options</h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div class="row g-3">
+                <div class="col-4 text-center">
+                    <a href="/Calculator/OneRepMax" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-calculator fs-4 d-block mb-2"></i>
+                        1RM Calculator
+                    </a>
+                </div>
+                <div class="col-4 text-center">
+                    <a href="/DataPortability/Export" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-download fs-4 d-block mb-2"></i>
+                        Export Data
+                    </a>
+                </div>
+                <div class="col-4 text-center">
+                    <a href="/DataPortability/Import" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-upload fs-4 d-block mb-2"></i>
+                        Import Data
+                    </a>
+                </div>
+                <div class="col-4 text-center">
+                    <a href="/Account/Manage/ShareTokens" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-share fs-4 d-block mb-2"></i>
+                        Sharing
+                    </a>
+                </div>
+                <div class="col-4 text-center">
+                    <a href="/Help/Index" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-question-circle fs-4 d-block mb-2"></i>
+                        Help
+                    </a>
+                </div>
+                <div class="col-4 text-center">
+                    <a href="/Feedback/Create" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-chat-dots fs-4 d-block mb-2"></i>
+                        Feedback
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
 
     <footer class="border-top footer text-light mt-5">
@@ -123,6 +225,7 @@
     <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/responsive-tables.js" asp-append-version="true"></script>
+    <script src="~/js/mobile-navigation.js" asp-append-version="true"></script>
     <!-- DataTables JS (Bootstrap 5 version) -->
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
