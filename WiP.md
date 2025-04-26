@@ -106,6 +106,31 @@
 - Added environment variable support for Kubernetes deployment
 - Added documentation for Hangfire worker setup
 
+### 11. Workout Templates
+- Implemented workout template database models:
+  - Created `WorkoutTemplate` model for template metadata
+  - Created `WorkoutTemplateExercise` model for exercises within templates
+  - Created `WorkoutTemplateSet` model for default set values
+  - Added relationships between models with cascade deletions
+  - Created database migration and applied schema changes
+- Implemented Razor Pages for template management:
+  - Created list view with filtering and card-based display
+  - Implemented template details view with exercises and sets
+  - Added template creation with metadata entry
+  - Created comprehensive edit interface for managing exercises and sets
+  - Added template deletion with confirmation
+  - Implemented "Start Workout" functionality to create sessions from templates
+- Added navigation integration:
+  - Updated main navbar with Templates link
+  - Added Templates to mobile menu and session shortcuts
+  - Used consistent UI styling matching the application theme
+- Added security features:
+  - Applied authorization attributes to all pages
+  - Implemented ownership verification to prevent unauthorized access
+  - Added transaction support for data consistency
+- Used output caching for better performance
+- Added documentation in inventory.md
+
 ## Next Steps
 
 ### 2. Guest Access

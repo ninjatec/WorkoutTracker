@@ -1,0 +1,65 @@
+@page "{id:int}"
+@model WorkoutTrackerWeb.Pages.Templates.DeleteModel
+@{
+    ViewData["Title"] = "Delete Template";
+}
+
+<div class="container-fluid">
+    <div class="mb-3">
+        <a asp-page="Details" asp-route-id="@Model.WorkoutTemplate.WorkoutTemplateId" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Template
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-danger text-white">
+            <h1 class="h3 mb-0">@ViewData["Title"]</h1>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-danger mb-4">
+                <h4><i class="bi bi-exclamation-triangle-fill"></i> Warning</h4>
+                <p>Are you sure you want to delete the template <strong>@Model.WorkoutTemplate.Name</strong>?</p>
+                <p>This action <strong>cannot be undone</strong>. All exercises and sets in this template will also be deleted.</p>
+            </div>
+            
+            <h5>Template Details</h5>
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <p><strong>Name:</strong> @Model.WorkoutTemplate.Name</p>
+                    <p><strong>Created:</strong> @Model.WorkoutTemplate.CreatedDate.ToString("MMM dd, yyyy")</p>
+                    <p><strong>Category:</strong> @(string.IsNullOrEmpty(Model.WorkoutTemplate.Category) ? "None" : Model.WorkoutTemplate.Category)</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Exercises:</strong> @Model.WorkoutTemplate.TemplateExercises.Count</p>
+                    <p><strong>Visibility:</strong> @(Model.WorkoutTemplate.IsPublic ? "Public" : "Private")</p>
+                    <p>
+                        <strong>Tags:</strong>
+                        @if (string.IsNullOrEmpty(Model.WorkoutTemplate.Tags))
+                        {
+                            <span>None</span>
+                        }
+                        else
+                        {
+                            @foreach (var tag in Model.WorkoutTemplate.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                            {
+                                <span class="badge bg-light text-dark me-1">@tag.Trim()</span>
+                            }
+                        }
+                    </p>
+                </div>
+            </div>
+            
+            <hr/>
+            
+            <form method="post">
+                <input type="hidden" asp-for="WorkoutTemplate.WorkoutTemplateId" />
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Delete Template
+                    </button>
+                    <a asp-page="Index" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

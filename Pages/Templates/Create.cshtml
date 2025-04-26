@@ -1,0 +1,84 @@
+@page
+@model WorkoutTrackerWeb.Pages.Templates.CreateModel
+@{
+    ViewData["Title"] = "Create Workout Template";
+}
+
+<div class="container-fluid">
+    <div class="mb-3">
+        <a asp-page="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Templates
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h1 class="h3 mb-0">@ViewData["Title"]</h1>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label asp-for="WorkoutTemplate.Name" class="form-label"></label>
+                            <input asp-for="WorkoutTemplate.Name" class="form-control" />
+                            <span asp-validation-for="WorkoutTemplate.Name" class="text-danger"></span>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label asp-for="WorkoutTemplate.Description" class="form-label"></label>
+                            <textarea asp-for="WorkoutTemplate.Description" class="form-control" rows="4"></textarea>
+                            <span asp-validation-for="WorkoutTemplate.Description" class="text-danger"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label asp-for="WorkoutTemplate.Category" class="form-label"></label>
+                            <input asp-for="WorkoutTemplate.Category" class="form-control" list="categoryOptions" />
+                            <datalist id="categoryOptions">
+                                @foreach (var category in Model.Categories)
+                                {
+                                    <option value="@category"></option>
+                                }
+                            </datalist>
+                            <span asp-validation-for="WorkoutTemplate.Category" class="text-danger"></span>
+                            <div class="form-text">Categorize your template (e.g., Strength, Cardio, Full Body)</div>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label asp-for="WorkoutTemplate.Tags" class="form-label"></label>
+                            <input asp-for="WorkoutTemplate.Tags" class="form-control" />
+                            <span asp-validation-for="WorkoutTemplate.Tags" class="text-danger"></span>
+                            <div class="form-text">Comma-separated tags to help organize your templates (e.g., beginner, chest, high-intensity)</div>
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input asp-for="WorkoutTemplate.IsPublic" class="form-check-input" />
+                            <label asp-for="WorkoutTemplate.IsPublic" class="form-check-label"></label>
+                            <span asp-validation-for="WorkoutTemplate.IsPublic" class="text-danger"></span>
+                            <div class="form-text">Public templates can be shared with friends and the community</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save"></i> Create Template
+                </button>
+                <a asp-page="Index" class="btn btn-outline-secondary">Cancel</a>
+            </form>
+        </div>
+        <div class="card-footer bg-transparent">
+            <div class="alert alert-info mb-0">
+                <h5><i class="bi bi-info-circle"></i> Adding Exercises</h5>
+                <p>After creating your template, you'll be able to add exercises and customize sets.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

@@ -42,6 +42,11 @@ namespace WorkoutTrackerWeb.Data
         public DbSet<WorkoutTrackerWeb.Models.Alerting.AlertHistory> AlertHistory { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Alerting.Notification> Notification { get; set; } = default!;
 
+        // Workout template DbSets
+        public DbSet<WorkoutTrackerWeb.Models.WorkoutTemplate> WorkoutTemplate { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.WorkoutTemplateExercise> WorkoutTemplateExercise { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.WorkoutTemplateSet> WorkoutTemplateSet { get; set; } = default!;
+
         // Helper method to get the current user's own User record
         public async Task<User> GetCurrentUserAsync()
         {
@@ -167,6 +172,73 @@ namespace WorkoutTrackerWeb.Data
                 
             modelBuilder.Entity<Notification>()
                 .HasIndex(n => new { n.UserId, n.IsRead });
+
+            // Configure WorkoutTemplate relationships and query filter
+            modelBuilder.Entity<WorkoutTemplate>()
+                .HasOne(wt => wt.User)
+                .WithMany()
+                .HasForeignKey(wt => wt.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            // WorkoutTemplates are filtered by the current user
+            modelBuilder.Entity<WorkoutTemplate>()
+                .HasQueryFilter(wt => _currentUserId == null || wt.User.IdentityUserId == _currentUserId);
+                
+            // Configure WorkoutTemplateExercise relationships
+            modelBuilder.Entity<WorkoutTemplateExercise>()
+                .HasOne(wte => wte.WorkoutTemplate)
+                .WithMany(wt => wt.TemplateExercises)
+                .HasForeignKey(wte => wte.WorkoutTemplateId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<WorkoutTemplateExercise>()
+                .HasOne(wte => wte.ExerciseType)
+                .WithMany()
+                .HasForeignKey(wte => wte.ExerciseTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            // WorkoutTemplateExercises are filtered by the current user (via WorkoutTemplate)
+            modelBuilder.Entity<WorkoutTemplateExercise>()
+                .HasQueryFilter(wte => _currentUserId == null || wte.WorkoutTemplate.User.IdentityUserId == _currentUserId);
+                
+            // Configure WorkoutTemplateSet relationships
+            modelBuilder.Entity<WorkoutTemplateSet>()
+                .HasOne(wts => wts.WorkoutTemplateExercise)
+                .WithMany(wte => wte.TemplateSets)
+                .HasForeignKey(wts => wts.WorkoutTemplateExerciseId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<WorkoutTemplateSet>()
+                .HasOne(wts => wts.Settype)
+                .WithMany()
+                .HasForeignKey(wts => wts.SettypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            // WorkoutTemplateSets are filtered by the current user (via WorkoutTemplateExercise -> WorkoutTemplate)
+            modelBuilder.Entity<WorkoutTemplateSet>()
+                .HasQueryFilter(wts => _currentUserId == null || wts.WorkoutTemplateExercise.WorkoutTemplate.User.IdentityUserId == _currentUserId);
+                
+            // Add indexes for better performance
+            modelBuilder.Entity<WorkoutTemplate>()
+                .HasIndex(wt => wt.UserId);
+                
+            modelBuilder.Entity<WorkoutTemplate>()
+                .HasIndex(wt => wt.Category);
+                
+            modelBuilder.Entity<WorkoutTemplateExercise>()
+                .HasIndex(wte => wte.WorkoutTemplateId);
+                
+            modelBuilder.Entity<WorkoutTemplateExercise>()
+                .HasIndex(wte => wte.ExerciseTypeId);
+                
+            modelBuilder.Entity<WorkoutTemplateExercise>()
+                .HasIndex(wte => wte.SequenceNum);
+                
+            modelBuilder.Entity<WorkoutTemplateSet>()
+                .HasIndex(wts => wts.WorkoutTemplateExerciseId);
+                
+            modelBuilder.Entity<WorkoutTemplateSet>()
+                .HasIndex(wts => wts.SequenceNum);
         }
     }
 }
