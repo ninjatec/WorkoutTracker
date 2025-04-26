@@ -10,4 +10,6 @@ resources:
   - mapping.yaml
   - hangfire-worker.yaml
   - redis-master-service.yaml
+  - pdb.yaml
+  - hpa.yaml
 
