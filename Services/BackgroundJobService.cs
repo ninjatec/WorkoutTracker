@@ -720,7 +720,7 @@ namespace WorkoutTrackerWeb.Services
         }
 
         // Queue JSON import from file as a background job
-        public string QueueJsonImportFromFile(int userId, string filePath, bool skipExisting, string connectionId, bool deleteFileWhenDone = false)
+        public string QueueJsonImportFromFile(int userId, string filePath, bool skipExisting, string connectionId, bool deleteFileWhenDone = true)
         {
             _logger.LogInformation($"Queuing JSON import from file job for user {userId}, file path: {filePath}");
             
@@ -739,11 +739,40 @@ namespace WorkoutTrackerWeb.Services
                     throw new ArgumentException("File not found or invalid file path", nameof(filePath));
                 }
                 
-                // Create a serialization-friendly parameter object
+                // Store file in shared storage
+                string fileId = null;
+                try
+                {
+                    // Use a reasonable expiry time for the file (24 hours)
+                    fileId = _sharedStorageService.StoreFileFromPathAsync(filePath, TimeSpan.FromHours(24)).GetAwaiter().GetResult();
+                    _logger.LogInformation("File stored in shared storage with ID: {FileId}", fileId);
+                    
+                    // Delete the local file if requested and we've successfully copied to shared storage
+                    if (deleteFileWhenDone && File.Exists(filePath))
+                    {
+                        try
+                        {
+                            File.Delete(filePath);
+                            _logger.LogInformation("Deleted local file after storing in shared storage: {FilePath}", filePath);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to delete local file after storing in shared storage: {FilePath}", filePath);
+                            // Continue anyway since we've got the file in shared storage
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to store file in shared storage: {FilePath}", filePath);
+                    throw new InvalidOperationException("Failed to store file in shared storage. Please try again or contact support.", ex);
+                }
+                
+                // Create a serialization-friendly parameter object that now uses fileId instead of filePath
                 var importData = new JsonFileImportData
                 {
                     UserId = userId,
-                    FilePath = filePath,
+                    FileId = fileId, // Using fileId instead of FilePath
                     SkipExisting = skipExisting,
                     ConnectionId = connectionId,
                     DeleteFileWhenDone = deleteFileWhenDone
@@ -773,6 +802,21 @@ namespace WorkoutTrackerWeb.Services
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error when queuing JSON file import job");
+                    
+                    // Clean up the file in shared storage if we failed to queue the job
+                    if (!string.IsNullOrEmpty(fileId))
+                    {
+                        try
+                        {
+                            _sharedStorageService.DeleteFileAsync(fileId).ConfigureAwait(false).GetAwaiter().GetResult();
+                            _logger.LogInformation("Deleted file from shared storage after job queue failure: {FileId}", fileId);
+                        }
+                        catch (Exception cleanupEx)
+                        {
+                            _logger.LogWarning(cleanupEx, "Failed to delete file from shared storage after job queue failure: {FileId}", fileId);
+                        }
+                    }
+                    
                     throw;
                 }
                 
@@ -790,20 +834,22 @@ namespace WorkoutTrackerWeb.Services
         {
             // Extract parameters from the data wrapper
             int userId = importData.UserId;
-            string filePath = importData.FilePath;
+            string fileId = importData.FileId ?? importData.FilePath; // Support both FileId (new) and FilePath (legacy)
             bool skipExisting = importData.SkipExisting;
             string connectionId = importData.ConnectionId;
             bool deleteFileWhenDone = importData.DeleteFileWhenDone;
             
-            _logger.LogInformation("Starting JSON import from file: UserId={UserId}, FilePath={FilePath}", 
-                userId, filePath);
+            bool isSharedStorage = importData.FileId != null;
+            
+            _logger.LogInformation("Starting JSON import from file: UserId={UserId}, FileId={FileId}, IsSharedStorage={IsSharedStorage}", 
+                userId, fileId, isSharedStorage);
                 
             // Delegate to the actual implementation
-            await ImportJsonDataFromFileAsync(userId, filePath, skipExisting, connectionId, deleteFileWhenDone);
+            await ImportJsonDataFromFileAsync(userId, fileId, skipExisting, connectionId, deleteFileWhenDone, isSharedStorage);
         }
         
         // This method will be called by Hangfire in the background to process JSON from a file
-        private async Task ImportJsonDataFromFileAsync(int userId, string filePath, bool skipExisting, string connectionId, bool deleteFileWhenDone)
+        private async Task ImportJsonDataFromFileAsync(int userId, string fileIdOrPath, bool skipExisting, string connectionId, bool deleteFileWhenDone, bool isSharedStorage = false)
         {
             // Get job ID from context
             string jobId = "unknown";
@@ -822,20 +868,91 @@ namespace WorkoutTrackerWeb.Services
                 _logger.LogWarning(ex, "Failed to get job ID from context");
             }
             
-            _logger.LogInformation("Starting background JSON file import for user {UserId}, job {JobId}, file {FilePath}", 
-                userId, jobId, filePath);
+            _logger.LogInformation("Starting background JSON file import for user {UserId}, job {JobId}, file {FileIdOrPath}, isSharedStorage={isSharedStorage}", 
+                userId, jobId, fileIdOrPath, isSharedStorage);
+            
+            string filePath = null;
             
             try
             {
-                // Verify the file exists
-                if (!System.IO.File.Exists(filePath))
+                if (isSharedStorage)
+                {
+                    // Use shared storage (Redis) workflow
+                    string fileId = fileIdOrPath;
+                    
+                    // First check if the file exists in shared storage
+                    bool fileExists = await _sharedStorageService.FileExistsAsync(fileId);
+                    if (!fileExists)
+                    {
+                        _logger.LogWarning("File with ID {FileId} not found in shared storage", fileId);
+                        throw new FileNotFoundException($"File with ID {fileId} not found in shared storage");
+                    }
+
+                    // Retrieve the file from shared storage with retries
+                    int maxRetries = 3;
+                    int retryDelay = 1000; // Initial delay in milliseconds
+                    Exception lastException = null;
+                    
+                    for (int retry = 0; retry < maxRetries; retry++)
+                    {
+                        try
+                        {
+                            if (retry > 0)
+                            {
+                                _logger.LogWarning("Retry {RetryCount}/{MaxRetries} retrieving file from shared storage: {FileId}", 
+                                    retry + 1, maxRetries, fileId);
+                                await Task.Delay(retryDelay * (int)Math.Pow(2, retry - 1)); // Exponential backoff
+                            }
+                            
+                            filePath = await _sharedStorageService.RetrieveFileToPathAsync(fileId);
+                            _logger.LogInformation("Retrieved file from shared storage: {FilePath} (FileId: {FileId})", filePath, fileId);
+                            
+                            if (File.Exists(filePath))
+                            {
+                                break; // Successfully retrieved the file
+                            }
+                            else
+                            {
+                                throw new FileNotFoundException($"Retrieved file path exists in storage but not on disk: {filePath}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            lastException = ex;
+                            _logger.LogError(ex, "Attempt {RetryCount}/{MaxRetries} - Failed to retrieve file from shared storage: {FileId}", 
+                                retry + 1, maxRetries, fileId);
+                            
+                            // If last retry, propagate exception
+                            if (retry == maxRetries - 1)
+                            {
+                                throw new InvalidOperationException(
+                                    $"Failed to retrieve file from shared storage after {maxRetries} attempts. Please try again or contact support.", 
+                                    lastException);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Legacy direct file path workflow
+                    filePath = fileIdOrPath;
+                }
+                
+                // Verify the file exists and has content
+                if (!File.Exists(filePath))
                 {
                     throw new FileNotFoundException($"The import file was not found at path: {filePath}");
                 }
                 
-                // Get the file size for progress reporting
                 var fileInfo = new FileInfo(filePath);
+                if (fileInfo.Length == 0)
+                {
+                    throw new InvalidOperationException($"The import file is empty: {filePath}");
+                }
+                
                 long fileSize = fileInfo.Length;
+                _logger.LogInformation("File size: {FileSizeBytes} bytes ({FileSizeMB:F2}MB)", 
+                    fileSize, fileSize / (1024.0 * 1024.0));
                 
                 // Read the file content
                 string jsonContent;
@@ -925,12 +1042,27 @@ namespace WorkoutTrackerWeb.Services
             }
             finally
             {
-                // Clean up the temporary file if requested
-                if (deleteFileWhenDone && !string.IsNullOrEmpty(filePath) && System.IO.File.Exists(filePath))
+                // Clean up resources
+                if (isSharedStorage && deleteFileWhenDone && !string.IsNullOrEmpty(fileIdOrPath))
                 {
                     try 
                     {
-                        System.IO.File.Delete(filePath);
+                        // Delete from shared storage
+                        await _sharedStorageService.DeleteFileAsync(fileIdOrPath);
+                        _logger.LogInformation("Deleted temporary import file from shared storage: {FileId}", fileIdOrPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error deleting temporary import file from shared storage: {FileId}", fileIdOrPath);
+                    }
+                }
+                
+                // Clean up the temporary file from disk if it exists
+                if (deleteFileWhenDone && !string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+                {
+                    try 
+                    {
+                        File.Delete(filePath);
                         _logger.LogInformation("Deleted temporary import file: {FilePath}", filePath);
                     }
                     catch (Exception ex)
@@ -1330,6 +1462,7 @@ namespace WorkoutTrackerWeb.Services
     {
         public int UserId { get; set; }
         public string FilePath { get; set; }
+        public string FileId { get; set; } // Added FileId for shared storage
         public bool SkipExisting { get; set; }
         public string ConnectionId { get; set; }
         public bool DeleteFileWhenDone { get; set; }

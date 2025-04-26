@@ -89,6 +89,7 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
             return Page();
         }
 
+        // Update the OnPostAsync method to use shared storage instead of local file system
         public async Task<IActionResult> OnPostAsync()
         {
             if (ImportFile == null || ImportFile.Length == 0)
@@ -114,7 +115,7 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                 string connectionId = HttpContext.Connection.Id;
                 string jobId;
                 
-                // Save to temp file and process asynchronously to avoid timeouts
+                // Save to temp file first, this will be used only temporarily
                 string tempFilePath = Path.GetTempFileName();
                 
                 try 
@@ -124,9 +125,10 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                         await ImportFile.CopyToAsync(fileStream);
                     }
                     
-                    // Queue background job to process the saved file
+                    // Queue background job to process the saved file through shared storage
+                    // This will move the file from local temp storage to Redis/shared storage
                     jobId = _backgroundJobService.QueueJsonImportFromFile(
-                        userId.Value, tempFilePath, SkipExisting, connectionId, true); // true = delete file when done
+                        userId.Value, tempFilePath, SkipExisting, connectionId, true); // true = delete temp file when done
                     
                     _logger.LogInformation("Queued JSON import from file job {JobId} for user {UserId}, temp file: {TempFile}", 
                         jobId, userId.Value, tempFilePath);
@@ -167,7 +169,7 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                 return Page();
             }
         }
-        
+
         // Send an initial progress update to show the UI is working
         private async Task SendInitialProgressUpdateAsync(string jobId, long fileSize)
         {
@@ -200,8 +202,8 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                 // Ignore errors - this is just a nice-to-have initial feedback
             }
         }
-        
-        // Handler for AJAX-based large file uploads
+
+        // Update the OnPostLargeFileAsync method to use shared storage instead of local file system
         public async Task<IActionResult> OnPostLargeFileAsync()
         {
             if (ImportFile == null || ImportFile.Length == 0)
@@ -221,7 +223,7 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                 FileSizeBytes = ImportFile.Length;
                 _logger.LogInformation("Processing large file upload via AJAX: {FileSizeBytes} bytes", FileSizeBytes);
                 
-                // For AJAX uploads, always use the file-based approach to avoid timeouts
+                // For AJAX uploads, save to temp file first, will be moved to shared storage
                 string tempFilePath = Path.GetTempFileName();
                 string jobId;
                 string connectionId = HttpContext.Connection.Id;
@@ -233,9 +235,9 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                         await ImportFile.CopyToAsync(fileStream);
                     }
                     
-                    // Queue background job to process the saved file
+                    // Queue background job to process the saved file through shared storage
                     jobId = _backgroundJobService.QueueJsonImportFromFile(
-                        userId.Value, tempFilePath, SkipExisting, connectionId, true); // true = delete file when done
+                        userId.Value, tempFilePath, SkipExisting, connectionId, true); // true = delete temp file when done
                     
                     _logger.LogInformation("AJAX upload: Queued JSON import job {JobId} for user {UserId}, temp file: {TempFile}", 
                         jobId, userId.Value, tempFilePath);

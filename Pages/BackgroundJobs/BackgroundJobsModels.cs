@@ -57,4 +57,15 @@ namespace WorkoutTrackerWeb.Pages.BackgroundJobs
         public string ConnectionId { get; set; }
         public bool DeleteFileWhenDone { get; set; }
     }
+
+    // Update JsonFileImportData for shared storage support
+    public class JsonFileImportData
+    {
+        public int UserId { get; set; }
+        public string FilePath { get; set; }
+        public string FileId { get; set; } // Adding support for shared storage
+        public bool SkipExisting { get; set; } = true;
+        public string ConnectionId { get; set; }
+        public bool DeleteFileWhenDone { get; set; } = true;
+    }
 }

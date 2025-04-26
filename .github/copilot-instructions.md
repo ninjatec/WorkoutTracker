@@ -3,6 +3,7 @@
 - ALWAYS use --context on dotnet ef commands
 - AVOID repeating work already complete
 - do not use System.Data.SqlClient package. prefer Microsoft.Data.SqlClient
+- Use the existing output cache for new pages
 - Do not apologize
 - User razorpages and not MVC
 - Use .net core 9
