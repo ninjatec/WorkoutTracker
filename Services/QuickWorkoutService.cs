@@ -116,12 +116,15 @@ namespace WorkoutTrackerWeb.Services
                 throw new InvalidOperationException("Session not found or doesn't belong to current user");
             }
             
-            // Get the next sequence number
-            int nextSequenceNum = await _context.Set
+            // Get the next sequence number - Modified to use ToList() for client evaluation
+            var existingSequenceNumbers = await _context.Set
                 .Where(s => s.SessionId == sessionId)
                 .Select(s => s.SequenceNum)
-                .DefaultIfEmpty(-1)
-                .MaxAsync() + 1;
+                .ToListAsync();
+            
+            int nextSequenceNum = existingSequenceNumbers.Any() 
+                ? existingSequenceNumbers.Max() + 1 
+                : 0;
             
             // Create a new set
             var set = new Set

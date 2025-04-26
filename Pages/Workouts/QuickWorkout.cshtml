@@ -111,7 +111,7 @@
                                 <div class="col-md-6">
                                     <div class="mb-2">
                                         <label asp-for="QuickWorkout.Weight" class="form-label">Weight (kg)</label>
-                                        <input asp-for="QuickWorkout.Weight" type="number" step="0.5" class="form-control" required />
+                                        <input asp-for="QuickWorkout.Weight" type="number" min="0" step="0.5" class="form-control" required />
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -182,33 +182,33 @@
     <div class="row g-3 mb-4">
         <div class="col-12">
             <div class="card shadow-sm">
-                <div class="card-header">
-                    <ul class="nav nav-tabs card-header-tabs" id="exerciseTabs" role="tablist">
+                <div class="card-header bg-light p-0">
+                    <ul class="nav nav-tabs nav-fill card-header-tabs border-bottom-0" id="exerciseTabs" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="recent-tab" data-bs-toggle="tab" data-bs-target="#recent" 
+                            <button class="nav-link active py-3 fw-medium" id="recent-tab" data-bs-toggle="tab" data-bs-target="#recent" 
                                     type="button" role="tab" aria-controls="recent" aria-selected="true">
-                                Recent
+                                <i class="bi bi-clock-history me-2"></i>Recent
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="popular-tab" data-bs-toggle="tab" data-bs-target="#popular" 
+                            <button class="nav-link py-3 fw-medium" id="popular-tab" data-bs-toggle="tab" data-bs-target="#popular" 
                                     type="button" role="tab" aria-controls="popular" aria-selected="false">
-                                Popular
+                                <i class="bi bi-star-fill me-2"></i>Popular
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="muscle-tab" data-bs-toggle="tab" data-bs-target="#muscle" 
+                            <button class="nav-link py-3 fw-medium" id="muscle-tab" data-bs-toggle="tab" data-bs-target="#muscle" 
                                     type="button" role="tab" aria-controls="muscle" aria-selected="false">
-                                By Muscle
+                                <i class="bi bi-list-ul me-2"></i>By Muscle
                             </button>
                         </li>
                     </ul>
                 </div>
-                <div class="card-body">
+                <div class="card-body pt-4">
                     <div class="tab-content" id="exerciseTabsContent">
                         <!-- Recent exercises tab -->
                         <div class="tab-pane fade show active" id="recent" role="tabpanel" aria-labelledby="recent-tab">
-                            <div class="row row-cols-2 row-cols-md-4 g-2">
+                            <div class="row row-cols-2 row-cols-md-4 g-3">
                                 @if (Model.QuickWorkout.RecentExercises.Any())
                                 {
                                     @foreach (var exercise in Model.QuickWorkout.RecentExercises)
@@ -239,7 +239,7 @@
                         
                         <!-- Popular exercises tab -->
                         <div class="tab-pane fade" id="popular" role="tabpanel" aria-labelledby="popular-tab">
-                            <div class="row row-cols-2 row-cols-md-4 g-2">
+                            <div class="row row-cols-2 row-cols-md-4 g-3">
                                 @if (Model.QuickWorkout.FavoriteExercises.Any())
                                 {
                                     @foreach (var exercise in Model.QuickWorkout.FavoriteExercises)
@@ -269,9 +269,9 @@
                         
                         <!-- By muscle group tab -->
                         <div class="tab-pane fade" id="muscle" role="tabpanel" aria-labelledby="muscle-tab">
-                            <div class="row mb-3">
+                            <div class="row mb-4">
                                 <div class="col-12">
-                                    <div class="d-flex flex-wrap gap-1">
+                                    <div class="d-flex flex-wrap gap-2">
                                         @foreach (var muscle in Model.QuickWorkout.MuscleGroups)
                                         {
                                             <a asp-page="./QuickWorkout" asp-route-muscleGroup="@muscle" 
@@ -283,7 +283,7 @@
                                 </div>
                             </div>
                             
-                            <div class="row row-cols-2 row-cols-md-4 g-2">
+                            <div class="row row-cols-2 row-cols-md-4 g-3">
                                 @if (!string.IsNullOrEmpty(Model.QuickWorkout.SelectedMuscleGroup))
                                 {
                                     @if (Model.QuickWorkout.ExerciseTypeSelectList.Any())
@@ -332,24 +332,76 @@
         document.addEventListener('DOMContentLoaded', function() {
             const exerciseCards = document.querySelectorAll('.quick-exercise-card');
             const exerciseSelect = document.getElementById('QuickWorkout_ExerciseTypeId');
+            const weightInput = document.getElementById('QuickWorkout_Weight');
+            const repsInput = document.getElementById('QuickWorkout_NumberReps');
             
-            exerciseCards.forEach(card => {
-                card.addEventListener('click', function() {
-                    const exerciseId = this.getAttribute('data-exercise-id');
-                    const exerciseName = this.getAttribute('data-exercise-name');
+            // Function to visually select an exercise card
+            function selectExerciseCard(card) {
+                // Remove highlight from all cards
+                exerciseCards.forEach(c => c.classList.remove('border-primary', 'bg-light'));
+                
+                // Add highlight to the selected card
+                card.classList.add('border-primary', 'bg-light');
+                
+                // Get the exercise data
+                const exerciseId = card.getAttribute('data-exercise-id');
+                const exerciseName = card.getAttribute('data-exercise-name');
+                
+                // Set the selected value in the dropdown
+                if (exerciseSelect) {
+                    exerciseSelect.value = exerciseId;
                     
-                    // Set the selected value in the dropdown
-                    if (exerciseSelect) {
-                        exerciseSelect.value = exerciseId;
-                    }
+                    // Trigger a change event on the select element
+                    const event = new Event('change', { bubbles: true });
+                    exerciseSelect.dispatchEvent(event);
                     
-                    // Highlight the selected card
-                    exerciseCards.forEach(c => c.classList.remove('border-primary'));
-                    this.classList.add('border-primary');
+                    // Scroll to the form section
+                    document.querySelector('.card:has(#QuickWorkout_ExerciseTypeId)').scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center' 
+                    });
                     
                     // Optional: focus the weight input for quick entry
-                    document.getElementById('QuickWorkout_Weight').focus();
+                    if (weightInput) {
+                        // Short delay to ensure smooth UX
+                        setTimeout(() => {
+                            weightInput.focus();
+                        }, 300);
+                    }
+                }
+            }
+            
+            // Add click event to all exercise cards
+            exerciseCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    selectExerciseCard(this);
                 });
+            });
+            
+            // If an exercise was previously selected, highlight its card on page load
+            if (exerciseSelect && exerciseSelect.value) {
+                const selectedId = exerciseSelect.value;
+                const selectedCard = document.querySelector(`.quick-exercise-card[data-exercise-id="${selectedId}"]`);
+                if (selectedCard) {
+                    selectExerciseCard(selectedCard);
+                }
+            }
+            
+            // Add some keyboard shortcuts for power users
+            document.addEventListener('keydown', function(e) {
+                // Only process if not inside an input field
+                if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'TEXTAREA') {
+                    // Press 'w' to focus weight input
+                    if (e.key === 'w' && weightInput) {
+                        e.preventDefault();
+                        weightInput.focus();
+                    }
+                    // Press 'r' to focus reps input
+                    else if (e.key === 'r' && repsInput) {
+                        e.preventDefault();
+                        repsInput.focus();
+                    }
+                }
             });
         });
     </script>
@@ -366,6 +418,28 @@
             transform: translateY(-2px);
             box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
             border-color: var(--bs-primary);
+        }
+        
+        /* Improved tab styling */
+        .nav-tabs .nav-link {
+            color: #666;
+            background-color: rgba(0,0,0,0.03);
+            border-radius: 0;
+            border-bottom: none;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            color: var(--bs-primary);
+            background-color: rgba(13,110,253,0.04);
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: var(--bs-primary);
+            background-color: #fff;
+            border-top: 3px solid var(--bs-primary);
+            border-bottom: none;
         }
         
         /* Touch-friendly sizing for mobile */
@@ -394,6 +468,16 @@
             .form-check-label {
                 font-size: 1.1rem;
                 padding-left: 0.5rem;
+            }
+            
+            /* Improved tab sizing for mobile */
+            .nav-tabs .nav-link {
+                font-size: 0.95rem;
+                padding: 0.75rem 0.5rem;
+            }
+            
+            .nav-tabs .nav-link i {
+                margin-right: 0.25rem !important;
             }
         }
     </style>

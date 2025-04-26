@@ -88,7 +88,10 @@ namespace WorkoutTrackerWeb.Pages.Workouts
             
             try
             {
-                if (QuickWorkout.CurrentSession == null)
+                // Check for active session BEFORE trying to access QuickWorkout.CurrentSession
+                await CheckForActiveSessionAsync();
+                
+                if (QuickWorkout.CurrentSession == null || !QuickWorkout.HasActiveSession)
                 {
                     StatusMessage = "No active session found. Please create one first.";
                     return RedirectToPage();
