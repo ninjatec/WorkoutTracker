@@ -73,6 +73,13 @@ Production Site running on wot.ninjatec.co.uk
 - **Data Visualization**: Track progress over time through intuitive charts and graphs
 - **Performance Analytics**: View success/failure rates for exercises with detailed breakdowns
 - **One Rep Max Calculator**: Estimate maximum strength using seven scientific formulas based on weight and reps
+- **Quick Workout Mode**: Optimized interface for fast workout tracking at the gym
+  - Mobile-first design with touch-friendly controls
+  - Quick-access tabs for recent and favorite exercises
+  - Muscle group filtering for organized exercise selection
+  - Minimal input required for fast logging during workouts
+  - Recent sets view for tracking current workout
+  - Streamlined UI optimized for gym use
 - **Feedback System**: Submit bugs, feature requests, and general feedback with integrated email notifications
   - Multiple feedback types (Bug Report, Feature Request, General Feedback, Question)
   - Status tracking (New, In Progress, Completed, Rejected)

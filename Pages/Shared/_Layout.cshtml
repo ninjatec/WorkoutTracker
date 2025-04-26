@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#455A64" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -39,6 +39,9 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-page="/Sessions/Index">Workouts</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-page="/Workouts/QuickWorkout">Quick Workout</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-page="/Reports/Index">Reports</a>
@@ -114,6 +117,9 @@
             <a href="/Sessions/Create" class="session-shortcut-menu-item">
                 <i class="bi bi-plus-circle"></i> New Session
             </a>
+            <a href="/Workouts/QuickWorkout" class="session-shortcut-menu-item">
+                <i class="bi bi-stopwatch"></i> Quick Workout
+            </a>
             <a href="/Sessions/Index" class="session-shortcut-menu-item">
                 <i class="bi bi-list-check"></i> All Sessions
             </a>
@@ -136,6 +142,10 @@
             <a href="/Sessions/Index" class="mobile-nav-item" id="navWorkouts">
                 <i class="bi bi-list-check"></i>
                 <span>Workouts</span>
+            </a>
+            <a href="/Workouts/QuickWorkout" class="mobile-nav-item" id="navQuick">
+                <i class="bi bi-stopwatch"></i>
+                <span>Quick</span>
             </a>
             <a href="/Sessions/Create" class="mobile-nav-item" id="navAdd">
                 <i class="bi bi-plus-circle"></i>
@@ -160,6 +170,12 @@
         </div>
         <div class="offcanvas-body">
             <div class="row g-3">
+                <div class="col-4 text-center">
+                    <a href="/Workouts/QuickWorkout" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-stopwatch fs-4 d-block mb-2"></i>
+                        Quick Workout
+                    </a>
+                </div>
                 <div class="col-4 text-center">
                     <a href="/Calculator/OneRepMax" class="d-block p-3 mobile-menu-item">
                         <i class="bi bi-calculator fs-4 d-block mb-2"></i>

@@ -512,6 +512,14 @@ While the primary UI is built with Razor Pages, the application includes API fun
 2. Within Sessions, users add Sets for specific exercises
 3. Sets are associated with ExerciseTypes and SetTypes
 4. Each Set contains Reps with tracking for success/failure
+5. Quick Workout mode provides:
+   - Streamlined interface optimized for gym use
+   - Touch-friendly mobile design
+   - Recent and favorite exercises for quick access
+   - Muscle group filtering for organized selection
+   - Minimal input required for fast logging
+   - Session continuation with recent workout tracking
+   - One-tap exercise selection for faster tracking
 
 ### Shared Workout Views
 

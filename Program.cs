@@ -416,6 +416,9 @@ try
 
     // Register WorkoutDataService
     builder.Services.AddScoped<WorkoutDataService>();
+    
+    // Register QuickWorkoutService for optimized gym experience
+    builder.Services.AddScoped<QuickWorkoutService>();
 
     // Register API Ninjas integration services
     var apiNinjasKey = builder.Configuration["ApiKeys:ApiNinjas"];

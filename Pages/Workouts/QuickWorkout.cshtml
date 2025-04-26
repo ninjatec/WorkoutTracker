@@ -1,0 +1,400 @@
+@page
+@model WorkoutTrackerWeb.Pages.Workouts.QuickWorkoutModel
+@{
+    ViewData["Title"] = "Quick Workout";
+    var statusAlert = !string.IsNullOrEmpty(Model.QuickWorkout.StatusMessage) ? "alert-info" : "";
+}
+
+<div class="container-fluid mt-3">
+    <h2 class="display-6">Quick Workout</h2>
+    <p class="lead">Add exercises with minimal clicks - optimized for gym use.</p>
+
+    @if (!string.IsNullOrEmpty(Model.QuickWorkout.StatusMessage))
+    {
+        <div class="alert @statusAlert alert-dismissible fade show" role="alert">
+            @Model.QuickWorkout.StatusMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row g-3 mb-4">
+        <!-- Active session card -->
+        <div class="col-12 col-md-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header d-flex align-items-center">
+                    <h5 class="mb-0">
+                        @if (Model.QuickWorkout.HasActiveSession)
+                        {
+                            <span class="text-success">
+                                <i class="bi bi-play-circle-fill me-2"></i>Active Session
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="text-secondary">
+                                <i class="bi bi-plus-circle me-2"></i>Start New Session
+                            </span>
+                        }
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.QuickWorkout.HasActiveSession && Model.QuickWorkout.CurrentSession != null)
+                    {
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">@Model.QuickWorkout.CurrentSession.Name</h5>
+                            <span class="badge bg-primary">
+                                Started @Model.QuickWorkout.CurrentSession.datetime.ToString("HH:mm")
+                            </span>
+                        </div>
+                        <a asp-page="/Sessions/Details" asp-route-id="@Model.QuickWorkout.CurrentSession.SessionId" 
+                           class="btn btn-outline-primary">
+                            <i class="bi bi-eye me-1"></i> View Full Session
+                        </a>
+                    }
+                    else
+                    {
+                        <form method="post" asp-page-handler="CreateSession">
+                            <div class="mb-3">
+                                <label asp-for="QuickWorkout.NewSessionName" class="form-label">Session Name</label>
+                                <input asp-for="QuickWorkout.NewSessionName" class="form-control" 
+                                       placeholder="Quick Workout (auto-generated if empty)" />
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-play-fill me-1"></i> Start Workout
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Add set card -->
+        <div class="col-12 col-md-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header d-flex align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-plus-circle-dotted me-2"></i>Add Set
+                    </h5>
+                </div>
+                <div class="card-body">
+                    @if (!Model.QuickWorkout.HasActiveSession)
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Start a session first to add exercises
+                        </div>
+                    }
+                    else
+                    {
+                        <form method="post" asp-page-handler="AddSet">
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <label asp-for="QuickWorkout.ExerciseTypeId" class="form-label">Exercise</label>
+                                        <select asp-for="QuickWorkout.ExerciseTypeId" class="form-select" 
+                                                asp-items="Model.QuickWorkout.ExerciseTypeSelectList" required>
+                                            <option value="">-- Select Exercise --</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <label asp-for="QuickWorkout.SettypeId" class="form-label">Set Type</label>
+                                        <select asp-for="QuickWorkout.SettypeId" class="form-select" 
+                                                asp-items="Model.QuickWorkout.SetTypeSelectList" required>
+                                            <option value="">-- Select Type --</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <label asp-for="QuickWorkout.Weight" class="form-label">Weight (kg)</label>
+                                        <input asp-for="QuickWorkout.Weight" type="number" step="0.5" class="form-control" required />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <label asp-for="QuickWorkout.NumberReps" class="form-label">Reps</label>
+                                        <input asp-for="QuickWorkout.NumberReps" type="number" class="form-control" required />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input asp-for="QuickWorkout.AllSuccessful" class="form-check-input" type="checkbox" />
+                                <label asp-for="QuickWorkout.AllSuccessful" class="form-check-label">All reps successful</label>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="bi bi-plus-lg me-1"></i> Add Set
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <!-- Recent sets card -->
+        @if (Model.QuickWorkout.HasActiveSession && Model.QuickWorkout.RecentSets.Any())
+        {
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-clock-history me-2"></i>Recent Sets
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Exercise</th>
+                                        <th>Type</th>
+                                        <th>Weight</th>
+                                        <th>Reps</th>
+                                        <th>Added</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var set in Model.QuickWorkout.RecentSets)
+                                    {
+                                        <tr>
+                                            <td>@set.ExerciseType?.Name</td>
+                                            <td>@set.Settype?.Name</td>
+                                            <td>@set.Weight kg</td>
+                                            <td>@set.NumberReps</td>
+                                            <td>Just now</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Exercise selection tabs -->
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs" id="exerciseTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="recent-tab" data-bs-toggle="tab" data-bs-target="#recent" 
+                                    type="button" role="tab" aria-controls="recent" aria-selected="true">
+                                Recent
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="popular-tab" data-bs-toggle="tab" data-bs-target="#popular" 
+                                    type="button" role="tab" aria-controls="popular" aria-selected="false">
+                                Popular
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="muscle-tab" data-bs-toggle="tab" data-bs-target="#muscle" 
+                                    type="button" role="tab" aria-controls="muscle" aria-selected="false">
+                                By Muscle
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="exerciseTabsContent">
+                        <!-- Recent exercises tab -->
+                        <div class="tab-pane fade show active" id="recent" role="tabpanel" aria-labelledby="recent-tab">
+                            <div class="row row-cols-2 row-cols-md-4 g-2">
+                                @if (Model.QuickWorkout.RecentExercises.Any())
+                                {
+                                    @foreach (var exercise in Model.QuickWorkout.RecentExercises)
+                                    {
+                                        <div class="col">
+                                            <div class="card h-100 quick-exercise-card" 
+                                                 data-exercise-id="@exercise.ExerciseType.ExerciseTypeId" 
+                                                 data-exercise-name="@exercise.ExerciseType.Name">
+                                                <div class="card-body p-2">
+                                                    <h6 class="card-title mb-1">@exercise.ExerciseType.Name</h6>
+                                                    <p class="card-text small text-muted mb-0">
+                                                        @exercise.ExerciseType.Muscle
+                                                        <span class="badge bg-secondary float-end">@exercise.UseCount</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="col-12">
+                                        <p class="text-muted">No recent exercises found</p>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        
+                        <!-- Popular exercises tab -->
+                        <div class="tab-pane fade" id="popular" role="tabpanel" aria-labelledby="popular-tab">
+                            <div class="row row-cols-2 row-cols-md-4 g-2">
+                                @if (Model.QuickWorkout.FavoriteExercises.Any())
+                                {
+                                    @foreach (var exercise in Model.QuickWorkout.FavoriteExercises)
+                                    {
+                                        <div class="col">
+                                            <div class="card h-100 quick-exercise-card" 
+                                                 data-exercise-id="@exercise.ExerciseTypeId" 
+                                                 data-exercise-name="@exercise.Name">
+                                                <div class="card-body p-2">
+                                                    <h6 class="card-title mb-1">@exercise.Name</h6>
+                                                    <p class="card-text small text-muted mb-0">
+                                                        @exercise.Muscle
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="col-12">
+                                        <p class="text-muted">No popular exercises found</p>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        
+                        <!-- By muscle group tab -->
+                        <div class="tab-pane fade" id="muscle" role="tabpanel" aria-labelledby="muscle-tab">
+                            <div class="row mb-3">
+                                <div class="col-12">
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @foreach (var muscle in Model.QuickWorkout.MuscleGroups)
+                                        {
+                                            <a asp-page="./QuickWorkout" asp-route-muscleGroup="@muscle" 
+                                               class="btn btn-sm @(muscle == Model.QuickWorkout.SelectedMuscleGroup ? "btn-primary" : "btn-outline-secondary")">
+                                                @muscle.Replace("_", " ")
+                                            </a>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row row-cols-2 row-cols-md-4 g-2">
+                                @if (!string.IsNullOrEmpty(Model.QuickWorkout.SelectedMuscleGroup))
+                                {
+                                    @if (Model.QuickWorkout.ExerciseTypeSelectList.Any())
+                                    {
+                                        @foreach (var item in Model.QuickWorkout.ExerciseTypeSelectList)
+                                        {
+                                            <div class="col">
+                                                <div class="card h-100 quick-exercise-card" 
+                                                     data-exercise-id="@item.Value" 
+                                                     data-exercise-name="@item.Text">
+                                                    <div class="card-body p-2">
+                                                        <h6 class="card-title mb-1">@item.Text</h6>
+                                                        <p class="card-text small text-muted mb-0">
+                                                            @Model.QuickWorkout.SelectedMuscleGroup
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <div class="col-12">
+                                            <p class="text-muted">No exercises found for this muscle group</p>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="col-12">
+                                        <p class="text-muted">Select a muscle group to view exercises</p>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // JavaScript to make exercise cards clickable to prefill the form
+        document.addEventListener('DOMContentLoaded', function() {
+            const exerciseCards = document.querySelectorAll('.quick-exercise-card');
+            const exerciseSelect = document.getElementById('QuickWorkout_ExerciseTypeId');
+            
+            exerciseCards.forEach(card => {
+                card.addEventListener('click', function() {
+                    const exerciseId = this.getAttribute('data-exercise-id');
+                    const exerciseName = this.getAttribute('data-exercise-name');
+                    
+                    // Set the selected value in the dropdown
+                    if (exerciseSelect) {
+                        exerciseSelect.value = exerciseId;
+                    }
+                    
+                    // Highlight the selected card
+                    exerciseCards.forEach(c => c.classList.remove('border-primary'));
+                    this.classList.add('border-primary');
+                    
+                    // Optional: focus the weight input for quick entry
+                    document.getElementById('QuickWorkout_Weight').focus();
+                });
+            });
+        });
+    </script>
+}
+
+@section Styles {
+    <style>
+        .quick-exercise-card {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .quick-exercise-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 .5rem 1rem rgba(0,0,0,.15);
+            border-color: var(--bs-primary);
+        }
+        
+        /* Touch-friendly sizing for mobile */
+        @@media (max-width: 768px) {
+            .quick-exercise-card .card-body {
+                min-height: 70px;
+                padding: 0.75rem !important;
+            }
+            
+            .btn {
+                padding: 0.5rem 0.75rem;
+            }
+            
+            input[type="number"], 
+            select.form-select {
+                height: 50px;
+                font-size: 1.1rem;
+            }
+            
+            .form-check-input {
+                width: 1.5em;
+                height: 1.5em;
+                margin-top: 0.1em;
+            }
+            
+            .form-check-label {
+                font-size: 1.1rem;
+                padding-left: 0.5rem;
+            }
+        }
+    </style>
+}
