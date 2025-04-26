@@ -917,10 +917,10 @@ try
         context.Response.Headers["Content-Security-Policy"] = 
             "default-src 'self'; " +
             "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net 'unsafe-inline'; " + 
-            "style-src 'self' https://cdn.jsdelivr.net https://cdn.datatables.net 'unsafe-inline'; " + 
-            "img-src 'self' data:; " + 
-            "font-src 'self' https://cdn.jsdelivr.net; " +
-            "connect-src 'self' https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online " +
+            "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net 'unsafe-inline'; " + 
+            "img-src 'self' data: https://cdn.jsdelivr.net; " + 
+            "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
+            "connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online " +
                              "wss://wot.ninjatec.co.uk wss://workouttracker.online wss://www.workouttracker.online " +
                              "ws://wot.ninjatec.co.uk ws://workouttracker.online ws://www.workouttracker.online wss://* ws://*; " +
             "frame-src 'self'; " +
