@@ -4,7 +4,7 @@
  */
 
 // Cache names with versioning
-const STATIC_CACHE_VERSION = 'workouttracker-static-v1.3';
+const STATIC_CACHE_VERSION = 'workouttracker-static-v1.4';
 const DYNAMIC_CACHE_VERSION = 'workouttracker-dynamic-v1.3';
 const ASSET_CACHE_VERSION = 'workouttracker-assets-v1.2';
 
@@ -52,7 +52,23 @@ self.addEventListener('install', event => {
         caches.open(STATIC_CACHE_VERSION)
             .then(cache => {
                 console.log('[Service Worker] Pre-caching static resources');
-                return cache.addAll(STATIC_RESOURCES);
+                // Use a more resilient approach that won't fail if one resource is missing
+                return Promise.allSettled(
+                    STATIC_RESOURCES.map(resource => {
+                        return fetch(resource)
+                            .then(response => {
+                                if (response.ok) {
+                                    return cache.put(resource, response);
+                                }
+                                console.warn(`[Service Worker] Failed to cache: ${resource} - Status: ${response.status}`);
+                                return Promise.resolve(); // Continue even if this resource fails
+                            })
+                            .catch(error => {
+                                console.warn(`[Service Worker] Failed to fetch: ${resource} - ${error.message}`);
+                                return Promise.resolve(); // Continue even if this resource fails
+                            });
+                    })
+                );
             })
     );
 });

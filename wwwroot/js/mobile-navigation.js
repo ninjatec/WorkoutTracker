@@ -168,7 +168,7 @@ function enableSwipeActionsOnListItems() {
             startX = e.touches[0].clientX;
             currentX = startX;
             isDragging = true;
-        });
+        }, { passive: true });
         
         item.addEventListener('touchmove', function(e) {
             if (!isDragging) return;
@@ -199,7 +199,7 @@ function enableSwipeActionsOnListItems() {
                 const indicator = item.querySelector('.swipe-action-indicator');
                 if (indicator) indicator.remove();
             }
-        });
+        }, { passive: true });
         
         item.addEventListener('touchend', function() {
             isDragging = false;
@@ -255,7 +255,7 @@ function enableSwipeActionsOnTableRows() {
             startX = e.touches[0].clientX;
             currentX = startX;
             isDragging = true;
-        });
+        }, { passive: true });
         
         row.addEventListener('touchmove', function(e) {
             if (!isDragging) return;
@@ -286,7 +286,7 @@ function enableSwipeActionsOnTableRows() {
                 const indicator = row.querySelector('.swipe-action-indicator');
                 if (indicator) indicator.remove();
             }
-        });
+        }, { passive: true });
         
         row.addEventListener('touchend', function() {
             isDragging = false;
@@ -354,7 +354,7 @@ function initPullToRefresh() {
             isDragging = true;
             createRefreshIndicator();
         }
-    });
+    }, { passive: true });
     
     document.addEventListener('touchmove', function(e) {
         if (!isDragging) return;
@@ -386,7 +386,7 @@ function initPullToRefresh() {
                 refreshIndicator.querySelector('span').textContent = 'Pull to refresh';
             }
         }
-    });
+    }, { passive: true });
     
     document.addEventListener('touchend', function() {
         if (!isDragging) return;
