@@ -166,13 +166,18 @@
     <footer class="border-top footer text-muted">
         <div class="container container-mobile-friendly">
             <div class="row">
-                <div class="col-12 col-md-6 mb-2 mb-md-0 text-center text-md-start">
-                    &copy; @DateTime.Now.Year - WorkoutTracker - <a asp-page="/Shared/Privacy" asp-route-token="@tokenParam">Privacy</a>
+                <div class="col-12 col-md-6 mb-3 mb-md-0 text-center text-md-start">
+                    <div class="d-flex flex-column flex-sm-row align-items-center align-items-md-start justify-content-center justify-content-md-start">
+                        <span class="d-block d-sm-inline-block me-sm-2">&copy; @DateTime.Now.Year - WorkoutTracker</span>
+                        <a asp-page="/Shared/Privacy" asp-route-token="@tokenParam" class="mt-1 mt-sm-0">Privacy</a>
+                    </div>
                 </div>
                 <div class="col-12 col-md-6 text-center text-md-end">
                     <div class="footer-links">
-                        <a asp-page="/Help/Index" class="text-dark"><i class="bi bi-question-circle"></i> Help</a> |
-                        <a asp-page="/Feedback/Create" class="text-dark"><i class="bi bi-chat-dots"></i> Feedback</a>
+                        <div class="d-flex flex-wrap justify-content-center justify-content-md-end">
+                            <a asp-page="/Help/Index" class="text-dark me-2 mb-2"><i class="bi bi-question-circle"></i> Help</a>
+                            <a asp-page="/Feedback/Create" class="text-dark me-2 mb-2"><i class="bi bi-chat-dots"></i> Feedback</a>
+                        </div>
                     </div>
                 </div>
             </div>
