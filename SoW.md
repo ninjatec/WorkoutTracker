@@ -475,8 +475,8 @@
    - [x] Implement service worker for asset caching
 
  - [ ] Develop mobile-specific features
-   - [ ] Create quick workout mode optimized for gym use
-   - [ ] Add timer functionality with vibration alerts
+   - [x] Create quick workout mode optimized for gym use
+   - [x] Add timer functionality with vibration alerts
    - [ ] Implement rest interval countdown timer
    - [ ] Create one-handed operation mode
    - [ ] Create simplified dashboard for mobile users

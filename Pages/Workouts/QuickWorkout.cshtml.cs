@@ -52,6 +52,12 @@ namespace WorkoutTrackerWeb.Pages.Workouts
             // Set status message from TempData
             QuickWorkout.StatusMessage = StatusMessage;
             
+            // Generate default session name if none exists
+            if (string.IsNullOrEmpty(QuickWorkout.NewSessionName))
+            {
+                QuickWorkout.NewSessionName = GenerateDefaultSessionName();
+            }
+            
             return Page();
         }
 
@@ -72,9 +78,15 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                     }
                 }
                 
+                // Get the session name from the form, use default if empty
+                var sessionName = Request.Form["NewSessionName"].ToString();
+                if (string.IsNullOrEmpty(sessionName))
+                {
+                    sessionName = GenerateDefaultSessionName();
+                }
+                
                 // Create a new quick workout session
-                var session = await _quickWorkoutService.CreateQuickWorkoutSessionAsync(
-                    Request.Form["NewSessionName"]);
+                var session = await _quickWorkoutService.CreateQuickWorkoutSessionAsync(sessionName);
                 
                 // Set success message
                 StatusMessage = $"Successfully created new quick workout: {session.Name}";
@@ -189,6 +201,38 @@ namespace WorkoutTrackerWeb.Pages.Workouts
             // Redirect to session details
             return RedirectToPage("/Sessions/Details", new { id = sessionId });
         }
+
+        /// <summary>
+        /// API handler that returns exercises for a specific muscle group in JSON format
+        /// </summary>
+        public async Task<IActionResult> OnGetExercisesByMuscleGroupAsync(string muscleGroup)
+        {
+            // Check if this is an AJAX request
+            if (!Request.Headers["X-Requested-With"].Equals("XMLHttpRequest"))
+            {
+                return RedirectToPage(new { muscleGroup });
+            }
+
+            if (string.IsNullOrEmpty(muscleGroup))
+            {
+                return new JsonResult(new List<object>());
+            }
+
+            // Query the database for exercises with the given muscle group
+            var exercises = await _context.ExerciseType
+                .Where(e => e.Muscle.Contains(muscleGroup))
+                .OrderBy(e => e.Name)
+                .Select(e => new 
+                {
+                    id = e.ExerciseTypeId.ToString(),
+                    name = e.Name,
+                    muscle = e.Muscle
+                })
+                .ToListAsync();
+
+            // Return the exercises as JSON
+            return new JsonResult(exercises);
+        }
         
         private async Task CheckForActiveSessionAsync()
         {
@@ -233,10 +277,55 @@ namespace WorkoutTrackerWeb.Pages.Workouts
             QuickWorkout.ExerciseTypeSelectList = new SelectList(
                 await exerciseQuery.OrderBy(e => e.Name).ToListAsync(),
                 "ExerciseTypeId", "Name");
-                
+            
+            // Get all set types
+            var setTypes = await _quickWorkoutService.GetSetTypesAsync();
+            
+            // Create the select list for set types
             QuickWorkout.SetTypeSelectList = new SelectList(
-                await _quickWorkoutService.GetSetTypesAsync(),
+                setTypes,
                 "SettypeId", "Name");
+            
+            // Set default set type to "Normal" if it exists and no value is already selected
+            if (QuickWorkout.SettypeId == 0)
+            {
+                // Find the "Normal" set type (case insensitive) 
+                var normalSetType = setTypes.FirstOrDefault(s => s.Name.Equals("Normal", StringComparison.OrdinalIgnoreCase));
+                
+                // If found, set it as the default
+                if (normalSetType != null)
+                {
+                    QuickWorkout.SettypeId = normalSetType.SettypeId;
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Generates a default session name based on current date and time
+        /// </summary>
+        private string GenerateDefaultSessionName()
+        {
+            var now = DateTime.Now;
+            string dayPart;
+            
+            if (now.Hour >= 5 && now.Hour < 12)
+            {
+                dayPart = "Morning";
+            }
+            else if (now.Hour >= 12 && now.Hour < 17)
+            {
+                dayPart = "Afternoon";
+            }
+            else if (now.Hour >= 17 && now.Hour < 22)
+            {
+                dayPart = "Evening";
+            }
+            else
+            {
+                dayPart = "Night";
+            }
+            
+            return $"{dayPart} Workout - {now:MMM d}";
         }
     }
 }

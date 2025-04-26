@@ -80,6 +80,10 @@ Production Site running on wot.ninjatec.co.uk
   - Minimal input required for fast logging during workouts
   - Recent sets view for tracking current workout
   - Streamlined UI optimized for gym use
+  - Workout timer with configurable presets and vibration alerts
+  - Exercise and rest period countdown functionality
+  - Haptic feedback for timer interactions
+  - Keyboard shortcuts for power users
 - **Feedback System**: Submit bugs, feature requests, and general feedback with integrated email notifications
   - Multiple feedback types (Bug Report, Feature Request, General Feedback, Question)
   - Status tracking (New, In Progress, Completed, Rejected)
