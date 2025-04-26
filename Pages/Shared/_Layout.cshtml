@@ -216,27 +216,27 @@
         </div>
     </div>
 
-    <footer class="border-top footer text-light mt-5">
-        <div class="container-fluid container-mobile-friendly py-3">
+    <footer class="border-top footer mt-5">
+        <div class="container-fluid container-mobile-friendly py-2">
             <div class="row">
-                <div class="col-12 col-md-6 mb-3 mb-md-0 text-center text-md-start">
+                <div class="col-12 col-md-6 mb-2 mb-md-0 text-center text-md-start">
                     <div class="d-flex flex-column flex-sm-row align-items-center align-items-md-start justify-content-center justify-content-md-start">
                         <img src="~/images/Logo_With_words.png" alt="Workout Tracker Logo" class="footer-logo mb-2 mb-sm-0 me-sm-2" />
                         <div>
-                            <span class="d-block d-sm-inline-block me-sm-2">&copy; 2025 - Ninjatec</span>
-                            <a asp-area="" asp-page="/Privacy" class="text-light">Privacy</a>
+                            <span class="d-block d-sm-inline-block me-sm-2 text-muted">&copy; 2025 - Ninjatec</span>
+                            <a asp-area="" asp-page="/Privacy" class="text-muted">Privacy</a>
                         </div>
                     </div>
                 </div>
                 <div class="col-12 col-md-6 text-center text-md-end">
                     <div class="footer-links">
                         <div class="d-flex flex-wrap justify-content-center justify-content-md-end">
-                            <a asp-page="/Help/Index" class="text-light me-2 mb-2"><i class="bi bi-question-circle"></i> Help Center</a>
-                            <a asp-page="/Feedback/Create" class="text-light me-2 mb-2"><i class="bi bi-chat-dots"></i> Feedback</a>
-                            <a asp-page="/Help/FAQ" class="text-light me-2 mb-2">FAQs</a>
-                            <a asp-page="/Help/Glossary" class="text-light me-2 mb-2">Glossary</a>
-                            <a asp-page="/Help/VideoTutorials" class="text-light me-2 mb-2">Video Tutorials</a>
-                            <span class="mb-2">@await Component.InvokeAsync("VersionInfo")</span>
+                            <a asp-page="/Help/Index" class="text-muted me-2 mb-1"><i class="bi bi-question-circle"></i> Help Center</a>
+                            <a asp-page="/Feedback/Create" class="text-muted me-2 mb-1"><i class="bi bi-chat-dots"></i> Feedback</a>
+                            <a asp-page="/Help/FAQ" class="text-muted me-2 mb-1">FAQs</a>
+                            <a asp-page="/Help/Glossary" class="text-muted me-2 mb-1">Glossary</a>
+                            <a asp-page="/Help/VideoTutorials" class="text-muted me-2 mb-1">Video Tutorials</a>
+                            @await Component.InvokeAsync("VersionInfo")
                         </div>
                     </div>
                 </div>
