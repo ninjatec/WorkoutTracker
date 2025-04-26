@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Services;
+using WorkoutTrackerWeb.Services.Calculations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
@@ -18,11 +19,19 @@ namespace WorkoutTrackerWeb.Pages.Sessions
     {
         private readonly WorkoutTrackerWebContext _context;
         private readonly UserService _userService;
+        private readonly IVolumeCalculationService _volumeCalculationService;
+        private readonly ICalorieCalculationService _calorieCalculationService;
 
-        public DetailsModel(WorkoutTrackerWebContext context, UserService userService)
+        public DetailsModel(
+            WorkoutTrackerWebContext context, 
+            UserService userService,
+            IVolumeCalculationService volumeCalculationService,
+            ICalorieCalculationService calorieCalculationService)
         {
             _context = context;
             _userService = userService;
+            _volumeCalculationService = volumeCalculationService;
+            _calorieCalculationService = calorieCalculationService;
         }
 
         public Session Session { get; set; } = default!;
@@ -34,6 +43,12 @@ namespace WorkoutTrackerWeb.Pages.Sessions
         public string SortOrder { get; set; } = "asc";
         
         public string CurrentSort { get; set; }
+        
+        // Volume and calorie metrics
+        public double TotalVolume { get; set; }
+        public double TotalCalories { get; set; }
+        public Dictionary<string, double> VolumeByExercise { get; set; } = new Dictionary<string, double>();
+        public Dictionary<int, double> SetVolumes { get; set; } = new Dictionary<int, double>();
         
         public List<SelectListItem> SortOptions { get; } = new List<SelectListItem>
         {
@@ -97,6 +112,27 @@ namespace WorkoutTrackerWeb.Pages.Sessions
             }
 
             Session = session;
+
+            // Calculate volume and calories for the session
+            if (id.HasValue)
+            {
+                TotalVolume = await _volumeCalculationService.CalculateSessionVolumeAsync(id.Value);
+                TotalCalories = await _calorieCalculationService.CalculateSessionCaloriesAsync(id.Value);
+                
+                // Calculate volume by exercise type
+                VolumeByExercise = await _volumeCalculationService.CalculateVolumeByExerciseTypeAsync(id.Value);
+                
+                // Calculate volume for each set
+                SetVolumes = new Dictionary<int, double>();
+                if (session.Sets != null)
+                {
+                    foreach (var set in session.Sets)
+                    {
+                        SetVolumes[set.SetId] = _volumeCalculationService.CalculateSetVolume(set);
+                    }
+                }
+            }
+
             return Page();
         }
 

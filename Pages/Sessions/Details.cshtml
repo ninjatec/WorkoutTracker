@@ -30,6 +30,79 @@
     </dl>
 </div>
 
+<!-- Workout Summary Dashboard -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h4 class="mb-0">Workout Metrics</h4>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center py-3">
+                        <h5 class="card-title">Volume</h5>
+                        <h2 class="mb-0">@Model.TotalVolume.ToString("N0") kg</h2>
+                        <small class="text-muted">Total weight × reps</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center py-3">
+                        <h5 class="card-title">Calories</h5>
+                        <h2 class="mb-0">@Model.TotalCalories.ToString("N0")</h2>
+                        <small class="text-muted">Estimated burn</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center py-3">
+                        <h5 class="card-title">Sets</h5>
+                        <h2 class="mb-0">@(Model.Session.Sets?.Count ?? 0)</h2>
+                        <small class="text-muted">Total sets</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center py-3">
+                        <h5 class="card-title">Exercises</h5>
+                        <h2 class="mb-0">@(Model.Session.Sets?.Select(s => s.ExerciseType?.Name).Distinct().Count() ?? 0)</h2>
+                        <small class="text-muted">Unique exercises</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.VolumeByExercise.Any())
+        {
+            <div class="mt-4">
+                <h5>Volume by Exercise</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Exercise</th>
+                                <th>Volume (kg)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.VolumeByExercise.OrderByDescending(v => v.Value))
+                            {
+                                <tr>
+                                    <td>@item.Key</td>
+                                    <td>@item.Value.ToString("N0")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
 @if (Model.Session.Sets != null && Model.Session.Sets.Any())
 {
     <div class="mt-4">
@@ -80,6 +153,10 @@
                                 <span class="ms-2 badge bg-info">@set.ExerciseType.Muscle</span>
                             }
                             <span class="ms-2">- @set.Settype.Name - @set.NumberReps reps - @set.Weight kg</span>
+                            @if (Model.SetVolumes.TryGetValue(set.SetId, out double setVolume) && setVolume > 0)
+                            {
+                                <span class="ms-2 badge bg-success">Volume: @setVolume.ToString("N0") kg</span>
+                            }
                         </button>
                     </h2>
                     <div id="collapse-@set.SetId" class="accordion-collapse collapse" aria-labelledby="heading-@set.SetId" data-bs-parent="#setsAccordion">
@@ -102,6 +179,26 @@
                                     </div>
                                 </div>
                             }
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h6>Metrics</h6>
+                                            <dl class="row mb-0">
+                                                <dt class="col-6">Volume:</dt>
+                                                <dd class="col-6">@(Model.SetVolumes.TryGetValue(set.SetId, out double volume) ? volume.ToString("N0") : "0") kg</dd>
+                                                
+                                                <dt class="col-6">Weight:</dt>
+                                                <dd class="col-6">@(set.Weight.ToString()) kg</dd>
+                                                
+                                                <dt class="col-6">Reps:</dt>
+                                                <dd class="col-6">@(set.NumberReps.ToString())</dd>
+                                            </dl>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                             
                             @if (set.Reps != null && set.Reps.Any())
                             {

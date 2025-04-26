@@ -12,6 +12,7 @@ using WorkoutTrackerWeb.Services.VersionManagement;
 using WorkoutTrackerWeb.Services.Hangfire;
 using WorkoutTrackerWeb.Services.Logging; // Add the Logging namespace for extension methods
 using WorkoutTrackerWeb.Services.Alerting; // Add the Alerting namespace
+using WorkoutTrackerWeb.Services.Calculations; // Add the Calculations namespace
 using WorkoutTrackerWeb.Middleware;
 using WorkoutTrackerWeb.Hubs;
 using Microsoft.AspNetCore.Identity.UI.Services;
@@ -468,6 +469,10 @@ try
     // Register our alerting background job service
     builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsService>();
     builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsRegistration>();
+    
+    // Register volume and calorie calculation services
+    builder.Services.AddScoped<IVolumeCalculationService, VolumeCalculationService>();
+    builder.Services.AddScoped<ICalorieCalculationService, CalorieCalculationService>();
 
     // Add session state with Redis caching and JSON serialization
     builder.Services.AddSession(options =>

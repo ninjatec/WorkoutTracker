@@ -77,7 +77,10 @@ namespace WorkoutTrackerWeb.Pages.Templates
                 datetime = sessionDate,
                 UserId = currentUser.UserId,
                 Notes = sessionNotes ?? string.Empty,
-                Sets = new List<Set>()
+                Sets = new List<Set>(),
+                // Initialize NotMapped properties
+                TotalVolume = 0,
+                EstimatedCalories = 0
             };
 
             // Start a transaction to ensure all gets created or nothing does
@@ -103,7 +106,10 @@ namespace WorkoutTrackerWeb.Pages.Templates
                             Notes = templateSet.Notes,
                             NumberReps = templateSet.DefaultReps,
                             Weight = templateSet.DefaultWeight,
-                            SequenceNum = templateSet.SequenceNum
+                            SequenceNum = templateSet.SequenceNum,
+                            // Initialize NotMapped properties
+                            Volume = templateSet.DefaultWeight * templateSet.DefaultReps,
+                            EstimatedCalories = 0
                         };
 
                         _context.Set.Add(set);
@@ -114,11 +120,13 @@ namespace WorkoutTrackerWeb.Pages.Templates
                 await transaction.CommitAsync();
 
                 // Redirect to the new session
-                return RedirectToPage("/Sessions/Edit", new { id = session.SessionId });
+                return RedirectToPage("/Sessions/Details", new { id = session.SessionId });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 await transaction.RollbackAsync();
+                // Log the exception for debugging
+                Console.WriteLine($"Error creating workout from template: {ex.Message}");
                 throw;
             }
         }
