@@ -31,5 +31,15 @@ namespace WorkoutTrackerWeb.Models
                 return datetime.TimeOfDay; // Default implementation
             }
         }
+        
+        // Total volume of the workout (weight × reps across all sets)
+        [NotMapped]
+        [Display(Name = "Total Volume")]
+        public decimal TotalVolume { get; set; }
+        
+        // Estimated calories burned during the workout
+        [NotMapped]
+        [Display(Name = "Estimated Calories")]
+        public int EstimatedCalories { get; set; }
     }
 }

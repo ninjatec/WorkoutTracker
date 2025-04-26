@@ -32,5 +32,15 @@ namespace WorkoutTrackerWeb.Models
         
         [InverseProperty("Set")]
         public ICollection<Rep> Reps { get; set; } = new List<Rep>();
+        
+        // Volume of the set (weight × reps)
+        [NotMapped]
+        [Display(Name = "Volume")]
+        public decimal Volume { get; set; }
+        
+        // Estimated calories burned for this set
+        [NotMapped]
+        [Display(Name = "Calories")]
+        public int EstimatedCalories { get; set; }
     }
 }

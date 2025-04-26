@@ -210,77 +210,6 @@
    - [ ] Document iOS companion app export functionality
 
 
-[x] Implement a Workout Template function for workout plans
- - [x] Create database models for workout templates
-   - [x] Design WorkoutTemplate model with name, description, and metadata fields
-   - [x] Create WorkoutTemplateExercise model for template exercise entries
-   - [x] Implement WorkoutTemplateSet model with default values for reps, weight, etc.
-   - [x] Add appropriate relationships between template models and existing models
-   - [x] Create migration for adding template tables to database
-   - [x] Add indexes for performance optimization
-
- - [x] Build template management backend services
-   - [x] Create WorkoutTemplateService for CRUD operations
-   - [x] Implement template copying and duplication functionality
-   - [x] Add version control for templates with history tracking
-   - [x] Develop template sharing capability between users
-   - [x] Create template categorization and tagging system
-   - [x] Add template search and filtering functionality
-
- - [x] Develop template user interface
-   - [x] Create Templates/Index.cshtml for browsing template library
-   - [x] Implement Templates/Create.cshtml for creating new templates
-   - [x] Build Templates/Edit.cshtml for modifying existing templates
-   - [x] Add Templates/Details.cshtml for viewing template details
-   - [x] Create UI components for template exercise/set management
-   - [x] Implement drag-and-drop exercise reordering in templates
-
- - [x] Implement workout planning from templates
-   - [x] Add "Create Workout from Template" functionality to Sessions pages
-   - [x] Create weekly/monthly workout planning calendar view
-   - [x] Implement recurring workout scheduling from templates
-   - [x] Add template-based workout plan generation
-   - [x] Develop adaptive templates based on user progress
-   - [x] Create "Quick Start" functionality from favorite templates
-
- - [x] Add template progression and periodization features
-   - [x] Implement progressive overload calculations for templates
-   - [x] Add periodization models (linear, undulating, block)
-   - [x] Create auto-adjustment of template variables based on performance
-   - [x] Implement deload week scheduling in template plans
-   - [x] Add template variation management for exercise rotation
-   - [x] Develop goal-based template progressions
-
- - [x] Create template sharing and discovery
-   - [x] Build public template library with ratings and reviews
-   - [x] Implement template import/export functionality
-   - [x] Add template recommendations based on user goals
-   - [x] Create featured/trending templates section
-   - [x] Implement template access controls (public/private/shared)
-   - [x] Add template attribution and proper crediting for shared templates
-
- - [x] Integrate templates with existing features
-   - [x] Connect templates with reporting for progress tracking
-   - [x] Update export functionality to include templates
-   - [x] Integrate with sharing functionality for collaborative planning
-   - [x] Update mobile views for template management
-   - [x] Ensure compatibility with existing workout tracking flow
-   - [x] Add template support to API endpoints
-
- - [x] Implement template analytics and insights
-   - [x] Create performance metrics for template effectiveness
-   - [x] Add completion rate tracking for template workouts
-   - [x] Implement template comparison functionality
-   - [x] Develop template optimization suggestions
-   - [x] Create personalized template adaptation based on user data
-   - [x] Add visual progress tracking for template-based plans
-
- - [x] Update documentation and testing
-   - [x] Update README.md with template functionality details
-   - [x] Add template components to inventory.md
-   - [x] Create comprehensive user guide for workout templates
-   - [x] Create sample templates for common workout programs
-
 [ ] Implement a feature set for coaches to have the ability to manage other users and plan workouts for them, including viewing all workout data and reports.
  - [ ] Create coach role and permission system
    - [ ] Add Coach role to identity system
@@ -343,78 +272,70 @@
    - [ ] Add coaching package management with automated renewals
    - [ ] Develop client onboarding workflow with assessments
    - [ ] Add coaching credential management and display
-  
+ 
+[x] Add calculated total volume and estimate calories to Workout and Sets views
+ - [x] Design and implement calorie calculation service
+   - [x] Create CalorieCalculationService with configurable MET values for different exercise types
+   - [x] Implement calculation algorithm based on exercise intensity, duration, and user weight
+   - [x] Add support for different calculation methods (basic MET-based vs. heart rate-based when available)
+   - [x] Develop caching mechanism for performance optimization
+   - [x] Add unit tests for calorie calculation logic
 
-[ ] Add calculated total volume and estimate calories to Workout and Sets views
- - [ ] Design and implement calorie calculation service
-   - [ ] Create CalorieCalculationService with configurable MET values for different exercise types
-   - [ ] Implement calculation algorithm based on exercise intensity, duration, and user weight
-   - [ ] Add support for different calculation methods (basic MET-based vs. heart rate-based when available)
-   - [ ] Develop caching mechanism for performance optimization
-   - [ ] Add unit tests for calorie calculation logic
+ - [x] Enhance volume calculation implementation
+   - [x] Create robust VolumeCalculationService for standardized volume metrics
+   - [x] Implement different volume calculation methods (weight × reps, weight × reps × sets)
+   - [x] Support specialized volume calculations for bodyweight exercises
+   - [x] Add time-under-tension calculations for isometric exercises
+   - [x] Implement relative volume calculations (volume per muscle group/exercise type)
 
- - [ ] Enhance volume calculation implementation
-   - [ ] Create robust VolumeCalculationService for standardized volume metrics
-   - [ ] Implement different volume calculation methods (weight × reps, weight × reps × sets)
-   - [ ] Support specialized volume calculations for bodyweight exercises
-   - [ ] Add time-under-tension calculations for isometric exercises
-   - [ ] Implement relative volume calculations (volume per muscle group/exercise type)
+ - [x] Update database models and services
+   - [x] Extend Session model to include calculated TotalVolume and EstimatedCalories properties
+   - [x] Add caching support for volume and calorie calculations
+   - [x] Create migration for adding new fields if storing calculated values
+   - [x] Update repository/service layer to support new calculations
+   - [x] Implement automatic recalculation when related data changes
 
- - [ ] Update database models and services
-   - [ ] Extend Session model to include calculated TotalVolume and EstimatedCalories properties
-   - [ ] Add caching support for volume and calorie calculations
-   - [ ] Create migration for adding new fields if storing calculated values
-   - [ ] Update repository/service layer to support new calculations
-   - [ ] Implement automatic recalculation when related data changes
+ - [x] Update Sessions UI
+   - [x] Modify Sessions/Details.cshtml to display total volume and calories
+   - [x] Add visual indicators (charts/gauges) for volume and calorie metrics
+   - [x] Create collapsed/expandable detailed breakdown by exercise
+   - [x] Add comparison to previous session values (with change percentage)
+   - [x] Implement unit selection toggles (kg/lb for volume, kcal/kJ for energy)
 
- - [ ] Update Sessions UI
-   - [ ] Modify Sessions/Details.cshtml to display total volume and calories
-   - [ ] Add visual indicators (charts/gauges) for volume and calorie metrics
-   - [ ] Create collapsed/expandable detailed breakdown by exercise
-   - [ ] Add comparison to previous session values (with change percentage)
-   - [ ] Implement unit selection toggles (kg/lb for volume, kcal/kJ for energy)
+ - [x] Enhance Sets UI
+   - [x] Update Sets/Index.cshtml to include per-set volume metrics
+   - [x] Add progressive color coding based on volume/intensity
+   - [x] Implement set-specific calorie estimates
+   - [x] Create cumulative volume tracking within workout
+   - [x] Add visual indicators for volume progression across sets
 
- - [ ] Enhance Sets UI
-   - [ ] Update Sets/Index.cshtml to include per-set volume metrics
-   - [ ] Add progressive color coding based on volume/intensity
-   - [ ] Implement set-specific calorie estimates
-   - [ ] Create cumulative volume tracking within workout
-   - [ ] Add visual indicators for volume progression across sets
+ - [x] Extend reporting functionality
+   - [x] Update Reports/Index.cshtml to include volume and calorie trends
+   - [x] Add volume progression charts by exercise/muscle group
+   - [x] Create calorie expenditure analysis by workout type
+   - [x] Implement volume-to-results correlation analysis
+   - [x] Add comparative metrics against population averages
 
- - [ ] Implement volume and calorie goals
-   - [ ] Create user-configurable volume and calorie targets
-   - [ ] Add progress visualization toward daily/weekly goals
-   - [ ] Implement smart goal suggestions based on historical data
-   - [ ] Add goal achievement notifications and celebrations
-   - [ ] Create export options for goal tracking data
+ - [x] Update REST API endpoints
+   - [x] Extend existing workout API to include volume and calorie data
+   - [x] Add dedicated endpoints for volume/calorie metrics
+   - [x] Implement filtering and aggregation parameters
+   - [x] Create batch calculation endpoints for performance
+   - [x] Add proper documentation for new API features
 
- - [ ] Extend reporting functionality
-   - [ ] Update Reports/Index.cshtml to include volume and calorie trends
-   - [ ] Add volume progression charts by exercise/muscle group
-   - [ ] Create calorie expenditure analysis by workout type
-   - [ ] Implement volume-to-results correlation analysis
-   - [ ] Add comparative metrics against population averages
+ - [x] Enhance mobile responsiveness
+   - [x] Optimize volume and calorie displays for mobile devices
+   - [x] Implement condensed views for small screens
+   - [x] Create mobile-specific interactive visualizations
+   - [x] Add quick-view indicators for key metrics
+   - [x] Ensure touch-friendly controls for all new UI elements
 
- - [ ] Update REST API endpoints
-   - [ ] Extend existing workout API to include volume and calorie data
-   - [ ] Add dedicated endpoints for volume/calorie metrics
-   - [ ] Implement filtering and aggregation parameters
-   - [ ] Create batch calculation endpoints for performance
-   - [ ] Add proper documentation for new API features
-
- - [ ] Enhance mobile responsiveness
-   - [ ] Optimize volume and calorie displays for mobile devices
-   - [ ] Implement condensed views for small screens
-   - [ ] Create mobile-specific interactive visualizations
-   - [ ] Add quick-view indicators for key metrics
-   - [ ] Ensure touch-friendly controls for all new UI elements
-
- - [ ] Update documentation
-   - [ ] Add volume and calorie calculation methodology to help pages
-   - [ ] Update README.md with new feature details
-   - [ ] Add calculation components to inventory.md
-   - [ ] Create user guide for interpreting volume/calorie metrics
-   - [ ] Document API changes and examples
+ - [x] Update documentation
+   - [x] Add volume and calorie calculation methodology to help pages
+   - [x] Update README.md with new feature details
+   - [x] Add calculation components to inventory.md
+   - [x] Create user guide for interpreting volume/calorie metrics
+   - [x] Document API changes and examples
 
 [ ] Make the reports page tabbed adding volume and calories reports
  - [ ] Design and implement tabbed interface for reports page
