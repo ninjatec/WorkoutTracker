@@ -8,179 +8,389 @@
     <h1>Workout Reports</h1>
     <p>Track your progress and performance with detailed workout reports.</p>
 
-    <!-- Personal Records (PR) Table -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5>Personal Records (PRs) by Exercise Type</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-striped table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Exercise</th>
-                                    <th>Max Weight (kg)</th>
-                                    <th>Record Date</th>
-                                    <th>Session</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @if (Model.PersonalRecords.Any())
-                                {
-                                    @foreach (var record in Model.PersonalRecords)
-                                    {
-                                        <tr>
-                                            <td>@record.ExerciseName</td>
-                                            <td><strong>@record.MaxWeight</strong></td>
-                                            <td>@record.RecordDate.ToString("dd/MM/yy")</td>
-                                            <td>@record.SessionName</td>
-                                        </tr>
-                                    }
-                                }
-                                else
-                                {
-                                    <tr>
-                                        <td colspan="4" class="text-center">No personal records found.</td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                        @{
-                            var prevDisabled = !Model.PersonalRecords.Any() || Model.CurrentPage == 1;
-                            var nextDisabled = !Model.PersonalRecords.Any() || Model.CurrentPage == Model.TotalPages;
-                        }
+    <div class="accordion" id="reportsAccordion">
+        <!-- Personal Records Section -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingPersonalRecords">
+                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePersonalRecords" aria-expanded="true" aria-controls="collapsePersonalRecords">
+                    <i class="bi bi-trophy me-2"></i> Personal Records
+                </button>
+            </h2>
+            <div id="collapsePersonalRecords" class="accordion-collapse collapse show" aria-labelledby="headingPersonalRecords" data-bs-parent="#reportsAccordion">
+                <div class="accordion-body">
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Personal Records (PRs) by Exercise Type</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Exercise</th>
+                                                    <th>Max Weight (kg)</th>
+                                                    <th>Record Date</th>
+                                                    <th>Session</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @if (Model.PersonalRecords.Any())
+                                                {
+                                                    @foreach (var record in Model.PersonalRecords)
+                                                    {
+                                                        <tr>
+                                                            <td>@record.ExerciseName</td>
+                                                            <td><strong>@record.MaxWeight</strong></td>
+                                                            <td>@record.RecordDate.ToString("dd/MM/yy")</td>
+                                                            <td>@record.SessionName</td>
+                                                        </tr>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    <tr>
+                                                        <td colspan="4" class="text-center">No personal records found.</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                        @{
+                                            var prevDisabled = !Model.PersonalRecords.Any() || Model.CurrentPage == 1;
+                                            var nextDisabled = !Model.PersonalRecords.Any() || Model.CurrentPage == Model.TotalPages;
+                                        }
 
-                        <nav aria-label="Personal Records pagination">
-                            <ul class="pagination justify-content-center">
-                                <li class="page-item @(prevDisabled ? "disabled" : "")">
-                                    <a class="page-link" asp-page="./Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-period="@Model.ReportPeriod">Previous</a>
-                                </li>
-                                @for (var i = 1; i <= Model.TotalPages; i++)
-                                {
-                                    <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
-                                        <a class="page-link" asp-page="./Index" asp-route-pageNumber="@i" asp-route-period="@Model.ReportPeriod">@i</a>
-                                    </li>
-                                }
-                                <li class="page-item @(nextDisabled ? "disabled" : "")">
-                                    <a class="page-link" asp-page="./Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-period="@Model.ReportPeriod">Next</a>
-                                </li>
-                            </ul>
-                        </nav>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Weight Progress Chart -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card" id="weightProgressContainer" data-loading="true" style="min-height: 650px;">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5>Weight Progress by Exercise Type (Last @Model.ReportPeriod Days)</h5>
-                    <form method="get" class="d-flex align-items-center">
-                        <input type="hidden" name="pageNumber" value="@Model.CurrentPage" />
-                        <label for="period" class="me-2">Period:</label>
-                        <select id="period" name="period" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
-                            <option value="30" selected="@(Model.ReportPeriod == 30)">30 Days</option>
-                            <option value="60" selected="@(Model.ReportPeriod == 60)">60 Days</option>
-                            <option value="90" selected="@(Model.ReportPeriod == 90)">90 Days</option>
-                            <option value="120" selected="@(Model.ReportPeriod == 120)">120 Days</option>
-                        </select>
-                    </form>
-                </div>
-                <div class="card-body" style="height: 600px;">
-                    <div class="text-center loading-spinner">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="sr-only">Loading...</span>
+                                        <nav aria-label="Personal Records pagination">
+                                            <ul class="pagination justify-content-center">
+                                                <li class="page-item @(prevDisabled ? "disabled" : "")">
+                                                    <a class="page-link" asp-page="./Index" asp-route-pageNumber="@(Model.CurrentPage - 1)" asp-route-period="@Model.ReportPeriod">Previous</a>
+                                                </li>
+                                                @for (var i = 1; i <= Model.TotalPages; i++)
+                                                {
+                                                    <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                                        <a class="page-link" asp-page="./Index" asp-route-pageNumber="@i" asp-route-period="@Model.ReportPeriod">@i</a>
+                                                    </li>
+                                                }
+                                                <li class="page-item @(nextDisabled ? "disabled" : "")">
+                                                    <a class="page-link" asp-page="./Index" asp-route-pageNumber="@(Model.CurrentPage + 1)" asp-route-period="@Model.ReportPeriod">Next</a>
+                                                </li>
+                                            </ul>
+                                        </nav>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <canvas id="weightProgressChart"></canvas>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card" id="overallChartContainer" data-loading="true" style="min-height: 450px;">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5>Overall Rep Success/Failure (Last @Model.ReportPeriod Days)</h5>
-                    <form method="get" class="d-flex align-items-center">
-                        <input type="hidden" name="pageNumber" value="@Model.CurrentPage" />
-                        <input type="hidden" name="period" value="@Model.ReportPeriod" />
-                        <label for="period" class="me-2 d-none">Period:</label>
-                    </form>
-                </div>
-                <div class="card-body" style="height: 400px;">
-                    <div class="text-center loading-spinner">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="sr-only">Loading...</span>
+        <!-- Weight Progress Section -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingWeightProgress">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseWeightProgress" aria-expanded="false" aria-controls="collapseWeightProgress">
+                    <i class="bi bi-graph-up me-2"></i> Weight Progress
+                </button>
+            </h2>
+            <div id="collapseWeightProgress" class="accordion-collapse collapse" aria-labelledby="headingWeightProgress" data-bs-parent="#reportsAccordion">
+                <div class="accordion-body">
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="card" id="weightProgressContainer" data-loading="true" style="min-height: 650px;">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5>Weight Progress by Exercise Type (Last @Model.ReportPeriod Days)</h5>
+                                    <form method="get" class="d-flex align-items-center">
+                                        <input type="hidden" name="pageNumber" value="@Model.CurrentPage" />
+                                        <label for="period" class="me-2">Period:</label>
+                                        <select id="period" name="period" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                                            <option value="30" selected="@(Model.ReportPeriod == 30)">30 Days</option>
+                                            <option value="60" selected="@(Model.ReportPeriod == 60)">60 Days</option>
+                                            <option value="90" selected="@(Model.ReportPeriod == 90)">90 Days</option>
+                                            <option value="120" selected="@(Model.ReportPeriod == 120)">120 Days</option>
+                                        </select>
+                                    </form>
+                                </div>
+                                <div class="card-body" style="height: 600px;">
+                                    <div class="text-center loading-spinner">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="sr-only">Loading...</span>
+                                        </div>
+                                    </div>
+                                    <canvas id="weightProgressChart"></canvas>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <canvas id="overallChart"></canvas>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5>Success Rate by Exercise Type (Last @Model.ReportPeriod Days)</h5>
-                    <form method="get" class="d-flex align-items-center">
-                        <input type="hidden" name="pageNumber" value="@Model.CurrentPage" />
-                        <input type="hidden" name="period" value="@Model.ReportPeriod" />
-                        <label for="period" class="me-2 d-none">Period:</label>
-                    </form>
-                </div>
-                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Exercise</th>
-                                <th>Successful</th>
-                                <th>Failed</th>
-                                <th>Success Rate</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var exercise in Model.ExerciseStatusList.OrderByDescending(e => e.SuccessfulReps + e.FailedReps))
-                            {
-                                var total = exercise.SuccessfulReps + exercise.FailedReps;
-                                var successRate = total > 0 ? (double)exercise.SuccessfulReps / total * 100 : 0;
-                                <tr>
-                                    <td>@exercise.ExerciseName</td>
-                                    <td>@exercise.SuccessfulReps</td>
-                                    <td>@exercise.FailedReps</td>
-                                    <td>@successRate.ToString("F1")%</td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card" id="exerciseChartContainer" data-loading="true" style="min-height: 550px;">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5>Recent Exercise Performance (Last @Model.ReportPeriod Days)</h5>
-                    <form method="get" class="d-flex align-items-center">
-                        <input type="hidden" name="pageNumber" value="@Model.CurrentPage" />
-                        <input type="hidden" name="period" value="@Model.ReportPeriod" />
-                        <label for="period" class="me-2 d-none">Period:</label>
-                    </form>
-                </div>
-                <div class="card-body">
-                    <div class="text-center loading-spinner">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="sr-only">Loading...</span>
+        <!-- Exercise Performance Section -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingExercisePerformance">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseExercisePerformance" aria-expanded="false" aria-controls="collapseExercisePerformance">
+                    <i class="bi bi-activity me-2"></i> Exercise Performance
+                </button>
+            </h2>
+            <div id="collapseExercisePerformance" class="accordion-collapse collapse" aria-labelledby="headingExercisePerformance" data-bs-parent="#reportsAccordion">
+                <div class="accordion-body">
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="card" id="overallChartContainer" data-loading="true" style="min-height: 450px;">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5>Overall Rep Success/Failure (Last @Model.ReportPeriod Days)</h5>
+                                    <form method="get" class="d-flex align-items-center">
+                                        <input type="hidden" name="pageNumber" value="@Model.CurrentPage" />
+                                        <input type="hidden" name="period" value="@Model.ReportPeriod" />
+                                        <label for="period" class="me-2 d-none">Period:</label>
+                                    </form>
+                                </div>
+                                <div class="card-body" style="height: 400px;">
+                                    <div class="text-center loading-spinner">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="sr-only">Loading...</span>
+                                        </div>
+                                    </div>
+                                    <canvas id="overallChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5>Success Rate by Exercise Type (Last @Model.ReportPeriod Days)</h5>
+                                    <form method="get" class="d-flex align-items-center">
+                                        <input type="hidden" name="pageNumber" value="@Model.CurrentPage" />
+                                        <input type="hidden" name="period" value="@Model.ReportPeriod" />
+                                        <label for="period" class="me-2 d-none">Period:</label>
+                                    </form>
+                                </div>
+                                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Exercise</th>
+                                                <th>Successful</th>
+                                                <th>Failed</th>
+                                                <th>Success Rate</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var exercise in Model.ExerciseStatusList.OrderByDescending(e => e.SuccessfulReps + e.FailedReps))
+                                            {
+                                                var total = exercise.SuccessfulReps + exercise.FailedReps;
+                                                var successRate = total > 0 ? (double)exercise.SuccessfulReps / total * 100 : 0;
+                                                <tr>
+                                                    <td>@exercise.ExerciseName</td>
+                                                    <td>@exercise.SuccessfulReps</td>
+                                                    <td>@exercise.FailedReps</td>
+                                                    <td>@successRate.ToString("F1")%</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <canvas id="exerciseChart" width="800" height="600" style="display: none;"></canvas>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="card" id="exerciseChartContainer" data-loading="true" style="min-height: 550px;">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5>Recent Exercise Performance (Last @Model.ReportPeriod Days)</h5>
+                                    <form method="get" class="d-flex align-items-center">
+                                        <input type="hidden" name="pageNumber" value="@Model.CurrentPage" />
+                                        <input type="hidden" name="period" value="@Model.ReportPeriod" />
+                                        <label for="period" class="me-2 d-none">Period:</label>
+                                    </form>
+                                </div>
+                                <div class="card-body">
+                                    <div class="text-center loading-spinner">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="sr-only">Loading...</span>
+                                        </div>
+                                    </div>
+                                    <canvas id="exerciseChart" width="800" height="600" style="display: none;"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Workout Volume Section -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingVolume">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseVolume" aria-expanded="false" aria-controls="collapseVolume">
+                    <i class="bi bi-bar-chart-line me-2"></i> Workout Volume
+                </button>
+            </h2>
+            <div id="collapseVolume" class="accordion-collapse collapse" aria-labelledby="headingVolume" data-bs-parent="#reportsAccordion">
+                <div class="accordion-body">
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="alert alert-info">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-info-circle-fill me-2 fs-4"></i>
+                                    <div>
+                                        <strong>Total Workout Volume (Last @Model.ReportPeriod Days):</strong> 
+                                        <span class="fs-4 ms-2">@Model.TotalWorkoutVolume.ToString("N0") kg</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="card" id="volumeChartContainer" data-loading="true" style="min-height: 550px;">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5>Volume Progression by Exercise (Last @Model.ReportPeriod Days)</h5>
+                                    <form method="get" class="d-flex align-items-center">
+                                        <input type="hidden" name="pageNumber" value="@Model.CurrentPage" />
+                                        <input type="hidden" name="period" value="@Model.ReportPeriod" />
+                                        <label for="period" class="me-2 d-none">Period:</label>
+                                    </form>
+                                </div>
+                                <div class="card-body" style="height: 500px;">
+                                    <div class="text-center loading-spinner">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="sr-only">Loading...</span>
+                                        </div>
+                                    </div>
+                                    <canvas id="volumeChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Volume Breakdown by Exercise (Last @Model.ReportPeriod Days)</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped">
+                                            <thead>
+                                                <tr>
+                                                    <th>Exercise</th>
+                                                    <th>Total Volume (kg)</th>
+                                                    <th>% of Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var volume in Model.VolumeDataList)
+                                                {
+                                                    var percentage = Model.TotalWorkoutVolume > 0 
+                                                        ? (volume.TotalVolume / Model.TotalWorkoutVolume * 100) 
+                                                        : 0;
+                                                    <tr>
+                                                        <td>@volume.ExerciseName</td>
+                                                        <td>@volume.TotalVolume.ToString("N0")</td>
+                                                        <td>@percentage.ToString("F1")%</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calories Burned Section -->
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="headingCalories">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCalories" aria-expanded="false" aria-controls="collapseCalories">
+                    <i class="bi bi-fire me-2"></i> Calories Burned
+                </button>
+            </h2>
+            <div id="collapseCalories" class="accordion-collapse collapse" aria-labelledby="headingCalories" data-bs-parent="#reportsAccordion">
+                <div class="accordion-body">
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="alert alert-success">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-fire me-2 fs-4"></i>
+                                    <div>
+                                        <strong>Total Calories Burned (Last @Model.ReportPeriod Days):</strong> 
+                                        <span class="fs-4 ms-2">@Model.TotalCaloriesBurned.ToString("N0") kcal</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="card" id="caloriesChartContainer" data-loading="true" style="min-height: 550px;">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h5>Calorie Expenditure Over Time (Last @Model.ReportPeriod Days)</h5>
+                                    <form method="get" class="d-flex align-items-center">
+                                        <input type="hidden" name="pageNumber" value="@Model.CurrentPage" />
+                                        <input type="hidden" name="period" value="@Model.ReportPeriod" />
+                                        <label for="period" class="me-2 d-none">Period:</label>
+                                    </form>
+                                </div>
+                                <div class="card-body" style="height: 500px;">
+                                    <div class="text-center loading-spinner">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="sr-only">Loading...</span>
+                                        </div>
+                                    </div>
+                                    <canvas id="caloriesChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="card" id="caloriesBreakdownContainer" data-loading="true" style="min-height: 450px;">
+                                <div class="card-header">
+                                    <h5>Calorie Breakdown by Exercise Type</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="chart-container" style="height: 300px;">
+                                                <canvas id="caloriesPieChart"></canvas>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="table-responsive">
+                                                <table class="table table-striped">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Exercise</th>
+                                                            <th>Calories (kcal)</th>
+                                                            <th>% of Total</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach (var calorie in Model.CalorieDataList)
+                                                        {
+                                                            var percentage = Model.TotalCaloriesBurned > 0 
+                                                                ? (calorie.TotalCalories / Model.TotalCaloriesBurned * 100) 
+                                                                : 0;
+                                                            <tr>
+                                                                <td>@calorie.ExerciseName</td>
+                                                                <td>@calorie.TotalCalories.ToString("N0")</td>
+                                                                <td>@percentage.ToString("F1")%</td>
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -195,9 +405,85 @@
     <script src="~/js/reports.js"></script>
     
     <script>
+        // Store chart instances for proper cleanup
+        const chartInstances = {
+            weightProgressChart: null,
+            overallChart: null,
+            exerciseChart: null,
+            volumeChart: null,
+            caloriesChart: null,
+            caloriesPieChart: null
+        };
+
+        // Initialize all charts when DOM content is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Create charts when their respective accordion sections are opened
+            document.getElementById('collapsePersonalRecords').addEventListener('shown.bs.collapse', function() {
+                // Personal records section is just a table, no charts to initialize
+            });
+            
+            document.getElementById('collapseWeightProgress').addEventListener('shown.bs.collapse', function() {
+                if (window.createWeightProgressChart) createWeightProgressChart();
+            });
+            
+            document.getElementById('collapseExercisePerformance').addEventListener('shown.bs.collapse', function() {
+                if (window.createOverallChart) createOverallChart();
+                if (window.createExerciseChart) createExerciseChart();
+            });
+            
+            document.getElementById('collapseVolume').addEventListener('shown.bs.collapse', function() {
+                if (window.createVolumeChart) createVolumeChart();
+            });
+            
+            document.getElementById('collapseCalories').addEventListener('shown.bs.collapse', function() {
+                if (window.createCaloriesChart) createCaloriesChart();
+                if (window.createCaloriesPieChart) createCaloriesPieChart();
+            });
+
+            // Handle accordion hiding events to update charts when sections are reopened
+            const accordionItems = document.querySelectorAll('.accordion-collapse');
+            accordionItems.forEach(item => {
+                item.addEventListener('hidden.bs.collapse', function() {
+                    // This event fires when the accordion section is completely hidden
+                    // We'll destroy related charts when a section is closed
+                    if (item.id === 'collapseWeightProgress' && chartInstances.weightProgressChart) {
+                        chartInstances.weightProgressChart.destroy();
+                        chartInstances.weightProgressChart = null;
+                    } else if (item.id === 'collapseExercisePerformance') {
+                        if (chartInstances.overallChart) {
+                            chartInstances.overallChart.destroy();
+                            chartInstances.overallChart = null;
+                        }
+                        if (chartInstances.exerciseChart) {
+                            chartInstances.exerciseChart.destroy();
+                            chartInstances.exerciseChart = null;
+                        }
+                    } else if (item.id === 'collapseVolume' && chartInstances.volumeChart) {
+                        chartInstances.volumeChart.destroy();
+                        chartInstances.volumeChart = null;
+                    } else if (item.id === 'collapseCalories') {
+                        if (chartInstances.caloriesChart) {
+                            chartInstances.caloriesChart.destroy();
+                            chartInstances.caloriesChart = null;
+                        }
+                        if (chartInstances.caloriesPieChart) {
+                            chartInstances.caloriesPieChart.destroy();
+                            chartInstances.caloriesPieChart = null;
+                        }
+                    }
+                });
+            });
+        });
+
         window.createWeightProgressChart = function() {
             const ctx = document.getElementById('weightProgressChart');
             const spinner = ctx.parentElement.querySelector('.loading-spinner');
+            
+            // If chart instance already exists, destroy it
+            if (chartInstances.weightProgressChart) {
+                chartInstances.weightProgressChart.destroy();
+                chartInstances.weightProgressChart = null;
+            }
             
             spinner.style.display = 'block';
             ctx.style.display = 'none';
@@ -226,7 +512,7 @@
                 @:});
             }
 
-            const chart = new Chart(ctx, {
+            chartInstances.weightProgressChart = new Chart(ctx, {
                 type: 'line',
                 data: { datasets },
                 options: {
@@ -292,10 +578,16 @@
             const ctx = document.getElementById('overallChart');
             const spinner = ctx.parentElement.querySelector('.loading-spinner');
             
+            // If chart instance already exists, destroy it
+            if (chartInstances.overallChart) {
+                chartInstances.overallChart.destroy();
+                chartInstances.overallChart = null;
+            }
+            
             spinner.style.display = 'block';
             ctx.style.display = 'none';
 
-            const chart = new Chart(ctx, {
+            chartInstances.overallChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: ['Successful Reps', 'Failed Reps'],
@@ -341,10 +633,16 @@
             const ctx = document.getElementById('exerciseChart');
             const spinner = ctx.parentElement.querySelector('.loading-spinner');
             
+            // If chart instance already exists, destroy it
+            if (chartInstances.exerciseChart) {
+                chartInstances.exerciseChart.destroy();
+                chartInstances.exerciseChart = null;
+            }
+            
             spinner.style.display = 'block';
             ctx.style.display = 'none';
 
-            const chart = new Chart(ctx, {
+            chartInstances.exerciseChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: [@Html.Raw(string.Join(",", Model.RecentExerciseStatusList.Select(e => $"'{e.ExerciseName}'")))],
@@ -394,6 +692,279 @@
 
             spinner.style.display = 'none';
             ctx.style.display = 'block';
+        }
+
+        window.createVolumeChart = function() {
+            const ctx = document.getElementById('volumeChart');
+            const spinner = ctx.parentElement.querySelector('.loading-spinner');
+            
+            // If chart instance already exists, destroy it
+            if (chartInstances.volumeChart) {
+                chartInstances.volumeChart.destroy();
+                chartInstances.volumeChart = null;
+            }
+            
+            spinner.style.display = 'block';
+            ctx.style.display = 'none';
+
+            const datasets = [];
+            const colors = [
+                '#4CAF50', '#2196F3', '#F44336', '#FF9800', '#9C27B0', 
+                '#795548', '#607D8B', '#E91E63', '#FFEB3B', '#009688'
+            ];
+            
+            @for (int i = 0; i < Math.Min(Model.VolumeDataList.Count, 10); i++)
+            {
+                var volumeData = Model.VolumeDataList[i];
+                var colorIndex = i % 10;
+                @:const volumeDates@(i) = [@Html.Raw(string.Join(",", volumeData.Dates.Select(d => $"'{d.ToString("yyyy-MM-dd")}'")))]
+                @:const volumes@(i) = [@string.Join(",", volumeData.Volumes)]
+                @:datasets.push({
+                @:    label: '@Html.Raw(volumeData.ExerciseName)',
+                @:    data: volumes@(i).map((volume, index) => ({ x: volumeDates@(i)[index], y: volume })),
+                @:    borderColor: colors[@colorIndex],
+                @:    backgroundColor: colors[@colorIndex] + '33',
+                @:    fill: false,
+                @:    borderWidth: 2,
+                @:    tension: 0.1,
+                @:    pointRadius: 4
+                @:});
+            }
+
+            chartInstances.volumeChart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 0
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                tooltipFormat: 'MMM D, YYYY',
+                                displayFormats: {
+                                    day: 'MMM D'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Volume (kg)'
+                            },
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            enabled: true,
+                            mode: 'nearest',
+                            intersect: false,
+                            callbacks: {
+                                title: context => moment(context[0].raw.x).format('MMMM D, YYYY'),
+                                label: context => `${context.dataset.label}: ${context.raw.y.toLocaleString()} kg`
+                            }
+                        },
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                boxWidth: 12,
+                                usePointStyle: true
+                            }
+                        }
+                    }
+                }
+            });
+
+            spinner.style.display = 'none';
+            ctx.style.display = 'block';
+        }
+
+        window.createCaloriesChart = function() {
+            const ctx = document.getElementById('caloriesChart');
+            const spinner = ctx.parentElement.querySelector('.loading-spinner');
+            
+            // If chart instance already exists, destroy it
+            if (chartInstances.caloriesChart) {
+                chartInstances.caloriesChart.destroy();
+                chartInstances.caloriesChart = null;
+            }
+            
+            spinner.style.display = 'block';
+            ctx.style.display = 'none';
+            
+            // Prepare a stacked area chart for calories over time
+            const datasets = [];
+            const colors = [
+                '#4CAF50', '#2196F3', '#F44336', '#FF9800', '#9C27B0', 
+                '#795548', '#607D8B', '#E91E63', '#FFEB3B', '#009688'
+            ];
+            
+            // Get unique dates across all exercises
+            const allDates = [];
+            @foreach (var calorieData in Model.CalorieDataList.Take(10))
+            {
+                foreach (var date in calorieData.Dates)
+                {
+                    @:if (!allDates.includes('@date.ToString("yyyy-MM-dd")')) {
+                    @:    allDates.push('@date.ToString("yyyy-MM-dd")');
+                    @:}
+                }
+            }
+            allDates.sort();
+            
+            // Create datasets for stacked area chart
+            @for (int i = 0; i < Math.Min(Model.CalorieDataList.Count, 10); i++)
+            {
+                var calorieData = Model.CalorieDataList[i];
+                var colorIndex = i % 10;
+                @:const calorieDates@(i) = [@Html.Raw(string.Join(",", calorieData.Dates.Select(d => $"'{d.ToString("yyyy-MM-dd")}'")))]
+                @:const calories@(i) = [@string.Join(",", calorieData.Calories)]
+                @:datasets.push({
+                @:    label: '@Html.Raw(calorieData.ExerciseName)',
+                @:    data: calories@(i).map((calories, index) => ({ x: calorieDates@(i)[index], y: calories })),
+                @:    borderColor: colors[@colorIndex],
+                @:    backgroundColor: colors[@colorIndex] + '80',
+                @:    fill: true,
+                @:    tension: 0.4
+                @:});
+            }
+
+            chartInstances.caloriesChart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 0
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day',
+                                tooltipFormat: 'MMM D, YYYY',
+                                displayFormats: {
+                                    day: 'MMM D'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: 'Calories (kcal)'
+                            },
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            enabled: true,
+                            mode: 'nearest',
+                            intersect: false,
+                            callbacks: {
+                                title: context => moment(context[0].raw.x).format('MMMM D, YYYY'),
+                                label: context => `${context.dataset.label}: ${context.raw.y.toLocaleString()} kcal`
+                            }
+                        },
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                boxWidth: 12,
+                                usePointStyle: true
+                            }
+                        }
+                    }
+                }
+            });
+
+            spinner.style.display = 'none';
+            ctx.style.display = 'block';
+        }
+
+        window.createCaloriesPieChart = function() {
+            const ctx = document.getElementById('caloriesPieChart');
+            
+            // If chart instance already exists, destroy it
+            if (chartInstances.caloriesPieChart) {
+                chartInstances.caloriesPieChart.destroy();
+                chartInstances.caloriesPieChart = null;
+            }
+            
+            // Extract top exercises by calories burned
+            const labels = [@Html.Raw(string.Join(",", Model.CalorieDataList.Take(7).Select(c => $"'{c.ExerciseName}'")))];
+            const data = [@string.Join(",", Model.CalorieDataList.Take(7).Select(c => c.TotalCalories))];
+            
+            // Calculate "Other" category if there are more than 7 exercises
+            @if (Model.CalorieDataList.Count > 7)
+            {
+                @:labels.push('Other');
+                @:data.push(@Model.CalorieDataList.Skip(7).Sum(c => c.TotalCalories));
+            }
+            
+            const colors = [
+                '#4CAF50', '#2196F3', '#F44336', '#FF9800', '#9C27B0', '#795548', '#607D8B', '#E91E63'
+            ];
+
+            chartInstances.caloriesPieChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                boxWidth: 12,
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw.toLocaleString();
+                                    const total = @Model.TotalCaloriesBurned;
+                                    const percentage = Math.round((context.raw / total) * 100);
+                                    return `${label}: ${value} kcal (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         }
     </script>
 }
