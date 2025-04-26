@@ -55,6 +55,17 @@ Production Site running on wot.ninjatec.co.uk
   - Visual indicators for token status and expiration
   - Bulk token management with filtering options
 
+- **Workout Templates**: Create and reuse workout routines
+  - Template-based workout creation for consistent routines
+  - Customizable exercise sequences with order control
+  - Default set values including recommended reps and weights
+  - Public/private visibility options for templates
+  - Categorization and tagging for organization
+  - One-click workout creation from templates
+  - Comprehensive template management interface
+  - Mobile-optimized template browsing and creation
+  - Search and filter functionality for large template libraries
+
 - **User Authentication**: Secure login and registration using ASP.NET Core Identity with email confirmation
 - **Admin Dashboard**: Comprehensive admin dashboard with system metrics, user statistics, and quick actions
 - **Admin User Management**: Complete CRUD operations for user accounts with:
@@ -210,6 +221,27 @@ The application uses the following entity relationships:
   - Granular access controls for different features (sessions, reports, calculator)
   - Includes user-defined name and description for organization
   - Provides active status flag for manual revocation
+
+- **WorkoutTemplate**: Represents a reusable workout template
+  - Belongs to a User (creator)
+  - Has many WorkoutTemplateExercises
+  - Includes name, description, category, tags for organization
+  - Contains metadata like creation date, modification date
+  - Includes visibility settings (public/private)
+  - Properties: WorkoutTemplateId, Name, Description, CreatedDate, LastModifiedDate, IsPublic, Category, Tags, UserId
+  
+- **WorkoutTemplateExercise**: Represents an exercise within a template
+  - Belongs to a WorkoutTemplate
+  - Associated with an ExerciseType
+  - Has many WorkoutTemplateSets
+  - Contains sequence number for ordering exercises
+  - Properties: WorkoutTemplateExerciseId, WorkoutTemplateId, ExerciseTypeId, SequenceNum, Notes
+  
+- **WorkoutTemplateSet**: Represents default set values for a template exercise
+  - Belongs to a WorkoutTemplateExercise
+  - Associated with a SetType
+  - Contains default values for reps and weight
+  - Properties: WorkoutTemplateSetId, WorkoutTemplateExerciseId, SettypeId, DefaultReps, DefaultWeight, SequenceNum, Description, Notes
 
 ## Workout Sharing
 
@@ -469,3 +501,17 @@ The application provides comprehensive data portability features:
 - Added real-time progress updates using SignalR for long-running operations
 - Optimized TrainAI data import with batched processing and improved error handling
 - Enhanced workout data deletion with background processing and progress tracking
+
+- **Added Workout Templates feature**:
+  - Created database models for template storage and management
+  - Implemented template creation with customizable metadata
+  - Added exercise and set management within templates
+  - Implemented template browsing with search and filtering
+  - Created detailed template view with exercise breakdown
+  - Added "Start Workout" functionality to create sessions from templates
+  - Implemented template editing with exercise and set management
+  - Created template deletion with confirmation
+  - Added template visibility controls (public/private)
+  - Integrated with navigation system for easy access
+  - Used transaction support for data consistency
+  - Applied output caching for better performance

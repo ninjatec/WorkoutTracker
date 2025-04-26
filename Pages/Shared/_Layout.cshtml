@@ -49,6 +49,9 @@
                             <a class="nav-link" asp-area="" asp-page="/Sessions/Index">Workouts</a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-page="/Templates/Index">Templates</a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-page="/Workouts/QuickWorkout">Quick Workout</a>
                         </li>
                         <li class="nav-item">
@@ -124,6 +127,9 @@
         <div class="session-shortcut-menu" id="sessionShortcutMenu">
             <a href="/Sessions/Create" class="session-shortcut-menu-item">
                 <i class="bi bi-plus-circle"></i> New Session
+            </a>
+            <a href="/Templates/Index" class="session-shortcut-menu-item">
+                <i class="bi bi-card-list"></i> Templates
             </a>
             <a href="/Workouts/QuickWorkout" class="session-shortcut-menu-item">
                 <i class="bi bi-stopwatch"></i> Quick Workout
@@ -206,6 +212,12 @@
                     <a href="/Account/Manage/ShareTokens" class="d-block p-3 mobile-menu-item">
                         <i class="bi bi-share fs-4 d-block mb-2"></i>
                         Sharing
+                    </a>
+                </div>
+                <div class="col-4 text-center">
+                    <a href="/Templates/Index" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-card-list fs-4 d-block mb-2"></i>
+                        Templates
                     </a>
                 </div>
                 <div class="col-4 text-center">
