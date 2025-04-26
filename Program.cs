@@ -325,66 +325,10 @@ try
     }
 
     // Add Redis for distributed caching and shared storage
-    var redisConfigString = builder.Configuration.GetConnectionString("Redis") ?? 
-                         Environment.GetEnvironmentVariable("ConnectionStrings__Redis") ?? 
-                         "redis-master.web.svc.cluster.local:6379,abortConnect=false";
-
-    try {
-        var redisOptions = ConfigureRedisOptions(redisConfigString);
-        
-        // Register the ConnectionMultiplexer as a singleton
-        builder.Services.AddSingleton<IConnectionMultiplexer>(sp => {
-            var logger = sp.GetRequiredService<ILogger<Program>>();
-            try {
-                var redisOptions = ConfigureRedisOptions(redisConfigString);
-                
-                // Create a new multiplexer with these options
-                var connection = ConnectionMultiplexer.Connect(redisOptions);
-                
-                // Verify we have a master connection
-                var hasWritableEndpoint = false;
-                foreach (var endpoint in connection.GetEndPoints())
-                {
-                    var server = connection.GetServer(endpoint);
-                    if (!server.IsReplica)
-                    {
-                        logger.LogInformation("Connected to master Redis server at {Endpoint}", endpoint);
-                        hasWritableEndpoint = true;
-                        break;
-                    }
-                }
-                
-                // Set up event handlers for connection management
-                connection.ConnectionFailed += (_, e) => {
-                    logger.LogWarning("Redis connection failed: {EndPoint}, {FailureType}", e.EndPoint, e.FailureType);
-                };
-                connection.ConnectionRestored += (_, e) => {
-                    logger.LogInformation("Redis connection restored: {EndPoint}", e.EndPoint);
-                };
-                connection.ErrorMessage += (_, e) => {
-                    logger.LogWarning("Redis error: {Message}", e.Message);
-                };
-                
-                return connection;
-            } catch (Exception ex) {
-                logger.LogError(ex, "Failed to create Redis connection");
-                throw;
-            }
-        });
-        
-        builder.Services.AddStackExchangeRedisCache(options =>
-        {
-            options.ConfigurationOptions = redisOptions;
-            options.InstanceName = "WorkoutTracker:";
-        });
-        
-        // Register the shared storage service
-        builder.Services.AddScoped<ISharedStorageService, RedisSharedStorageService>();
-        
-        Log.Information("Configured Redis distributed cache for production using {ConnectionString} with enhanced resilience", redisConfigString);
-    } catch (Exception ex) {
-        // Fallback to in-memory cache if Redis configuration fails
-        Log.Error(ex, "Failed to configure Redis distributed cache, falling back to in-memory cache");
+    if (builder.Environment.IsDevelopment())
+    {
+        // In development, use in-memory cache instead of Redis
+        Log.Information("Using in-memory distributed cache for development environment");
         builder.Services.AddDistributedMemoryCache();
         
         // Register mock shared storage service for development
@@ -393,8 +337,80 @@ try
             var logger = sp.GetRequiredService<ILogger<RedisSharedStorageService>>();
             return new RedisSharedStorageService(null, logger);
         });
-        
-        Log.Warning("Using in-memory distributed cache in production due to Redis configuration failure");
+    }
+    else
+    {
+        var redisConfigString = builder.Configuration.GetConnectionString("Redis") ?? 
+                             Environment.GetEnvironmentVariable("ConnectionStrings__Redis") ?? 
+                             "redis-master.web.svc.cluster.local:6379,abortConnect=false";
+
+        try {
+            var redisOptions = ConfigureRedisOptions(redisConfigString);
+            
+            // Register the ConnectionMultiplexer as a singleton
+            builder.Services.AddSingleton<IConnectionMultiplexer>(sp => {
+                var logger = sp.GetRequiredService<ILogger<Program>>();
+                try {
+                    var redisOptions = ConfigureRedisOptions(redisConfigString);
+                    
+                    // Create a new multiplexer with these options
+                    var connection = ConnectionMultiplexer.Connect(redisOptions);
+                    
+                    // Verify we have a master connection
+                    var hasWritableEndpoint = false;
+                    foreach (var endpoint in connection.GetEndPoints())
+                    {
+                        var server = connection.GetServer(endpoint);
+                        if (!server.IsReplica)
+                        {
+                            logger.LogInformation("Connected to master Redis server at {Endpoint}", endpoint);
+                            hasWritableEndpoint = true;
+                            break;
+                        }
+                    }
+                    
+                    // Set up event handlers for connection management
+                    connection.ConnectionFailed += (_, e) => {
+                        logger.LogWarning("Redis connection failed: {EndPoint}, {FailureType}", e.EndPoint, e.FailureType);
+                    };
+                    connection.ConnectionRestored += (_, e) => {
+                        logger.LogInformation("Redis connection restored: {EndPoint}", e.EndPoint);
+                    };
+                    connection.ErrorMessage += (_, e) => {
+                        logger.LogWarning("Redis error: {Message}", e.Message);
+                    };
+                    
+                    return connection;
+                } catch (Exception ex) {
+                    logger.LogError(ex, "Failed to create Redis connection");
+                    throw;
+                }
+            });
+            
+            builder.Services.AddStackExchangeRedisCache(options =>
+            {
+                options.ConfigurationOptions = redisOptions;
+                options.InstanceName = "WorkoutTracker:";
+            });
+            
+            // Register the shared storage service
+            builder.Services.AddScoped<ISharedStorageService, RedisSharedStorageService>();
+            
+            Log.Information("Configured Redis distributed cache for production using {ConnectionString} with enhanced resilience", redisConfigString);
+        } catch (Exception ex) {
+            // Fallback to in-memory cache if Redis configuration fails
+            Log.Error(ex, "Failed to configure Redis distributed cache, falling back to in-memory cache");
+            builder.Services.AddDistributedMemoryCache();
+            
+            // Register mock shared storage service for development
+            builder.Services.AddScoped<ISharedStorageService>(sp => {
+                // Create a mock implementation for development that uses local filesystem
+                var logger = sp.GetRequiredService<ILogger<RedisSharedStorageService>>();
+                return new RedisSharedStorageService(null, logger);
+            });
+            
+            Log.Warning("Using in-memory distributed cache in production due to Redis configuration failure");
+        }
     }
 
     // Add MVC services for Area support

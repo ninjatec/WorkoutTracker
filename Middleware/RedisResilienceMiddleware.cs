@@ -3,6 +3,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace WorkoutTrackerWeb.Middleware
 {
@@ -85,6 +87,13 @@ namespace WorkoutTrackerWeb.Middleware
         public static IApplicationBuilder UseRedisResilience(
             this IApplicationBuilder builder)
         {
+            // Skip middleware in development environment
+            if (builder.ApplicationServices.GetService<IHostEnvironment>()?.IsDevelopment() ?? false)
+            {
+                // Don't add the middleware in development
+                return builder;
+            }
+
             return builder.UseMiddleware<RedisResilienceMiddleware>();
         }
     }

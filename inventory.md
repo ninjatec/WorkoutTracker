@@ -23,6 +23,8 @@ This document maintains an up-to-date inventory of all features, components, and
 - Admin Dashboard
 - Metric Collection
 - Alert System
+- Volume Calculation System
+- Calorie Estimation System
 
 ### Technology Stack
 - ASP.NET Core 9
@@ -51,6 +53,8 @@ This document maintains an up-to-date inventory of all features, components, and
 - Health Monitoring
 - Alerting System
 - Responsive Design System
+- Volume Calculation System
+- Calorie Estimation System
 
 ### Data Models
 - User
@@ -331,6 +335,61 @@ This document maintains an up-to-date inventory of all features, components, and
 | `ExerciseLibrary` | 6 hours | Exercise library with periodic updates | Category and search query parameters |
 | `SharedWorkoutReports` | 6 hours | Shared reports that vary by token and period | Token and period query parameters |
 | `SharedWorkout` | 3 hours | Shared workout pages with token-based access | Token query parameter |
+
+### Calculation and Metrics Components
+
+#### VolumeCalculationService
+- Provides standardized volume calculation for workout sessions and sets
+- Features:
+  - Multiple calculation methods (weight × reps, weight × reps × sets)
+  - Support for bodyweight exercise volume calculation
+  - Time-under-tension calculations for isometric exercises
+  - Set-specific and session-wide volume metrics
+  - Relative volume calculations (per muscle group/exercise type)
+  - Caching mechanism for performance optimization
+  - Unit conversion support (kg/lb)
+  - Progressive overload tracking
+  - Volume comparison with historical data
+  - Visual representations with color-coded indicators
+
+#### CalorieCalculationService
+- Estimates calorie expenditure for workout sessions and individual sets
+- Features:
+  - Configurable MET (Metabolic Equivalent of Task) values for different exercise types
+  - Multiple calculation methods (MET-based, heart rate-based when available)
+  - User-specific calculations based on weight and other metrics
+  - Duration-sensitive energy expenditure estimates
+  - Intensity-adjusted calculations
+  - Caching for optimized performance
+  - Unit selection (kcal/kJ)
+  - Integration with workout history for trend analysis
+  - Visual indicators for calorie metrics
+  - API endpoints for data access
+
+#### Volume and Calorie Display Components
+- UI components for presenting volume and calorie metrics
+- Features:
+  - Session summary displays with volume and calorie totals
+  - Set-level detailed breakdowns
+  - Visual progress indicators
+  - Comparative metrics with previous sessions
+  - Mobile-responsive designs
+  - Interactive charts for data visualization
+  - Unit toggle controls
+  - Tooltip explanations for calculation methodology
+  - API integration for data refresh
+
+#### Volume and Calorie APIs
+- REST endpoints for programmatic access to volume and calorie data
+- Features:
+  - Session metrics endpoints
+  - Set-specific metrics
+  - Filtering capabilities by date, exercise type, and metrics range
+  - Aggregation endpoints for trend analysis
+  - Batch calculation for performance optimization
+  - Comprehensive documentation
+  - Consistent error handling
+  - Authentication and authorization with proper sharing controls
 
 ## Project Structure
 
