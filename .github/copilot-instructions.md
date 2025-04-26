@@ -1,8 +1,7 @@
-- Be casual unless otherwise specified
 - ALWAYS reference the SoW WiP Readme Inventory and Models to build context.
 - ALWAYS ensure the codebase comiles withut error before a task is considered complete
 - ALWAYS use --context on dotnet ef commands
-- Be terse and concise
+- AVOID repeating work already complete
 - Do not apologize
 - User razorpages and not MVC
 - Use .net core 9
@@ -15,8 +14,6 @@
 - Discuss safety only when it's crucial and non-obvious
 - If your content policy is an issue, provide the closest acceptable response and explain the content policy issue afterward
 - Cite sources whenever possible at the end, not inline
-- No need to mention your knowledge cutoff
-- No need to disclose you're an AI
 - Please respect my prettier preferences when you provide code.
 - Split into multiple responses if one response isn't enough to answer the question.
 - Focus on readability over being performant.

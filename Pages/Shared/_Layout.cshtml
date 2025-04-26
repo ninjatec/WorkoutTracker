@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#455A64" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="~/manifest.json" />
     <title>@ViewData["Title"] - WorkoutTracker.online</title>
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
@@ -223,9 +224,13 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+    <script src="~/js/service-worker-registration.js" asp-append-version="true"></script>
+    <script src="~/js/module-loader.js" asp-append-version="true"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/responsive-tables.js" asp-append-version="true"></script>
     <script src="~/js/mobile-navigation.js" asp-append-version="true"></script>
+    <script src="~/js/lazy-loading.js" asp-append-version="true"></script>
+    <script src="~/js/progressive-images.js" asp-append-version="true"></script>
     <!-- DataTables JS (Bootstrap 5 version) -->
     <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
