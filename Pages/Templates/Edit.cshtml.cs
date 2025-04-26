@@ -344,6 +344,116 @@ namespace WorkoutTrackerWeb.Pages.Templates
             return RedirectToPage("./Edit", new { id = templateId });
         }
 
+        public async Task<IActionResult> OnPostCloneSetAsync(int templateId, int setId)
+        {
+            // Validate ownership
+            var currentUser = await _context.GetCurrentUserAsync();
+            if (currentUser == null)
+            {
+                return RedirectToPage("/Account/Login");
+            }
+
+            var template = await _context.WorkoutTemplate
+                .FirstOrDefaultAsync(t => t.WorkoutTemplateId == templateId);
+
+            if (template == null || template.UserId != currentUser.UserId)
+            {
+                return Forbid();
+            }
+
+            // Find set to clone and verify it belongs to the template
+            var setToClone = await _context.WorkoutTemplateSet
+                .Include(s => s.WorkoutTemplateExercise)
+                .FirstOrDefaultAsync(s => s.WorkoutTemplateSetId == setId && 
+                                        s.WorkoutTemplateExercise.WorkoutTemplateId == templateId);
+
+            if (setToClone == null)
+            {
+                return NotFound();
+            }
+
+            // Get the highest sequence number in this exercise's sets
+            var maxSequenceNum = await _context.WorkoutTemplateSet
+                .Where(s => s.WorkoutTemplateExerciseId == setToClone.WorkoutTemplateExerciseId)
+                .Select(s => s.SequenceNum)
+                .DefaultIfEmpty(0)
+                .MaxAsync();
+
+            // Create a clone with next sequence number
+            var clonedSet = new WorkoutTemplateSet
+            {
+                WorkoutTemplateExerciseId = setToClone.WorkoutTemplateExerciseId,
+                SettypeId = setToClone.SettypeId,
+                DefaultReps = setToClone.DefaultReps,
+                DefaultWeight = setToClone.DefaultWeight,
+                SequenceNum = maxSequenceNum + 1,
+                Description = string.IsNullOrEmpty(setToClone.Description) 
+                    ? "Clone of Set #" + setToClone.SequenceNum
+                    : setToClone.Description + " (Clone)",
+                Notes = setToClone.Notes
+            };
+
+            _context.WorkoutTemplateSet.Add(clonedSet);
+            
+            // Update template modification date
+            template.LastModifiedDate = DateTime.Now;
+
+            await _context.SaveChangesAsync();
+            
+            // Invalidate output cache for this template
+            await _cacheStore.EvictByTagAsync($"template-{templateId}", default);
+
+            return RedirectToPage("./Edit", new { id = templateId });
+        }
+
+        public async Task<IActionResult> OnPostEditSetAsync(int templateId, int setId, int settypeId, 
+            int defaultReps, decimal defaultWeight, int sequenceNum, string description, string notes)
+        {
+            // Validate ownership
+            var currentUser = await _context.GetCurrentUserAsync();
+            if (currentUser == null)
+            {
+                return RedirectToPage("/Account/Login");
+            }
+
+            var template = await _context.WorkoutTemplate
+                .FirstOrDefaultAsync(t => t.WorkoutTemplateId == templateId);
+
+            if (template == null || template.UserId != currentUser.UserId)
+            {
+                return Forbid();
+            }
+
+            // Find the set and verify it belongs to the template
+            var setToUpdate = await _context.WorkoutTemplateSet
+                .Include(s => s.WorkoutTemplateExercise)
+                .FirstOrDefaultAsync(s => s.WorkoutTemplateSetId == setId && 
+                                      s.WorkoutTemplateExercise.WorkoutTemplateId == templateId);
+
+            if (setToUpdate == null)
+            {
+                return NotFound();
+            }
+
+            // Update set properties
+            setToUpdate.SettypeId = settypeId;
+            setToUpdate.DefaultReps = defaultReps;
+            setToUpdate.DefaultWeight = defaultWeight;
+            setToUpdate.SequenceNum = sequenceNum;
+            setToUpdate.Description = description ?? string.Empty;
+            setToUpdate.Notes = notes ?? string.Empty;
+            
+            // Update template modification date
+            template.LastModifiedDate = DateTime.Now;
+
+            await _context.SaveChangesAsync();
+            
+            // Invalidate output cache for this template
+            await _cacheStore.EvictByTagAsync($"template-{templateId}", default);
+
+            return RedirectToPage("./Edit", new { id = templateId });
+        }
+
         private bool TemplateExists(int id)
         {
             return _context.WorkoutTemplate.Any(e => e.WorkoutTemplateId == id);

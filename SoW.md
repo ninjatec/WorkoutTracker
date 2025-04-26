@@ -272,10 +272,6 @@
    - [ ] Add coaching package management with automated renewals
    - [ ] Develop client onboarding workflow with assessments
    - [ ] Add coaching credential management and display
-  
-[ ] Templates Improvment
-  - [ ] Clone a Set
-  - [ ] Edit a Set
  
 [x] Add calculated total volume and estimate calories to Workout and Sets views
  - [x] Design and implement calorie calculation service
