@@ -337,14 +337,11 @@
    - [x] Create user guide for interpreting volume/calorie metrics
    - [x] Document API changes and examples
 
-[ ] Make the reports page tabbed adding volume and calories reports
+[ ] Make the reports page an accordian adding volume and calories reports
  - [ ] Design and implement tabbed interface for reports page
-   - [ ] Create Bootstrap tab structure in Reports/Index.cshtml
-   - [ ] Design responsive tab layout for both desktop and mobile views
-   - [ ] Add tab navigation with appropriate icons and labels
-   - [ ] Implement tab state persistence using query parameters or local storage
-   - [ ] Add smooth transitions between tabs with animation
-   - [ ] Ensure accessibility compliance for tab navigation
+   - [ ] Create accordian structure in Reports/Index.cshtml
+   - [ ] Design responsive accordian layout for both desktop and mobile views
+   - [ ] Add accordian navigation with appropriate icons and labels
 
  - [ ] Implement volume analysis reports tab
    - [ ] Create VolumeAnalysisViewModel to aggregate volume metrics
@@ -364,36 +361,21 @@
    - [ ] Add calorie expenditure forecasting based on planned workouts
    - [ ] Develop calorie visualization comparing different exercise types
 
- - [ ] Enhance existing personal records tab
+ - [ ] Enhance existing personal records
    - [ ] Update personal records view to fit new tabbed interface
    - [ ] Add filtering options for record categories
    - [ ] Implement visual indicators for recent records
    - [ ] Create record history tracking to show progression
    - [ ] Add export functionality for personal records
 
- - [ ] Create progress tracking tab
+ - [ ] Create progress tracking accordian
    - [ ] Develop integrated view of key performance indicators
    - [ ] Implement customizable progress metrics selection
    - [ ] Add milestone tracking and celebration notifications
    - [ ] Create progress snapshot comparisons
    - [ ] Implement goal setting and tracking visualization
 
- - [ ] Update shared reports functionality
-   - [ ] Ensure all new tabs work with shared workout reports
-   - [ ] Implement appropriate permissions for different tabs
-   - [ ] Add tab visibility toggle for shared report links
-   - [ ] Create simplified view for shared access
-
- - [ ] Implement data loading optimization
-   - [ ] Add lazy loading for tab content to improve performance
-   - [ ] Implement background data loading for inactive tabs
-   - [ ] Create caching mechanism for report data
-   - [ ] Add loading indicators for data-intensive reports
-   - [ ] Optimize database queries specific to each tab
-
  - [ ] Enhance the user experience
-   - [ ] Create printable report view for each tab
    - [ ] Add export to PDF option for all report tabs
-   - [ ] Implement date range picker for customizable reporting periods
    - [ ] Add data tooltips and help information for metrics
-   - [ ] Create mobile-optimized views for each tab
+   - [ ] Create mobile-optimized views for each section

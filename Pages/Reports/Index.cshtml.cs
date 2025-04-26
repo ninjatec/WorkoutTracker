@@ -15,6 +15,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using ILogger = Serilog.ILogger;
+using WorkoutTrackerWeb.Services.Calculations;
 
 namespace WorkoutTrackerWeb.Pages.Reports
 {
@@ -24,14 +25,22 @@ namespace WorkoutTrackerWeb.Pages.Reports
         private readonly WorkoutTrackerWebContext _context;
         private readonly IDistributedCache _cache;
         private readonly ILogger _logger;
+        private readonly IVolumeCalculationService _volumeCalculationService;
+        private readonly ICalorieCalculationService _calorieCalculationService;
         public const int PageSize = 10;
         private const int CacheDurationMinutes = 5;
 
-        public IndexModel(WorkoutTrackerWebContext context, IDistributedCache cache)
+        public IndexModel(
+            WorkoutTrackerWebContext context, 
+            IDistributedCache cache,
+            IVolumeCalculationService volumeCalculationService,
+            ICalorieCalculationService calorieCalculationService)
         {
             _context = context;
             _cache = cache;
             _logger = Log.ForContext<IndexModel>();
+            _volumeCalculationService = volumeCalculationService;
+            _calorieCalculationService = calorieCalculationService;
         }
 
         // Class for pagination info to replace tuple
@@ -69,11 +78,31 @@ namespace WorkoutTrackerWeb.Pages.Reports
             public string SessionName { get; set; }
         }
 
+        public class VolumeData
+        {
+            public string ExerciseName { get; set; }
+            public double TotalVolume { get; set; }
+            public List<DateTime> Dates { get; set; } = new List<DateTime>();
+            public List<double> Volumes { get; set; } = new List<double>();
+        }
+
+        public class CalorieData
+        {
+            public string ExerciseName { get; set; }
+            public double TotalCalories { get; set; }
+            public List<DateTime> Dates { get; set; } = new List<DateTime>();
+            public List<double> Calories { get; set; } = new List<double>();
+        }
+
         public RepStatusData OverallStatus { get; set; }
         public List<ExerciseStatusData> ExerciseStatusList { get; set; }
         public List<ExerciseStatusData> RecentExerciseStatusList { get; set; }
         public List<WeightProgressData> WeightProgressList { get; set; } = new List<WeightProgressData>();
         public List<PersonalRecordData> PersonalRecords { get; set; } = new List<PersonalRecordData>();
+        public List<VolumeData> VolumeDataList { get; set; } = new List<VolumeData>();
+        public double TotalWorkoutVolume { get; set; }
+        public List<CalorieData> CalorieDataList { get; set; } = new List<CalorieData>();
+        public double TotalCaloriesBurned { get; set; }
         public int CurrentPage { get; set; }
         public int TotalPages { get; set; }
         public int ReportPeriod { get; set; } = 90; // Default to 90 days
@@ -146,16 +175,21 @@ namespace WorkoutTrackerWeb.Pages.Reports
             var exerciseStatusCacheKey = GetCacheKey($"ExerciseStatus_{ReportPeriod}", user.UserId);
             var recentExerciseStatusCacheKey = GetCacheKey($"RecentExerciseStatus_{ReportPeriod}", user.UserId);
             var weightProgressCacheKey = GetCacheKey($"WeightProgress_{ReportPeriod}", user.UserId);
+            var volumeDataCacheKey = GetCacheKey($"VolumeData_{ReportPeriod}", user.UserId);
+            var calorieDataCacheKey = GetCacheKey($"CalorieData_{ReportPeriod}", user.UserId);
 
             // Check and retrieve from cache or compute each report component
             OverallStatus = GetFromCache<RepStatusData>(overallStatusCacheKey);
             ExerciseStatusList = GetFromCache<List<ExerciseStatusData>>(exerciseStatusCacheKey);
             RecentExerciseStatusList = GetFromCache<List<ExerciseStatusData>>(recentExerciseStatusCacheKey);
             WeightProgressList = GetFromCache<List<WeightProgressData>>(weightProgressCacheKey);
+            VolumeDataList = GetFromCache<List<VolumeData>>(volumeDataCacheKey);
+            CalorieDataList = GetFromCache<List<CalorieData>>(calorieDataCacheKey);
 
             // If any of the cached items are missing, we need to query the database
             if (OverallStatus == null || ExerciseStatusList == null || 
-                RecentExerciseStatusList == null || WeightProgressList == null)
+                RecentExerciseStatusList == null || WeightProgressList == null ||
+                VolumeDataList == null || CalorieDataList == null)
             {
                 // Optimize queries by combining related data fetching
                 var allSetsWithReps = await _context.Set
@@ -163,6 +197,13 @@ namespace WorkoutTrackerWeb.Pages.Reports
                     .Include(s => s.ExerciseType)
                     .Include(s => s.Reps)
                     .Where(s => s.Session.UserId == user.UserId && s.Session.datetime >= reportPeriodDate)
+                    .AsNoTracking()
+                    .ToListAsync();
+
+                // Get all sessions in the period
+                var allSessions = await _context.Session
+                    .Where(s => s.UserId == user.UserId && s.datetime >= reportPeriodDate)
+                    .OrderBy(s => s.datetime)
                     .AsNoTracking()
                     .ToListAsync();
 
@@ -234,6 +275,159 @@ namespace WorkoutTrackerWeb.Pages.Reports
                         .ToList();
                     
                     SetCache(weightProgressCacheKey, WeightProgressList);
+                }
+
+                // Calculate volume data if not in cache
+                if (VolumeDataList == null)
+                {
+                    var exerciseData = allSetsWithReps
+                        .GroupBy(s => s.ExerciseType.Name)
+                        .ToDictionary(
+                            g => g.Key,
+                            g => g.ToList()
+                        );
+
+                    var sessionData = allSetsWithReps
+                        .GroupBy(s => s.Session.datetime.Date)
+                        .OrderBy(g => g.Key)
+                        .ToList();
+
+                    VolumeDataList = exerciseData.Select(ed => {
+                        var volumeData = new VolumeData {
+                            ExerciseName = ed.Key,
+                            TotalVolume = ed.Value.Sum(s => _volumeCalculationService.CalculateSetVolume(s))
+                        };
+
+                        // Add data points for each date
+                        foreach (var dateGroup in sessionData)
+                        {
+                            volumeData.Dates.Add(dateGroup.Key);
+                            
+                            // Find sets for this exercise on this date
+                            var setsOnDate = dateGroup
+                                .Where(s => s.ExerciseType.Name == ed.Key)
+                                .ToList();
+
+                            // Calculate volume for this date
+                            double volumeOnDate = setsOnDate.Sum(s => _volumeCalculationService.CalculateSetVolume(s));
+                            volumeData.Volumes.Add(volumeOnDate);
+                        }
+
+                        return volumeData;
+                    })
+                    .OrderByDescending(v => v.TotalVolume)
+                    .ToList();
+
+                    TotalWorkoutVolume = VolumeDataList.Sum(v => v.TotalVolume);
+                    
+                    SetCache(volumeDataCacheKey, VolumeDataList);
+                }
+                else
+                {
+                    TotalWorkoutVolume = VolumeDataList.Sum(v => v.TotalVolume);
+                }
+
+                // Calculate calorie data if not in cache
+                if (CalorieDataList == null)
+                {
+                    // Get all sessions with their total calories
+                    var sessionCalories = new Dictionary<int, double>();
+                    foreach (var session in allSessions)
+                    {
+                        double calories = await _calorieCalculationService.CalculateSessionCaloriesAsync(session.SessionId);
+                        sessionCalories[session.SessionId] = calories;
+                    }
+
+                    var exerciseData = allSetsWithReps
+                        .GroupBy(s => s.ExerciseType.Name)
+                        .ToDictionary(
+                            g => g.Key,
+                            g => g.ToList()
+                        );
+
+                    var sessionDates = allSessions
+                        .GroupBy(s => s.datetime.Date)
+                        .OrderBy(g => g.Key)
+                        .ToDictionary(
+                            g => g.Key,
+                            g => g.ToList()
+                        );
+
+                    CalorieDataList = new List<CalorieData>();
+                    
+                    // For each exercise type, calculate calories over time
+                    foreach (var ed in exerciseData)
+                    {
+                        var calorieData = new CalorieData {
+                            ExerciseName = ed.Key
+                        };
+
+                        // Calculate calories for each exercise
+                        double totalCalories = 0;
+                        foreach (var set in ed.Value)
+                        {
+                            // Create a weighted distribution of calories based on volume proportion
+                            double setVolume = _volumeCalculationService.CalculateSetVolume(set);
+                            double sessionVolume = allSetsWithReps
+                                .Where(s => s.SessionId == set.SessionId)
+                                .Sum(s => _volumeCalculationService.CalculateSetVolume(s));
+                            
+                            double proportion = sessionVolume > 0 ? setVolume / sessionVolume : 0;
+                            double sessionCalorie = sessionCalories.ContainsKey(set.SessionId) ? sessionCalories[set.SessionId] : 0;
+                            double caloriesForSet = proportion * sessionCalorie;
+                            
+                            totalCalories += caloriesForSet;
+                        }
+                        
+                        calorieData.TotalCalories = totalCalories;
+
+                        // Add data points for each date
+                        foreach (var dateEntry in sessionDates)
+                        {
+                            DateTime date = dateEntry.Key;
+                            calorieData.Dates.Add(date);
+                            
+                            // Find sessions on this date
+                            var sessionsOnDate = dateEntry.Value;
+                            
+                            // Calculate calories for this exercise on this date
+                            double caloriesOnDate = 0;
+                            foreach (var session in sessionsOnDate)
+                            {
+                                // Get sets for this exercise in this session
+                                var setsInSession = allSetsWithReps
+                                    .Where(s => s.SessionId == session.SessionId && s.ExerciseType.Name == ed.Key)
+                                    .ToList();
+                                
+                                // Calculate proportion of volume for this exercise
+                                double exerciseVolume = setsInSession.Sum(s => _volumeCalculationService.CalculateSetVolume(s));
+                                double totalSessionVolume = allSetsWithReps
+                                    .Where(s => s.SessionId == session.SessionId)
+                                    .Sum(s => _volumeCalculationService.CalculateSetVolume(s));
+                                
+                                double proportion = totalSessionVolume > 0 ? exerciseVolume / totalSessionVolume : 0;
+                                double sessionCalorie = sessionCalories.ContainsKey(session.SessionId) ? sessionCalories[session.SessionId] : 0;
+                                
+                                caloriesOnDate += proportion * sessionCalorie;
+                            }
+                            
+                            calorieData.Calories.Add(caloriesOnDate);
+                        }
+
+                        CalorieDataList.Add(calorieData);
+                    }
+
+                    CalorieDataList = CalorieDataList
+                        .OrderByDescending(c => c.TotalCalories)
+                        .ToList();
+
+                    TotalCaloriesBurned = CalorieDataList.Sum(c => c.TotalCalories);
+                    
+                    SetCache(calorieDataCacheKey, CalorieDataList);
+                }
+                else
+                {
+                    TotalCaloriesBurned = CalorieDataList.Sum(c => c.TotalCalories);
                 }
             }
 
@@ -311,6 +505,8 @@ namespace WorkoutTrackerWeb.Pages.Reports
                 cache.Remove($"Reports:ExerciseStatus_{period}:{userId}");
                 cache.Remove($"Reports:RecentExerciseStatus_{period}:{userId}");
                 cache.Remove($"Reports:WeightProgress_{period}:{userId}");
+                cache.Remove($"Reports:VolumeData_{period}:{userId}");
+                cache.Remove($"Reports:CalorieData_{period}:{userId}");
             }
             
             cache.Remove($"Reports:PaginationInfo:{userId}");
