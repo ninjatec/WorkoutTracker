@@ -55,13 +55,26 @@ namespace WorkoutTrackerWeb.Pages.Workouts
             return Page();
         }
 
-        public async Task<IActionResult> OnPostCreateSessionAsync()
+        public async Task<IActionResult> OnPostCreateSessionAsync(bool finishCurrent = false)
         {
             try
             {
+                // Check if we need to finish an existing session first
+                if (finishCurrent)
+                {
+                    await CheckForActiveSessionAsync();
+                    
+                    if (QuickWorkout.HasActiveSession && QuickWorkout.CurrentSession != null)
+                    {
+                        // Finish the current workout session
+                        await _quickWorkoutService.FinishQuickWorkoutSessionAsync(
+                            QuickWorkout.CurrentSession.SessionId);
+                    }
+                }
+                
                 // Create a new quick workout session
                 var session = await _quickWorkoutService.CreateQuickWorkoutSessionAsync(
-                    QuickWorkout.NewSessionName);
+                    Request.Form["NewSessionName"]);
                 
                 // Set success message
                 StatusMessage = $"Successfully created new quick workout: {session.Name}";
@@ -122,6 +135,45 @@ namespace WorkoutTrackerWeb.Pages.Workouts
             {
                 _logger.LogError(ex, "Error adding quick set");
                 StatusMessage = $"Error adding set: {ex.Message}";
+                return RedirectToPage();
+            }
+        }
+        
+        public async Task<IActionResult> OnPostFinishSessionAsync()
+        {
+            try
+            {
+                // Check for active session
+                await CheckForActiveSessionAsync();
+                
+                if (QuickWorkout.CurrentSession == null || !QuickWorkout.HasActiveSession)
+                {
+                    StatusMessage = "No active session found to finish.";
+                    return RedirectToPage();
+                }
+                
+                // Get the session details before finishing it
+                var sessionName = QuickWorkout.CurrentSession.Name;
+                var sessionId = QuickWorkout.CurrentSession.SessionId;
+                
+                // Finish the current workout session
+                await _quickWorkoutService.FinishQuickWorkoutSessionAsync(sessionId);
+                
+                // Force clearing of the current session
+                QuickWorkout.HasActiveSession = false;
+                QuickWorkout.CurrentSession = null;
+                QuickWorkout.RecentSets = new List<Set>();
+                
+                // Set success message
+                StatusMessage = $"Successfully finished workout: {sessionName}";
+                
+                // Redirect to the same page with a parameter to prevent caching
+                return RedirectToPage(new { t = DateTime.Now.Ticks });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error finishing workout session");
+                StatusMessage = $"Error finishing session: {ex.Message}";
                 return RedirectToPage();
             }
         }

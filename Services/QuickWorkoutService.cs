@@ -78,10 +78,31 @@ namespace WorkoutTrackerWeb.Services
                 throw new InvalidOperationException("User not found");
             }
 
+            // Only generate default name if one wasn't provided
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                var now = DateTime.Now;
+                var dayOfWeek = now.DayOfWeek.ToString();
+                
+                // Determine time of day
+                string timeOfDay;
+                var hour = now.Hour;
+                if (hour >= 5 && hour < 12)
+                    timeOfDay = "Morning";
+                else if (hour >= 12 && hour < 17)
+                    timeOfDay = "Afternoon";
+                else if (hour >= 17 && hour < 21)
+                    timeOfDay = "Evening";
+                else
+                    timeOfDay = "Night";
+                
+                name = $"{dayOfWeek} - {timeOfDay} Workout";
+            }
+
             // Create a new session with the current date/time
             var session = new WorkoutTrackerWeb.Models.Session
             {
-                Name = name ?? $"Quick Workout {DateTime.Now:MMM d, HH:mm}",
+                Name = name,
                 datetime = DateTime.Now,
                 UserId = userId.Value,
                 Notes = "Created using Quick Workout mode"
@@ -220,7 +241,7 @@ namespace WorkoutTrackerWeb.Services
         }
         
         /// <summary>
-        /// Checks if a session is currently in progress (created within the last 3 hours)
+        /// Checks if a session is currently in progress (created within the last 3 hours and not marked as completed)
         /// </summary>
         public async Task<bool> HasActiveQuickWorkoutAsync()
         {
@@ -230,9 +251,42 @@ namespace WorkoutTrackerWeb.Services
                 return false;
             }
             
+            // Check if session is marked as completed
+            if (latestSession.Notes != null && latestSession.Notes.Contains("Completed at"))
+            {
+                return false;
+            }
+            
             // Consider a session "active" if it was created within the last 3 hours
             var activeTimeWindow = TimeSpan.FromHours(3);
             return DateTime.Now - latestSession.datetime < activeTimeWindow;
+        }
+
+        /// <summary>
+        /// Marks a quick workout session as finished by updating the notes
+        /// </summary>
+        public async Task<WorkoutTrackerWeb.Models.Session> FinishQuickWorkoutSessionAsync(int sessionId)
+        {
+            // Validate the session belongs to the current user
+            var userId = await _userService.GetCurrentUserIdAsync();
+            var session = await _context.Session
+                .FirstOrDefaultAsync(s => s.SessionId == sessionId && s.UserId == userId);
+                
+            if (session == null)
+            {
+                throw new InvalidOperationException("Session not found or doesn't belong to current user");
+            }
+            
+            // Update the notes to indicate the session is completed
+            session.Notes = $"{session.Notes} - Completed at {DateTime.Now:yyyy-MM-dd HH:mm}";
+            
+            _context.Update(session);
+            await _context.SaveChangesAsync();
+            
+            _logger.LogInformation("Finished quick workout session {SessionId} for user {UserId}", 
+                session.SessionId, userId);
+            
+            return session;
         }
     }
 }

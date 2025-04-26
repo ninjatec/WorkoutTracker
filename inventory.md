@@ -520,6 +520,9 @@ While the primary UI is built with Razor Pages, the application includes API fun
    - Minimal input required for fast logging
    - Session continuation with recent workout tracking
    - One-tap exercise selection for faster tracking
+   - "Finish Workout" button to explicitly complete a session
+   - "New Workout" option to finish current and start a new session
+   - Intelligent session naming with day and time of day context
 
 ### Shared Workout Views
 

@@ -46,10 +46,23 @@
                                 Started @Model.QuickWorkout.CurrentSession.datetime.ToString("HH:mm")
                             </span>
                         </div>
-                        <a asp-page="/Sessions/Details" asp-route-id="@Model.QuickWorkout.CurrentSession.SessionId" 
-                           class="btn btn-outline-primary">
-                            <i class="bi bi-eye me-1"></i> View Full Session
-                        </a>
+                        <div class="d-flex gap-2 mt-2">
+                            <a asp-page="/Sessions/Details" asp-route-id="@Model.QuickWorkout.CurrentSession.SessionId" 
+                               class="btn btn-outline-primary flex-grow-1">
+                                <i class="bi bi-eye me-1"></i> View Details
+                            </a>
+                            <form method="post" asp-page-handler="FinishSession" class="d-inline flex-grow-1">
+                                <button type="submit" class="btn btn-outline-success w-100" 
+                                        onclick="return confirm('Are you sure you want to finish this workout session?')">
+                                    <i class="bi bi-check-circle me-1"></i> Finish Workout
+                                </button>
+                            </form>
+                        </div>
+                        <div class="mt-2 d-grid">
+                            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newWorkoutModal">
+                                <i class="bi bi-plus-circle me-1"></i> Start New Workout
+                            </button>
+                        </div>
                     }
                     else
                     {
@@ -59,7 +72,7 @@
                                 <input asp-for="QuickWorkout.NewSessionName" class="form-control" 
                                        placeholder="Quick Workout (auto-generated if empty)" />
                             </div>
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="btn btn-primary w-100">
                                 <i class="bi bi-play-fill me-1"></i> Start Workout
                             </button>
                         </form>
@@ -321,6 +334,38 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Workout Modal -->
+<div class="modal fade" id="newWorkoutModal" tabindex="-1" aria-labelledby="newWorkoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="newWorkoutModalLabel">Start New Workout</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-warning">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    You already have an active workout session. Starting a new one will finish the current session.
+                </p>
+                <form method="post" asp-page-handler="CreateSession" id="newWorkoutForm">
+                    <input type="hidden" name="finishCurrent" value="true" />
+                    <div class="mb-3">
+                        <label for="newSessionName" class="form-label">New Session Name</label>
+                        <input type="text" class="form-control" id="newSessionName" name="NewSessionName" 
+                               placeholder="Quick Workout (auto-generated if empty)" />
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="newWorkoutForm" class="btn btn-primary">
+                    <i class="bi bi-play-fill me-1"></i> Start New Workout
+                </button>
             </div>
         </div>
     </div>
