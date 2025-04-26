@@ -917,7 +917,7 @@ try
         context.Response.Headers["Content-Security-Policy"] = 
             "default-src 'self'; " +
             "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net 'unsafe-inline'; " + 
-            "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://cdn.jsdelivr.net/npm/bootstrap-icons/font 'unsafe-inline'; " + 
+            "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css 'unsafe-inline'; " + 
             "img-src 'self' data: https://cdn.jsdelivr.net; " + 
             "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
             "connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online " +
