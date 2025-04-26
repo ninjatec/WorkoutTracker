@@ -209,282 +209,270 @@
    - [ ] Add user guide for HealthKit export workflow
    - [ ] Document iOS companion app export functionality
 
-## Admin Metrics Dashboard
-[x] Implement comprehensive admin metrics dashboard
- - [x] Create dedicated metrics visualization page
-   - [x] Design and implement Admin/Pages/Metrics/Index.cshtml Razor Page
-   - [x] Create sidebar navigation link in _AdminLayout.cshtml
-   - [x] Implement responsive design with Bootstrap 5 grid system
-   - [x] Add role-based authorization requiring Admin role
-   - [x] Create tab-based interface for different metric categories
 
- - [x] Implement real-time system metrics display
-   - [x] Create SystemMetricsViewComponent for server statistics
-   - [x] Add CPU, memory, and disk usage monitoring panels
-   - [x] Implement database connection pool visualization
-   - [x] Create Redis cache hit/miss ratio display
-   - [x] Add Hangfire queue length and processing rate panels
-   - [x] Implement auto-refresh functionality with configurable intervals
-
- - [x] Build user activity metrics section
-   - [x] Create UserActivityViewComponent for engagement statistics
-   - [x] Implement daily/weekly/monthly active user charts
-   - [x] Add user registration trend visualization
-   - [x] Create login success/failure rate display
-   - [x] Implement user retention analysis charts
-   - [x] Add cohort analysis for user engagement patterns
-   - [x] Create geographic distribution map of user logins
-
- - [x] Develop workout statistics visualization
-   - [x] Create WorkoutMetricsViewComponent for usage statistics
-   - [x] Implement charts for sessions, sets, and reps created over time
-   - [x] Add exercise type popularity visualization
-   - [x] Create workout duration and intensity trend analysis
-   - [x] Implement completion rate statistics for workout sessions
-   - [x] Add personal record achievement rate visualization
-   - [x] Create time-of-day workout pattern analysis
-
- - [x] Implement performance metrics dashboard
-   - [x] Create PerformanceMetricsViewComponent for system performance
-   - [x] Add HTTP request duration histograms by endpoint
-   - [x] Implement database query performance visualization
-   - [x] Create API response time tracking with percentiles
-   - [x] Add page load time visualization by route
-   - [x] Implement resource utilization trend charts
-   - [x] Create error rate visualization with drill-down capability
-
- - [x] Add health check status dashboard
-   - [x] Create HealthCheckViewComponent for service health visualization
-   - [x] Implement service dependency diagram with status indicators
-   - [x] Add historical uptime tracking with SLA calculation
-   - [x] Create circuit breaker state visualization
-   - [x] Implement health check response time tracking
-   - [x] Add service dependency failure impact analysis
-
- - [x] Build alerting and notification system
-   - [x] Create AlertingService for threshold-based notifications
-   - [x] Implement alert configuration interface with thresholds
-   - [x] Add email notification for critical metric thresholds
-   - [x] Create in-app notification system for warnings
-   - [x] Implement alert history and acknowledgment tracking
-   - [x] Add escalation policy configuration for unresolved alerts
-
- - [x] Implement export and reporting functionality
-   - [x] Create PDF/CSV export for dashboard metrics
-   - [x] Implement scheduled report generation and delivery
-   - [x] Add custom date range selection for metric analysis
-   - [x] Create report template configuration system
-   - [x] Implement comparison view for different time periods
-   - [x] Add annotation capability for correlation analysis
-
- - [x] Enhance metric collection system
-   - [x] Expand WorkoutTrackerMetrics class with additional metrics
-   - [x] Add custom dimensions to existing metrics for better analysis
-   - [x] Implement client-side performance metric collection
-   - [x] Create business-focused KPI metrics collection
-   - [x] Add custom metric definition interface for administrators
-   - [x] Implement metric aggregation for high-cardinality data points
-
- - [x] Documentation and testing
-   - [x] Create admin guide for metrics dashboard usage
-   - [x] Add metrics dashboard components to inventory.md
-   - [x] Implement unit tests for metric calculation logic
-   - [x] Create integration tests for dashboard components
-   - [x] Document alert threshold recommendations
-   - [x] Add performance impact analysis of metric collection
-
-   ## Expand excercise types 
-[x] Expand excercise types with integration to https://www.api-ninjas.com/api/exercises
- - [x] Set up API Ninjas integration
-   - [x] Create ExerciseApiService to handle API communication
-   - [x] Implement secure API key storage and configuration
-   - [x] Add rate limiting support to prevent API quota exhaustion
-   - [x] Implement HTTP client factory pattern for resilient API calls
-   - [x] Add proper error handling and logging for API failures
-
- - [x] Develop exercise data models
-   - [x] Create ExerciseApiResponse model matching API Ninjas schema
-   - [x] Implement mapping between API data and ExerciseType model
-   - [x] Add support for extended attributes (muscle groups, difficulty, instructions)
-   - [x] Create ExerciseTypeExtended model for storing additional metadata
-   - [x] Update database schema to accommodate new exercise attributes
-
- - [x] Create Admin UI for exercise management
-   - [x] Add "Import from API" button to ExerciseTypes/Index page
-   - [x] Create exercise search interface with filtering options (muscle group, difficulty, type)
-   - [x] Implement paginated results for large API responses
-   - [x] Add preview functionality before importing exercises
-   - [x] Create bulk selection and import capabilities
-   - [x] Implement duplicate detection and handling
-
- - [x] Enhance exercise type views with new metadata
-   - [x] Update ExerciseTypes/Details.cshtml to show extended attributes
-   - [x] Add muscle group visualization with SVG body map
-   - [x] Create collapsible exercise instructions section
-   - [x] Implement difficulty indicator with visual cues
-   - [x] Add equipment requirements section to exercise details
-   - [x] Create related/alternative exercises section
-
- - [x] Implement background processing for large imports
-   - [x] Add Hangfire job for bulk exercise import
-   - [x] Create progress tracking with SignalR notifications
-   - [x] Implement cancellation support for ongoing imports
-   - [x] Add retry mechanism for failed API requests
-   - [x] Create import history and audit trail
-
- - [x] Build exercise data caching system
-   - [x] Implement local database cache of API responses
-   - [x] Add cache invalidation strategy with reasonable TTL
-   - [x] Create background refresh job for popular exercises
-   - [x] Implement cache warming on application startup
-   - [x] Add manual cache refresh option in admin interface
-
- - [x] Enhance user workout experience with new data
-   - [x] Update set creation flow to show exercise instructions
-   - [x] Add muscle group highlighting when selecting exercises
-   - [x] Implement exercise difficulty warning for beginners
-   - [x] Create "similar exercises" recommendations
-   - [x] Add exercise rotation suggestions to avoid overtraining
-
- - [x] Develop reporting and analytics enhancements
-   - [x] Create muscle group balance analysis in Reports page
-   - [x] Add exercise variety metrics to user dashboard
-   - [x] Implement exercise difficulty progression tracking
-   - [x] Create workout completeness score based on muscle groups
-   - [x] Add intelligent workout suggestions based on history
-
- - [x] Add documentation and testing
-   - [x] Update README.md with API integration details
-   - [x] Add new components to inventory.md
-   - [x] Create unit tests for API service and mapping logic
-   - [x] Implement integration tests for import process
-   - [x] Add user guide for exercise search and details features
-
-
-## Admin Functions
-[x] Log Level
-- [x] Add the Ability to manage the log level and control from a link under the System Settings link from the admin dashboard
- - [x] Implement log level configuration system
-   - [x] Create LogLevel configuration model/entity to store settings
-   - [x] Add LoggingService to manage log level changes at runtime
-   - [x] Implement configuration persistence in database
-   - [x] Create interface for logging providers to adapt to level changes
-   - [x] Add configuration reload mechanism for real-time changes
-
- - [x] Develop admin UI for log management
-   - [x] Create LogLevel admin page accessible from System Settings
-   - [x] Implement dropdown selection for global log level (Debug, Info, Warning, Error, Critical)
-   - [x] Add category-specific log level controls for granular management
-
-
- - [x] Enhance logging infrastructure
-   - [x] Implement structured logging with Serilog
-   - [x] Add log enrichment with contextual information (user, request, etc.)
-   - [x] Create log sinks for different output targets (file, console, database)
-
- - [x] Implement security and access controls
-   - [x] Restrict log management to admin users only
-   - [x] Add audit logging for log level changes
-
- - [x] Update documentation
-   - [x] Document logging architecture in README.md
-   - [x] Update inventory.md with new logging components
-
----
----
-
-[x] Update the Import page DataPortability/Import to use background jobs worker hangfire
- - [x] Add background job support to standard JSON import functionality
-   - [x] Refactor WorkoutDataPortabilityService to support async background processing
-   - [x] Create job progress model similar to existing ImportTrainAI implementation
-   - [x] Add support for SignalR progress updates in the WorkoutDataPortabilityService
-   - [x] Implement proper error handling and job status reporting
-   - [x] Update service to support both direct and background processing modes
- 
- - [x] Enhance BackgroundJobService to handle JSON imports
-   - [x] Add method to queue JSON imports as background jobs 
-   - [x] Implement progress tracking for JSON imports
-   - [x] Create job completion notification mechanism
-   - [x] Add error handling and job failure recovery
-   - [x] Ensure proper cleanup of resources after job completion
-
- - [x] Update Import page UI for background processing
-   - [x] Add real-time progress tracking with SignalR
-   - [x] Create progress bar and status indicators 
-   - [x] Implement connection state display (connected/disconnected)
-   - [x] Add fallback polling for job status when SignalR is unavailable
-   - [x] Display detailed import progress information
-
- - [x] Integrate with ImportProgressHub for real-time updates
-   - [x] Extend ImportProgressHub to support standard JSON imports
-   - [x] Implement client-side SignalR connection in Import.cshtml
-   - [x] Add code to register for job-specific updates
-   - [x] Handle reconnection scenarios and progress synchronization
-   - [x] Ensure proper job group management in the hub
-
- - [x] Update Import.cshtml.cs page model
-   - [x] Refactor OnPostAsync to use background job processing
-   - [x] Add JobId property to track background jobs
-   - [x] Implement job status checking functionality 
-   - [x] Add error message retrieval from failed jobs
-   - [x] Provide initial progress update when job starts
-
- - [x] Implement job status persistence and monitoring
-   - [x] Save job metadata for user reference
-   - [x] Add job status polling endpoint for fallback scenarios
-   - [x] Create job cancellation functionality
-   - [x] Implement job cleanup for completed/failed imports
-   - [x] Add job history display for users to track past imports
-
- - [x] Add testing and documentation
-   - [x] Create unit tests for background job processing
-   - [x] Test with large import files to verify performance
-   - [x] Test error scenarios and recovery mechanisms
-   - [x] Update inventory.md with new components
-   - [x] Document the implementation in code comments
-
----
----
-
-[ ] Implement Mobile Optimization Improvements
- - [x] Enhance responsive design fundamentals
-   - [x] Conduct responsive design audit across all pages
-   - [x] Implement consistent viewport settings across application
-   - [x] Create mobile-first media query structure in CSS files
-   - [x] Add touch-friendly spacing for UI elements (min 44×44px touch targets)
-   - [x] Implement proper form field sizing for mobile input
-   - [x] Optimize table displays with responsive tables pattern
-   - [x] Create mobile-specific layouts for complex data pages
-
- - [x] Improve mobile navigation experience
-   - [x] Redesign main navigation with collapsible mobile menu
-   - [x] Create bottom navigation bar for critical mobile actions
-   - [x] Implement swipe gestures for common actions (delete, edit)
-   - [x] Add pull-to-refresh functionality for data lists
-   - [x] Create breadcrumb alternative for mobile context awareness
-   - [x] Implement session navigation shortcuts
-   - [x] Add haptic feedback for interactive elements
-
- - [x] Optimize performance for mobile networks
-   - [x] Implement image lazy loading across the application
-   - [x] Create mobile-optimized image sizes with srcset
-   - [x] Add progressive image loading for workout photos
-   - [x] Implement code splitting for JavaScript bundles
-   - [x] Create offline capabilities for critical functionality
-   - [x] Add data prefetching for common navigation paths
-   - [x] Implement service worker for asset caching
-
- - [ ] Develop mobile-specific features
-   - [x] Create quick workout mode optimized for gym use
-   - [x] Add timer functionality with vibration alerts
-   - [ ] Implement rest interval countdown timer
-   - [ ] Create one-handed operation mode
-   - [ ] Create simplified dashboard for mobile users
-
- - [ ] Update documentation and user guidance
-   - [ ] Create mobile-specific help content
-   - [ ] Implement contextual help for mobile interfaces
-   - [ ] Add mobile-specific tips and tricks section
-  
 [ ] Implement a Workout Template function for workout plans
+ - [ ] Create database models for workout templates
+   - [ ] Design WorkoutTemplate model with name, description, and metadata fields
+   - [ ] Create WorkoutTemplateExercise model for template exercise entries
+   - [ ] Implement WorkoutTemplateSet model with default values for reps, weight, etc.
+   - [ ] Add appropriate relationships between template models and existing models
+   - [ ] Create migration for adding template tables to database
+   - [ ] Add indexes for performance optimization
 
+ - [ ] Build template management backend services
+   - [ ] Create WorkoutTemplateService for CRUD operations
+   - [ ] Implement template copying and duplication functionality
+   - [ ] Add version control for templates with history tracking
+   - [ ] Develop template sharing capability between users
+   - [ ] Create template categorization and tagging system
+   - [ ] Add template search and filtering functionality
+
+ - [ ] Develop template user interface
+   - [ ] Create Templates/Index.cshtml for browsing template library
+   - [ ] Implement Templates/Create.cshtml for creating new templates
+   - [ ] Build Templates/Edit.cshtml for modifying existing templates
+   - [ ] Add Templates/Details.cshtml for viewing template details
+   - [ ] Create UI components for template exercise/set management
+   - [ ] Implement drag-and-drop exercise reordering in templates
+
+ - [ ] Implement workout planning from templates
+   - [ ] Add "Create Workout from Template" functionality to Sessions pages
+   - [ ] Create weekly/monthly workout planning calendar view
+   - [ ] Implement recurring workout scheduling from templates
+   - [ ] Add template-based workout plan generation
+   - [ ] Develop adaptive templates based on user progress
+   - [ ] Create "Quick Start" functionality from favorite templates
+
+ - [ ] Add template progression and periodization features
+   - [ ] Implement progressive overload calculations for templates
+   - [ ] Add periodization models (linear, undulating, block)
+   - [ ] Create auto-adjustment of template variables based on performance
+   - [ ] Implement deload week scheduling in template plans
+   - [ ] Add template variation management for exercise rotation
+   - [ ] Develop goal-based template progressions
+
+ - [ ] Create template sharing and discovery
+   - [ ] Build public template library with ratings and reviews
+   - [ ] Implement template import/export functionality
+   - [ ] Add template recommendations based on user goals
+   - [ ] Create featured/trending templates section
+   - [ ] Implement template access controls (public/private/shared)
+   - [ ] Add template attribution and proper crediting for shared templates
+
+ - [ ] Integrate templates with existing features
+   - [ ] Connect templates with reporting for progress tracking
+   - [ ] Update export functionality to include templates
+   - [ ] Integrate with sharing functionality for collaborative planning
+   - [ ] Update mobile views for template management
+   - [ ] Ensure compatibility with existing workout tracking flow
+   - [ ] Add template support to API endpoints
+
+ - [ ] Implement template analytics and insights
+   - [ ] Create performance metrics for template effectiveness
+   - [ ] Add completion rate tracking for template workouts
+   - [ ] Implement template comparison functionality
+   - [ ] Develop template optimization suggestions
+   - [ ] Create personalized template adaptation based on user data
+   - [ ] Add visual progress tracking for template-based plans
+
+ - [ ] Update documentation and testing
+   - [ ] Update README.md with template functionality details
+   - [ ] Add template components to inventory.md
+   - [ ] Create comprehensive user guide for workout templates
+   - [ ] Create sample templates for common workout programs
+
+[ ] Implement a feature set for coaches to have the ability to manage other users and plan workouts for them, including viewing all workout data and reports.
+ - [ ] Create coach role and permission system
+   - [ ] Add Coach role to identity system
+   - [ ] Create CoachPermission model to define granular access controls
+   - [ ] Implement CoachClientRelationship model to manage coach-client connections
+   - [ ] Add migrations for new coach-related database tables
+   - [ ] Create coach-specific authorization attributes and policies
+   - [ ] Implement user elevation workflow from regular user to coach status
+
+ - [ ] Develop client management for coaches
+   - [ ] Create Clients/Index.cshtml for coaches to view their client roster
+   - [ ] Implement client invitation system with secure tokens
+   - [ ] Add client connection request workflow for users seeking coaches
+   - [ ] Create client grouping and categorization features
+   - [ ] Develop client profile view with relevant fitness metrics
+   - [ ] Implement active/inactive client status management
+
+ - [ ] Build coach dashboard and analytics
+   - [ ] Create coach-specific dashboard with client overview
+   - [ ] Implement client progress snapshots and alerts
+   - [ ] Add client comparison views for group analysis
+   - [ ] Create scheduled check-in management system
+   - [ ] Develop client milestone tracking and celebration features
+   - [ ] Implement performance trend analysis across client base
+
+ - [ ] Implement workout programming for clients
+   - [ ] Create interface for coaches to develop client-specific workout templates
+   - [ ] Add ability to assign templates to individual clients or groups
+   - [ ] Implement workout scheduling with notification system
+   - [ ] Create workout adjustment tools based on client feedback
+   - [ ] Add automated progression rules configurable by coaches
+   - [ ] Develop exercise substitution suggestions based on equipment/limitations
+
+ - [ ] Create feedback and communication system
+   - [ ] Implement coach comments on individual workouts/exercises
+   - [ ] Add structured feedback forms for clients to complete
+   - [ ] Create RPE (Rate of Perceived Exertion) tracking for client feedback
+   - [ ] Develop direct messaging system between coach and client
+   - [ ] Add file/image sharing for form checks and demonstrations
+   - [ ] Implement video annotation tools for technique feedback
+
+ - [ ] Extend reporting system for coaches
+   - [ ] Create client-specific report views with coach annotations
+   - [ ] Implement comparative reporting across multiple clients
+   - [ ] Add aggregate statistics for coach effectiveness metrics
+   - [ ] Create exportable client reports for offline analysis
+   - [ ] Develop custom report builder for coach-specific metrics
+   - [ ] Add report scheduling with automatic delivery options
+
+ - [ ] Implement client-specific goal setting
+   - [ ] Create goal management interface for coaches
+   - [ ] Add progress tracking toward client-specific goals
+   - [ ] Implement smart goal suggestions based on client history
+   - [ ] Develop goal achievement notifications and celebrations
+   - [ ] Add collaborative goal setting workflow between coach and client
+   - [ ] Create goal categorization (strength, hypertrophy, endurance, etc.)
+
+ - [ ] Create coaching business tools
+   - [ ] Implement client session tracking and billing features
+   - [ ] Add coaching package management with automated renewals
+   - [ ] Develop client onboarding workflow with assessments
+   - [ ] Add coaching credential management and display
+  
+
+[ ] Add calculated total volume and estimate calories to Workout and Sets views
+ - [ ] Design and implement calorie calculation service
+   - [ ] Create CalorieCalculationService with configurable MET values for different exercise types
+   - [ ] Implement calculation algorithm based on exercise intensity, duration, and user weight
+   - [ ] Add support for different calculation methods (basic MET-based vs. heart rate-based when available)
+   - [ ] Develop caching mechanism for performance optimization
+   - [ ] Add unit tests for calorie calculation logic
+
+ - [ ] Enhance volume calculation implementation
+   - [ ] Create robust VolumeCalculationService for standardized volume metrics
+   - [ ] Implement different volume calculation methods (weight × reps, weight × reps × sets)
+   - [ ] Support specialized volume calculations for bodyweight exercises
+   - [ ] Add time-under-tension calculations for isometric exercises
+   - [ ] Implement relative volume calculations (volume per muscle group/exercise type)
+
+ - [ ] Update database models and services
+   - [ ] Extend Session model to include calculated TotalVolume and EstimatedCalories properties
+   - [ ] Add caching support for volume and calorie calculations
+   - [ ] Create migration for adding new fields if storing calculated values
+   - [ ] Update repository/service layer to support new calculations
+   - [ ] Implement automatic recalculation when related data changes
+
+ - [ ] Update Sessions UI
+   - [ ] Modify Sessions/Details.cshtml to display total volume and calories
+   - [ ] Add visual indicators (charts/gauges) for volume and calorie metrics
+   - [ ] Create collapsed/expandable detailed breakdown by exercise
+   - [ ] Add comparison to previous session values (with change percentage)
+   - [ ] Implement unit selection toggles (kg/lb for volume, kcal/kJ for energy)
+
+ - [ ] Enhance Sets UI
+   - [ ] Update Sets/Index.cshtml to include per-set volume metrics
+   - [ ] Add progressive color coding based on volume/intensity
+   - [ ] Implement set-specific calorie estimates
+   - [ ] Create cumulative volume tracking within workout
+   - [ ] Add visual indicators for volume progression across sets
+
+ - [ ] Implement volume and calorie goals
+   - [ ] Create user-configurable volume and calorie targets
+   - [ ] Add progress visualization toward daily/weekly goals
+   - [ ] Implement smart goal suggestions based on historical data
+   - [ ] Add goal achievement notifications and celebrations
+   - [ ] Create export options for goal tracking data
+
+ - [ ] Extend reporting functionality
+   - [ ] Update Reports/Index.cshtml to include volume and calorie trends
+   - [ ] Add volume progression charts by exercise/muscle group
+   - [ ] Create calorie expenditure analysis by workout type
+   - [ ] Implement volume-to-results correlation analysis
+   - [ ] Add comparative metrics against population averages
+
+ - [ ] Update REST API endpoints
+   - [ ] Extend existing workout API to include volume and calorie data
+   - [ ] Add dedicated endpoints for volume/calorie metrics
+   - [ ] Implement filtering and aggregation parameters
+   - [ ] Create batch calculation endpoints for performance
+   - [ ] Add proper documentation for new API features
+
+ - [ ] Enhance mobile responsiveness
+   - [ ] Optimize volume and calorie displays for mobile devices
+   - [ ] Implement condensed views for small screens
+   - [ ] Create mobile-specific interactive visualizations
+   - [ ] Add quick-view indicators for key metrics
+   - [ ] Ensure touch-friendly controls for all new UI elements
+
+ - [ ] Update documentation
+   - [ ] Add volume and calorie calculation methodology to help pages
+   - [ ] Update README.md with new feature details
+   - [ ] Add calculation components to inventory.md
+   - [ ] Create user guide for interpreting volume/calorie metrics
+   - [ ] Document API changes and examples
+
+[ ] Make the reports page tabbed adding volume and calories reports
+ - [ ] Design and implement tabbed interface for reports page
+   - [ ] Create Bootstrap tab structure in Reports/Index.cshtml
+   - [ ] Design responsive tab layout for both desktop and mobile views
+   - [ ] Add tab navigation with appropriate icons and labels
+   - [ ] Implement tab state persistence using query parameters or local storage
+   - [ ] Add smooth transitions between tabs with animation
+   - [ ] Ensure accessibility compliance for tab navigation
+
+ - [ ] Implement volume analysis reports tab
+   - [ ] Create VolumeAnalysisViewModel to aggregate volume metrics
+   - [ ] Develop volume calculation service for different exercise types
+   - [ ] Add volume trending chart showing progress over time
+   - [ ] Implement volume breakdown by muscle group/exercise type
+   - [ ] Create volume heatmap visualization for weekly patterns
+   - [ ] Add relative volume analysis (volume per body weight)
+   - [ ] Implement comparative volume metrics against previous periods
+
+ - [ ] Develop calorie expenditure reports tab
+   - [ ] Create CalorieAnalysisViewModel for energy expenditure metrics
+   - [ ] Implement calorie calculation service using MET values and user data
+   - [ ] Add calorie burn chart with trend analysis
+   - [ ] Create breakdown of calories by workout type/intensity
+   - [ ] Implement weekly/monthly calorie goal tracking
+   - [ ] Add calorie expenditure forecasting based on planned workouts
+   - [ ] Develop calorie visualization comparing different exercise types
+
+ - [ ] Enhance existing personal records tab
+   - [ ] Update personal records view to fit new tabbed interface
+   - [ ] Add filtering options for record categories
+   - [ ] Implement visual indicators for recent records
+   - [ ] Create record history tracking to show progression
+   - [ ] Add export functionality for personal records
+
+ - [ ] Create progress tracking tab
+   - [ ] Develop integrated view of key performance indicators
+   - [ ] Implement customizable progress metrics selection
+   - [ ] Add milestone tracking and celebration notifications
+   - [ ] Create progress snapshot comparisons
+   - [ ] Implement goal setting and tracking visualization
+
+ - [ ] Update shared reports functionality
+   - [ ] Ensure all new tabs work with shared workout reports
+   - [ ] Implement appropriate permissions for different tabs
+   - [ ] Add tab visibility toggle for shared report links
+   - [ ] Create simplified view for shared access
+
+ - [ ] Implement data loading optimization
+   - [ ] Add lazy loading for tab content to improve performance
+   - [ ] Implement background data loading for inactive tabs
+   - [ ] Create caching mechanism for report data
+   - [ ] Add loading indicators for data-intensive reports
+   - [ ] Optimize database queries specific to each tab
+
+ - [ ] Enhance the user experience
+   - [ ] Create printable report view for each tab
+   - [ ] Add export to PDF option for all report tabs
+   - [ ] Implement date range picker for customizable reporting periods
+   - [ ] Add data tooltips and help information for metrics
+   - [ ] Create mobile-optimized views for each tab
