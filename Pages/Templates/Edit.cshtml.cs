@@ -373,11 +373,13 @@ namespace WorkoutTrackerWeb.Pages.Templates
             }
 
             // Get the highest sequence number in this exercise's sets
-            var maxSequenceNum = await _context.WorkoutTemplateSet
+            var sequenceNumbers = await _context.WorkoutTemplateSet
                 .Where(s => s.WorkoutTemplateExerciseId == setToClone.WorkoutTemplateExerciseId)
                 .Select(s => s.SequenceNum)
-                .DefaultIfEmpty(0)
-                .MaxAsync();
+                .ToListAsync();
+
+            // Calculate max in memory, defaulting to 0 if no items exist
+            int maxSequenceNum = sequenceNumbers.Any() ? sequenceNumbers.Max() : 0;
 
             // Create a clone with next sequence number
             var clonedSet = new WorkoutTemplateSet
