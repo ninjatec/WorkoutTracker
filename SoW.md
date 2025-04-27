@@ -337,45 +337,45 @@
    - [x] Create user guide for interpreting volume/calorie metrics
    - [x] Document API changes and examples
 
-[ ] Make the reports page an accordian adding volume and calories reports
- - [ ] Design and implement tabbed interface for reports page
-   - [ ] Create accordian structure in Reports/Index.cshtml
-   - [ ] Design responsive accordian layout for both desktop and mobile views
-   - [ ] Add accordian navigation with appropriate icons and labels
+[x] Make the reports page an accordian adding volume and calories reports
+ - [x] Design and implement tabbed interface for reports page
+   - [x] Create accordian structure in Reports/Index.cshtml
+   - [x] Design responsive accordian layout for both desktop and mobile views
+   - [x] Add accordian navigation with appropriate icons and labels
 
- - [ ] Implement volume analysis reports tab
-   - [ ] Create VolumeAnalysisViewModel to aggregate volume metrics
-   - [ ] Develop volume calculation service for different exercise types
-   - [ ] Add volume trending chart showing progress over time
-   - [ ] Implement volume breakdown by muscle group/exercise type
-   - [ ] Create volume heatmap visualization for weekly patterns
-   - [ ] Add relative volume analysis (volume per body weight)
-   - [ ] Implement comparative volume metrics against previous periods
+ - [x] Implement volume analysis reports tab
+   - [x] Create VolumeAnalysisViewModel to aggregate volume metrics
+   - [x] Develop volume calculation service for different exercise types
+   - [x] Add volume trending chart showing progress over time
+   - [x] Implement volume breakdown by muscle group/exercise type
+   - [x] Create volume heatmap visualization for weekly patterns
+   - [x] Add relative volume analysis (volume per body weight)
+   - [x] Implement comparative volume metrics against previous periods
 
- - [ ] Develop calorie expenditure reports tab
-   - [ ] Create CalorieAnalysisViewModel for energy expenditure metrics
-   - [ ] Implement calorie calculation service using MET values and user data
-   - [ ] Add calorie burn chart with trend analysis
-   - [ ] Create breakdown of calories by workout type/intensity
-   - [ ] Implement weekly/monthly calorie goal tracking
-   - [ ] Add calorie expenditure forecasting based on planned workouts
-   - [ ] Develop calorie visualization comparing different exercise types
+ - [x] Develop calorie expenditure reports tab
+   - [x] Create CalorieAnalysisViewModel for energy expenditure metrics
+   - [x] Implement calorie calculation service using MET values and user data
+   - [x] Add calorie burn chart with trend analysis
+   - [x] Create breakdown of calories by workout type/intensity
+   - [x] Implement weekly/monthly calorie goal tracking
+   - [x] Add calorie expenditure forecasting based on planned workouts
+   - [x] Develop calorie visualization comparing different exercise types
 
- - [ ] Enhance existing personal records
-   - [ ] Update personal records view to fit new tabbed interface
-   - [ ] Add filtering options for record categories
-   - [ ] Implement visual indicators for recent records
-   - [ ] Create record history tracking to show progression
-   - [ ] Add export functionality for personal records
+ - [x] Enhance existing personal records
+   - [x] Update personal records view to fit new tabbed interface
+   - [x] Add filtering options for record categories
+   - [x] Implement visual indicators for recent records
+   - [x] Create record history tracking to show progression
+   - [x] Add export functionality for personal records
 
- - [ ] Create progress tracking accordian
-   - [ ] Develop integrated view of key performance indicators
-   - [ ] Implement customizable progress metrics selection
-   - [ ] Add milestone tracking and celebration notifications
-   - [ ] Create progress snapshot comparisons
-   - [ ] Implement goal setting and tracking visualization
+ - [x] Create progress tracking accordian
+   - [x] Develop integrated view of key performance indicators
+   - [x] Implement customizable progress metrics selection
+   - [x] Add milestone tracking and celebration notifications
+   - [x] Create progress snapshot comparisons
+   - [x] Implement goal setting and tracking visualization
 
- - [ ] Enhance the user experience
-   - [ ] Add export to PDF option for all report tabs
-   - [ ] Add data tooltips and help information for metrics
-   - [ ] Create mobile-optimized views for each section
+ - [x] Enhance the user experience
+   - [x] Add export to PDF option for all report tabs
+   - [x] Add data tooltips and help information for metrics
+   - [x] Create mobile-optimized views for each section
