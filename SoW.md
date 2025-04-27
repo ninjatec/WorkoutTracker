@@ -210,14 +210,14 @@
    - [ ] Document iOS companion app export functionality
 
 
-[ ] Implement a feature set for coaches to have the ability to manage other users and plan workouts for them, including viewing all workout data and reports.
- - [ ] Create coach role and permission system
-   - [ ] Add Coach role to identity system
-   - [ ] Create CoachPermission model to define granular access controls
-   - [ ] Implement CoachClientRelationship model to manage coach-client connections
-   - [ ] Add migrations for new coach-related database tables
-   - [ ] Create coach-specific authorization attributes and policies
-   - [ ] Implement user elevation workflow from regular user to coach status
+[x] Implement a feature set for coaches to have the ability to manage other users and plan workouts for them, including viewing all workout data and reports.
+ - [x] Create coach role and permission system
+   - [x] Add Coach role to identity system
+   - [x] Create CoachPermission model to define granular access controls
+   - [x] Implement CoachClientRelationship model to manage coach-client connections
+   - [x] Add migrations for new coach-related database tables
+   - [x] Create coach-specific authorization attributes and policies
+   - [x] Implement user elevation workflow from regular user to coach status
 
  - [ ] Develop client management for coaches
    - [ ] Create Clients/Index.cshtml for coaches to view their client roster

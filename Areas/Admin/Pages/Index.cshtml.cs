@@ -48,6 +48,8 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages
         public int UserCount { get; set; }
         public int ActiveUsersToday { get; set; }
         public int AdminCount { get; set; }
+        public int CoachCount { get; set; }
+        public int CoachClientRelationshipCount { get; set; }
         
         // Workout statistics
         public int SessionCount { get; set; }
@@ -80,6 +82,17 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages
                 var adminUsers = await _userManager.GetUsersInRoleAsync("Admin");
                 AdminCount = adminUsers.Count;
             }
+            
+            // Get coach users count
+            var coachRole = await _roleManager.FindByNameAsync("Coach");
+            if (coachRole != null)
+            {
+                var coachUsers = await _userManager.GetUsersInRoleAsync("Coach");
+                CoachCount = coachUsers.Count;
+            }
+            
+            // Get coach-client relationship count
+            CoachClientRelationshipCount = await _context.CoachClientRelationships.CountAsync();
             
             // Get users active today based on sessions
             var today = DateTime.Today;

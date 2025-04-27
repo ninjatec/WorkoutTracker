@@ -7,6 +7,7 @@ using WorkoutTrackerWeb.Models;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 using WorkoutTrackerWeb.Models.Alerting;
+using WorkoutTrackerWeb.Models.Coaching;
 
 namespace WorkoutTrackerWeb.Data
 {
@@ -46,6 +47,10 @@ namespace WorkoutTrackerWeb.Data
         public DbSet<WorkoutTrackerWeb.Models.WorkoutTemplate> WorkoutTemplate { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.WorkoutTemplateExercise> WorkoutTemplateExercise { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.WorkoutTemplateSet> WorkoutTemplateSet { get; set; } = default!;
+
+        // Coaching system DbSets
+        public DbSet<WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship> CoachClientRelationships { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.Coaching.CoachPermission> CoachPermissions { get; set; } = default!;
 
         // Helper method to get the current user's own User record
         public async Task<User> GetCurrentUserAsync()
@@ -239,6 +244,49 @@ namespace WorkoutTrackerWeb.Data
                 
             modelBuilder.Entity<WorkoutTemplateSet>()
                 .HasIndex(wts => wts.SequenceNum);
+
+            // Configure coaching relationships
+            
+            // Configure relationship between CoachClientRelationship and CoachPermission
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasOne(r => r.Permissions)
+                .WithOne(p => p.Relationship)
+                .HasForeignKey<CoachPermission>(p => p.CoachClientRelationshipId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            // Configure CoachClientRelationship foreign keys to prevent cascading delete cycles
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasOne(r => r.Coach)
+                .WithMany(u => u.CoachRelationships)
+                .HasForeignKey(r => r.CoachId)
+                .OnDelete(DeleteBehavior.NoAction);
+                
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasOne(r => r.Client)
+                .WithMany(u => u.ClientRelationships)
+                .HasForeignKey(r => r.ClientId)
+                .OnDelete(DeleteBehavior.NoAction);
+                
+            // Configure CoachClientRelationship query filter
+            // A coach should only see their own client relationships
+            // A client should only see their own coach relationships
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasQueryFilter(r => _currentUserId == null || 
+                                    r.CoachId == _currentUserId || 
+                                    r.ClientId == _currentUserId);
+                                    
+            // Configure indexes for coaching models
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasIndex(r => r.CoachId);
+                
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasIndex(r => r.ClientId);
+                
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasIndex(r => r.Status);
+                
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasIndex(r => new { r.CoachId, r.ClientId }).IsUnique();
         }
     }
 }

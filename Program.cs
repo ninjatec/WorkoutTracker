@@ -223,7 +223,7 @@ try
         .SetDefaultKeyLifetime(TimeSpan.FromDays(90)); // Rotate keys every 90 days
 
     // Configure Identity to require confirmed account and customizable password requirements
-    builder.Services.AddDefaultIdentity<IdentityUser>(options => 
+    builder.Services.AddDefaultIdentity<WorkoutTrackerWeb.Models.Identity.AppUser>(options => 
     {
         options.SignIn.RequireConfirmedAccount = true;
         options.SignIn.RequireConfirmedEmail = true;
@@ -240,6 +240,8 @@ try
     builder.Services.AddAuthorization(options =>
     {
         options.AddPolicy("RequireAdminRole", policy => policy.RequireRole("Admin"));
+        // Add Coach role policy
+        options.AddPolicy("RequireCoachRole", policy => policy.RequireRole("Coach"));
     });
 
     // Configure email service
@@ -491,6 +493,9 @@ try
     // Register volume and calorie calculation services
     builder.Services.AddScoped<IVolumeCalculationService, VolumeCalculationService>();
     builder.Services.AddScoped<ICalorieCalculationService, CalorieCalculationService>();
+
+    // Register coaching services
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.ICoachingService, WorkoutTrackerWeb.Services.Coaching.CoachingService>();
 
     // Add session state with Redis caching and JSON serialization
     builder.Services.AddSession(options =>

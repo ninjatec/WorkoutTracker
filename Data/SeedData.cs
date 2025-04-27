@@ -55,6 +55,16 @@ namespace WorkoutTrackerWeb.Data
                 
                 Console.WriteLine($"Created role: {adminRoleName}");
             }
+            
+            // Create Coach role if it doesn't exist
+            string coachRoleName = "Coach";
+            if (!await roleManager.RoleExistsAsync(coachRoleName))
+            {
+                var role = new IdentityRole(coachRoleName);
+                await roleManager.CreateAsync(role);
+                
+                Console.WriteLine($"Created role: {coachRoleName}");
+            }
 
             // Create admin user if it doesn't exist
             string adminEmail = "marc.coxall@ninjatec.co.uk";
