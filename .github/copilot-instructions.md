@@ -1,3 +1,4 @@
+- make NO assumptions check the code.
 - ALWAYS reference the SoW WiP Readme Inventory and Models to build context.
 - ALWAYS ensure the codebase comiles withut error before a task is considered complete
 - ALWAYS use --context on dotnet ef commands
