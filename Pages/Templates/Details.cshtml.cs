@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Identity;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Models.Coaching;
+using WorkoutTrackerWeb.Models.Identity;
 
 namespace WorkoutTrackerWeb.Pages.Templates
 {
@@ -24,12 +25,12 @@ namespace WorkoutTrackerWeb.Pages.Templates
         private readonly WorkoutTrackerWebContext _context;
         private readonly IWebHostEnvironment _environment;
         private readonly ILogger<DetailsModel> _logger;
-        private readonly UserManager<User> _userManager;
+        private readonly UserManager<AppUser> _userManager;
 
         public DetailsModel(WorkoutTrackerWebContext context, 
                            IWebHostEnvironment environment, 
                            ILogger<DetailsModel> logger,
-                           UserManager<User> userManager)
+                           UserManager<AppUser> userManager)
         {
             _context = context;
             _environment = environment;
@@ -73,17 +74,27 @@ namespace WorkoutTrackerWeb.Pages.Templates
                                                              string workoutTime = null, bool sendReminder = true,
                                                              int reminderHoursBefore = 3)
         {
-            // Get the current user
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null)
+            // Get the current identity user
+            var identityUser = await _userManager.GetUserAsync(User);
+            if (identityUser == null)
             {
                 return Unauthorized();
+            }
+
+            // Get the application User entity that matches the identity user
+            var appUser = await _context.User
+                .FirstOrDefaultAsync(u => u.IdentityUserId == identityUser.Id);
+            
+            if (appUser == null)
+            {
+                TempData["ErrorMessage"] = "User profile not found. Please contact support.";
+                return RedirectToPage(new { id = templateId });
             }
 
             // Verify the template exists and belongs to the user
             var template = await _context.WorkoutTemplate
                 .FirstOrDefaultAsync(t => t.WorkoutTemplateId == templateId && 
-                                         (t.UserId == user.UserId || t.IsPublic));
+                                         (t.UserId == appUser.UserId || t.IsPublic));
 
             if (template == null)
             {
@@ -101,8 +112,8 @@ namespace WorkoutTrackerWeb.Pages.Templates
                 var workoutSchedule = new WorkoutSchedule
                 {
                     TemplateId = templateId,
-                    ClientUserId = user.UserId,
-                    CoachUserId = user.UserId, // Self-scheduling, so user is both client and coach
+                    ClientUserId = appUser.UserId,
+                    CoachUserId = appUser.UserId, // Self-scheduling, so user is both client and coach
                     Name = name,
                     Description = description,
                     StartDate = startDate,
@@ -153,7 +164,7 @@ namespace WorkoutTrackerWeb.Pages.Templates
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error scheduling workout for template {TemplateId} by user {UserId}", templateId, user.UserId);
+                _logger.LogError(ex, "Error scheduling workout for template {TemplateId} by user {UserId}", templateId, appUser.UserId);
                 TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
                 return RedirectToPage(new { id = templateId });
             }

@@ -31,6 +31,60 @@ namespace WorkoutTrackerWeb.Controllers
             _userService = userService;
         }
 
+        // GET: api/WorkoutSchedule/templates
+        [HttpGet("templates")]
+        public async Task<ActionResult<IEnumerable<TemplateViewModel>>> GetAvailableTemplates()
+        {
+            var userId = await _userService.GetCurrentUserIdAsync();
+            if (userId == null)
+            {
+                return Unauthorized();
+            }
+
+            // Get templates owned by the user or public templates
+            var availableTemplates = await _context.WorkoutTemplate
+                .Where(t => t.UserId == userId || t.IsPublic)
+                .Select(t => new TemplateViewModel
+                {
+                    WorkoutTemplateId = t.WorkoutTemplateId,
+                    Name = t.Name,
+                    Description = t.Description,
+                    IsPublic = t.IsPublic,
+                    IsOwner = t.UserId == userId
+                })
+                .OrderBy(t => t.Name)
+                .ToListAsync();
+
+            // Get templates assigned to the user by coaches
+            var assignedTemplates = await _context.TemplateAssignments
+                .Where(a => a.ClientUserId == userId && a.IsActive)
+                .Include(a => a.WorkoutTemplate)
+                .Where(a => a.WorkoutTemplate != null)
+                .Select(a => new TemplateViewModel
+                {
+                    WorkoutTemplateId = a.WorkoutTemplateId,
+                    Name = a.WorkoutTemplate.Name,
+                    Description = a.WorkoutTemplate.Description,
+                    IsPublic = false,
+                    IsOwner = false,
+                    IsAssigned = true,
+                    AssignedBy = "Coach"
+                })
+                .ToListAsync();
+
+            // Combine both lists, avoiding duplicates
+            var existingIds = availableTemplates.Select(t => t.WorkoutTemplateId).ToHashSet();
+            foreach (var template in assignedTemplates)
+            {
+                if (!existingIds.Contains(template.WorkoutTemplateId))
+                {
+                    availableTemplates.Add(template);
+                }
+            }
+
+            return availableTemplates.OrderBy(t => t.Name).ToList();
+        }
+
         // GET: api/WorkoutSchedule
         [HttpGet]
         public async Task<ActionResult<IEnumerable<WorkoutSchedule>>> GetWorkoutSchedules()
@@ -328,5 +382,17 @@ namespace WorkoutTrackerWeb.Controllers
         public string RecurrenceEndDate { get; set; }
         public bool? SendReminder { get; set; }
         public int? ReminderHoursBefore { get; set; }
+    }
+
+    // View model for template selection
+    public class TemplateViewModel
+    {
+        public int WorkoutTemplateId { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public bool IsPublic { get; set; }
+        public bool IsOwner { get; set; }
+        public bool IsAssigned { get; set; }
+        public string AssignedBy { get; set; }
     }
 }

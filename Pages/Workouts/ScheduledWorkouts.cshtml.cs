@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Identity;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Models.Coaching;
+using WorkoutTrackerWeb.Models.Identity;
 
 namespace WorkoutTrackerWeb.Pages.Workouts
 {
@@ -19,11 +20,11 @@ namespace WorkoutTrackerWeb.Pages.Workouts
     {
         private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger<ScheduledWorkoutsModel> _logger;
-        private readonly UserManager<User> _userManager;
+        private readonly UserManager<AppUser> _userManager;
 
         public ScheduledWorkoutsModel(WorkoutTrackerWebContext context, 
                                      ILogger<ScheduledWorkoutsModel> logger, 
-                                     UserManager<User> userManager)
+                                     UserManager<AppUser> userManager)
         {
             _context = context;
             _logger = logger;
@@ -35,18 +36,32 @@ namespace WorkoutTrackerWeb.Pages.Workouts
 
         public async Task<IActionResult> OnGetAsync()
         {
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null)
+            var identityUser = await _userManager.GetUserAsync(User);
+            if (identityUser == null)
             {
                 return Unauthorized();
             }
 
             try
             {
+                // Get the application User entity that matches the identity user
+                var appUser = await _context.User
+                    .FirstOrDefaultAsync(u => u.IdentityUserId == identityUser.Id);
+                
+                if (appUser == null)
+                {
+                    TempData["ErrorMessage"] = "User profile not found. Please contact support.";
+                    return Page();
+                }
+
+                // Get current date for comparison
+                var currentDate = DateTime.Now;
+
                 // Get upcoming workouts (scheduled in the future)
                 var upcomingSchedules = await _context.WorkoutSchedules
-                    .Where(s => s.ClientUserId == user.UserId && 
-                               s.ScheduledDateTime > DateTime.Now)
+                    .Where(s => s.ClientUserId == appUser.UserId && 
+                               (s.ScheduledDateTime > currentDate || 
+                               (s.IsRecurring && (!s.EndDate.HasValue || s.EndDate.Value > currentDate.Date))))
                     .Include(s => s.TemplateAssignment)
                     .ThenInclude(a => a.WorkoutTemplate)
                     .Include(s => s.Template)
@@ -58,10 +73,11 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                     UpcomingSchedules.Add(CreateScheduleViewModel(schedule));
                 }
 
-                // Get completed workouts (in the past)
+                // Get completed workouts (in the past, not recurring or past end date)
                 var completedSchedules = await _context.WorkoutSchedules
-                    .Where(s => s.ClientUserId == user.UserId && 
-                               s.ScheduledDateTime <= DateTime.Now)
+                    .Where(s => s.ClientUserId == appUser.UserId && 
+                               s.ScheduledDateTime <= currentDate &&
+                               (!s.IsRecurring || (s.EndDate.HasValue && s.EndDate.Value <= currentDate.Date)))
                     .Include(s => s.TemplateAssignment)
                     .ThenInclude(a => a.WorkoutTemplate)
                     .Include(s => s.Template)
@@ -78,7 +94,7 @@ namespace WorkoutTrackerWeb.Pages.Workouts
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error loading scheduled workouts for user {UserId}", user.UserId);
+                _logger.LogError(ex, "Error loading scheduled workouts for user {UserId}", identityUser.Id);
                 TempData["ErrorMessage"] = "An error occurred loading your scheduled workouts.";
                 return Page();
             }
@@ -86,15 +102,25 @@ namespace WorkoutTrackerWeb.Pages.Workouts
 
         public async Task<IActionResult> OnPostToggleScheduleAsync(int scheduleId, bool isActive)
         {
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null)
+            var identityUser = await _userManager.GetUserAsync(User);
+            if (identityUser == null)
             {
                 return Unauthorized();
             }
 
+            // Get the application User entity that matches the identity user
+            var appUser = await _context.User
+                .FirstOrDefaultAsync(u => u.IdentityUserId == identityUser.Id);
+            
+            if (appUser == null)
+            {
+                TempData["ErrorMessage"] = "User profile not found. Please contact support.";
+                return RedirectToPage();
+            }
+
             var schedule = await _context.WorkoutSchedules
                 .FirstOrDefaultAsync(s => s.WorkoutScheduleId == scheduleId && 
-                                         s.ClientUserId == user.UserId);
+                                         s.ClientUserId == appUser.UserId);
 
             if (schedule == null)
             {
@@ -111,15 +137,25 @@ namespace WorkoutTrackerWeb.Pages.Workouts
 
         public async Task<IActionResult> OnPostDeleteScheduleAsync(int scheduleId)
         {
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null)
+            var identityUser = await _userManager.GetUserAsync(User);
+            if (identityUser == null)
             {
                 return Unauthorized();
             }
 
+            // Get the application User entity that matches the identity user
+            var appUser = await _context.User
+                .FirstOrDefaultAsync(u => u.IdentityUserId == identityUser.Id);
+            
+            if (appUser == null)
+            {
+                TempData["ErrorMessage"] = "User profile not found. Please contact support.";
+                return RedirectToPage();
+            }
+
             var schedule = await _context.WorkoutSchedules
                 .FirstOrDefaultAsync(s => s.WorkoutScheduleId == scheduleId && 
-                                         s.ClientUserId == user.UserId);
+                                         s.ClientUserId == appUser.UserId);
 
             if (schedule == null)
             {
@@ -139,15 +175,25 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                                                       DateTime? endDate, bool sendReminder = true,
                                                       int reminderHoursBefore = 3)
         {
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null)
+            var identityUser = await _userManager.GetUserAsync(User);
+            if (identityUser == null)
             {
                 return Unauthorized();
             }
 
+            // Get the application User entity that matches the identity user
+            var appUser = await _context.User
+                .FirstOrDefaultAsync(u => u.IdentityUserId == identityUser.Id);
+            
+            if (appUser == null)
+            {
+                TempData["ErrorMessage"] = "User profile not found. Please contact support.";
+                return RedirectToPage();
+            }
+
             var schedule = await _context.WorkoutSchedules
                 .FirstOrDefaultAsync(s => s.WorkoutScheduleId == scheduleId && 
-                                         s.ClientUserId == user.UserId);
+                                         s.ClientUserId == appUser.UserId);
 
             if (schedule == null)
             {
@@ -178,7 +224,109 @@ namespace WorkoutTrackerWeb.Pages.Workouts
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating workout schedule {ScheduleId} for user {UserId}", scheduleId, user.UserId);
+                _logger.LogError(ex, "Error updating workout schedule {ScheduleId} for user {UserId}", scheduleId, appUser.UserId);
+                TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
+                return RedirectToPage();
+            }
+        }
+
+        public async Task<IActionResult> OnPostScheduleWorkoutAsync(int templateId, string name, string description, 
+                                                         DateTime startDate, string workoutTime, 
+                                                         DateTime? endDate, string recurrencePattern = "Once",
+                                                         List<string> daysOfWeek = null, int? dayOfMonth = null,
+                                                         bool sendReminder = true, int reminderHoursBefore = 3)
+        {
+            var identityUser = await _userManager.GetUserAsync(User);
+            if (identityUser == null)
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                // Get the application User entity that matches the identity user
+                var appUser = await _context.User
+                    .FirstOrDefaultAsync(u => u.IdentityUserId == identityUser.Id);
+                
+                if (appUser == null)
+                {
+                    TempData["ErrorMessage"] = "User profile not found. Please contact support.";
+                    return RedirectToPage();
+                }
+
+                // Validate the template exists and is accessible to the user
+                var template = await _context.WorkoutTemplate
+                    .FirstOrDefaultAsync(t => t.WorkoutTemplateId == templateId && 
+                                             (t.UserId == appUser.UserId || t.IsPublic));
+
+                if (template == null)
+                {
+                    TempData["ErrorMessage"] = "Template not found or you don't have access to it.";
+                    return RedirectToPage();
+                }
+
+                // Parse workout time - default to 5 PM if not provided
+                TimeSpan timeOfDay = string.IsNullOrEmpty(workoutTime) ? 
+                    new TimeSpan(17, 0, 0) : TimeSpan.Parse(workoutTime);
+                
+                var scheduledDateTime = startDate.Date.Add(timeOfDay);
+
+                // Create the workout schedule
+                var workoutSchedule = new WorkoutSchedule
+                {
+                    TemplateId = templateId,
+                    ClientUserId = appUser.UserId,
+                    CoachUserId = appUser.UserId, // Self-scheduling, user is both client and coach
+                    Name = name,
+                    Description = description,
+                    StartDate = startDate,
+                    ScheduledDateTime = scheduledDateTime,
+                    EndDate = endDate,
+                    IsActive = true,
+                    SendReminder = sendReminder,
+                    ReminderHoursBefore = reminderHoursBefore
+                };
+
+                // Handle recurrence pattern
+                if (recurrencePattern != "Once")
+                {
+                    workoutSchedule.IsRecurring = true;
+                    workoutSchedule.RecurrencePattern = recurrencePattern;
+                    
+                    // For weekly or bi-weekly recurrence, set the day of week
+                    if ((recurrencePattern == "Weekly" || recurrencePattern == "BiWeekly") && daysOfWeek != null && daysOfWeek.Any())
+                    {
+                        // Use the first selected day
+                        DayOfWeek day = Enum.Parse<DayOfWeek>(daysOfWeek.First());
+                        workoutSchedule.RecurrenceDayOfWeek = (int)day;
+                    }
+                    else if (recurrencePattern == "Weekly" || recurrencePattern == "BiWeekly")
+                    {
+                        // Default to the day of the start date
+                        workoutSchedule.RecurrenceDayOfWeek = (int)startDate.DayOfWeek;
+                    }
+                    // For monthly recurrence, set the day of month
+                    else if (recurrencePattern == "Monthly" && dayOfMonth.HasValue)
+                    {
+                        workoutSchedule.RecurrenceDayOfMonth = dayOfMonth.Value;
+                    }
+                    else if (recurrencePattern == "Monthly")
+                    {
+                        // Default to the day of the month from the start date
+                        workoutSchedule.RecurrenceDayOfMonth = startDate.Day;
+                    }
+                }
+
+                _context.WorkoutSchedules.Add(workoutSchedule);
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = "Workout scheduled successfully!";
+                return RedirectToPage();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error scheduling workout for template {TemplateId} by user {UserId}", 
+                    templateId, identityUser.Id);
                 TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
                 return RedirectToPage();
             }

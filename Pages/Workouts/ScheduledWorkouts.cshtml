@@ -7,6 +7,9 @@
 <div class="container-fluid">
     <div class="mb-4 d-flex justify-content-between align-items-center">
         <h1 class="h3">Scheduled Workouts</h1>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#scheduleWorkoutModal">
+            <i class="bi bi-plus me-1"></i> Schedule New Workout
+        </button>
     </div>
 
     @if (TempData["SuccessMessage"] != null)
@@ -30,9 +33,9 @@
             <div class="card shadow-sm">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Upcoming Workouts</h5>
-                    <a href="/Templates/Index" class="btn btn-sm btn-primary">
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#scheduleWorkoutModal">
                         <i class="bi bi-plus me-1"></i> Schedule New Workout
-                    </a>
+                    </button>
                 </div>
                 <div class="card-body">
                     @if (Model.UpcomingSchedules.Any())
@@ -145,9 +148,9 @@
                     {
                         <div class="alert alert-info">
                             <p class="mb-0">You don't have any scheduled workouts yet.</p>
-                            <a href="/Templates/Index" class="btn btn-primary mt-2">
+                            <button type="button" class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#scheduleWorkoutModal">
                                 <i class="bi bi-plus"></i> Schedule a Workout
-                            </a>
+                            </button>
                         </div>
                     }
                 </div>
@@ -287,8 +290,229 @@
     </div>
 </div>
 
+<!-- Schedule New Workout Modal -->
+<div class="modal fade" id="scheduleWorkoutModal" tabindex="-1" aria-labelledby="scheduleWorkoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="ScheduleWorkout">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="scheduleWorkoutModalLabel">Schedule New Workout</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="templateSelect" class="form-label">Select Workout Template</label>
+                            <select id="templateSelect" name="templateId" class="form-select" required>
+                                <option value="">Loading templates...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <button type="button" id="refreshTemplates" class="btn btn-outline-secondary mb-0">
+                                <i class="bi bi-arrow-repeat"></i> Refresh Templates
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="scheduleName" class="form-label">Schedule Name</label>
+                        <input type="text" class="form-control" id="scheduleName" name="name" required />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="scheduleDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="scheduleDescription" name="description" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="startDate" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="startDate" name="startDate" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label for="workoutTime" class="form-label">Time</label>
+                            <input type="time" class="form-control" id="workoutTime" name="workoutTime" value="17:00" required />
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Recurrence Pattern</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="recurrencePattern" id="recurrenceOnce" value="Once" checked />
+                                <label class="form-check-label" for="recurrenceOnce">One-time</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="recurrencePattern" id="recurrenceWeekly" value="Weekly" />
+                                <label class="form-check-label" for="recurrenceWeekly">Weekly</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="recurrencePattern" id="recurrenceBiWeekly" value="BiWeekly" />
+                                <label class="form-check-label" for="recurrenceBiWeekly">Bi-Weekly</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="recurrencePattern" id="recurrenceMonthly" value="Monthly" />
+                                <label class="form-check-label" for="recurrenceMonthly">Monthly</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="weeklyOptions" class="mb-3 d-none">
+                        <label class="form-label">Days of Week</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var day in Enum.GetValues(typeof(DayOfWeek)))
+                            {
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="daysOfWeek" id="day@(day)" value="@day" />
+                                    <label class="form-check-label" for="day@(day)">@day</label>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    
+                    <div id="monthlyOptions" class="mb-3 d-none">
+                        <label for="dayOfMonth" class="form-label">Day of Month</label>
+                        <select id="dayOfMonth" name="dayOfMonth" class="form-select">
+                            @for (int i = 1; i <= 31; i++)
+                            {
+                                <option value="@i">@i</option>
+                            }
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="endDate" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="endDate" name="endDate" />
+                        <small class="text-muted">Optional. Leave blank for recurring workouts with no end date.</small>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="sendReminder" name="sendReminder" value="true" checked />
+                        <label class="form-check-label" for="sendReminder">
+                            Send workout reminders
+                        </label>
+                    </div>
+                    
+                    <div id="reminderOptions" class="mb-3">
+                        <label for="reminderHoursBefore" class="form-label">Hours Before Workout</label>
+                        <select id="reminderHoursBefore" name="reminderHoursBefore" class="form-select">
+                            <option value="1">1 hour</option>
+                            <option value="2">2 hours</option>
+                            <option value="3" selected>3 hours</option>
+                            <option value="6">6 hours</option>
+                            <option value="12">12 hours</option>
+                            <option value="24">24 hours</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Schedule Workout</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
+        // Load templates when modal is shown
+        $('#scheduleWorkoutModal').on('shown.bs.modal', function() {
+            loadWorkoutTemplates();
+        });
+        
+        // Refresh templates button
+        $('#refreshTemplates').on('click', function() {
+            loadWorkoutTemplates();
+        });
+        
+        // Function to load workout templates
+        function loadWorkoutTemplates() {
+            $('#templateSelect').html('<option value="">Loading templates...</option>');
+            
+            $.ajax({
+                url: '/api/WorkoutSchedule/templates',
+                type: 'GET',
+                success: function(data) {
+                    var options = '<option value="">Select a template</option>';
+                    
+                    if (data && data.length > 0) {
+                        data.forEach(function(template) {
+                            options += '<option value="' + template.workoutTemplateId + '">' + template.name + '</option>';
+                        });
+                    } else {
+                        options = '<option value="">No templates available</option>';
+                    }
+                    
+                    $('#templateSelect').html(options);
+                },
+                error: function() {
+                    $('#templateSelect').html('<option value="">Error loading templates</option>');
+                }
+            });
+        }
+        
+        // Update schedule name when template is selected
+        $('#templateSelect').on('change', function() {
+            var selectedOption = $(this).find('option:selected');
+            var templateName = selectedOption.text();
+            
+            if (selectedOption.val()) {
+                var today = new Date();
+                var formattedDate = today.toISOString().split('T')[0];
+                $('#scheduleName').val(templateName + ' - ' + formattedDate);
+            }
+        });
+        
+        // Toggle recurrence pattern options
+        $('input[name="recurrencePattern"]').on('change', function() {
+            var pattern = $(this).val();
+            
+            // Hide all pattern-specific options
+            $('#weeklyOptions, #monthlyOptions').addClass('d-none');
+            
+            // Show options for the selected pattern
+            if (pattern === 'Weekly' || pattern === 'BiWeekly') {
+                $('#weeklyOptions').removeClass('d-none');
+                
+                // Check the day of week that matches today
+                var today = new Date().getDay();
+                $('#day' + today).prop('checked', true);
+            } else if (pattern === 'Monthly') {
+                $('#monthlyOptions').removeClass('d-none');
+                
+                // Set default day of month to today's date
+                var dayOfMonth = new Date().getDate();
+                $('#dayOfMonth').val(dayOfMonth);
+            }
+            
+            // Enable/disable end date based on recurrence
+            if (pattern === 'Once') {
+                $('#endDate').prop('disabled', true);
+            } else {
+                $('#endDate').prop('disabled', false);
+            }
+        });
+        
+        // Set default start date to today
+        $(document).ready(function() {
+            var today = new Date();
+            var formattedDate = today.toISOString().split('T')[0];
+            $('#startDate').val(formattedDate);
+            
+            // Disable end date for one-time workouts
+            $('#endDate').prop('disabled', true);
+        });
+        
+        // Toggle reminder options
+        $('#sendReminder').on('change', function() {
+            if ($(this).prop('checked')) {
+                $('#reminderOptions').removeClass('d-none');
+            } else {
+                $('#reminderOptions').addClass('d-none');
+            }
+        });
+
         // Handle edit schedule modal
         $('.edit-schedule').on('click', function() {
             var scheduleId = $(this).data('schedule-id');
