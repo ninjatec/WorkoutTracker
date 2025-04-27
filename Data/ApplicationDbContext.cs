@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Models.Logging;
 using WorkoutTrackerWeb.Models.Identity;
+using WorkoutTrackerWeb.Models.Coaching;
 
 namespace WorkoutTrackerWeb.Data;
 
@@ -21,6 +22,10 @@ public class ApplicationDbContext : IdentityDbContext<AppUser>
     
     public DbSet<WhitelistedIp> WhitelistedIps { get; set; }
     
+    public DbSet<CoachClientRelationship> CoachClientRelationships { get; set; }
+    
+    public DbSet<CoachPermission> CoachPermissions { get; set; }
+    
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -36,5 +41,25 @@ public class ApplicationDbContext : IdentityDbContext<AppUser>
         builder.Entity<WhitelistedIp>()
             .HasIndex(w => w.IpAddress)
             .IsUnique();
+            
+        // Configure Coach/Client relationships
+        builder.Entity<CoachClientRelationship>()
+            .HasOne(r => r.Coach)
+            .WithMany(u => u.CoachRelationships)
+            .HasForeignKey(r => r.CoachId)
+            .OnDelete(DeleteBehavior.Restrict);
+            
+        builder.Entity<CoachClientRelationship>()
+            .HasOne(r => r.Client)
+            .WithMany(u => u.ClientRelationships)
+            .HasForeignKey(r => r.ClientId)
+            .OnDelete(DeleteBehavior.Restrict);
+            
+        // Configure CoachPermission relationship
+        builder.Entity<CoachPermission>()
+            .HasOne(p => p.Relationship)
+            .WithOne(r => r.Permissions)
+            .HasForeignKey<CoachPermission>(p => p.CoachClientRelationshipId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

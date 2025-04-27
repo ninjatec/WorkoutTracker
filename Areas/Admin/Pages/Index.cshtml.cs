@@ -15,13 +15,14 @@ using WorkoutTrackerWeb.Areas.Admin.ViewModels;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services;
 using System.Text.Json.Serialization;
+using WorkoutTrackerWeb.Models.Identity;
 
 namespace WorkoutTrackerWeb.Areas.Admin.Pages
 {
     [Authorize(Roles = "Admin")]
     public class IndexModel : PageModel
     {
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<AppUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger<IndexModel> _logger;
@@ -29,7 +30,7 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages
         private readonly DatabaseResilienceService _databaseResilienceService;
 
         public IndexModel(
-            UserManager<IdentityUser> userManager,
+            UserManager<AppUser> userManager,
             RoleManager<IdentityRole> roleManager,
             WorkoutTrackerWebContext context,
             ILogger<IndexModel> logger,
@@ -121,12 +122,12 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages
             CircuitBreakerLastStateChange = lastStateChange;
             
             // Get 5 most recent users
-            var recentIdentityUsers = await _userManager.Users
+            var recentUsers = await _userManager.Users
                 .OrderByDescending(u => u.Id)  // Using ID as a proxy for creation date
                 .Take(5)
                 .ToListAsync();
                 
-            foreach (var user in recentIdentityUsers)
+            foreach (var user in recentUsers)
             {
                 var roles = await _userManager.GetRolesAsync(user);
                 
