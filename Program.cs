@@ -1057,6 +1057,9 @@ try
 
     // Apply IP rate limiting
     app.UseIpRateLimiting();
+    
+    // Register our Rate Limit Bypass middleware AFTER IP rate limiting
+    app.UseRateLimitBypass();
 
     // Use CORS with our production domain policy
     app.UseCors("ProductionDomainPolicy");

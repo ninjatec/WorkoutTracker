@@ -37,17 +37,17 @@ namespace WorkoutTrackerWeb.Services
         private bool _initialized = false;
         private readonly SemaphoreSlim _initLock = new SemaphoreSlim(1, 1);
 
-        // Default: 10 attempts per second with a bucket of 10 tokens
+        // Updated: Increased defaults to 30 tokens with 3 tokens per second refill rate
         public TokenRateLimiter(
             ILogger<TokenRateLimiter> logger,
             IServiceProvider serviceProvider,
-            int maxTokens = 10,
-            int refillTimeSeconds = 1)
+            int maxTokens = 30,
+            int refillTimeMilliseconds = 333) // Refills at ~3 tokens per second
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
             _maxTokens = maxTokens;
-            _refillTime = TimeSpan.FromSeconds(refillTimeSeconds);
+            _refillTime = TimeSpan.FromMilliseconds(refillTimeMilliseconds);
         }
 
         private async Task EnsureInitializedAsync()
