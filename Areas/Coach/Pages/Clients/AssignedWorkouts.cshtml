@@ -331,7 +331,7 @@
 </div>
 
 <!-- Assign Template Modal -->
-<div class="modal fade" id="assignTemplateModal" tabindex="-1" aria-labelledby="assignTemplateModalLabel" aria-hidden="true">
+<div class="modal fade" id="assignTemplateModal" tabindex="-1" aria-labelledby="assignTemplateModalLabel">
     <div class="modal-dialog">
         <div class="modal-content">
             <form method="post" asp-page-handler="Assign">
@@ -467,7 +467,7 @@
 </div>
 
 <!-- Schedule Workout Modal -->
-<div class="modal fade" id="scheduleModal" tabindex="-1" aria-labelledby="scheduleModalLabel" aria-hidden="true">
+<div class="modal fade" id="scheduleModal" tabindex="-1" aria-labelledby="scheduleModalLabel">
     <div class="modal-dialog">
         <div class="modal-content">
             <form method="post" asp-page-handler="Schedule">
@@ -584,6 +584,34 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         $(document).ready(function() {
+            // Add proper handling for modals to fix accessibility issues
+            const assignTemplateModal = document.getElementById('assignTemplateModal');
+            const scheduleModal = document.getElementById('scheduleModal');
+            
+            // Set up assignTemplateModal
+            assignTemplateModal.addEventListener('hidden.bs.modal', function () {
+                // When hidden, add inert to avoid focus issues
+                assignTemplateModal.setAttribute('inert', '');
+            });
+            assignTemplateModal.addEventListener('show.bs.modal', function () {
+                // When shown, remove inert to allow focus
+                assignTemplateModal.removeAttribute('inert');
+            });
+            // Set initial state to inert
+            assignTemplateModal.setAttribute('inert', '');
+            
+            // Set up scheduleModal
+            scheduleModal.addEventListener('hidden.bs.modal', function () {
+                // When hidden, add inert to avoid focus issues
+                scheduleModal.setAttribute('inert', '');
+            });
+            scheduleModal.addEventListener('show.bs.modal', function () {
+                // When shown, remove inert to allow focus
+                scheduleModal.removeAttribute('inert');
+            });
+            // Set initial state to inert
+            scheduleModal.setAttribute('inert', '');
+            
             // Toggle scheduling options in assign template modal
             $('#scheduleWorkouts').on('change', function() {
                 if ($(this).prop('checked')) {

@@ -2,8 +2,6 @@
 ## Workout templates / planning
 
 ## Update help pages
-
-[ ] Whitelisted IPs
 ---
 
 [ ] Update sessions pages to support sequence numbers

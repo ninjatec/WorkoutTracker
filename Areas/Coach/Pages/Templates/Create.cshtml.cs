@@ -61,8 +61,8 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
 
             // Load muscle groups for filtering
             MuscleGroups = await _context.ExerciseType
-                .Where(e => !string.IsNullOrEmpty(e.PrimaryMuscles))
-                .Select(e => e.PrimaryMuscles)
+                .Where(e => !string.IsNullOrEmpty(e.Muscle))
+                .Select(e => e.Muscle)
                 .Distinct()
                 .OrderBy(m => m)
                 .ToListAsync();
@@ -169,8 +169,8 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
             // Apply muscle group filter
             if (!string.IsNullOrEmpty(muscleGroup))
             {
-                query = query.Where(e => e.PrimaryMuscles == muscleGroup || 
-                                         e.SecondaryMuscles.Contains(muscleGroup));
+                query = query.Where(e => e.Muscle == muscleGroup || 
+                                         (e.Description != null && e.Description.Contains(muscleGroup)));
             }
             
             // Apply equipment filter
@@ -211,8 +211,8 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
 
             // Load muscle groups for filtering
             MuscleGroups = await _context.ExerciseType
-                .Where(e => !string.IsNullOrEmpty(e.PrimaryMuscles))
-                .Select(e => e.PrimaryMuscles)
+                .Where(e => !string.IsNullOrEmpty(e.Muscle))
+                .Select(e => e.Muscle)
                 .Distinct()
                 .OrderBy(m => m)
                 .ToListAsync();

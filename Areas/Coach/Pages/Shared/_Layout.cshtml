@@ -4,7 +4,8 @@
 }
 
 @section Styles {
-    <link rel="stylesheet" href="~/css/coach.css" />
+    <link rel="stylesheet" href="~/css/coach.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" />
     @await RenderSectionAsync("Styles", required: false)
 }
 
@@ -22,8 +23,14 @@
                     <a href="#" onclick="window.location='@Url.Page("/Clients/Index", new { area = "Coach" })'" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Clients") == true ? "active" : "")">
                         <i class="bi bi-people-fill me-2"></i> Client Management
                     </a>
+                    <a href="#" onclick="window.location='@Url.Page("/Templates/Index", new { area = "Coach" })'" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Templates") == true ? "active" : "")">
+                        <i class="bi bi-file-earmark-text me-2"></i> Workout Templates
+                    </a>
                     <a href="#" onclick="window.location='@Url.Page("/Clients/Invite", new { area = "Coach" })'" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString() == "/Clients/Invite" ? "active" : "")">
                         <i class="bi bi-envelope-plus me-2"></i> Invite Client
+                    </a>
+                    <a href="#" onclick="window.location='@Url.Page("/Clients/AssignedWorkouts", new { area = "Coach" })'" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString() == "/Clients/AssignedWorkouts" ? "active" : "")">
+                        <i class="bi bi-calendar-check me-2"></i> Assigned Workouts
                     </a>
                 </div>
             </div>
@@ -37,8 +44,14 @@
                     <a href="#" onclick="window.location='@Url.Page("/Clients/Index", new { area = "Coach" })'" class="list-group-item list-group-item-action">
                         <i class="bi bi-people me-2"></i> Client Management
                     </a>
+                    <a href="#" onclick="window.location='@Url.Page("/Templates/Index", new { area = "Coach" })'" class="list-group-item list-group-item-action">
+                        <i class="bi bi-file-earmark-text me-2"></i> Workout Templates
+                    </a>
                     <a href="#" onclick="window.location='@Url.Page("/Clients/Invite", new { area = "Coach" })'" class="list-group-item list-group-item-action">
                         <i class="bi bi-envelope-plus me-2"></i> Invite New Client
+                    </a>
+                    <a href="#" onclick="window.location='@Url.Page("/Templates/Create", new { area = "Coach" })'" class="list-group-item list-group-item-action">
+                        <i class="bi bi-plus-circle me-2"></i> Create Template
                     </a>
                 </div>
             </div>
@@ -58,5 +71,7 @@
 
 @section Scripts {
     <script src="~/js/coach.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
     @await RenderSectionAsync("Scripts", required: false)
 }
