@@ -240,34 +240,18 @@
      - [x] Add email notifications for new template assignments
      - [x] Create client dashboard for viewing assigned templates
      - [x] Implement access controls based on coach-client relationship
-   - [x] Implement workout scheduling with notification system
-     - [x] Create WorkoutSchedule model to manage recurring or one-time sessions
-     - [x] Develop calendar interface for scheduling client workouts
-     - [x] Add email/SMS notification system for upcoming workouts
-     - [x] Implement reminder customization (timing, frequency)
-     - [x] Create recurring workout patterns (weekly, bi-weekly, monthly)
-     - [x] Add schedule conflict detection and resolution
-   - [x] Create workout adjustment tools based on client feedback
-     - [x] Implement WorkoutFeedback model for client session ratings
-     - [x] Add RPE (Rate of Perceived Exertion) tracking per exercise
-     - [x] Create automated difficulty adjustment based on performance
-     - [x] Develop exercise substitution system for limitations/injuries
-     - [x] Add progress tracking with automated deload suggestions
-     - [x] Implement coach notification for concerning feedback patterns
-   - [x] Add automated progression rules configurable by coaches
-     - [x] Create ProgressionRule model for defining advancement criteria
-     - [x] Implement rule types (percentage, absolute value, RPE-based)
-     - [x] Develop rule evaluation service to check client performance
-     - [x] Add automatic template updates based on progression rules
-     - [x] Create progression history tracking and visualization
-     - [x] Implement coach override options for manual adjustments
-   - [x] Develop exercise substitution suggestions based on equipment/limitations
-     - [x] Create ExerciseSubstitution model with equivalence relationships
-     - [x] Implement tagging system for equipment requirements
-     - [x] Add exercise classification by movement pattern and muscle targets
-     - [x] Develop intelligent substitution algorithm based on availability
-     - [x] Create client-specific exercise exclusion list for injuries
-     - [x] Implement preference learning for substitution recommendations
+
+
+   - [ ] Implement workout scheduling
+     - [ ] Create WorkoutSchedule model to manage recurring or one-time sessions
+     - [ ] Develop calendar interface for scheduling client workouts
+     - [ ] Create recurring workout patterns (weekly, bi-weekly, monthly)
+
+  - [ ] Implement Notification system - Useing Existing Email functionality
+     - [ ] Add email notification system for upcoming workouts
+     - [ ] Implement reminder customization (timing, frequency)
+     - [ ] Create recurring workout patterns (weekly, bi-weekly, monthly)
+  
 
  - [ ] Create feedback and communication system
    - [ ] Implement coach comments on individual workouts/exercises
