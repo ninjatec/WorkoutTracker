@@ -34,6 +34,9 @@
 
 ### 5. Security Enhancements
 - Created `TokenRateLimiter` using token bucket algorithm to prevent brute force attacks
+- Enhanced `TokenRateLimiter` with IP whitelisting capability to exempt trusted IPs from rate limiting
+- Created admin panel for managing IP whitelist with add/remove functionality
+- Implemented persistent storage of whitelisted IPs across application restarts
 - Implemented `TokenValidationService` with caching and IP-based rate limiting
 - Created `ShareTokenAuthorizeAttribute` for controller/action authorization
 - Implemented `ShareTokenExtensions` for easy token retrieval from `HttpContext`
@@ -131,6 +134,19 @@
 - Used output caching for better performance
 - Added documentation in inventory.md
 
+### 12. Rate Limit IP Whitelisting
+- Enhanced `TokenRateLimiter` to support IP whitelisting for bypassing rate limits
+- Implemented persistent storage of IP whitelist using JSON file
+- Created admin interface for managing whitelisted IPs with:
+  - Display of currently whitelisted IPs
+  - Form for adding new IPs with validation
+  - Functionality to remove IPs from whitelist
+  - User feedback messages for successful operations
+- Added automatic saving of IP whitelist changes
+- Implemented proper service registration as a hosted service
+- Updated Admin layout with navigation link to IP whitelist management
+- Added load/save functionality to maintain whitelist across application restarts
+
 ## Next Steps
 
 ### 2. Guest Access
@@ -145,6 +161,8 @@
 ## Technical Notes
 - Token validation uses a combination of database checks and caching for performance
 - Rate limiting prevents brute force attacks at 10 attempts per minute by default
+  - Trusted IPs can be whitelisted to bypass rate limiting via admin panel
+  - IP whitelist is persisted to disk and loaded on application startup
 - Cache invalidation occurs on token update, delete and revoke operations
 - Permission checks provide granular access control for different features
 - IP tracking enables security auditing and rate limiting by client

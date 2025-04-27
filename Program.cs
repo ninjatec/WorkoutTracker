@@ -467,7 +467,9 @@ try
     builder.Services.AddScoped<IShareTokenService, ShareTokenService>();
 
     // Register token validation services
-    builder.Services.AddSingleton<ITokenRateLimiter, TokenRateLimiter>();
+    builder.Services.AddSingleton<TokenRateLimiter>();
+    builder.Services.AddSingleton<ITokenRateLimiter>(provider => provider.GetRequiredService<TokenRateLimiter>());
+    builder.Services.AddHostedService(provider => provider.GetRequiredService<TokenRateLimiter>());
     builder.Services.AddScoped<ITokenValidationService, TokenValidationService>();
 
     // Register VersionService for version management
@@ -588,6 +590,19 @@ try
                    .Expire(TimeSpan.FromHours(3))
                    .SetVaryByQuery("token")
                    .Tag("shared-workout"));
+                   
+        // Policy for home page to prevent redirects from triggering rate limits
+        options.AddPolicy("HomePagePolicy", builder =>
+            builder.Cache()
+                   .Expire(TimeSpan.FromHours(1))
+                   .Tag("home-page"));
+                   
+        // Policy for login page to prevent rate limit triggers
+        options.AddPolicy("LoginPagePolicy", builder =>
+            builder.Cache()
+                   .Expire(TimeSpan.FromMinutes(15))
+                   .Tag("login-page")
+                   .SetVaryByQuery("ReturnUrl"));
     });
 
     // Add custom session serialization to use System.Text.Json for better performance

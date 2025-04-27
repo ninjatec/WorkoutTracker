@@ -18,6 +18,8 @@ public class ApplicationDbContext : IdentityDbContext
     
     public DbSet<LogLevelOverride> LogLevelOverrides { get; set; }
     
+    public DbSet<WhitelistedIp> WhitelistedIps { get; set; }
+    
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -28,5 +30,10 @@ public class ApplicationDbContext : IdentityDbContext
             .WithOne(o => o.LogLevelSettings)
             .HasForeignKey(o => o.LogLevelSettingsId)
             .OnDelete(DeleteBehavior.Cascade);
+        
+        // Configure WhitelistedIp
+        builder.Entity<WhitelistedIp>()
+            .HasIndex(w => w.IpAddress)
+            .IsUnique();
     }
 }

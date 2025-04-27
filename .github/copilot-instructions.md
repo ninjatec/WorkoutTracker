@@ -2,6 +2,7 @@
 - ALWAYS ensure the codebase comiles withut error before a task is considered complete
 - ALWAYS use --context on dotnet ef commands
 - AVOID repeating work already complete
+- The application runs on k8s accross multiple pods in productin make design choices based on this
 - do not use System.Data.SqlClient package. prefer Microsoft.Data.SqlClient
 - Use the existing output cache for new pages
 - Do not apologize
