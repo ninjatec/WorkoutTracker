@@ -1,0 +1,681 @@
+@page
+@model WorkoutTrackerWeb.Pages.Clients.ViewWorkoutAssignmentModel
+@{
+    ViewData["Title"] = $"Workout: {Model.Assignment.Name}";
+    var activeTab = Request.Query["tab"].ToString() ?? "overview";
+}
+
+<div class="container-fluid px-4">
+    <div class="row">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-page="/Clients/Workouts">My Workouts</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">@Model.Assignment.Name</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1 class="h3 mb-1">@Model.Assignment.Name</h1>
+                            <p class="text-muted mb-1">
+                                <span class="badge bg-primary me-2">@Model.Assignment.TemplateCategory</span>
+                                Template: @Model.Assignment.TemplateName | 
+                                Coach: @Model.Assignment.CoachName
+                            </p>
+                            <p class="small text-muted mb-0">
+                                Assigned: @Model.Assignment.StartDate.ToShortDateString()
+                                @if (Model.Assignment.EndDate.HasValue)
+                                {
+                                    <span> to @Model.Assignment.EndDate.Value.ToShortDateString()</span>
+                                }
+                            </p>
+                        </div>
+                        <div>
+                            <form method="post" asp-page-handler="StartWorkout" class="d-inline">
+                                <input type="hidden" name="assignmentId" value="@Model.Assignment.TemplateAssignmentId" />
+                                <input type="hidden" name="sessionName" value="@Model.Assignment.Name" />
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-play me-2"></i>Start Workout
+                                </button>
+                            </form>
+                            <a href="#scheduleModal" data-bs-toggle="modal" class="btn btn-outline-secondary">
+                                <i class="fas fa-calendar-plus me-2"></i>Schedule
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <ul class="nav nav-tabs" id="workoutTabs">
+                <li class="nav-item">
+                    <a class="nav-link @(activeTab == "overview" ? "active" : "")" 
+                       href="#overview" data-bs-toggle="tab">Overview</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link @(activeTab == "exercises" ? "active" : "")" 
+                       href="#exercises" data-bs-toggle="tab">Exercises (@Model.ExerciseCount)</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link @(activeTab == "schedule" ? "active" : "")" 
+                       href="#schedule" data-bs-toggle="tab">Schedule</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link @(activeTab == "history" ? "active" : "")" 
+                       href="#history" data-bs-toggle="tab">History</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link @(activeTab == "progress" ? "active" : "")" 
+                       href="#progress" data-bs-toggle="tab">Progress</a>
+                </li>
+            </ul>
+            <div class="tab-content p-3 bg-white shadow-sm rounded-bottom">
+                <div class="tab-pane fade @(activeTab == "overview" ? "show active" : "")" id="overview">
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card shadow-sm mb-4">
+                                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                    <h5 class="card-title mb-0">Workout Description</h5>
+                                </div>
+                                <div class="card-body">
+                                    @if (!string.IsNullOrEmpty(Model.Assignment.Notes))
+                                    {
+                                        <div class="markdown">@Model.Assignment.Notes</div>
+                                    }
+                                    else
+                                    {
+                                        <p class="text-muted">No description provided.</p>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="card shadow-sm mb-4">
+                                <div class="card-header bg-light">
+                                    <h5 class="card-title mb-0">Exercise Overview</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-4">
+                                        @foreach (var exercise in Model.Exercises.Take(3))
+                                        {
+                                            <div class="col-md-4">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="@exercise.IconClass fa-fw fa-2x text-primary me-3"></i>
+                                                    <div>
+                                                        <h6 class="mb-0">@exercise.Name</h6>
+                                                        <small class="text-muted">@exercise.EquipmentName</small>
+                                                    </div>
+                                                </div>
+                                                <div class="ps-5 small">
+                                                    <p class="mb-1">@exercise.Sets sets of @exercise.RepRange reps</p>
+                                                    <p class="mb-0 text-muted">@(exercise.RestSeconds)s rest</p>
+                                                </div>
+                                            </div>
+                                        }
+                                        @if (Model.Exercises.Count > 3)
+                                        {
+                                            <div class="col-12 text-center mt-3">
+                                                <a href="#exercises" data-bs-toggle="tab" class="btn btn-sm btn-outline-primary">
+                                                    View All @Model.ExerciseCount Exercises
+                                                </a>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-4">
+                            <div class="card shadow-sm mb-4">
+                                <div class="card-header bg-light">
+                                    <h5 class="card-title mb-0">Upcoming Sessions</h5>
+                                </div>
+                                <div class="card-body">
+                                    @if (Model.UpcomingSchedules.Any())
+                                    {
+                                        <ul class="list-group list-group-flush">
+                                            @foreach (var schedule in Model.UpcomingSchedules)
+                                            {
+                                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                                    <div>
+                                                        <h6 class="mb-0">@schedule.Name</h6>
+                                                        <small class="text-muted">
+                                                            @schedule.ScheduledDateTime.ToString("dddd, MMM dd") at 
+                                                            @schedule.ScheduledDateTime.ToString("h:mm tt")
+                                                        </small>
+                                                    </div>
+                                                    <div>
+                                                        <a href="#" class="btn btn-sm btn-outline-primary">
+                                                            <i class="fas fa-calendar-alt"></i>
+                                                        </a>
+                                                    </div>
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center py-4">
+                                            <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
+                                            <p class="mb-1">No upcoming scheduled sessions</p>
+                                            <a href="#scheduleModal" data-bs-toggle="modal" class="btn btn-sm btn-primary mt-2">
+                                                Schedule Workout
+                                            </a>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="card shadow-sm mb-4">
+                                <div class="card-header bg-light">
+                                    <h5 class="card-title mb-0">Activity</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between mb-3">
+                                        @foreach (var week in Model.WeeklyActivity)
+                                        {
+                                            <div class="text-center">
+                                                <div class="small text-muted mb-1">@week.WeekLabel</div>
+                                                <div class="d-flex flex-column align-items-center">
+                                                    @for (int i = 0; i < 3; i++)
+                                                    {
+                                                        bool active = i < week.WorkoutCount;
+                                                        <div class="activity-dot @(active ? "bg-primary" : "bg-light")" 
+                                                             style="width: 8px; height: 8px; border-radius: 50%; margin: 2px;"></div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <small class="text-muted">6 weeks ago</small>
+                                        <small class="text-muted">Now</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade @(activeTab == "exercises" ? "show active" : "")" id="exercises">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card shadow-sm">
+                                <div class="card-header bg-light">
+                                    <h5 class="mb-0">Workout Exercises</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 50px;"></th>
+                                                    <th>Exercise</th>
+                                                    <th>Equipment</th>
+                                                    <th style="width: 100px;">Sets</th>
+                                                    <th style="width: 120px;">Reps</th>
+                                                    <th style="width: 120px;">Rest</th>
+                                                    <th>Notes</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var exercise in Model.Exercises)
+                                                {
+                                                    <tr>
+                                                        <td class="text-center text-primary">
+                                                            <i class="@exercise.IconClass fa-fw fa-lg"></i>
+                                                        </td>
+                                                        <td>
+                                                            <span class="d-block">@exercise.Name</span>
+                                                        </td>
+                                                        <td>@exercise.EquipmentName</td>
+                                                        <td>@exercise.Sets</td>
+                                                        <td>@exercise.RepRange</td>
+                                                        <td>@exercise.RestSeconds sec</td>
+                                                        <td>
+                                                            @if (!string.IsNullOrEmpty(exercise.Notes))
+                                                            {
+                                                                <span class="d-inline-block text-truncate" style="max-width: 200px;" 
+                                                                      data-bs-toggle="tooltip" title="@exercise.Notes">
+                                                                    @exercise.Notes
+                                                                </span>
+                                                            }
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade @(activeTab == "schedule" ? "show active" : "")" id="schedule">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card shadow-sm">
+                                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">Scheduled Workouts</h5>
+                                    <a href="#scheduleModal" data-bs-toggle="modal" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-plus me-1"></i> Schedule Workout
+                                    </a>
+                                </div>
+                                <div class="card-body">
+                                    @if (Model.UpcomingSchedules.Any())
+                                    {
+                                        <div class="table-responsive">
+                                            <table class="table table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Workout</th>
+                                                        <th>Date</th>
+                                                        <th>Time</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var schedule in Model.UpcomingSchedules)
+                                                    {
+                                                        <tr>
+                                                            <td>@schedule.Name</td>
+                                                            <td>@schedule.ScheduledDateTime.ToString("dddd, MMM dd, yyyy")</td>
+                                                            <td>@schedule.ScheduledDateTime.ToString("h:mm tt")</td>
+                                                            <td>
+                                                                <div class="btn-group">
+                                                                    <a href="#" class="btn btn-sm btn-outline-secondary">
+                                                                        <i class="fas fa-edit"></i>
+                                                                    </a>
+                                                                    <a href="#" class="btn btn-sm btn-outline-danger">
+                                                                        <i class="fas fa-trash"></i>
+                                                                    </a>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center py-5">
+                                            <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
+                                            <p class="mb-3">No scheduled workouts</p>
+                                            <a href="#scheduleModal" data-bs-toggle="modal" class="btn btn-primary">
+                                                Schedule Your First Workout
+                                            </a>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade @(activeTab == "history" ? "show active" : "")" id="history">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card shadow-sm">
+                                <div class="card-header bg-light">
+                                    <h5 class="mb-0">Workout History</h5>
+                                </div>
+                                <div class="card-body">
+                                    @if (Model.RecentSessions.Any())
+                                    {
+                                        <div class="table-responsive">
+                                            <table class="table table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Workout</th>
+                                                        <th>Date</th>
+                                                        <th>Duration</th>
+                                                        <th>Volume</th>
+                                                        <th>Rating</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var session in Model.RecentSessions)
+                                                    {
+                                                        <tr>
+                                                            <td>@session.Name</td>
+                                                            <td>@session.CompletedDate.ToString("MMM dd, yyyy")</td>
+                                                            <td>@(session.Duration)m</td>
+                                                            <td>@session.TotalVolume.ToString("N0")</td>
+                                                            <td>
+                                                                @if (session.HasFeedback)
+                                                                {
+                                                                    <div class="rating small">
+                                                                        @for (int i = 1; i <= 5; i++)
+                                                                        {
+                                                                            <i class="@(i <= session.OverallRating ? "fas" : "far") fa-star text-warning"></i>
+                                                                        }
+                                                                    </div>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <span class="text-muted small">No rating</span>
+                                                                }
+                                                            </td>
+                                                            <td>
+                                                                <div class="btn-group">
+                                                                    <a href="#" class="btn btn-sm btn-outline-secondary">
+                                                                        <i class="fas fa-eye"></i>
+                                                                    </a>
+                                                                    @if (!session.HasFeedback)
+                                                                    {
+                                                                        <a href="#" class="btn btn-sm btn-outline-primary">
+                                                                            <i class="fas fa-comment-dots"></i>
+                                                                        </a>
+                                                                    }
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center py-5">
+                                            <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                                            <p class="mb-3">No workout history yet</p>
+                                            <form method="post" asp-page-handler="StartWorkout" class="d-inline">
+                                                <input type="hidden" name="assignmentId" value="@Model.Assignment.TemplateAssignmentId" />
+                                                <input type="hidden" name="sessionName" value="@Model.Assignment.Name" />
+                                                <button type="submit" class="btn btn-primary">
+                                                    Start Your First Workout
+                                                </button>
+                                            </form>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade @(activeTab == "progress" ? "show active" : "")" id="progress">
+                    <div class="row">
+                        <div class="col-md-7">
+                            <div class="card shadow-sm mb-4">
+                                <div class="card-header bg-light">
+                                    <h5 class="mb-0">Progress Charts</h5>
+                                </div>
+                                <div class="card-body">
+                                    @if (Model.RecentSessions.Any())
+                                    {
+                                        <div class="chart-container" style="position: relative; height:300px;">
+                                            <canvas id="volumeChart"></canvas>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center py-5">
+                                            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                                            <p class="mb-3">Complete workouts to see your progress charts</p>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="card shadow-sm mb-4">
+                                <div class="card-header bg-light">
+                                    <h5 class="mb-0">Volume by Exercise</h5>
+                                </div>
+                                <div class="card-body">
+                                    @if (Model.VolumeByExerciseType.Any(v => v.TotalVolume > 0))
+                                    {
+                                        <div class="chart-container" style="position: relative; height:300px;">
+                                            <canvas id="exerciseVolumeChart"></canvas>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-center py-5">
+                                            <i class="fas fa-dumbbell fa-3x text-muted mb-3"></i>
+                                            <p class="mb-3">Complete workouts to see volume breakdown</p>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Schedule Modal -->
+<div class="modal fade" id="scheduleModal" tabindex="-1" aria-labelledby="scheduleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="scheduleModalLabel">Schedule Workout</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="scheduleForm">
+                    <input type="hidden" id="assignmentId" name="assignmentId" value="@Model.Assignment.TemplateAssignmentId" />
+                    
+                    <div class="mb-3">
+                        <label for="scheduleName" class="form-label">Workout Name</label>
+                        <input type="text" class="form-control" id="scheduleName" name="scheduleName" 
+                               value="@Model.Assignment.Name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="scheduleDate" class="form-label">Date</label>
+                        <input type="date" class="form-control" id="scheduleDate" name="scheduleDate" 
+                               value="@DateTime.Now.ToString("yyyy-MM-dd")" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="scheduleTime" class="form-label">Time</label>
+                        <input type="time" class="form-control" id="scheduleTime" name="scheduleTime" 
+                               value="@DateTime.Now.AddHours(1).ToString("HH:mm")" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="recurrenceType" class="form-label">Repeat</label>
+                        <select class="form-select" id="recurrenceType" name="recurrenceType">
+                            <option value="none">Don't repeat</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="biweekly">Every 2 weeks</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                    
+                    <div id="recurrenceOptions" class="d-none">
+                        <div class="mb-3">
+                            <label for="recurrenceEndDate" class="form-label">Repeat Until</label>
+                            <input type="date" class="form-control" id="recurrenceEndDate" name="recurrenceEndDate" 
+                                   value="@DateTime.Now.AddMonths(3).ToString("yyyy-MM-dd")">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveScheduleBtn">Save Schedule</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script>
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        });
+        
+        // Show/hide recurrence options based on selection
+        document.getElementById('recurrenceType').addEventListener('change', function() {
+            var recurrenceOptions = document.getElementById('recurrenceOptions');
+            if (this.value !== 'none') {
+                recurrenceOptions.classList.remove('d-none');
+            } else {
+                recurrenceOptions.classList.add('d-none');
+            }
+        });
+        
+        // Handle tab URL parameter
+        document.addEventListener('DOMContentLoaded', function() {
+            var hash = window.location.hash;
+            if (hash) {
+                var tab = document.querySelector('a[href="' + hash + '"]');
+                if (tab) {
+                    tab.click();
+                }
+            }
+            
+            // Add click handlers to update URL when tab is changed
+            document.querySelectorAll('a[data-bs-toggle="tab"]').forEach(function(element) {
+                element.addEventListener('shown.bs.tab', function(e) {
+                    window.location.hash = e.target.getAttribute('href');
+                });
+            });
+        });
+        
+        @if (Model.RecentSessions.Any())
+        {
+            <text>
+            // Volume Progress Chart
+            var ctx = document.getElementById('volumeChart').getContext('2d');
+            var volumeChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [@Html.Raw(string.Join(",", Model.RecentSessions.OrderBy(s => s.CompletedDate).Select(s => $"'{s.CompletedDate.ToString("MM/dd")}'").ToArray()))],
+                    datasets: [{
+                        label: 'Total Volume',
+                        data: [@Html.Raw(string.Join(",", Model.RecentSessions.OrderBy(s => s.CompletedDate).Select(s => s.TotalVolume).ToArray()))],
+                        backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                        borderColor: 'rgba(13, 110, 253, 1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Volume (weight × reps)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Workout Date'
+                            }
+                        }
+                    }
+                }
+            });
+            </text>
+        }
+        
+        @if (Model.VolumeByExerciseType.Any(v => v.TotalVolume > 0))
+        {
+            <text>
+            // Exercise Volume Chart
+            var exCtx = document.getElementById('exerciseVolumeChart').getContext('2d');
+            var exerciseVolumeChart = new Chart(exCtx, {
+                type: 'pie',
+                data: {
+                    labels: [@Html.Raw(string.Join(",", Model.VolumeByExerciseType.Select(v => $"'{v.ExerciseName}'").ToArray()))],
+                    datasets: [{
+                        data: [@Html.Raw(string.Join(",", Model.VolumeByExerciseType.Select(v => v.TotalVolume).ToArray()))],
+                        backgroundColor: [
+                            'rgba(13, 110, 253, 0.7)',
+                            'rgba(102, 16, 242, 0.7)',
+                            'rgba(111, 66, 193, 0.7)',
+                            'rgba(214, 51, 132, 0.7)',
+                            'rgba(220, 53, 69, 0.7)',
+                            'rgba(253, 126, 20, 0.7)',
+                            'rgba(255, 193, 7, 0.7)',
+                            'rgba(25, 135, 84, 0.7)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        }
+                    }
+                }
+            });
+            </text>
+        }
+
+        // Handle schedule form submission
+        document.getElementById('saveScheduleBtn').addEventListener('click', function() {
+            var form = document.getElementById('scheduleForm');
+            
+            // Basic validation
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            // Get form data
+            var formData = new FormData(form);
+            
+            // Convert to JSON
+            var data = {};
+            formData.forEach(function(value, key){
+                data[key] = value;
+            });
+            
+            // Submit using fetch API
+            fetch('/api/workoutschedule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Error scheduling workout');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Close modal and reload page
+                var modal = bootstrap.Modal.getInstance(document.getElementById('scheduleModal'));
+                modal.hide();
+                window.location.reload();
+            })
+            .catch(error => {
+                alert('Error scheduling workout: ' + error.message);
+            });
+        });
+    </script>
+}

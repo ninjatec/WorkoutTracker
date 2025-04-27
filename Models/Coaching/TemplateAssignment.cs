@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -24,8 +25,20 @@ namespace WorkoutTrackerWeb.Models.Coaching
         [StringLength(50)]
         public string ClientGroupName { get; set; }
         
+        [Required]
+        [StringLength(100)]
+        [Display(Name = "Assignment Name")]
+        public string Name { get; set; }
+        
+        [StringLength(500)]
+        [Display(Name = "Notes")]
+        public string Notes { get; set; }
+        
         [Display(Name = "Assigned Date")]
         public DateTime AssignedDate { get; set; } = DateTime.Now;
+        
+        [Display(Name = "Created Date")]
+        public DateTime CreatedDate { get; set; } = DateTime.Now;
         
         [Display(Name = "Start Date")]
         public DateTime StartDate { get; set; } = DateTime.Now;
@@ -51,5 +64,8 @@ namespace WorkoutTrackerWeb.Models.Coaching
         
         [ForeignKey("CoachUserId")]
         public User Coach { get; set; }
+        
+        // Collection navigation properties
+        public ICollection<WorkoutSchedule> WorkoutSchedules { get; set; } = new List<WorkoutSchedule>();
     }
 }

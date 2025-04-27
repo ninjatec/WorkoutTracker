@@ -67,6 +67,11 @@ namespace WorkoutTrackerWeb.Data
         public DbSet<WorkoutTrackerWeb.Models.Coaching.ClientExerciseExclusion> ClientExerciseExclusions { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Coaching.ClientEquipment> ClientEquipments { get; set; } = default!;
 
+        // New workout tracking DbSets
+        public DbSet<WorkoutTrackerWeb.Models.WorkoutSession> WorkoutSessions { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.WorkoutExercise> WorkoutExercises { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.WorkoutSet> WorkoutSets { get; set; } = default!;
+
         // Helper method to get the current user's own User record
         public async Task<User> GetCurrentUserAsync()
         {

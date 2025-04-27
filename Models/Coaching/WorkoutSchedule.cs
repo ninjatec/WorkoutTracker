@@ -48,7 +48,7 @@ namespace WorkoutTrackerWeb.Models.Coaching
         public string RecurrencePattern { get; set; } // Daily, Weekly, BiWeekly, Monthly
         
         [Display(Name = "Recurrence Day Of Week")]
-        public DayOfWeek? RecurrenceDayOfWeek { get; set; }
+        public int? RecurrenceDayOfWeek { get; set; } // Store as int (0 = Sunday, 1 = Monday, etc.)
         
         [Display(Name = "Recurrence Day Of Month")]
         public int? RecurrenceDayOfMonth { get; set; }

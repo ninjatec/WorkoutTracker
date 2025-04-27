@@ -14,7 +14,12 @@ namespace WorkoutTrackerWeb.Models
         [StringLength(50)]
         [Display(Name = "Name")]
         public string Name { get; set; }
+        
         public DateTime datetime { get; set; }
+        
+        [Display(Name = "Start Date/Time")]
+        public DateTime StartDateTime { get; set; } = DateTime.Now;
+        
         public int UserId { get; set; }
         public User User { get; set; }
         public ICollection<Set>? Sets { get; set; }

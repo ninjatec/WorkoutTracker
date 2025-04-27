@@ -20,6 +20,26 @@ namespace WorkoutTrackerWeb.Models
         [Display(Name = "Sequence")]
         public int SequenceNum { get; set; } = 0;
         
+        // Order index for sorting exercises
+        [Display(Name = "Order")]
+        public int OrderIndex { get; set; } = 0;
+        
+        // Equipment reference
+        public int? EquipmentId { get; set; }
+        
+        // Set and rep counts
+        [Display(Name = "Sets")]
+        public int Sets { get; set; } = 3;
+        
+        [Display(Name = "Min Reps")]
+        public int MinReps { get; set; } = 8;
+        
+        [Display(Name = "Max Reps")]
+        public int MaxReps { get; set; } = 12;
+        
+        [Display(Name = "Rest (seconds)")]
+        public int RestSeconds { get; set; } = 60;
+        
         [StringLength(200)]
         [Display(Name = "Notes")]
         public string Notes { get; set; } = "";
@@ -27,6 +47,9 @@ namespace WorkoutTrackerWeb.Models
         // Navigation properties
         public WorkoutTemplate WorkoutTemplate { get; set; }
         public ExerciseType ExerciseType { get; set; }
+        
+        [ForeignKey("EquipmentId")]
+        public Equipment Equipment { get; set; }
         
         // Navigation property to template sets
         public ICollection<WorkoutTemplateSet> TemplateSets { get; set; } = new List<WorkoutTemplateSet>();

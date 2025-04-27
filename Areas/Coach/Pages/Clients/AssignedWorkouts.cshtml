@@ -1,0 +1,734 @@
+@page
+@using WorkoutTrackerWeb.Extensions
+@model WorkoutTrackerWeb.Areas.Coach.Pages.Clients.AssignedWorkoutsModel
+@{
+    ViewData["Title"] = "Assigned Workouts";
+    var client = Model.Client;
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="mt-4">Workouts for @client.FullName()</h1>
+            <p class="lead">View and manage assigned workout templates and schedules</p>
+        </div>
+        <div>
+            <a asp-page="../Templates/Index" class="btn btn-outline-primary me-2">
+                <i class="fas fa-arrow-left"></i> Back to Templates
+            </a>
+            <button type="button" class="btn btn-primary assign-template-btn" 
+                    data-bs-toggle="modal" data-bs-target="#assignTemplateModal"
+                    data-client-id="@Model.ClientId" 
+                    data-client-name="@client.FullName()">
+                <i class="fas fa-plus"></i> Assign New Template
+            </button>
+        </div>
+    </div>
+    
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row">
+        <!-- Assigned Templates -->
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Assigned Templates</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.TemplateAssignments.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Status</th>
+                                        <th>Dates</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var assignment in Model.TemplateAssignments)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div>@assignment.Name</div>
+                                                <small class="text-muted">@assignment.TemplateName</small>
+                                            </td>
+                                            <td>
+                                                @if (assignment.IsActive)
+                                                {
+                                                    <span class="badge bg-success">Active</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div>From: @assignment.StartDate.ToShortDateString()</div>
+                                                @if (assignment.EndDate.HasValue)
+                                                {
+                                                    <div>To: @assignment.EndDate.Value.ToShortDateString()</div>
+                                                }
+                                                else
+                                                {
+                                                    <div>No end date</div>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group">
+                                                    <a asp-page="./ViewAssignment" asp-route-id="@assignment.TemplateAssignmentId" class="btn btn-sm btn-outline-info">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                    <button type="button" class="btn btn-sm btn-outline-success schedule-btn"
+                                                            data-bs-toggle="modal" data-bs-target="#scheduleModal"
+                                                            data-assignment-id="@assignment.TemplateAssignmentId"
+                                                            data-assignment-name="@assignment.Name">
+                                                        <i class="fas fa-calendar-plus"></i>
+                                                    </button>
+                                                    <form method="post" asp-page-handler="ToggleActive" class="d-inline">
+                                                        <input type="hidden" name="assignmentId" value="@assignment.TemplateAssignmentId" />
+                                                        <input type="hidden" name="isActive" value="@(!assignment.IsActive)" />
+                                                        <button type="submit" class="btn btn-sm @(assignment.IsActive ? "btn-outline-warning" : "btn-outline-success")">
+                                                            <i class="fas @(assignment.IsActive ? "fa-pause" : "fa-play")"></i>
+                                                        </button>
+                                                    </form>
+                                                    <form method="post" asp-page-handler="DeleteAssignment" class="d-inline">
+                                                        <input type="hidden" name="assignmentId" value="@assignment.TemplateAssignmentId" />
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                                onclick="return confirm('Are you sure you want to delete this assignment?');">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <p class="mb-0">No templates assigned to this client yet.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+        
+        <!-- Scheduled Workouts -->
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>Scheduled Workouts</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.WorkoutSchedules.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Schedule</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var schedule in Model.WorkoutSchedules)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div>@schedule.Name</div>
+                                                <small class="text-muted">@(schedule.TemplateAssignmentName ?? "No template")</small>
+                                            </td>
+                                            <td>
+                                                @if (schedule.IsRecurring)
+                                                {
+                                                    @if (schedule.RecurrencePattern == "Weekly" && schedule.RecurrenceDayOfWeekInt.HasValue)
+                                                    {
+                                                        <div>Every @((DayOfWeek)schedule.RecurrenceDayOfWeekInt.Value)</div>
+                                                    }
+                                                    else if (schedule.RecurrencePattern == "Monthly" && schedule.RecurrenceDayOfMonth.HasValue)
+                                                    {
+                                                        <div>Monthly on day @schedule.RecurrenceDayOfMonth</div>
+                                                    }
+                                                    <div>at @schedule.ScheduledDateTime?.ToString("h:mm tt")</div>
+                                                }
+                                                else
+                                                {
+                                                    <div>@schedule.ScheduledDateTime?.ToString("g")</div>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (schedule.IsActive)
+                                                {
+                                                    <span class="badge bg-success">Active</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group">
+                                                    <a asp-page="./EditSchedule" asp-route-id="@schedule.WorkoutScheduleId" class="btn btn-sm btn-outline-primary">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <form method="post" asp-page-handler="ToggleSchedule" class="d-inline">
+                                                        <input type="hidden" name="scheduleId" value="@schedule.WorkoutScheduleId" />
+                                                        <input type="hidden" name="isActive" value="@(!schedule.IsActive)" />
+                                                        <button type="submit" class="btn btn-sm @(schedule.IsActive ? "btn-outline-warning" : "btn-outline-success")">
+                                                            <i class="fas @(schedule.IsActive ? "fa-pause" : "fa-play")"></i>
+                                                        </button>
+                                                    </form>
+                                                    <form method="post" asp-page-handler="DeleteSchedule" class="d-inline">
+                                                        <input type="hidden" name="scheduleId" value="@schedule.WorkoutScheduleId" />
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                                onclick="return confirm('Are you sure you want to delete this schedule?');">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <p class="mb-0">No workouts scheduled for this client yet.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Feedback -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5>Recent Workout Feedback</h5>
+        </div>
+        <div class="card-body">
+            @if (Model.RecentFeedback.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Session</th>
+                                <th>Rating</th>
+                                <th>Difficulty</th>
+                                <th>Completed</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var feedback in Model.RecentFeedback)
+                            {
+                                <tr>
+                                    <td>@feedback.FeedbackDate.ToString("g")</td>
+                                    <td>
+                                        <div>@feedback.SessionName</div>
+                                        <small class="text-muted">@feedback.SessionDate.ToString("d")</small>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <span class="me-2">@feedback.OverallRating/10</span>
+                                            <div class="progress flex-grow-1" style="height: 6px;">
+                                                <div class="progress-bar @(feedback.OverallRating >= 7 ? "bg-success" : feedback.OverallRating >= 4 ? "bg-warning" : "bg-danger")" 
+                                                     role="progressbar" style="width: @(feedback.OverallRating * 10)%" 
+                                                     aria-valuenow="@feedback.OverallRating" aria-valuemin="0" aria-valuemax="10"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <span class="me-2">@feedback.DifficultyRating/10</span>
+                                            <div class="progress flex-grow-1" style="height: 6px;">
+                                                <div class="progress-bar bg-info" role="progressbar" 
+                                                     style="width: @(feedback.DifficultyRating * 10)%" 
+                                                     aria-valuenow="@feedback.DifficultyRating" aria-valuemin="0" aria-valuemax="10"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if (feedback.CompletedAllExercises)
+                                        {
+                                            <span class="badge bg-success">Completed</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning">Partial</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <a asp-page="./ViewFeedback" asp-route-id="@feedback.WorkoutFeedbackId" class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-eye"></i> View Details
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    <p class="mb-0">No workout feedback received yet.</p>
+                </div>
+            }
+        </div>
+    </div>
+    
+    <!-- Recent Workout Performance -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Performance Tracking</h5>
+            <div class="btn-group">
+                <button type="button" class="btn btn-sm btn-outline-secondary">Last 30 Days</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary">Last 90 Days</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary">All Time</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Workout Volume Over Time</h6>
+                    <canvas id="volumeChart" height="300"></canvas>
+                </div>
+                <div class="col-md-6">
+                    <h6>Key Exercise Progress</h6>
+                    <canvas id="exerciseProgressChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Template Modal -->
+<div class="modal fade" id="assignTemplateModal" tabindex="-1" aria-labelledby="assignTemplateModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="Assign">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="assignTemplateModalLabel">Assign Template</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="clientId" name="clientId" value="@Model.ClientId" />
+                    
+                    <div class="mb-3">
+                        <label for="templateId" class="form-label">Template</label>
+                        <select id="templateId" name="templateId" class="form-select" required>
+                            <option value="">Select a template...</option>
+                            @foreach (var template in Model.AvailableTemplates)
+                            {
+                                <option value="@template.WorkoutTemplateId">@template.Name</option>
+                            }
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Assignment Name</label>
+                        <input type="text" class="form-control" id="name" name="name" required />
+                        <small class="text-muted">A descriptive name for this assignment (e.g. "Summer Strength Program")</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="startDate" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="startDate" name="startDate" required value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="endDate" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="endDate" name="endDate" />
+                        <small class="text-muted">Optional. Leave blank for an indefinite assignment.</small>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="scheduleWorkouts" name="scheduleWorkouts" value="true" />
+                        <label class="form-check-label" for="scheduleWorkouts">
+                            Schedule workouts based on this template
+                        </label>
+                    </div>
+                    
+                    <div id="schedulingOptions" class="border rounded p-3 mb-3 d-none">
+                        <h6>Scheduling Options</h6>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Frequency</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="recurrencePattern" id="recurrenceOnce" value="Once" checked>
+                                <label class="form-check-label" for="recurrenceOnce">
+                                    One-time workout
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="recurrencePattern" id="recurrenceWeekly" value="Weekly">
+                                <label class="form-check-label" for="recurrenceWeekly">
+                                    Weekly
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="recurrencePattern" id="recurrenceMonthly" value="Monthly">
+                                <label class="form-check-label" for="recurrenceMonthly">
+                                    Monthly
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div id="weeklyDaysOptions" class="mb-3 d-none">
+                            <label class="form-label">Days of Week</label>
+                            <div class="d-flex flex-wrap">
+                                @foreach (var day in new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" })
+                                {
+                                    <div class="form-check me-3">
+                                        <input class="form-check-input" type="checkbox" name="daysOfWeek" id="day@(day)" value="@day">
+                                        <label class="form-check-label" for="day@(day)">
+                                            @day
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        
+                        <div id="monthlyDayOptions" class="mb-3 d-none">
+                            <label for="dayOfMonth" class="form-label">Day of Month</label>
+                            <select id="dayOfMonth" name="dayOfMonth" class="form-select">
+                                @for (int i = 1; i <= 31; i++)
+                                {
+                                    <option value="@i">@i</option>
+                                }
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="workoutTime" class="form-label">Workout Time</label>
+                            <input type="time" class="form-control" id="workoutTime" name="workoutTime" value="17:00" />
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="sendReminder" name="sendReminder" value="true" checked />
+                            <label class="form-check-label" for="sendReminder">
+                                Send workout reminders
+                            </label>
+                        </div>
+                        
+                        <div id="reminderOptions" class="mb-3">
+                            <label for="reminderHoursBefore" class="form-label">Hours Before Workout</label>
+                            <select id="reminderHoursBefore" name="reminderHoursBefore" class="form-select">
+                                <option value="1">1 hour</option>
+                                <option value="2">2 hours</option>
+                                <option value="3" selected>3 hours</option>
+                                <option value="6">6 hours</option>
+                                <option value="12">12 hours</option>
+                                <option value="24">24 hours</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Assign Template</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Schedule Workout Modal -->
+<div class="modal fade" id="scheduleModal" tabindex="-1" aria-labelledby="scheduleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="Schedule">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="scheduleModalLabel">Schedule Workout</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="scheduleAssignmentId" name="assignmentId" />
+                    <input type="hidden" name="clientId" value="@Model.ClientId" />
+                    
+                    <div class="mb-3">
+                        <label for="scheduleName" class="form-label">Schedule Name</label>
+                        <input type="text" class="form-control" id="scheduleName" name="name" required />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="scheduleDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="scheduleDescription" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Frequency</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="recurrencePattern" id="scheduleRecurrenceOnce" value="Once" checked>
+                            <label class="form-check-label" for="scheduleRecurrenceOnce">
+                                One-time workout
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="recurrencePattern" id="scheduleRecurrenceWeekly" value="Weekly">
+                            <label class="form-check-label" for="scheduleRecurrenceWeekly">
+                                Weekly
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="recurrencePattern" id="scheduleRecurrenceMonthly" value="Monthly">
+                            <label class="form-check-label" for="scheduleRecurrenceMonthly">
+                                Monthly
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div id="scheduleWeeklyDaysOptions" class="mb-3 d-none">
+                        <label class="form-label">Days of Week</label>
+                        <div class="d-flex flex-wrap">
+                            @foreach (var day in new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" })
+                            {
+                                <div class="form-check me-3">
+                                    <input class="form-check-input" type="checkbox" name="daysOfWeek" id="scheduleDay@(day)" value="@day">
+                                    <label class="form-check-label" for="scheduleDay@(day)">
+                                        @day
+                                    </label>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    
+                    <div id="scheduleMonthlyDayOptions" class="mb-3 d-none">
+                        <label for="scheduleDayOfMonth" class="form-label">Day of Month</label>
+                        <select id="scheduleDayOfMonth" name="dayOfMonth" class="form-select">
+                            @for (int i = 1; i <= 31; i++)
+                            {
+                                <option value="@i">@i</option>
+                            }
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="scheduleDate" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="scheduleDate" name="startDate" required value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="scheduleTime" class="form-label">Time</label>
+                        <input type="time" class="form-control" id="scheduleTime" name="workoutTime" value="17:00" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="scheduleEndDate" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="scheduleEndDate" name="endDate" />
+                        <small class="text-muted">Optional. Leave blank for recurring workouts with no end date.</small>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="scheduleSendReminder" name="sendReminder" value="true" checked />
+                        <label class="form-check-label" for="scheduleSendReminder">
+                            Send workout reminders
+                        </label>
+                    </div>
+                    
+                    <div id="scheduleReminderOptions" class="mb-3">
+                        <label for="scheduleReminderHoursBefore" class="form-label">Hours Before Workout</label>
+                        <select id="scheduleReminderHoursBefore" name="reminderHoursBefore" class="form-select">
+                            <option value="1">1 hour</option>
+                            <option value="2">2 hours</option>
+                            <option value="3" selected>3 hours</option>
+                            <option value="6">6 hours</option>
+                            <option value="12">12 hours</option>
+                            <option value="24">24 hours</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Schedule Workout</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        $(document).ready(function() {
+            // Toggle scheduling options in assign template modal
+            $('#scheduleWorkouts').on('change', function() {
+                if ($(this).prop('checked')) {
+                    $('#schedulingOptions').removeClass('d-none');
+                } else {
+                    $('#schedulingOptions').addClass('d-none');
+                }
+            });
+            
+            // Toggle recurrence pattern options in assign template modal
+            $('input[name="recurrencePattern"]').on('change', function() {
+                var pattern = $('input[name="recurrencePattern"]:checked').val();
+                
+                if (pattern === 'Weekly') {
+                    $('#weeklyDaysOptions').removeClass('d-none');
+                    $('#monthlyDayOptions').addClass('d-none');
+                } else if (pattern === 'Monthly') {
+                    $('#weeklyDaysOptions').addClass('d-none');
+                    $('#monthlyDayOptions').removeClass('d-none');
+                } else {
+                    $('#weeklyDaysOptions').addClass('d-none');
+                    $('#monthlyDayOptions').addClass('d-none');
+                }
+            });
+            
+            // Toggle reminder options in assign template modal
+            $('#sendReminder').on('change', function() {
+                if ($(this).prop('checked')) {
+                    $('#reminderOptions').removeClass('d-none');
+                } else {
+                    $('#reminderOptions').addClass('d-none');
+                }
+            });
+            
+            // Toggle recurrence pattern options in schedule modal
+            $('input[id^="scheduleRecurrence"]').on('change', function() {
+                var pattern = $('input[id^="scheduleRecurrence"]:checked').val();
+                
+                if (pattern === 'Weekly') {
+                    $('#scheduleWeeklyDaysOptions').removeClass('d-none');
+                    $('#scheduleMonthlyDayOptions').addClass('d-none');
+                } else if (pattern === 'Monthly') {
+                    $('#scheduleWeeklyDaysOptions').addClass('d-none');
+                    $('#scheduleMonthlyDayOptions').removeClass('d-none');
+                } else {
+                    $('#scheduleWeeklyDaysOptions').addClass('d-none');
+                    $('#scheduleMonthlyDayOptions').addClass('d-none');
+                }
+            });
+            
+            // Toggle reminder options in schedule modal
+            $('#scheduleSendReminder').on('change', function() {
+                if ($(this).prop('checked')) {
+                    $('#scheduleReminderOptions').removeClass('d-none');
+                } else {
+                    $('#scheduleReminderOptions').addClass('d-none');
+                }
+            });
+            
+            // Populate schedule modal when opened
+            $('.schedule-btn').on('click', function() {
+                var assignmentId = $(this).data('assignment-id');
+                var assignmentName = $(this).data('assignment-name');
+                
+                $('#scheduleAssignmentId').val(assignmentId);
+                $('#scheduleName').val(assignmentName);
+            });
+            
+            // Initialize template selection
+            $('#templateId').change(function() {
+                var selectedTemplateName = $(this).find('option:selected').text();
+                $('#name').val(selectedTemplateName);
+            });
+            
+            // Initialize charts for performance tracking
+            const volumeCtx = document.getElementById('volumeChart').getContext('2d');
+            const volumeChart = new Chart(volumeCtx, {
+                type: 'line',
+                data: {
+                    labels: @Html.Raw(Json.Serialize(Model.ChartData.Select(d => d.Date.ToString("MM/dd")))),
+                    datasets: [{
+                        label: 'Total Volume (kg)',
+                        data: @Html.Raw(Json.Serialize(Model.ChartData.Select(d => d.TotalVolume))),
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 2,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Workout Volume Over Time'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            const progressCtx = document.getElementById('exerciseProgressChart').getContext('2d');
+            const progressChart = new Chart(progressCtx, {
+                type: 'line',
+                data: {
+                    labels: @Html.Raw(Json.Serialize(Model.ExerciseProgressData.Dates.Select(d => d.ToString("MM/dd")))),
+                    datasets: [
+                        @foreach (var exercise in Model.ExerciseProgressData.Exercises)
+                        {
+                            <text>
+                            {
+                                label: '@exercise.Name',
+                                data: @Html.Raw(Json.Serialize(exercise.Weights)),
+                                borderColor: '@exercise.Color',
+                                backgroundColor: '@exercise.Color',
+                                borderWidth: 2,
+                                tension: 0.1
+                            },
+                            </text>
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Key Exercise Progress'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Weight (kg)'
+                            },
+                            beginAtZero: false
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+}
