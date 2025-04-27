@@ -14,6 +14,9 @@ namespace WorkoutTrackerWeb.Models.Coaching
         // Foreign key for template assignment
         public int? TemplateAssignmentId { get; set; }
         
+        // Foreign key for direct template reference (for self-scheduling)
+        public int? TemplateId { get; set; }
+        
         // Foreign key for client User
         public int ClientUserId { get; set; }
         
@@ -67,7 +70,11 @@ namespace WorkoutTrackerWeb.Models.Coaching
         public bool IsActive { get; set; } = true;
         
         // Navigation properties
+        [ForeignKey("TemplateAssignmentId")]
         public TemplateAssignment TemplateAssignment { get; set; }
+        
+        [ForeignKey("TemplateId")]
+        public WorkoutTemplate Template { get; set; }
         
         [ForeignKey("ClientUserId")]
         public User Client { get; set; }

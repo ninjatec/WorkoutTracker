@@ -65,6 +65,11 @@ Production Site running on wot.ninjatec.co.uk
   - Comprehensive template management interface
   - Mobile-optimized template browsing and creation
   - Search and filter functionality for large template libraries
+  - **Self-scheduling capability for regular users**
+  - **Calendar interface for planning personal workouts**
+  - **Support for one-time and recurring workout schedules**
+  - **Multiple recurrence patterns (daily, weekly, bi-weekly, monthly)**
+  - **Reminder settings for upcoming workouts**
 
 - **Coaching Features**: Comprehensive tools for fitness coaches to manage clients
   - Role-based permission system for coaches

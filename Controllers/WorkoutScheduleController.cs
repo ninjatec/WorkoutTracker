@@ -78,6 +78,80 @@ namespace WorkoutTrackerWeb.Controllers
                 return Unauthorized();
             }
 
+            try
+            {
+                // Check if this is a self-scheduled workout or a coach-assigned workout
+                if (request.TemplateId.HasValue)
+                {
+                    // Self-scheduled workout (user is scheduling their own workout from their template)
+                    return await CreateSelfScheduledWorkout(request, userId.Value);
+                }
+                else if (request.AssignmentId.HasValue)
+                {
+                    // Coach-assigned workout (user is scheduling from a template assigned by a coach)
+                    return await CreateAssignmentWorkout(request, userId.Value);
+                }
+                else
+                {
+                    return BadRequest("Either templateId or assignmentId must be provided");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error creating workout schedule for user {userId}");
+                return BadRequest($"Error creating schedule: {ex.Message}");
+            }
+        }
+
+        private async Task<ActionResult<WorkoutSchedule>> CreateSelfScheduledWorkout(WorkoutScheduleRequest request, int userId)
+        {
+            // Validate template exists and belongs to the user
+            var template = await _context.WorkoutTemplate
+                .FirstOrDefaultAsync(t => t.WorkoutTemplateId == request.TemplateId && 
+                                          (t.UserId == userId || t.IsPublic));
+
+            if (template == null)
+            {
+                return BadRequest("Template not found or you don't have access to it");
+            }
+
+            // Parse schedule date and time
+            var scheduleDate = DateTime.Parse(request.ScheduleDate);
+            var scheduleTime = TimeSpan.Parse(request.ScheduleTime ?? "17:00");
+            var scheduledDateTime = scheduleDate.Date.Add(scheduleTime);
+
+            // Create the workout schedule
+            var workoutSchedule = new WorkoutSchedule
+            {
+                ClientUserId = userId,
+                CoachUserId = userId, // Self-scheduling, so the user is both client and coach
+                Name = request.ScheduleName ?? template.Name,
+                Description = request.Description ?? string.Empty,
+                StartDate = scheduleDate,
+                ScheduledDateTime = scheduledDateTime,
+                IsActive = true
+            };
+
+            // Set template information
+            workoutSchedule.TemplateId = template.WorkoutTemplateId;
+
+            // Handle recurrence pattern
+            ConfigureRecurrencePattern(workoutSchedule, request, scheduleDate);
+
+            // Add reminder settings
+            workoutSchedule.SendReminder = true;
+            workoutSchedule.ReminderHoursBefore = request.ReminderHoursBefore ?? 3;
+
+            _context.WorkoutSchedules.Add(workoutSchedule);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation($"User {userId} created self-scheduled workout {workoutSchedule.WorkoutScheduleId}");
+
+            return CreatedAtAction(nameof(GetWorkoutSchedule), new { id = workoutSchedule.WorkoutScheduleId }, workoutSchedule);
+        }
+
+        private async Task<ActionResult<WorkoutSchedule>> CreateAssignmentWorkout(WorkoutScheduleRequest request, int userId)
+        {
             // Validate template assignment exists and belongs to the user
             var assignment = await _context.TemplateAssignments
                 .FirstOrDefaultAsync(a => a.TemplateAssignmentId == request.AssignmentId && 
@@ -89,65 +163,62 @@ namespace WorkoutTrackerWeb.Controllers
                 return BadRequest("Template assignment not found or inactive");
             }
 
-            try
+            // Parse schedule date and time
+            var scheduleDate = DateTime.Parse(request.ScheduleDate);
+            var scheduleTime = TimeSpan.Parse(request.ScheduleTime ?? "17:00");
+            var scheduledDateTime = scheduleDate.Date.Add(scheduleTime);
+
+            // Create the workout schedule
+            var workoutSchedule = new WorkoutSchedule
             {
-                // Parse schedule date and time
-                var scheduleDate = DateTime.Parse(request.ScheduleDate);
-                var scheduleTime = TimeSpan.Parse(request.ScheduleTime ?? "17:00");
-                var scheduledDateTime = scheduleDate.Date.Add(scheduleTime);
+                TemplateAssignmentId = request.AssignmentId,
+                ClientUserId = userId,
+                CoachUserId = assignment.CoachUserId,
+                Name = request.ScheduleName ?? assignment.Name,
+                Description = request.Description ?? string.Empty,
+                StartDate = scheduleDate,
+                ScheduledDateTime = scheduledDateTime,
+                IsActive = true
+            };
 
-                // Create the workout schedule
-                var workoutSchedule = new WorkoutSchedule
+            // Handle recurrence pattern
+            ConfigureRecurrencePattern(workoutSchedule, request, scheduleDate);
+
+            // Add reminder settings
+            workoutSchedule.SendReminder = request.SendReminder ?? true;
+            workoutSchedule.ReminderHoursBefore = request.ReminderHoursBefore ?? 3;
+
+            _context.WorkoutSchedules.Add(workoutSchedule);
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation($"User {userId} created assignment workout schedule {workoutSchedule.WorkoutScheduleId}");
+
+            return CreatedAtAction(nameof(GetWorkoutSchedule), new { id = workoutSchedule.WorkoutScheduleId }, workoutSchedule);
+        }
+
+        private void ConfigureRecurrencePattern(WorkoutSchedule workoutSchedule, WorkoutScheduleRequest request, DateTime scheduleDate)
+        {
+            if (!string.IsNullOrEmpty(request.RecurrenceType) && request.RecurrenceType != "none")
+            {
+                workoutSchedule.IsRecurring = true;
+                workoutSchedule.RecurrencePattern = request.RecurrenceType;
+                
+                // Set recurrence end date if provided
+                if (!string.IsNullOrEmpty(request.RecurrenceEndDate))
                 {
-                    TemplateAssignmentId = request.AssignmentId,
-                    ClientUserId = userId.Value,
-                    CoachUserId = assignment.CoachUserId,
-                    Name = request.ScheduleName ?? assignment.Name,
-                    Description = request.Description ?? string.Empty,
-                    StartDate = scheduleDate,
-                    ScheduledDateTime = scheduledDateTime,
-                    IsActive = true
-                };
-
-                // Handle recurrence pattern
-                if (!string.IsNullOrEmpty(request.RecurrenceType) && request.RecurrenceType != "none")
-                {
-                    workoutSchedule.IsRecurring = true;
-                    workoutSchedule.RecurrencePattern = request.RecurrenceType;
-                    
-                    // Set recurrence end date if provided
-                    if (!string.IsNullOrEmpty(request.RecurrenceEndDate))
-                    {
-                        workoutSchedule.EndDate = DateTime.Parse(request.RecurrenceEndDate);
-                    }
-
-                    // For weekly recurrence, set the day of week
-                    if (request.RecurrenceType == "weekly" || request.RecurrenceType == "biweekly")
-                    {
-                        workoutSchedule.RecurrenceDayOfWeek = (int)scheduleDate.DayOfWeek;
-                    }
-                    // For monthly recurrence, set the day of month
-                    else if (request.RecurrenceType == "monthly")
-                    {
-                        workoutSchedule.RecurrenceDayOfMonth = scheduleDate.Day;
-                    }
+                    workoutSchedule.EndDate = DateTime.Parse(request.RecurrenceEndDate);
                 }
 
-                // Add reminder settings (default to 3 hours before)
-                workoutSchedule.SendReminder = true;
-                workoutSchedule.ReminderHoursBefore = 3;
-
-                _context.WorkoutSchedules.Add(workoutSchedule);
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation($"User {userId} created workout schedule {workoutSchedule.WorkoutScheduleId}");
-
-                return CreatedAtAction(nameof(GetWorkoutSchedule), new { id = workoutSchedule.WorkoutScheduleId }, workoutSchedule);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, $"Error creating workout schedule for user {userId}");
-                return BadRequest($"Error creating schedule: {ex.Message}");
+                // For weekly recurrence, set the day of week
+                if (request.RecurrenceType == "weekly" || request.RecurrenceType == "biweekly")
+                {
+                    workoutSchedule.RecurrenceDayOfWeek = (int)scheduleDate.DayOfWeek;
+                }
+                // For monthly recurrence, set the day of month
+                else if (request.RecurrenceType == "monthly")
+                {
+                    workoutSchedule.RecurrenceDayOfMonth = scheduleDate.Day;
+                }
             }
         }
 
@@ -247,12 +318,15 @@ namespace WorkoutTrackerWeb.Controllers
     // View model for workout schedule requests
     public class WorkoutScheduleRequest
     {
-        public int AssignmentId { get; set; }
+        public int? AssignmentId { get; set; }
+        public int? TemplateId { get; set; }  // For self-scheduling
         public string ScheduleName { get; set; }
         public string Description { get; set; }
         public string ScheduleDate { get; set; }
         public string ScheduleTime { get; set; }
         public string RecurrenceType { get; set; }
         public string RecurrenceEndDate { get; set; }
+        public bool? SendReminder { get; set; }
+        public int? ReminderHoursBefore { get; set; }
     }
 }

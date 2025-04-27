@@ -1,0 +1,228 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Identity;
+using WorkoutTrackerWeb.Data;
+using WorkoutTrackerWeb.Models;
+using WorkoutTrackerWeb.Models.Coaching;
+
+namespace WorkoutTrackerWeb.Pages.Workouts
+{
+    [Authorize]
+    public class ScheduledWorkoutsModel : PageModel
+    {
+        private readonly WorkoutTrackerWebContext _context;
+        private readonly ILogger<ScheduledWorkoutsModel> _logger;
+        private readonly UserManager<User> _userManager;
+
+        public ScheduledWorkoutsModel(WorkoutTrackerWebContext context, 
+                                     ILogger<ScheduledWorkoutsModel> logger, 
+                                     UserManager<User> userManager)
+        {
+            _context = context;
+            _logger = logger;
+            _userManager = userManager;
+        }
+
+        public List<ScheduleViewModel> UpcomingSchedules { get; set; } = new List<ScheduleViewModel>();
+        public List<ScheduleViewModel> CompletedSchedules { get; set; } = new List<ScheduleViewModel>();
+
+        public async Task<IActionResult> OnGetAsync()
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                // Get upcoming workouts (scheduled in the future)
+                var upcomingSchedules = await _context.WorkoutSchedules
+                    .Where(s => s.ClientUserId == user.UserId && 
+                               s.ScheduledDateTime > DateTime.Now)
+                    .Include(s => s.TemplateAssignment)
+                    .ThenInclude(a => a.WorkoutTemplate)
+                    .Include(s => s.Template)
+                    .OrderBy(s => s.ScheduledDateTime)
+                    .ToListAsync();
+
+                foreach (var schedule in upcomingSchedules)
+                {
+                    UpcomingSchedules.Add(CreateScheduleViewModel(schedule));
+                }
+
+                // Get completed workouts (in the past)
+                var completedSchedules = await _context.WorkoutSchedules
+                    .Where(s => s.ClientUserId == user.UserId && 
+                               s.ScheduledDateTime <= DateTime.Now)
+                    .Include(s => s.TemplateAssignment)
+                    .ThenInclude(a => a.WorkoutTemplate)
+                    .Include(s => s.Template)
+                    .OrderByDescending(s => s.ScheduledDateTime)
+                    .Take(10) // Limit to last 10 completed
+                    .ToListAsync();
+
+                foreach (var schedule in completedSchedules)
+                {
+                    CompletedSchedules.Add(CreateScheduleViewModel(schedule));
+                }
+
+                return Page();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading scheduled workouts for user {UserId}", user.UserId);
+                TempData["ErrorMessage"] = "An error occurred loading your scheduled workouts.";
+                return Page();
+            }
+        }
+
+        public async Task<IActionResult> OnPostToggleScheduleAsync(int scheduleId, bool isActive)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            var schedule = await _context.WorkoutSchedules
+                .FirstOrDefaultAsync(s => s.WorkoutScheduleId == scheduleId && 
+                                         s.ClientUserId == user.UserId);
+
+            if (schedule == null)
+            {
+                TempData["ErrorMessage"] = "Schedule not found.";
+                return RedirectToPage();
+            }
+
+            schedule.IsActive = isActive;
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = $"Workout schedule {(isActive ? "activated" : "paused")} successfully.";
+            return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnPostDeleteScheduleAsync(int scheduleId)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            var schedule = await _context.WorkoutSchedules
+                .FirstOrDefaultAsync(s => s.WorkoutScheduleId == scheduleId && 
+                                         s.ClientUserId == user.UserId);
+
+            if (schedule == null)
+            {
+                TempData["ErrorMessage"] = "Schedule not found.";
+                return RedirectToPage();
+            }
+
+            _context.WorkoutSchedules.Remove(schedule);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = "Workout schedule deleted successfully.";
+            return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnPostEditScheduleAsync(int scheduleId, string name, string description,
+                                                      string scheduleDate, string scheduleTime, 
+                                                      DateTime? endDate, bool sendReminder = true,
+                                                      int reminderHoursBefore = 3)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            var schedule = await _context.WorkoutSchedules
+                .FirstOrDefaultAsync(s => s.WorkoutScheduleId == scheduleId && 
+                                         s.ClientUserId == user.UserId);
+
+            if (schedule == null)
+            {
+                TempData["ErrorMessage"] = "Schedule not found.";
+                return RedirectToPage();
+            }
+
+            try
+            {
+                // Parse date and time
+                var scheduledDate = DateTime.Parse(scheduleDate);
+                var scheduledTime = TimeSpan.Parse(scheduleTime);
+                var scheduledDateTime = scheduledDate.Date.Add(scheduledTime);
+
+                // Update the schedule
+                schedule.Name = name;
+                schedule.Description = description;
+                schedule.ScheduledDateTime = scheduledDateTime;
+                schedule.EndDate = endDate;
+                schedule.SendReminder = sendReminder;
+                schedule.ReminderHoursBefore = reminderHoursBefore;
+
+                _context.Entry(schedule).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = "Workout schedule updated successfully.";
+                return RedirectToPage();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating workout schedule {ScheduleId} for user {UserId}", scheduleId, user.UserId);
+                TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
+                return RedirectToPage();
+            }
+        }
+
+        private ScheduleViewModel CreateScheduleViewModel(WorkoutSchedule schedule)
+        {
+            return new ScheduleViewModel
+            {
+                WorkoutScheduleId = schedule.WorkoutScheduleId,
+                TemplateAssignmentId = schedule.TemplateAssignmentId,
+                TemplateName = schedule.Template?.Name ?? schedule.TemplateAssignment?.WorkoutTemplate?.Name,
+                Name = schedule.Name,
+                Description = schedule.Description,
+                StartDate = schedule.StartDate,
+                EndDate = schedule.EndDate,
+                ScheduledDateTime = schedule.ScheduledDateTime,
+                IsRecurring = schedule.IsRecurring,
+                RecurrencePattern = schedule.RecurrencePattern,
+                RecurrenceDayOfWeek = schedule.RecurrenceDayOfWeek,
+                RecurrenceDayOfMonth = schedule.RecurrenceDayOfMonth,
+                SendReminder = schedule.SendReminder,
+                ReminderHoursBefore = schedule.ReminderHoursBefore,
+                IsActive = schedule.IsActive
+            };
+        }
+
+        public class ScheduleViewModel
+        {
+            public int WorkoutScheduleId { get; set; }
+            public int? TemplateAssignmentId { get; set; }
+            public string TemplateName { get; set; }
+            public string Name { get; set; }
+            public string Description { get; set; }
+            public DateTime StartDate { get; set; }
+            public DateTime? EndDate { get; set; }
+            public DateTime? ScheduledDateTime { get; set; }
+            public bool IsRecurring { get; set; }
+            public string RecurrencePattern { get; set; }
+            public int? RecurrenceDayOfWeek { get; set; }
+            public int? RecurrenceDayOfMonth { get; set; }
+            public bool SendReminder { get; set; }
+            public int ReminderHoursBefore { get; set; }
+            public bool IsActive { get; set; }
+        }
+    }
+}
