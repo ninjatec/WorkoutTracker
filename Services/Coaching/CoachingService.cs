@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +20,7 @@ namespace WorkoutTrackerWeb.Services.Coaching
         Task<CoachClientRelationship> GetCoachClientRelationshipAsync(string coachId, string clientId);
         Task<IEnumerable<CoachClientRelationship>> GetCoachRelationshipsAsync(string coachId);
         Task<IEnumerable<CoachClientRelationship>> GetClientRelationshipsAsync(string clientId);
-        Task<bool> UpdateCoachPermissionsAsync(int relationshipId, CoachPermission permissions);
+        Task<bool> UpdateCoachPermissionsAsync(int relationshipId, CoachClientPermission permissions);
         Task<bool> UpdateRelationshipStatusAsync(int relationshipId, RelationshipStatus status);
     }
 
@@ -122,7 +123,18 @@ namespace WorkoutTrackerWeb.Services.Coaching
                         relationship.Status = RelationshipStatus.Ended;
                         relationship.EndDate = DateTime.UtcNow;
                         relationship.LastModifiedDate = DateTime.UtcNow;
-                        relationship.Notes += $"\nRelationship ended automatically on {DateTime.UtcNow:g} due to coach demotion.";
+
+                        if (relationship.Notes == null)
+                        {
+                            relationship.Notes = new List<CoachNote>();
+                        }
+
+                        relationship.Notes.Add(new CoachNote
+                        {
+                            Content = $"Relationship ended automatically on {DateTime.UtcNow:g} due to coach demotion.",
+                            CreatedDate = DateTime.UtcNow,
+                            IsVisibleToClient = false
+                        });
                     }
 
                     await _context.SaveChangesAsync();
@@ -185,6 +197,7 @@ namespace WorkoutTrackerWeb.Services.Coaching
 
                 // Check if relationship already exists
                 var existingRelationship = await _context.CoachClientRelationships
+                    .Include(r => r.Notes)
                     .FirstOrDefaultAsync(r => r.CoachId == coachId && r.ClientId == clientId);
 
                 if (existingRelationship != null)
@@ -194,7 +207,14 @@ namespace WorkoutTrackerWeb.Services.Coaching
                     {
                         existingRelationship.Status = RelationshipStatus.Pending;
                         existingRelationship.LastModifiedDate = DateTime.UtcNow;
-                        existingRelationship.Notes += $"\nRelationship reactivated on {DateTime.UtcNow:g}.";
+
+                        existingRelationship.Notes.Add(new CoachNote
+                        {
+                            Content = $"Relationship reactivated on {DateTime.UtcNow:g}.",
+                            CreatedDate = DateTime.UtcNow,
+                            IsVisibleToClient = false
+                        });
+
                         await _context.SaveChangesAsync();
                         return existingRelationship;
                     }
@@ -211,11 +231,19 @@ namespace WorkoutTrackerWeb.Services.Coaching
                     Status = RelationshipStatus.Pending,
                     CreatedDate = DateTime.UtcNow,
                     LastModifiedDate = DateTime.UtcNow,
-                    Notes = $"Relationship created on {DateTime.UtcNow:g}."
+                    Notes = new List<CoachNote>
+                    {
+                        new CoachNote
+                        {
+                            Content = $"Relationship created on {DateTime.UtcNow:g}.",
+                            CreatedDate = DateTime.UtcNow,
+                            IsVisibleToClient = false
+                        }
+                    }
                 };
 
                 // Create default permissions
-                var permissions = new CoachPermission
+                var permissions = new CoachClientPermission
                 {
                     CanViewWorkouts = true,
                     CanCreateWorkouts = false,
@@ -226,7 +254,6 @@ namespace WorkoutTrackerWeb.Services.Coaching
                     CanAssignTemplates = true,
                     CanViewPersonalInfo = false,
                     CanCreateGoals = true,
-                    CreatedDate = DateTime.UtcNow,
                     LastModifiedDate = DateTime.UtcNow
                 };
 
@@ -236,7 +263,7 @@ namespace WorkoutTrackerWeb.Services.Coaching
 
                 // Set the relationship ID on the permissions and add to context
                 permissions.CoachClientRelationshipId = relationship.Id;
-                _context.CoachPermissions.Add(permissions);
+                relationship.Permissions = permissions;
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation("Created coach-client relationship between {CoachId} and {ClientId}", coachId, clientId);
@@ -263,6 +290,7 @@ namespace WorkoutTrackerWeb.Services.Coaching
                     .Include(r => r.Permissions)
                     .Include(r => r.Coach)
                     .Include(r => r.Client)
+                    .Include(r => r.Notes)
                     .FirstOrDefaultAsync(r => r.CoachId == coachId && r.ClientId == clientId);
             }
             catch (Exception ex)
@@ -284,6 +312,7 @@ namespace WorkoutTrackerWeb.Services.Coaching
                 return await _context.CoachClientRelationships
                     .Include(r => r.Permissions)
                     .Include(r => r.Client)
+                    .Include(r => r.Notes)
                     .Where(r => r.CoachId == coachId)
                     .OrderByDescending(r => r.Status == RelationshipStatus.Active)
                     .ThenByDescending(r => r.Status == RelationshipStatus.Pending)
@@ -309,6 +338,7 @@ namespace WorkoutTrackerWeb.Services.Coaching
                 return await _context.CoachClientRelationships
                     .Include(r => r.Permissions)
                     .Include(r => r.Coach)
+                    .Include(r => r.Notes)
                     .Where(r => r.ClientId == clientId)
                     .OrderByDescending(r => r.Status == RelationshipStatus.Active)
                     .ThenByDescending(r => r.Status == RelationshipStatus.Pending)
@@ -328,7 +358,7 @@ namespace WorkoutTrackerWeb.Services.Coaching
         /// <param name="relationshipId">The relationship ID</param>
         /// <param name="permissions">The updated permissions</param>
         /// <returns>True if successful, false otherwise</returns>
-        public async Task<bool> UpdateCoachPermissionsAsync(int relationshipId, CoachPermission permissions)
+        public async Task<bool> UpdateCoachPermissionsAsync(int relationshipId, CoachClientPermission permissions)
         {
             try
             {
@@ -380,6 +410,7 @@ namespace WorkoutTrackerWeb.Services.Coaching
             try
             {
                 var relationship = await _context.CoachClientRelationships
+                    .Include(r => r.Notes)
                     .FirstOrDefaultAsync(r => r.Id == relationshipId);
 
                 if (relationship == null)
@@ -396,14 +427,36 @@ namespace WorkoutTrackerWeb.Services.Coaching
                 if (status == RelationshipStatus.Active && !relationship.StartDate.HasValue)
                 {
                     relationship.StartDate = DateTime.UtcNow;
-                    relationship.Notes += $"\nRelationship activated on {DateTime.UtcNow:g}.";
+
+                    if (relationship.Notes == null)
+                    {
+                        relationship.Notes = new List<CoachNote>();
+                    }
+
+                    relationship.Notes.Add(new CoachNote
+                    {
+                        Content = $"Relationship activated on {DateTime.UtcNow:g}.",
+                        CreatedDate = DateTime.UtcNow,
+                        IsVisibleToClient = false
+                    });
                 }
 
                 // Set end date if ending
                 if (status == RelationshipStatus.Ended && !relationship.EndDate.HasValue)
                 {
                     relationship.EndDate = DateTime.UtcNow;
-                    relationship.Notes += $"\nRelationship ended on {DateTime.UtcNow:g}.";
+
+                    if (relationship.Notes == null)
+                    {
+                        relationship.Notes = new List<CoachNote>();
+                    }
+
+                    relationship.Notes.Add(new CoachNote
+                    {
+                        Content = $"Relationship ended on {DateTime.UtcNow:g}.",
+                        CreatedDate = DateTime.UtcNow,
+                        IsVisibleToClient = false
+                    });
                 }
 
                 await _context.SaveChangesAsync();

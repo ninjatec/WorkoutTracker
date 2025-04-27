@@ -106,12 +106,10 @@
                                     <i class="bi bi-person-check"></i> Coach
                                 </a>
                                 <ul class="dropdown-menu" aria-labelledby="coachDropdown">
-                                    <li><a class="dropdown-item" asp-area="" asp-page="/Coach/Index">Dashboard</a></li>
-                                    <li><a class="dropdown-item" asp-area="" asp-page="/Coach/Clients/Index">My Clients</a></li>
-                                    <li><a class="dropdown-item" asp-area="" asp-page="/Coach/Programs/Index">Workout Programs</a></li>
-                                    <li><a class="dropdown-item" asp-area="" asp-page="/Coach/Assessments/Index">Assessments</a></li>
+                                    <li><a class="dropdown-item" asp-area="Coach" asp-page="/Index"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
+                                    <li><a class="dropdown-item" asp-area="Coach" asp-page="/Clients/Index"><i class="bi bi-people me-2"></i>My Clients</a></li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" asp-area="" asp-page="/Coach/Settings">Settings</a></li>
+                                    <li><a class="dropdown-item" asp-area="Coach" asp-page="/Clients/Invite"><i class="bi bi-envelope-plus me-2"></i>Invite Client</a></li>
                                 </ul>
                             </li>
                         }
@@ -251,13 +249,13 @@
                 @if (User.IsInRole("Coach"))
                 {
                     <div class="col-4 text-center">
-                        <a href="/Coach/Index" class="d-block p-3 mobile-menu-item">
+                        <a asp-area="Coach" asp-page="/Index" class="d-block p-3 mobile-menu-item">
                             <i class="bi bi-person-check fs-4 d-block mb-2"></i>
                             Coach Dashboard
                         </a>
                     </div>
                     <div class="col-4 text-center">
-                        <a href="/Coach/Clients/Index" class="d-block p-3 mobile-menu-item">
+                        <a asp-area="Coach" asp-page="/Clients/Index" class="d-block p-3 mobile-menu-item">
                             <i class="bi bi-people fs-4 d-block mb-2"></i>
                             My Clients
                         </a>

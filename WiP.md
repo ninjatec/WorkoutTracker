@@ -147,6 +147,15 @@
 - Updated Admin layout with navigation link to IP whitelist management
 - Added load/save functionality to maintain whitelist across application restarts
 
+### 13. CoachNote Model Property Renaming
+- Renamed properties in the CoachNote model for better consistency and clarity:
+  - Changed `note` to `noteText` for clearer semantic meaning
+  - Changed `date` to `createdDate` for consistency with other models
+  - Changed `workoutid` to `workoutId` for consistent casing with C# conventions
+- Updated all references to these properties throughout the codebase
+- Ensured consistent naming across model, services, controllers, and views
+- Fixed all build errors related to the property renaming
+
 ## Next Steps
 
 ### 2. Guest Access

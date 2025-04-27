@@ -1,0 +1,151 @@
+@page
+@model WorkoutTrackerWeb.Areas.Coach.Pages.IndexModel
+@{
+    ViewData["Title"] = "Coach Dashboard";
+    Layout = "_Layout";
+}
+
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="alert alert-info">
+            <h5><i class="bi bi-info-circle"></i> Welcome to your Coach Dashboard</h5>
+            <p>From here, you can manage your clients, create workout templates, set goals, and view analytics for your coaching business.</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Client Summary Card -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-people-fill me-2"></i>Clients Overview</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Total Clients</h6>
+                    <span class="badge bg-primary rounded-pill">@Model.TotalClients</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Active Clients</h6>
+                    <span class="badge bg-success rounded-pill">@Model.ActiveClients</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Pending Invitations</h6>
+                    <span class="badge bg-warning rounded-pill">@Model.PendingInvitations</span>
+                </div>
+                <div class="text-center mt-3">
+                    <a asp-area="Coach" asp-page="/Clients/Index" class="btn btn-primary">Manage Clients</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity Card -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="bi bi-activity me-2"></i>Recent Client Activity</h5>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.RecentActivities.Any())
+                {
+                    <ul class="list-group list-group-flush">
+                        @foreach (var activity in Model.RecentActivities)
+                        {
+                            <li class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">@activity.ClientName</h6>
+                                    <small>@activity.Date.ToString("MMM d, yyyy")</small>
+                                </div>
+                                <p class="mb-1">@activity.Description</p>
+                                <small class="text-muted">@activity.Type</small>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <div class="text-center p-4">
+                        <p class="text-muted">No recent client activity to display.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Goals Progress Card -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="bi bi-trophy me-2"></i>Client Goals Progress</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.ClientGoals.Any())
+                {
+                    @foreach (var goal in Model.ClientGoals)
+                    {
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span>@goal.ClientName - @goal.Description</span>
+                                <span>@goal.Progress%</span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar @(goal.Progress >= 100 ? "bg-success" : "bg-primary")" 
+                                     role="progressbar" 
+                                     style="width: @goal.Progress%;" 
+                                     aria-valuenow="@goal.Progress" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-center">
+                        <p class="text-muted">No active goals to display.</p>
+                    </div>
+                }
+                <div class="text-center mt-3">
+                    <a asp-area="Coach" asp-page="/Goals/Index" class="btn btn-success">Manage Goals</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Sessions Card -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-warning text-white">
+                <h5 class="mb-0"><i class="bi bi-calendar-check me-2"></i>Upcoming Sessions</h5>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.UpcomingSessions.Any())
+                {
+                    <ul class="list-group list-group-flush">
+                        @foreach (var session in Model.UpcomingSessions)
+                        {
+                            <li class="list-group-item">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">@session.ClientName</h6>
+                                    <small>@session.Date.ToString("MMM d, h:mm tt")</small>
+                                </div>
+                                <p class="mb-1">@session.Description</p>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <div class="text-center p-4">
+                        <p class="text-muted">No upcoming sessions scheduled.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

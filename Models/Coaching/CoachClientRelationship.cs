@@ -2,71 +2,132 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.AspNetCore.Identity;
 using WorkoutTrackerWeb.Models.Identity;
 
 namespace WorkoutTrackerWeb.Models.Coaching
 {
+    /// <summary>
+    /// Represents the status of a coach-client relationship
+    /// </summary>
+    public enum RelationshipStatus
+    {
+        /// <summary>
+        /// The invitation is pending client acceptance
+        /// </summary>
+        Pending = 0,
+        
+        /// <summary>
+        /// The relationship is active
+        /// </summary>
+        Active = 1,
+        
+        /// <summary>
+        /// The relationship is temporarily paused
+        /// </summary>
+        Paused = 2,
+        
+        /// <summary>
+        /// The relationship has ended
+        /// </summary>
+        Ended = 3,
+        
+        /// <summary>
+        /// The relationship was rejected by the client
+        /// </summary>
+        Rejected = 4
+    }
+
+    /// <summary>
+    /// Represents a relationship between a coach and a client
+    /// </summary>
     public class CoachClientRelationship
     {
+        /// <summary>
+        /// Gets or sets the ID of the relationship
+        /// </summary>
         [Key]
         public int Id { get; set; }
         
+        /// <summary>
+        /// Gets or sets the ID of the coach user
+        /// </summary>
         [Required]
-        [StringLength(450)]
-        [Display(Name = "Coach")]
         public string CoachId { get; set; }
         
+        /// <summary>
+        /// Gets or sets the ID of the client user
+        /// </summary>
         [Required]
-        [StringLength(450)]
-        [Display(Name = "Client")]
         public string ClientId { get; set; }
         
-        [Display(Name = "Status")]
-        public RelationshipStatus Status { get; set; } = RelationshipStatus.Pending;
-        
-        [Display(Name = "Start Date")]
-        public DateTime? StartDate { get; set; }
-        
-        [Display(Name = "End Date")]
-        public DateTime? EndDate { get; set; }
-        
-        [Display(Name = "Created Date")]
-        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
-        
-        [Display(Name = "Last Modified")]
-        public DateTime LastModifiedDate { get; set; } = DateTime.UtcNow;
-        
-        [StringLength(1000)]
-        [Display(Name = "Notes")]
-        public string Notes { get; set; }
-        
-        // Navigation properties
+        /// <summary>
+        /// Gets or sets the coach user
+        /// </summary>
         [ForeignKey("CoachId")]
         public AppUser Coach { get; set; }
         
+        /// <summary>
+        /// Gets or sets the client user
+        /// </summary>
         [ForeignKey("ClientId")]
         public AppUser Client { get; set; }
         
-        // One-to-One relationship with CoachPermission
-        public CoachPermission Permissions { get; set; }
-    }
-    
-    public enum RelationshipStatus
-    {
-        [Display(Name = "Pending")]
-        Pending = 0,
+        /// <summary>
+        /// Gets or sets the status of the relationship
+        /// </summary>
+        [Required]
+        public RelationshipStatus Status { get; set; } = RelationshipStatus.Pending;
         
-        [Display(Name = "Active")]
-        Active = 1,
+        /// <summary>
+        /// Gets or sets the date when the relationship was created
+        /// </summary>
+        [Required]
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
         
-        [Display(Name = "Paused")]
-        Paused = 2,
+        /// <summary>
+        /// Gets or sets the date when the relationship was last modified
+        /// </summary>
+        public DateTime LastModifiedDate { get; set; } = DateTime.UtcNow;
         
-        [Display(Name = "Ended")]
-        Ended = 3,
+        /// <summary>
+        /// Gets or sets the date when the relationship became active
+        /// </summary>
+        public DateTime? StartDate { get; set; }
         
-        [Display(Name = "Declined")]
-        Declined = 4
+        /// <summary>
+        /// Gets or sets the date when the relationship ended
+        /// </summary>
+        public DateTime? EndDate { get; set; }
+        
+        /// <summary>
+        /// Gets or sets the optional invitation token for pending relationships
+        /// </summary>
+        public string InvitationToken { get; set; }
+        
+        /// <summary>
+        /// Gets or sets the expiry date for the invitation token
+        /// </summary>
+        public DateTime? InvitationExpiryDate { get; set; }
+        
+        /// <summary>
+        /// Gets or sets the client group ID
+        /// </summary>
+        public int? ClientGroupId { get; set; }
+        
+        /// <summary>
+        /// Gets or sets the client group
+        /// </summary>
+        [ForeignKey("ClientGroupId")]
+        public ClientGroup ClientGroup { get; set; }
+        
+        /// <summary>
+        /// Gets or sets the permissions for this relationship
+        /// </summary>
+        public CoachClientPermission Permissions { get; set; }
+        
+        /// <summary>
+        /// Gets or sets the notes for this relationship
+        /// </summary>
+        public ICollection<CoachNote> Notes { get; set; } = new List<CoachNote>();
     }
 }

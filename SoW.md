@@ -219,13 +219,13 @@
    - [x] Create coach-specific authorization attributes and policies
    - [x] Implement user elevation workflow from regular user to coach status
 
- - [ ] Develop client management for coaches
-   - [ ] Create Clients/Index.cshtml for coaches to view their client roster
-   - [ ] Implement client invitation system with secure tokens
-   - [ ] Add client connection request workflow for users seeking coaches
-   - [ ] Create client grouping and categorization features
-   - [ ] Develop client profile view with relevant fitness metrics
-   - [ ] Implement active/inactive client status management
+ - [x] Develop client management for coaches
+   - [x] Create Clients/Index.cshtml for coaches to view their client roster
+   - [x] Implement client invitation system with secure tokens
+   - [x] Add client connection request workflow for users seeking coaches
+   - [x] Create client grouping and categorization features
+   - [x] Develop client profile view with relevant fitness metrics
+   - [x] Implement active/inactive client status management
 
  - [ ] Build coach dashboard and analytics
    - [ ] Create coach-specific dashboard with client overview

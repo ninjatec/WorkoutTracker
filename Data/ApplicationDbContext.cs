@@ -24,7 +24,7 @@ public class ApplicationDbContext : IdentityDbContext<AppUser>
     
     public DbSet<CoachClientRelationship> CoachClientRelationships { get; set; }
     
-    public DbSet<CoachPermission> CoachPermissions { get; set; }
+    public DbSet<CoachClientPermission> CoachClientPermissions { get; set; }
     
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -55,11 +55,11 @@ public class ApplicationDbContext : IdentityDbContext<AppUser>
             .HasForeignKey(r => r.ClientId)
             .OnDelete(DeleteBehavior.Restrict);
             
-        // Configure CoachPermission relationship
-        builder.Entity<CoachPermission>()
+        // Configure CoachClientPermission relationship
+        builder.Entity<CoachClientPermission>()
             .HasOne(p => p.Relationship)
             .WithOne(r => r.Permissions)
-            .HasForeignKey<CoachPermission>(p => p.CoachClientRelationshipId)
+            .HasForeignKey<CoachClientPermission>(p => p.CoachClientRelationshipId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
