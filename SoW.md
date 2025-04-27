@@ -1,41 +1,6 @@
 # Statement of Works
 ## Workout templates / planning
 
-## Update help pages
----
-
-[ ] Update sessions pages to support sequence numbers
- - [ ] Add migration to formally add SequenceNum column to Set table with default value
-   - [ ] Create new migration for adding SequenceNum column to the Set table
-   - [ ] Set default value to 0 for existing records
-   - [ ] Add appropriate index for performance optimization
-   - [ ] Update database schema documentation
-
- - [ ] Enhance Session UI to support exercise ordering
-   - [ ] Update Sets/Create.cshtml to include sequence number input
-   - [ ] Update Sets/Edit.cshtml to allow changing sequence number
-   - [ ] Add drag-and-drop reordering capability to Sessions/Details.cshtml
-   - [ ] Add "move up/down" buttons for accessibility
-   - [ ] Add batch reordering functionality
-
- - [ ] Update sorting logic in controllers and views
-   - [ ] Modify Sessions/Details.cshtml.cs to use SequenceNum in sorting
-   - [ ] Update Set controller logic to maintain sequence numbers when adding/deleting sets
-   - [ ] Ensure proper sequence when duplicating sets
-   - [ ] Add auto-increment logic for new sets in a session
-
- - [ ] Implement sequence number management
-   - [ ] Create service to handle reordering and renumbering sets
-   - [ ] Add API endpoints for AJAX reordering
-   - [ ] Implement optimistic concurrency for sequence updates
-   - [ ] Cache sequence data for better performance
-
- - [ ] Enhance reporting to respect sequence order
-   - [ ] Update Reports and Calculator pages to display sets in sequence order
-   - [ ] Ensure Shared workout views display exercises in correct sequence
-   - [ ] Add sequence number column to workout exports
-
----
 ---
 
 [ ] Implement workout data sharing functionality
@@ -62,6 +27,70 @@
    - [ ] Create user guide for sharing workout data
 
 ---
+
+[x] Implement a feature set for coaches to have the ability to manage other users and plan workouts for them, including viewing all workout data and reports.
+ - [x] Create coach role and permission system
+   - [x] Add Coach role to identity system
+   - [x] Create CoachPermission model to define granular access controls
+   - [x] Implement CoachClientRelationship model to manage coach-client connections
+   - [x] Add migrations for new coach-related database tables
+   - [x] Create coach-specific authorization attributes and policies
+   - [x] Implement user elevation workflow from regular user to coach status
+
+ - [x] Develop client management for coaches
+   - [x] Create Clients/Index.cshtml for coaches to view their client roster
+   - [x] Implement client invitation system with secure tokens
+   - [x] Add client connection request workflow for users seeking coaches
+   - [x] Create client grouping and categorization features
+   - [x] Develop client profile view with relevant fitness metrics
+   - [x] Implement active/inactive client status management
+
+ - [x] Implement workout programming for clients
+   - [x] Create interface for coaches to develop client-specific workout templates
+     - [x] Design WorkoutTemplate, WorkoutTemplateExercise, and WorkoutTemplateSet models
+     - [x] Create database migrations for template tables with appropriate relationships
+     - [x] Develop Templates/Create.cshtml page for coaches to build new templates
+     - [x] Add exercise selection with muscle group filtering
+     - [x] Implement set parameters with default values (reps, weight, rest periods)
+     - [x] Create sequence management for ordering exercises within templates
+   - [x] Add ability to assign templates to individual clients or groups
+     - [x] Create TemplateAssignment model to link templates with clients/groups
+     - [x] Develop assignment interface in Templates/Assign.cshtml
+     - [x] Implement bulk assignment to client groups
+     - [x] Add email notifications for new template assignments
+     - [x] Create client dashboard for viewing assigned templates
+     - [x] Implement access controls based on coach-client relationship
+
+
+   - [x] Implement workout scheduling
+     - [x] Create WorkoutSchedule model to manage recurring or one-time sessions
+     - [x] Develop calendar interface for scheduling client workouts
+     - [x] Create recurring workout patterns (weekly, bi-weekly, monthly)
+
+  - [ ] Implement Notification system - Useing Existing Email functionality
+     - [ ] Add email notification system for upcoming workouts
+     - [ ] Implement reminder customization (timing, frequency)
+     - [ ] Create recurring workout patterns (weekly, bi-weekly, monthly)
+  
+
+ - [ ] Create feedback and communication system
+   - [ ] Implement coach comments on individual workouts/exercises
+   - [ ] Add structured feedback forms for clients to complete
+   - [ ] Create RPE (Rate of Perceived Exertion) tracking for client feedback
+   - [ ] Develop direct messaging system between coach and client
+   - [ ] Add file/image sharing for form checks and demonstrations
+   - [ ] Implement video annotation tools for technique feedback
+
+ - [ ] Extend reporting system for coaches
+   - [ ] Create client-specific report views with coach annotations
+   - [ ] Implement comparative reporting across multiple clients
+   - [ ] Add aggregate statistics for coach effectiveness metrics
+   - [ ] Create exportable client reports for offline analysis
+   - [ ] Develop custom report builder for coach-specific metrics
+   - [ ] Add report scheduling with automatic delivery options
+
+[ ] Error sending invite
+ 
 ---
 
 [ ] Allow Import from apple via HealthKit
@@ -206,173 +235,3 @@
    - [ ] Implement integration tests for export process
    - [ ] Add user guide for HealthKit export workflow
    - [ ] Document iOS companion app export functionality
-
-
-[x] Implement a feature set for coaches to have the ability to manage other users and plan workouts for them, including viewing all workout data and reports.
- - [x] Create coach role and permission system
-   - [x] Add Coach role to identity system
-   - [x] Create CoachPermission model to define granular access controls
-   - [x] Implement CoachClientRelationship model to manage coach-client connections
-   - [x] Add migrations for new coach-related database tables
-   - [x] Create coach-specific authorization attributes and policies
-   - [x] Implement user elevation workflow from regular user to coach status
-
- - [x] Develop client management for coaches
-   - [x] Create Clients/Index.cshtml for coaches to view their client roster
-   - [x] Implement client invitation system with secure tokens
-   - [x] Add client connection request workflow for users seeking coaches
-   - [x] Create client grouping and categorization features
-   - [x] Develop client profile view with relevant fitness metrics
-   - [x] Implement active/inactive client status management
-
- - [x] Implement workout programming for clients
-   - [x] Create interface for coaches to develop client-specific workout templates
-     - [x] Design WorkoutTemplate, WorkoutTemplateExercise, and WorkoutTemplateSet models
-     - [x] Create database migrations for template tables with appropriate relationships
-     - [x] Develop Templates/Create.cshtml page for coaches to build new templates
-     - [x] Add exercise selection with muscle group filtering
-     - [x] Implement set parameters with default values (reps, weight, rest periods)
-     - [x] Create sequence management for ordering exercises within templates
-   - [x] Add ability to assign templates to individual clients or groups
-     - [x] Create TemplateAssignment model to link templates with clients/groups
-     - [x] Develop assignment interface in Templates/Assign.cshtml
-     - [x] Implement bulk assignment to client groups
-     - [x] Add email notifications for new template assignments
-     - [x] Create client dashboard for viewing assigned templates
-     - [x] Implement access controls based on coach-client relationship
-
-
-   - [x] Implement workout scheduling
-     - [x] Create WorkoutSchedule model to manage recurring or one-time sessions
-     - [x] Develop calendar interface for scheduling client workouts
-     - [x] Create recurring workout patterns (weekly, bi-weekly, monthly)
-
-  - [ ] Implement Notification system - Useing Existing Email functionality
-     - [ ] Add email notification system for upcoming workouts
-     - [ ] Implement reminder customization (timing, frequency)
-     - [ ] Create recurring workout patterns (weekly, bi-weekly, monthly)
-  
-
- - [ ] Create feedback and communication system
-   - [ ] Implement coach comments on individual workouts/exercises
-   - [ ] Add structured feedback forms for clients to complete
-   - [ ] Create RPE (Rate of Perceived Exertion) tracking for client feedback
-   - [ ] Develop direct messaging system between coach and client
-   - [ ] Add file/image sharing for form checks and demonstrations
-   - [ ] Implement video annotation tools for technique feedback
-
- - [ ] Extend reporting system for coaches
-   - [ ] Create client-specific report views with coach annotations
-   - [ ] Implement comparative reporting across multiple clients
-   - [ ] Add aggregate statistics for coach effectiveness metrics
-   - [ ] Create exportable client reports for offline analysis
-   - [ ] Develop custom report builder for coach-specific metrics
-   - [ ] Add report scheduling with automatic delivery options
-
- 
-[x] Add calculated total volume and estimate calories to Workout and Sets views
- - [x] Design and implement calorie calculation service
-   - [x] Create CalorieCalculationService with configurable MET values for different exercise types
-   - [x] Implement calculation algorithm based on exercise intensity, duration, and user weight
-   - [x] Add support for different calculation methods (basic MET-based vs. heart rate-based when available)
-   - [x] Develop caching mechanism for performance optimization
-   - [x] Add unit tests for calorie calculation logic
-
- - [x] Enhance volume calculation implementation
-   - [x] Create robust VolumeCalculationService for standardized volume metrics
-   - [x] Implement different volume calculation methods (weight × reps, weight × reps × sets)
-   - [x] Support specialized volume calculations for bodyweight exercises
-   - [x] Add time-under-tension calculations for isometric exercises
-   - [x] Implement relative volume calculations (volume per muscle group/exercise type)
-
- - [x] Update database models and services
-   - [x] Extend Session model to include calculated TotalVolume and EstimatedCalories properties
-   - [x] Add caching support for volume and calorie calculations
-   - [x] Create migration for adding new fields if storing calculated values
-   - [x] Update repository/service layer to support new calculations
-   - [x] Implement automatic recalculation when related data changes
-
- - [x] Update Sessions UI
-   - [x] Modify Sessions/Details.cshtml to display total volume and calories
-   - [x] Add visual indicators (charts/gauges) for volume and calorie metrics
-   - [x] Create collapsed/expandable detailed breakdown by exercise
-   - [x] Add comparison to previous session values (with change percentage)
-   - [x] Implement unit selection toggles (kg/lb for volume, kcal/kJ for energy)
-
- - [x] Enhance Sets UI
-   - [x] Update Sets/Index.cshtml to include per-set volume metrics
-   - [x] Add progressive color coding based on volume/intensity
-   - [x] Implement set-specific calorie estimates
-   - [x] Create cumulative volume tracking within workout
-   - [x] Add visual indicators for volume progression across sets
-
- - [x] Extend reporting functionality
-   - [x] Update Reports/Index.cshtml to include volume and calorie trends
-   - [x] Add volume progression charts by exercise/muscle group
-   - [x] Create calorie expenditure analysis by workout type
-   - [x] Implement volume-to-results correlation analysis
-   - [x] Add comparative metrics against population averages
-
- - [x] Update REST API endpoints
-   - [x] Extend existing workout API to include volume and calorie data
-   - [x] Add dedicated endpoints for volume/calorie metrics
-   - [x] Implement filtering and aggregation parameters
-   - [x] Create batch calculation endpoints for performance
-   - [x] Add proper documentation for new API features
-
- - [x] Enhance mobile responsiveness
-   - [x] Optimize volume and calorie displays for mobile devices
-   - [x] Implement condensed views for small screens
-   - [x] Create mobile-specific interactive visualizations
-   - [x] Add quick-view indicators for key metrics
-   - [x] Ensure touch-friendly controls for all new UI elements
-
- - [x] Update documentation
-   - [x] Add volume and calorie calculation methodology to help pages
-   - [x] Update README.md with new feature details
-   - [x] Add calculation components to inventory.md
-   - [x] Create user guide for interpreting volume/calorie metrics
-   - [x] Document API changes and examples
-
-[x] Make the reports page an accordian adding volume and calories reports
- - [x] Design and implement tabbed interface for reports page
-   - [x] Create accordian structure in Reports/Index.cshtml
-   - [x] Design responsive accordian layout for both desktop and mobile views
-   - [x] Add accordian navigation with appropriate icons and labels
-
- - [x] Implement volume analysis reports tab
-   - [x] Create VolumeAnalysisViewModel to aggregate volume metrics
-   - [x] Develop volume calculation service for different exercise types
-   - [x] Add volume trending chart showing progress over time
-   - [x] Implement volume breakdown by muscle group/exercise type
-   - [x] Create volume heatmap visualization for weekly patterns
-   - [x] Add relative volume analysis (volume per body weight)
-   - [x] Implement comparative volume metrics against previous periods
-
- - [x] Develop calorie expenditure reports tab
-   - [x] Create CalorieAnalysisViewModel for energy expenditure metrics
-   - [x] Implement calorie calculation service using MET values and user data
-   - [x] Add calorie burn chart with trend analysis
-   - [x] Create breakdown of calories by workout type/intensity
-   - [x] Implement weekly/monthly calorie goal tracking
-   - [x] Add calorie expenditure forecasting based on planned workouts
-   - [x] Develop calorie visualization comparing different exercise types
-
- - [x] Enhance existing personal records
-   - [x] Update personal records view to fit new tabbed interface
-   - [x] Add filtering options for record categories
-   - [x] Implement visual indicators for recent records
-   - [x] Create record history tracking to show progression
-   - [x] Add export functionality for personal records
-
- - [x] Create progress tracking accordian
-   - [x] Develop integrated view of key performance indicators
-   - [x] Implement customizable progress metrics selection
-   - [x] Add milestone tracking and celebration notifications
-   - [x] Create progress snapshot comparisons
-   - [x] Implement goal setting and tracking visualization
-
- - [x] Enhance the user experience
-   - [x] Add export to PDF option for all report tabs
-   - [x] Add data tooltips and help information for metrics
-   - [x] Create mobile-optimized views for each section
