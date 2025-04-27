@@ -26,7 +26,7 @@
                     <a href="#" onclick="window.location='@Url.Page("/Templates/Index", new { area = "Coach" })'" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Templates") == true ? "active" : "")">
                         <i class="bi bi-file-earmark-text me-2"></i> Workout Templates
                     </a>
-                    <a href="#" onclick="window.location='@Url.Page("/Clients/Invite", new { area = "Coach" })'" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString() == "/Clients/Invite" ? "active" : "")">
+                    <a href="#" onclick="window.location='@Url.Page("/Clients/Index", new { area = "Coach", showInvite = true })'" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString() == "/Clients/Invite" ? "active" : "")">
                         <i class="bi bi-envelope-plus me-2"></i> Invite Client
                     </a>
                     <a href="#" onclick="window.location='@Url.Page("/Clients/AssignedWorkouts", new { area = "Coach" })'" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString() == "/Clients/AssignedWorkouts" ? "active" : "")">
@@ -47,7 +47,7 @@
                     <a href="#" onclick="window.location='@Url.Page("/Templates/Index", new { area = "Coach" })'" class="list-group-item list-group-item-action">
                         <i class="bi bi-file-earmark-text me-2"></i> Workout Templates
                     </a>
-                    <a href="#" onclick="window.location='@Url.Page("/Clients/Invite", new { area = "Coach" })'" class="list-group-item list-group-item-action">
+                    <a href="#" onclick="window.location='@Url.Page("/Clients/Index", new { area = "Coach", showInvite = true })'" class="list-group-item list-group-item-action">
                         <i class="bi bi-envelope-plus me-2"></i> Invite New Client
                     </a>
                     <a href="#" onclick="window.location='@Url.Page("/Templates/Create", new { area = "Coach" })'" class="list-group-item list-group-item-action">

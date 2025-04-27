@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Attributes;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
@@ -17,10 +18,12 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
     public class AssignedWorkoutsModel : PageModel
     {
         private readonly WorkoutTrackerWebContext _context;
+        private readonly ILogger<AssignedWorkoutsModel> _logger;
 
-        public AssignedWorkoutsModel(WorkoutTrackerWebContext context)
+        public AssignedWorkoutsModel(WorkoutTrackerWebContext context, ILogger<AssignedWorkoutsModel> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         [BindProperty(SupportsGet = true)]
@@ -36,235 +39,353 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
         public async Task<IActionResult> OnGetAsync()
         {
-            // Get the current user (coach)
-            var user = await _context.GetCurrentUserAsync();
-            if (user == null)
+            try
             {
-                return Unauthorized();
+                // Get the current user (coach)
+                var user = await _context.GetCurrentUserAsync();
+                if (user == null)
+                {
+                    return Unauthorized();
+                }
+
+                // Verify the client exists and is a client of the coach
+                var relationship = await _context.CoachClientRelationships
+                    .Include(r => r.Client)
+                    .FirstOrDefaultAsync(r => r.CoachId == user.UserId.ToString() && r.ClientId == ClientId.ToString() && r.Status == RelationshipStatus.Active);
+
+                if (relationship == null)
+                {
+                    TempData["ErrorMessage"] = "Client relationship not found or inactive.";
+                    return RedirectToPage("./Index");
+                }
+
+                // Set the client
+                Client = relationship.Client;
+
+                try
+                {
+                    // Get template assignments for this client
+                    TemplateAssignments = await _context.TemplateAssignments
+                        .Where(a => a.ClientUserId == ClientId && a.CoachUserId == user.UserId)
+                        .Include(a => a.WorkoutTemplate)
+                        .OrderByDescending(a => a.IsActive)
+                        .ThenByDescending(a => a.CreatedDate)
+                        .Select(a => new TemplateAssignmentViewModel
+                        {
+                            TemplateAssignmentId = a.TemplateAssignmentId,
+                            WorkoutTemplateId = a.WorkoutTemplateId,
+                            Name = a.Name,
+                            TemplateName = a.WorkoutTemplate.Name,
+                            Notes = a.Notes,
+                            StartDate = a.StartDate,
+                            EndDate = a.EndDate,
+                            IsActive = a.IsActive,
+                            CreatedDate = a.CreatedDate
+                        })
+                        .ToListAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error loading template assignments for client {ClientId}", ClientId);
+                    // Continue with empty template assignments
+                }
+
+                try
+                {
+                    // Get workout schedules for this client
+                    WorkoutSchedules = await _context.WorkoutSchedules
+                        .Where(s => s.ClientUserId == ClientId && s.CoachUserId == user.UserId)
+                        .Include(s => s.TemplateAssignment)
+                        .OrderByDescending(s => s.IsActive)
+                        .ThenByDescending(s => s.ScheduledDateTime)
+                        .Select(s => new WorkoutScheduleViewModel
+                        {
+                            WorkoutScheduleId = s.WorkoutScheduleId,
+                            TemplateAssignmentId = s.TemplateAssignmentId,
+                            TemplateAssignmentName = s.TemplateAssignment != null ? s.TemplateAssignment.Name : null,
+                            Name = s.Name,
+                            Description = s.Description,
+                            StartDate = s.StartDate,
+                            EndDate = s.EndDate,
+                            ScheduledDateTime = s.ScheduledDateTime,
+                            IsRecurring = s.IsRecurring,
+                            RecurrencePattern = s.RecurrencePattern,
+                            RecurrenceDayOfWeekInt = s.RecurrenceDayOfWeek,
+                            RecurrenceDayOfMonth = s.RecurrenceDayOfMonth,
+                            SendReminder = s.SendReminder,
+                            ReminderHoursBefore = s.ReminderHoursBefore,
+                            IsActive = s.IsActive
+                        })
+                        .ToListAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error loading workout schedules for client {ClientId}", ClientId);
+                    // Continue with empty workout schedules
+                }
+
+                try
+                {
+                    // Get recent workout feedback from this client
+                    RecentFeedback = await _context.WorkoutFeedbacks
+                        .Where(f => f.ClientUserId == ClientId)
+                        .OrderByDescending(f => f.FeedbackDate)
+                        .Take(10)
+                        .Select(f => new WorkoutFeedbackViewModel
+                        {
+                            WorkoutFeedbackId = f.WorkoutFeedbackId,
+                            SessionName = f.Session.Name,
+                            SessionDate = f.Session.StartDateTime,
+                            FeedbackDate = f.FeedbackDate,
+                            OverallRating = f.OverallRating,
+                            DifficultyRating = f.DifficultyRating,
+                            EnergyLevel = f.EnergyLevel,
+                            CompletedAllExercises = f.CompletedAllExercises,
+                            Comments = f.Comments
+                        })
+                        .ToListAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error loading workout feedback for client {ClientId}", ClientId);
+                    // Continue with empty feedback
+                }
+
+                try
+                {
+                    // Get available templates for assignment
+                    AvailableTemplates = await _context.WorkoutTemplate
+                        .Where(t => t.UserId == user.UserId || t.IsPublic)
+                        .OrderByDescending(t => t.LastModifiedDate)
+                        .Select(t => new WorkoutTemplateViewModel
+                        {
+                            WorkoutTemplateId = t.WorkoutTemplateId,
+                            Name = t.Name,
+                            Category = t.Category,
+                            CreatedDate = t.CreatedDate
+                        })
+                        .ToListAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error loading available templates for client {ClientId}", ClientId);
+                    // Continue with empty templates
+                }
+
+                try
+                {
+                    // Get performance data for charts
+                    await LoadPerformanceData(ClientId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error loading performance data for client {ClientId}", ClientId);
+                    // Initialize empty performance data
+                    InitializeEmptyPerformanceData();
+                }
+
+                return Page();
             }
-
-            // Verify the client exists and is a client of the coach
-            var relationship = await _context.CoachClientRelationships
-                .Include(r => r.Client)
-                .FirstOrDefaultAsync(r => r.CoachId == user.UserId.ToString() && r.ClientId == ClientId.ToString() && r.Status == RelationshipStatus.Active);
-
-            if (relationship == null)
+            catch (Exception ex)
             {
-                TempData["ErrorMessage"] = "Client relationship not found or inactive.";
+                _logger.LogError(ex, "Unhandled exception in AssignedWorkoutsModel.OnGetAsync for client {ClientId}", ClientId);
+                TempData["ErrorMessage"] = "An error occurred loading the page. Please try again.";
                 return RedirectToPage("./Index");
             }
-
-            // Set the client
-            Client = relationship.Client;
-
-            // Get template assignments for this client
-            TemplateAssignments = await _context.TemplateAssignments
-                .Where(a => a.ClientUserId == ClientId && a.CoachUserId == user.UserId)
-                .Include(a => a.WorkoutTemplate)
-                .OrderByDescending(a => a.IsActive)
-                .ThenByDescending(a => a.CreatedDate)
-                .Select(a => new TemplateAssignmentViewModel
-                {
-                    TemplateAssignmentId = a.TemplateAssignmentId,
-                    WorkoutTemplateId = a.WorkoutTemplateId,
-                    Name = a.Name,
-                    TemplateName = a.WorkoutTemplate.Name,
-                    Notes = a.Notes,
-                    StartDate = a.StartDate,
-                    EndDate = a.EndDate,
-                    IsActive = a.IsActive,
-                    CreatedDate = a.CreatedDate
-                })
-                .ToListAsync();
-
-            // Get workout schedules for this client
-            WorkoutSchedules = await _context.WorkoutSchedules
-                .Where(s => s.ClientUserId == ClientId && s.CoachUserId == user.UserId)
-                .Include(s => s.TemplateAssignment)
-                .OrderByDescending(s => s.IsActive)
-                .ThenByDescending(s => s.ScheduledDateTime)
-                .Select(s => new WorkoutScheduleViewModel
-                {
-                    WorkoutScheduleId = s.WorkoutScheduleId,
-                    TemplateAssignmentId = s.TemplateAssignmentId,
-                    TemplateAssignmentName = s.TemplateAssignment != null ? s.TemplateAssignment.Name : null,
-                    Name = s.Name,
-                    Description = s.Description,
-                    StartDate = s.StartDate,
-                    EndDate = s.EndDate,
-                    ScheduledDateTime = s.ScheduledDateTime,
-                    IsRecurring = s.IsRecurring,
-                    RecurrencePattern = s.RecurrencePattern,
-                    RecurrenceDayOfWeekInt = s.RecurrenceDayOfWeek,
-                    RecurrenceDayOfMonth = s.RecurrenceDayOfMonth,
-                    SendReminder = s.SendReminder,
-                    ReminderHoursBefore = s.ReminderHoursBefore,
-                    IsActive = s.IsActive
-                })
-                .ToListAsync();
-
-            // Get recent workout feedback from this client
-            RecentFeedback = await _context.WorkoutFeedbacks
-                .Where(f => f.ClientUserId == ClientId)
-                .OrderByDescending(f => f.FeedbackDate)
-                .Take(10)
-                .Select(f => new WorkoutFeedbackViewModel
-                {
-                    WorkoutFeedbackId = f.WorkoutFeedbackId,
-                    SessionName = f.Session.Name,
-                    SessionDate = f.Session.StartDateTime,
-                    FeedbackDate = f.FeedbackDate,
-                    OverallRating = f.OverallRating,
-                    DifficultyRating = f.DifficultyRating,
-                    EnergyLevel = f.EnergyLevel,
-                    CompletedAllExercises = f.CompletedAllExercises,
-                    Comments = f.Comments
-                })
-                .ToListAsync();
-
-            // Get available templates for assignment
-            AvailableTemplates = await _context.WorkoutTemplate
-                .Where(t => t.UserId == user.UserId || t.IsPublic)
-                .OrderByDescending(t => t.LastModifiedDate)
-                .Select(t => new WorkoutTemplateViewModel
-                {
-                    WorkoutTemplateId = t.WorkoutTemplateId,
-                    Name = t.Name,
-                    Category = t.Category,
-                    CreatedDate = t.CreatedDate
-                })
-                .ToListAsync();
-
-            // Get performance data for charts
-            await LoadPerformanceData(ClientId);
-
-            return Page();
         }
 
-        private async Task LoadPerformanceData(int clientId)
+        private void InitializeEmptyPerformanceData()
         {
-            // For workout volume chart: Last 30 days by default
-            var startDate = DateTime.Today.AddDays(-30);
-            var endDate = DateTime.Today;
-
-            // Get workout sessions with volume data
-            var workoutSessions = await _context.WorkoutSessions
-                .Where(s => s.UserId == clientId && s.CompletedDate >= startDate && s.CompletedDate <= endDate)
-                .Include(s => s.WorkoutExercises)
-                .ThenInclude(e => e.WorkoutSets)
-                .OrderBy(s => s.CompletedDate)
-                .ToListAsync();
-
-            // Calculate total volume for each session
-            ChartData = workoutSessions
-                .Select(s => new ChartDataPoint
-                {
-                    Date = s.CompletedDate ?? DateTime.Now,
-                    TotalVolume = s.WorkoutExercises
-                        .SelectMany(e => e.WorkoutSets)
-                        .Sum(set => (set.Weight ?? 0) * (set.Reps ?? 0))
-                })
-                .ToList();
-
-            // If no data, add some placeholder data points
-            if (!ChartData.Any())
+            // Create empty chart data
+            ChartData = new List<ChartDataPoint>();
+            for (int i = 0; i < 5; i++)
             {
-                for (int i = 0; i < 5; i++)
+                ChartData.Add(new ChartDataPoint
                 {
-                    ChartData.Add(new ChartDataPoint
-                    {
-                        Date = DateTime.Today.AddDays(-i * 5),
-                        TotalVolume = 0
-                    });
-                }
+                    Date = DateTime.Today.AddDays(-i * 5),
+                    TotalVolume = 0
+                });
             }
 
-            // For exercise progress chart: Get key exercises and their progress
-            var keyExercises = await _context.WorkoutSessions
-                .Where(s => s.UserId == clientId)
-                .SelectMany(s => s.WorkoutExercises)
-                .GroupBy(e => e.ExerciseTypeId)
-                .OrderByDescending(g => g.Count())
-                .Take(5)
-                .Select(g => g.Key)
-                .ToListAsync();
-
-            // Placeholder for demo - in case there's no data yet
-            if (!keyExercises.Any())
-            {
-                keyExercises = await _context.ExerciseType
-                    .OrderBy(e => e.Name)
-                    .Take(3)
-                    .Select(e => e.ExerciseTypeId)
-                    .ToListAsync();
-            }
-
-            // Initialize exercise progress view model
+            // Initialize exercise progress view model with empty data
             ExerciseProgressData = new ExerciseProgressViewModel
             {
                 Dates = new List<DateTime>(),
                 Exercises = new List<ExerciseProgressItem>()
             };
 
-            // Set dates for exercise progress chart (last 10 data points)
+            // Add sample dates
             for (int i = 0; i < 10; i++)
             {
                 ExerciseProgressData.Dates.Add(DateTime.Today.AddDays(-3 * i));
             }
             ExerciseProgressData.Dates.Reverse();
 
-            // Get exercise names and generate colors
-            var colors = new[] { "#4e73df", "#1cc88a", "#36b9cc", "#f6c23e", "#e74a3b" };
-            var colorIndex = 0;
-
-            foreach (var exerciseId in keyExercises)
+            // Add a placeholder exercise
+            var placeholderExercise = new ExerciseProgressItem
             {
-                var exercise = await _context.ExerciseType.FindAsync(exerciseId);
-                if (exercise == null) continue;
+                Name = "No data yet",
+                Color = "#4e73df",
+                Weights = ExerciseProgressData.Dates.Select(d => (decimal?)0).ToList()
+            };
+            ExerciseProgressData.Exercises.Add(placeholderExercise);
+        }
 
-                // Get max weight for each exercise over time
-                var weightData = await _context.WorkoutSessions
-                    .Where(s => s.UserId == clientId && s.CompletedDate >= startDate)
+        private async Task LoadPerformanceData(int clientId)
+        {
+            try
+            {
+                // For workout volume chart: Last 30 days by default
+                var startDate = DateTime.Today.AddDays(-30);
+                var endDate = DateTime.Today;
+
+                // Get workout sessions with volume data
+                var workoutSessions = await _context.WorkoutSessions
+                    .Where(s => s.UserId == clientId && s.CompletedDate >= startDate && s.CompletedDate <= endDate)
+                    .Include(s => s.WorkoutExercises)
+                    .ThenInclude(e => e.WorkoutSets)
                     .OrderBy(s => s.CompletedDate)
-                    .SelectMany(s => s.WorkoutExercises.Where(e => e.ExerciseTypeId == exerciseId))
-                    .SelectMany(e => e.WorkoutSets)
-                    .GroupBy(s => (s.WorkoutExercise.WorkoutSession.CompletedDate ?? DateTime.Now).Date)
-                    .Select(g => new
-                    {
-                        Date = g.Key,
-                        MaxWeight = g.Max(s => s.Weight ?? 0)
-                    })
                     .ToListAsync();
 
-                // Create exercise progress item
-                var progressItem = new ExerciseProgressItem
-                {
-                    Name = exercise.Name,
-                    Color = colors[colorIndex % colors.Length],
-                    Weights = new List<decimal?>()
-                };
+                // Calculate total volume for each session
+                ChartData = workoutSessions
+                    .Select(s => new ChartDataPoint
+                    {
+                        Date = s.CompletedDate ?? DateTime.Now,
+                        TotalVolume = s.WorkoutExercises
+                            .SelectMany(e => e.WorkoutSets)
+                            .Sum(set => (set.Weight ?? 0) * (set.Reps ?? 0))
+                    })
+                    .ToList();
 
-                // Fill in weights data for each date
-                foreach (var date in ExerciseProgressData.Dates)
+                // If no data, add some placeholder data points
+                if (!ChartData.Any())
                 {
-                    var dataPoint = weightData.FirstOrDefault(w => w.Date == date.Date);
-                    progressItem.Weights.Add(dataPoint?.MaxWeight);
+                    for (int i = 0; i < 5; i++)
+                    {
+                        ChartData.Add(new ChartDataPoint
+                        {
+                            Date = DateTime.Today.AddDays(-i * 5),
+                            TotalVolume = 0
+                        });
+                    }
                 }
 
-                ExerciseProgressData.Exercises.Add(progressItem);
-                colorIndex++;
-            }
-
-            // If no exercise data, add placeholder data
-            if (!ExerciseProgressData.Exercises.Any())
-            {
-                var placeholderExercise = new ExerciseProgressItem
+                // For exercise progress chart: Get key exercises and their progress
+                var keyExercises = new List<int>();
+                try
                 {
-                    Name = "No data yet",
-                    Color = colors[0],
-                    Weights = ExerciseProgressData.Dates.Select(d => (decimal?)0).ToList()
+                    keyExercises = await _context.WorkoutSessions
+                        .Where(s => s.UserId == clientId)
+                        .SelectMany(s => s.WorkoutExercises)
+                        .GroupBy(e => e.ExerciseTypeId)
+                        .OrderByDescending(g => g.Count())
+                        .Take(5)
+                        .Select(g => g.Key)
+                        .ToListAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error getting key exercises for client {ClientId}", clientId);
+                }
+
+                // Placeholder for demo - in case there's no data yet
+                if (!keyExercises.Any())
+                {
+                    try
+                    {
+                        keyExercises = await _context.ExerciseType
+                            .OrderBy(e => e.Name)
+                            .Take(3)
+                            .Select(e => e.ExerciseTypeId)
+                            .ToListAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error getting placeholder exercise types for client {ClientId}", clientId);
+                    }
+                }
+
+                // Initialize exercise progress view model
+                ExerciseProgressData = new ExerciseProgressViewModel
+                {
+                    Dates = new List<DateTime>(),
+                    Exercises = new List<ExerciseProgressItem>()
                 };
-                ExerciseProgressData.Exercises.Add(placeholderExercise);
+
+                // Set dates for exercise progress chart (last 10 data points)
+                for (int i = 0; i < 10; i++)
+                {
+                    ExerciseProgressData.Dates.Add(DateTime.Today.AddDays(-3 * i));
+                }
+                ExerciseProgressData.Dates.Reverse();
+
+                // Get exercise names and generate colors
+                var colors = new[] { "#4e73df", "#1cc88a", "#36b9cc", "#f6c23e", "#e74a3b" };
+                var colorIndex = 0;
+
+                foreach (var exerciseId in keyExercises)
+                {
+                    try
+                    {
+                        var exercise = await _context.ExerciseType.FindAsync(exerciseId);
+                        if (exercise == null) continue;
+
+                        // Get max weight for each exercise over time
+                        var weightData = await _context.WorkoutSessions
+                            .Where(s => s.UserId == clientId && s.CompletedDate >= startDate)
+                            .OrderBy(s => s.CompletedDate)
+                            .SelectMany(s => s.WorkoutExercises.Where(e => e.ExerciseTypeId == exerciseId))
+                            .SelectMany(e => e.WorkoutSets)
+                            .GroupBy(s => (s.WorkoutExercise.WorkoutSession.CompletedDate ?? DateTime.Now).Date)
+                            .Select(g => new
+                            {
+                                Date = g.Key,
+                                MaxWeight = g.Max(s => s.Weight ?? 0)
+                            })
+                            .ToListAsync();
+
+                        // Create exercise progress item
+                        var progressItem = new ExerciseProgressItem
+                        {
+                            Name = exercise.Name,
+                            Color = colors[colorIndex % colors.Length],
+                            Weights = new List<decimal?>()
+                        };
+
+                        // Fill in weights data for each date
+                        foreach (var date in ExerciseProgressData.Dates)
+                        {
+                            var dataPoint = weightData.FirstOrDefault(w => w.Date == date.Date);
+                            progressItem.Weights.Add(dataPoint?.MaxWeight);
+                        }
+
+                        ExerciseProgressData.Exercises.Add(progressItem);
+                        colorIndex++;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error processing exercise data for exercise {ExerciseId}, client {ClientId}", exerciseId, clientId);
+                    }
+                }
+
+                // If no exercise data, add placeholder data
+                if (!ExerciseProgressData.Exercises.Any())
+                {
+                    var placeholderExercise = new ExerciseProgressItem
+                    {
+                        Name = "No data yet",
+                        Color = colors[0],
+                        Weights = ExerciseProgressData.Dates.Select(d => (decimal?)0).ToList()
+                    };
+                    ExerciseProgressData.Exercises.Add(placeholderExercise);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in LoadPerformanceData for client {ClientId}", clientId);
+                // Initialize empty performance data
+                InitializeEmptyPerformanceData();
             }
         }
 

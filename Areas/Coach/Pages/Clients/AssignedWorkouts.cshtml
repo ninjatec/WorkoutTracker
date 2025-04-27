@@ -583,6 +583,37 @@
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
+        // Service Worker refresh script
+        (function() {
+            // If Service Worker is supported
+            if ('serviceWorker' in navigator) {
+                // Force update the service worker
+                navigator.serviceWorker.getRegistration().then(function(registration) {
+                    if (registration) {
+                        console.log('Checking for service worker update...');
+                        registration.update().then(function() {
+                            console.log('Service worker update triggered.');
+                            
+                            // Listen for the updatefound event
+                            registration.addEventListener('updatefound', function() {
+                                // New service worker has been found
+                                const newWorker = registration.installing;
+                                
+                                // Listen for state change events
+                                newWorker.addEventListener('statechange', function() {
+                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                        console.log('New service worker is installed but waiting. Forcing page reload.');
+                                        // Force reload to activate the new service worker
+                                        window.location.reload();
+                                    }
+                                });
+                            });
+                        });
+                    }
+                });
+            }
+        })();
+        
         $(document).ready(function() {
             // Add proper handling for modals to fix accessibility issues
             const assignTemplateModal = document.getElementById('assignTemplateModal');

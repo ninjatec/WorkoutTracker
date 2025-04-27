@@ -38,6 +38,9 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         [TempData]
         public string StatusMessageType { get; set; } = "Success";
 
+        [BindProperty(SupportsGet = true)]
+        public bool ShowInvite { get; set; }
+
         public List<ClientViewModel> ActiveClients { get; set; } = new List<ClientViewModel>();
         public List<PendingInvitationViewModel> PendingClients { get; set; } = new List<PendingInvitationViewModel>();
         public List<ClientViewModel> InactiveClients { get; set; } = new List<ClientViewModel>();
