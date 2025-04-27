@@ -10,19 +10,20 @@ using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Areas.Admin.ViewModels;
 using WorkoutTrackerWeb.Services;
+using WorkoutTrackerWeb.Models.Identity;
 
 namespace WorkoutTrackerWeb.Areas.Admin.Pages.Users
 {
     [Authorize(Roles = "Admin")]
     public class DetailsModel : PageModel
     {
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<AppUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly WorkoutTrackerWebContext _context;
         private readonly LoginHistoryService _loginHistoryService;
 
         public DetailsModel(
-            UserManager<IdentityUser> userManager,
+            UserManager<AppUser> userManager,
             RoleManager<IdentityRole> roleManager,
             WorkoutTrackerWebContext context,
             LoginHistoryService loginHistoryService)
@@ -289,7 +290,7 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Users
             return Page();
         }
 
-        private async Task LoadUserDetailsAsync(IdentityUser user)
+        private async Task LoadUserDetailsAsync(AppUser user)
         {
             var roles = await _userManager.GetRolesAsync(user);
 
