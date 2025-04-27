@@ -19,11 +19,11 @@ namespace WorkoutTrackerWeb.Services
         private readonly TimeSpan _refillTime;
         private readonly ILogger<TokenRateLimiter> _logger;
 
-        // Default: 10 attempts per minute with a bucket of 10 tokens
+        // Default: 10 attempts per second with a bucket of 10 tokens
         public TokenRateLimiter(
             ILogger<TokenRateLimiter> logger,
             int maxTokens = 10,
-            int refillTimeSeconds = 60)
+            int refillTimeSeconds = 1)  // Changed from 60 to 1 second for 10 req/sec
         {
             _logger = logger;
             _maxTokens = maxTokens;
