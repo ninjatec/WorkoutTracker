@@ -66,6 +66,16 @@ Production Site running on wot.ninjatec.co.uk
   - Mobile-optimized template browsing and creation
   - Search and filter functionality for large template libraries
 
+- **Coaching Features**: Comprehensive tools for fitness coaches to manage clients
+  - Role-based permission system for coaches
+  - Client invitation and management system
+  - Workout template creation and assignment
+  - **Workout scheduling with recurring patterns**
+  - **Calendar interface for scheduling client sessions**
+  - **Support for one-time and recurring workout schedules**
+  - **Multiple recurrence patterns (daily, weekly, bi-weekly, monthly)**
+  - **Reminder settings for upcoming workouts**
+
 - **User Authentication**: Secure login and registration using ASP.NET Core Identity with email confirmation
 - **Admin Dashboard**: Comprehensive admin dashboard with system metrics, user statistics, and quick actions
 - **Admin User Management**: Complete CRUD operations for user accounts with:

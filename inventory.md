@@ -77,6 +77,7 @@ This document maintains an up-to-date inventory of all features, components, and
 - WorkoutTemplateExercise
 - WorkoutTemplateSet
 - CoachNote
+- WorkoutSchedule
 
 #### User
 - Primary entity representing application users
@@ -301,3 +302,24 @@ This document maintains an up-to-date inventory of all features, components, and
   - Date tracking for chronological organization
   - Privacy control for notes (visible to athlete vs. coach-only)
   - Association with specific workout sessions
+
+#### WorkoutSchedule
+- Represents scheduled workouts for clients with support for recurring patterns
+- Properties:
+  - WorkoutScheduleId, Name, Description
+  - TemplateAssignmentId, ClientUserId, CoachUserId
+  - StartDate, EndDate, ScheduledDateTime
+  - IsRecurring, RecurrencePattern (daily, weekly, biweekly, monthly)
+  - RecurrenceDayOfWeek, RecurrenceDayOfMonth
+  - SendReminder, ReminderHoursBefore, LastReminderSent
+  - IsActive
+- Relationships:
+  - Many-to-one with TemplateAssignment (optional)
+  - Many-to-one with User (client)
+  - Many-to-one with User (coach)
+- Features:
+  - One-time workout scheduling
+  - Recurring workout patterns (daily, weekly, bi-weekly, monthly)
+  - Customizable reminder settings
+  - Calendar-based interface for visualization
+  - Active status tracking

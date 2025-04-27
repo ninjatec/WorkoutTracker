@@ -296,7 +296,9 @@
                                                                     <a href="#" class="btn btn-sm btn-outline-secondary">
                                                                         <i class="fas fa-edit"></i>
                                                                     </a>
-                                                                    <a href="#" class="btn btn-sm btn-outline-danger">
+                                                                    <a href="#" class="btn btn-sm btn-outline-danger delete-schedule" 
+                                                                       data-schedule-id="@schedule.WorkoutScheduleId" 
+                                                                       data-schedule-name="@schedule.Name">
                                                                         <i class="fas fa-trash"></i>
                                                                     </a>
                                                                 </div>
@@ -479,6 +481,12 @@
                     </div>
                     
                     <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" 
+                                  rows="2" placeholder="Optional notes for this workout"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
                         <label for="scheduleDate" class="form-label">Date</label>
                         <input type="date" class="form-control" id="scheduleDate" name="scheduleDate" 
                                value="@DateTime.Now.ToString("yyyy-MM-dd")" required>
@@ -502,11 +510,61 @@
                     </div>
                     
                     <div id="recurrenceOptions" class="d-none">
+                        <div id="weeklyOptions" class="mb-3 d-none">
+                            <label class="form-label">On these days</label>
+                            <div class="d-flex flex-wrap">
+                                @foreach (var day in new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" })
+                                {
+                                    <div class="form-check me-3">
+                                        <input class="form-check-input weekday-checkbox" type="checkbox" id="day@(day)" 
+                                               name="weekDays" value="@day">
+                                        <label class="form-check-label" for="day@(day)">
+                                            @day
+                                        </label>
+                                    </div>
+                                }
+                            </div>
+                            <small class="text-muted d-block mt-1">For the first occurrence, the selected date will be used.</small>
+                        </div>
+                        
+                        <div id="monthlyOptions" class="mb-3 d-none">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="monthlyType" id="dayOfMonth" value="dayOfMonth" checked>
+                                <label class="form-check-label" for="dayOfMonth">
+                                    Day <span id="selectedDayOfMonth">15</span> of every month
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="monthlyType" id="dayOfWeek" value="dayOfWeek">
+                                <label class="form-check-label" for="dayOfWeek">
+                                    <span id="selectedWeekday">Friday</span> of week <span id="selectedWeekOfMonth">2</span>
+                                </label>
+                            </div>
+                        </div>
+                        
                         <div class="mb-3">
                             <label for="recurrenceEndDate" class="form-label">Repeat Until</label>
                             <input type="date" class="form-control" id="recurrenceEndDate" name="recurrenceEndDate" 
                                    value="@DateTime.Now.AddMonths(3).ToString("yyyy-MM-dd")">
                         </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="sendReminder" name="sendReminder" checked>
+                            <label class="form-check-label" for="sendReminder">Send reminder</label>
+                        </div>
+                    </div>
+                    
+                    <div id="reminderOptions" class="mb-3">
+                        <label for="reminderHours" class="form-label">Hours before workout</label>
+                        <select class="form-select" id="reminderHours" name="reminderHours">
+                            <option value="1">1 hour</option>
+                            <option value="2">2 hours</option>
+                            <option value="3" selected>3 hours</option>
+                            <option value="12">12 hours</option>
+                            <option value="24">24 hours</option>
+                        </select>
                     </div>
                 </form>
             </div>
@@ -519,7 +577,6 @@
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
     <script>
         // Initialize tooltips
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
@@ -527,14 +584,91 @@
             return new bootstrap.Tooltip(tooltipTriggerEl)
         });
         
-        // Show/hide recurrence options based on selection
-        document.getElementById('recurrenceType').addEventListener('change', function() {
-            var recurrenceOptions = document.getElementById('recurrenceOptions');
-            if (this.value !== 'none') {
-                recurrenceOptions.classList.remove('d-none');
-            } else {
+        // Schedule form handling
+        document.addEventListener('DOMContentLoaded', function() {
+            // Show/hide recurrence options based on selection
+            document.getElementById('recurrenceType').addEventListener('change', function() {
+                var recurrenceOptions = document.getElementById('recurrenceOptions');
+                var weeklyOptions = document.getElementById('weeklyOptions');
+                var monthlyOptions = document.getElementById('monthlyOptions');
+                
                 recurrenceOptions.classList.add('d-none');
-            }
+                weeklyOptions.classList.add('d-none');
+                monthlyOptions.classList.add('d-none');
+                
+                if (this.value === 'weekly' || this.value === 'biweekly') {
+                    recurrenceOptions.classList.remove('d-none');
+                    weeklyOptions.classList.remove('d-none');
+                    
+                    // Auto-select the day of week matching the selected date
+                    var date = new Date(document.getElementById('scheduleDate').value);
+                    var dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    var selectedDay = dayNames[date.getDay()];
+                    
+                    // Clear previous selections and select the current day
+                    document.querySelectorAll('.weekday-checkbox').forEach(cb => cb.checked = false);
+                    var checkbox = document.querySelector(`#day${selectedDay}`);
+                    if (checkbox) checkbox.checked = true;
+                    
+                } else if (this.value === 'monthly') {
+                    recurrenceOptions.classList.remove('d-none');
+                    monthlyOptions.classList.remove('d-none');
+                    
+                    // Update day of month display based on selected date
+                    var date = new Date(document.getElementById('scheduleDate').value);
+                    var dayOfMonth = date.getDate();
+                    document.getElementById('selectedDayOfMonth').textContent = dayOfMonth;
+                    
+                    // Update the day of week and week of month display
+                    var dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    var selectedDay = dayNames[date.getDay()];
+                    var weekOfMonth = Math.ceil(dayOfMonth / 7);
+                    document.getElementById('selectedWeekday').textContent = selectedDay;
+                    document.getElementById('selectedWeekOfMonth').textContent = weekOfMonth;
+                    
+                } else if (this.value !== 'none') {
+                    recurrenceOptions.classList.remove('d-none');
+                }
+            });
+            
+            // Update recurrence options when date is changed
+            document.getElementById('scheduleDate').addEventListener('change', function() {
+                var recurrenceType = document.getElementById('recurrenceType').value;
+                if (recurrenceType === 'weekly' || recurrenceType === 'biweekly') {
+                    // Update selected day of week
+                    var date = new Date(this.value);
+                    var dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    var selectedDay = dayNames[date.getDay()];
+                    
+                    // Clear previous selections and select the current day
+                    document.querySelectorAll('.weekday-checkbox').forEach(cb => cb.checked = false);
+                    var checkbox = document.querySelector(`#day${selectedDay}`);
+                    if (checkbox) checkbox.checked = true;
+                    
+                } else if (recurrenceType === 'monthly') {
+                    // Update day of month display
+                    var date = new Date(this.value);
+                    var dayOfMonth = date.getDate();
+                    document.getElementById('selectedDayOfMonth').textContent = dayOfMonth;
+                    
+                    // Update the day of week and week of month display
+                    var dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    var selectedDay = dayNames[date.getDay()];
+                    var weekOfMonth = Math.ceil(dayOfMonth / 7);
+                    document.getElementById('selectedWeekday').textContent = selectedDay;
+                    document.getElementById('selectedWeekOfMonth').textContent = weekOfMonth;
+                }
+            });
+            
+            // Toggle reminder options
+            document.getElementById('sendReminder').addEventListener('change', function() {
+                var reminderOptions = document.getElementById('reminderOptions');
+                if (this.checked) {
+                    reminderOptions.classList.remove('d-none');
+                } else {
+                    reminderOptions.classList.add('d-none');
+                }
+            });
         });
         
         // Handle tab URL parameter
@@ -650,7 +784,15 @@
             // Convert to JSON
             var data = {};
             formData.forEach(function(value, key){
-                data[key] = value;
+                // Handle multiple checkboxes
+                if (key === 'weekDays') {
+                    if (!data[key]) {
+                        data[key] = [];
+                    }
+                    data[key].push(value);
+                } else {
+                    data[key] = value;
+                }
             });
             
             // Submit using fetch API
@@ -663,18 +805,77 @@
             })
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Error scheduling workout');
+                    return response.text().then(text => {
+                        throw new Error(text || 'Error scheduling workout');
+                    });
                 }
                 return response.json();
             })
             .then(data => {
-                // Close modal and reload page
-                var modal = bootstrap.Modal.getInstance(document.getElementById('scheduleModal'));
-                modal.hide();
-                window.location.reload();
+                // Show success message
+                var successAlert = document.createElement('div');
+                successAlert.className = 'alert alert-success alert-dismissible fade show';
+                successAlert.innerHTML = `
+                    <strong>Success!</strong> Workout scheduled successfully.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                
+                // Insert the alert at the top of the modal
+                var modalBody = document.querySelector('#scheduleModal .modal-body');
+                modalBody.insertBefore(successAlert, modalBody.firstChild);
+                
+                // Close modal after a short delay and reload page
+                setTimeout(() => {
+                    var modal = bootstrap.Modal.getInstance(document.getElementById('scheduleModal'));
+                    modal.hide();
+                    window.location.reload();
+                }, 1500);
             })
             .catch(error => {
-                alert('Error scheduling workout: ' + error.message);
+                console.error('Error:', error);
+                // Show error message
+                var errorAlert = document.createElement('div');
+                errorAlert.className = 'alert alert-danger alert-dismissible fade show';
+                errorAlert.innerHTML = `
+                    <strong>Error!</strong> ${error.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                
+                // Insert the alert at the top of the modal
+                var modalBody = document.querySelector('#scheduleModal .modal-body');
+                modalBody.insertBefore(errorAlert, modalBody.firstChild);
+            });
+        });
+
+        // Handle delete schedule buttons
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add event listeners to delete buttons
+            document.querySelectorAll('.delete-schedule').forEach(function(button) {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    var scheduleId = this.getAttribute('data-schedule-id');
+                    var scheduleName = this.getAttribute('data-schedule-name');
+                    
+                    // Confirm deletion
+                    if (confirm(`Are you sure you want to delete the scheduled workout "${scheduleName}"?`)) {
+                        // Send DELETE request to API
+                        fetch(`/api/workoutschedule/${scheduleId}`, {
+                            method: 'DELETE'
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Error deleting workout schedule');
+                            }
+                            // Reload page on success
+                            window.location.reload();
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Error deleting workout schedule: ' + error.message);
+                        });
+                    }
+                });
             });
         });
     </script>

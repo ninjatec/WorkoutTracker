@@ -242,10 +242,10 @@
      - [x] Implement access controls based on coach-client relationship
 
 
-   - [ ] Implement workout scheduling
-     - [ ] Create WorkoutSchedule model to manage recurring or one-time sessions
-     - [ ] Develop calendar interface for scheduling client workouts
-     - [ ] Create recurring workout patterns (weekly, bi-weekly, monthly)
+   - [x] Implement workout scheduling
+     - [x] Create WorkoutSchedule model to manage recurring or one-time sessions
+     - [x] Develop calendar interface for scheduling client workouts
+     - [x] Create recurring workout patterns (weekly, bi-weekly, monthly)
 
   - [ ] Implement Notification system - Useing Existing Email functionality
      - [ ] Add email notification system for upcoming workouts
@@ -269,19 +269,6 @@
    - [ ] Develop custom report builder for coach-specific metrics
    - [ ] Add report scheduling with automatic delivery options
 
- - [ ] Implement client-specific goal setting
-   - [ ] Create goal management interface for coaches
-   - [ ] Add progress tracking toward client-specific goals
-   - [ ] Implement smart goal suggestions based on client history
-   - [ ] Develop goal achievement notifications and celebrations
-   - [ ] Add collaborative goal setting workflow between coach and client
-   - [ ] Create goal categorization (strength, hypertrophy, endurance, etc.)
-
- - [ ] Create coaching business tools
-   - [ ] Implement client session tracking and billing features
-   - [ ] Add coaching package management with automated renewals
-   - [ ] Develop client onboarding workflow with assessments
-   - [ ] Add coaching credential management and display
  
 [x] Add calculated total volume and estimate calories to Workout and Sets views
  - [x] Design and implement calorie calculation service
