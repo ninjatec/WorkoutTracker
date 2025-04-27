@@ -890,7 +890,7 @@ try
         options.Events.OnSignedIn = async context =>
         {
             var userManager = context.HttpContext.RequestServices
-                .GetRequiredService<UserManager<IdentityUser>>();
+                .GetRequiredService<UserManager<WorkoutTrackerWeb.Models.Identity.AppUser>>();
             var loginHistoryService = context.HttpContext.RequestServices
                 .GetRequiredService<LoginHistoryService>();
             
@@ -961,7 +961,7 @@ try
             "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css 'unsafe-inline'; " + 
             "img-src 'self' data: https://cdn.jsdelivr.net; " + 
             "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
-            "connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online " +
+            "connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online " +
                              "wss://wot.ninjatec.co.uk wss://workouttracker.online wss://www.workouttracker.online " +
                              "ws://wot.ninjatec.co.uk ws://workouttracker.online ws://www.workouttracker.online wss://* ws://*; " +
             "frame-src 'self'; " +
