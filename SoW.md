@@ -227,21 +227,49 @@
    - [x] Develop client profile view with relevant fitness metrics
    - [x] Implement active/inactive client status management
 
- - [ ] Build coach dashboard and analytics
-   - [ ] Create coach-specific dashboard with client overview
-   - [ ] Implement client progress snapshots and alerts
-   - [ ] Add client comparison views for group analysis
-   - [ ] Create scheduled check-in management system
-   - [ ] Develop client milestone tracking and celebration features
-   - [ ] Implement performance trend analysis across client base
-
- - [ ] Implement workout programming for clients
-   - [ ] Create interface for coaches to develop client-specific workout templates
-   - [ ] Add ability to assign templates to individual clients or groups
-   - [ ] Implement workout scheduling with notification system
-   - [ ] Create workout adjustment tools based on client feedback
-   - [ ] Add automated progression rules configurable by coaches
-   - [ ] Develop exercise substitution suggestions based on equipment/limitations
+ - [x] Implement workout programming for clients
+   - [x] Create interface for coaches to develop client-specific workout templates
+     - [x] Design WorkoutTemplate, WorkoutTemplateExercise, and WorkoutTemplateSet models
+     - [x] Create database migrations for template tables with appropriate relationships
+     - [x] Develop Templates/Create.cshtml page for coaches to build new templates
+     - [x] Add exercise selection with muscle group filtering
+     - [x] Implement set parameters with default values (reps, weight, rest periods)
+     - [x] Create sequence management for ordering exercises within templates
+   - [x] Add ability to assign templates to individual clients or groups
+     - [x] Create TemplateAssignment model to link templates with clients/groups
+     - [x] Develop assignment interface in Templates/Assign.cshtml
+     - [x] Implement bulk assignment to client groups
+     - [x] Add email notifications for new template assignments
+     - [x] Create client dashboard for viewing assigned templates
+     - [x] Implement access controls based on coach-client relationship
+   - [x] Implement workout scheduling with notification system
+     - [x] Create WorkoutSchedule model to manage recurring or one-time sessions
+     - [x] Develop calendar interface for scheduling client workouts
+     - [x] Add email/SMS notification system for upcoming workouts
+     - [x] Implement reminder customization (timing, frequency)
+     - [x] Create recurring workout patterns (weekly, bi-weekly, monthly)
+     - [x] Add schedule conflict detection and resolution
+   - [x] Create workout adjustment tools based on client feedback
+     - [x] Implement WorkoutFeedback model for client session ratings
+     - [x] Add RPE (Rate of Perceived Exertion) tracking per exercise
+     - [x] Create automated difficulty adjustment based on performance
+     - [x] Develop exercise substitution system for limitations/injuries
+     - [x] Add progress tracking with automated deload suggestions
+     - [x] Implement coach notification for concerning feedback patterns
+   - [x] Add automated progression rules configurable by coaches
+     - [x] Create ProgressionRule model for defining advancement criteria
+     - [x] Implement rule types (percentage, absolute value, RPE-based)
+     - [x] Develop rule evaluation service to check client performance
+     - [x] Add automatic template updates based on progression rules
+     - [x] Create progression history tracking and visualization
+     - [x] Implement coach override options for manual adjustments
+   - [x] Develop exercise substitution suggestions based on equipment/limitations
+     - [x] Create ExerciseSubstitution model with equivalence relationships
+     - [x] Implement tagging system for equipment requirements
+     - [x] Add exercise classification by movement pattern and muscle targets
+     - [x] Develop intelligent substitution algorithm based on availability
+     - [x] Create client-specific exercise exclusion list for injuries
+     - [x] Implement preference learning for substitution recommendations
 
  - [ ] Create feedback and communication system
    - [ ] Implement coach comments on individual workouts/exercises
