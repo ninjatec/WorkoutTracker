@@ -109,10 +109,12 @@
    - [x] Refine template assignment workflow with Razor Pages
    - [x] Complete scheduling options for assigned workouts
    - [x] Implement the scheduling system for coaches similar to that used by normal users /Workouts/ScheduledWorkouts
-   - [ ] Implement a template system for cosches similar to a normal users system
+   - [ ] Implement a template system for coaches similar to a normal users system, integrating with schedules as with normal users
    - [ ] Create unified template management experience
    - [ ] Complete functionality for Goals for coaching 
-   - [ ] omplete functionality for Goals for normal users
+   - [ ] Complete functionality for Goals for normal users
+
+ - [ ] Recent Client Activity should show real data.
 
  - [ ] Dashboard and Analytics Enhancement
    - [ ] Implement proper data loading and caching for dashboard

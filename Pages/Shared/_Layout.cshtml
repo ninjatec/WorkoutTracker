@@ -112,6 +112,9 @@
                                     <li><a class="dropdown-item" asp-area="Coach" asp-page="/ScheduledWorkouts"><i class="bi bi-calendar-check me-2"></i>Scheduled Workouts</a></li>
                                     <li><a class="dropdown-item" asp-area="Coach" asp-page="/WorkoutSchedule/Index"><i class="bi bi-calendar-week me-2"></i>Scheduling</a></li>
                                     <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" asp-area="Coach" asp-page="/Templates/Index"><i class="bi bi-card-list me-2"></i>Templates</a></li>
+                                    <li><a class="dropdown-item" asp-area="Coach" asp-page="/Templates/Create"><i class="bi bi-plus-square me-2"></i>Create Template</a></li>
+                                    <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item" href="/Coach/Clients/Invite"><i class="bi bi-envelope-plus me-2"></i>Invite Client</a></li>
                                 </ul>
                             </li>
@@ -267,6 +270,12 @@
                         <a asp-area="Coach" asp-page="/Clients/Index" class="d-block p-3 mobile-menu-item">
                             <i class="bi bi-people fs-4 d-block mb-2"></i>
                             My Clients
+                        </a>
+                    </div>
+                    <div class="col-4 text-center">
+                        <a asp-area="Coach" asp-page="/Templates/Index" class="d-block p-3 mobile-menu-item">
+                            <i class="bi bi-card-list fs-4 d-block mb-2"></i>
+                            Coach Templates
                         </a>
                     </div>
                     <div class="col-4 text-center">
