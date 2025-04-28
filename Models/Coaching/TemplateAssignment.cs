@@ -21,6 +21,9 @@ namespace WorkoutTrackerWeb.Models.Coaching
         // Foreign key for coach User
         public int CoachUserId { get; set; }
         
+        // Foreign key for coach-client relationship
+        public int? ClientRelationshipId { get; set; }
+        
         // Optional group association
         [StringLength(50)]
         public string ClientGroupName { get; set; }
@@ -64,6 +67,9 @@ namespace WorkoutTrackerWeb.Models.Coaching
         
         [ForeignKey("CoachUserId")]
         public User Coach { get; set; }
+        
+        [ForeignKey("ClientRelationshipId")]
+        public CoachClientRelationship CoachClientRelationship { get; set; }
         
         // Collection navigation properties
         public ICollection<WorkoutSchedule> WorkoutSchedules { get; set; } = new List<WorkoutSchedule>();

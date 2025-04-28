@@ -24,6 +24,8 @@ namespace WorkoutTrackerWeb.Services.Coaching
         Task<bool> UpdateCoachPermissionsAsync(int relationshipId, CoachClientPermission permissions);
         Task<bool> UpdateRelationshipStatusAsync(int relationshipId, RelationshipStatus status);
         Task<(bool exists, int count)> VerifyRelationshipExistsAsync(string coachId, string clientId);
+        Task<bool> ResendInvitationAsync(int relationshipId, string message, int expiryDays);
+        Task<bool> ReactivateRelationshipAsync(int relationshipId);
     }
 
     public class CoachingService : ICoachingService
@@ -584,6 +586,146 @@ namespace WorkoutTrackerWeb.Services.Coaching
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating status for relationship {RelationshipId}", relationshipId);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Resends an invitation for a pending relationship
+        /// </summary>
+        /// <param name="relationshipId">The relationship ID</param>
+        /// <param name="message">Optional custom message to include in the invitation</param>
+        /// <param name="expiryDays">Number of days until the invitation expires</param>
+        /// <returns>True if successful, false otherwise</returns>
+        public async Task<bool> ResendInvitationAsync(int relationshipId, string message, int expiryDays)
+        {
+            try
+            {
+                var relationship = await _context.CoachClientRelationships
+                    .Include(r => r.Notes)
+                    .Include(r => r.Client)
+                    .Include(r => r.Coach)
+                    .FirstOrDefaultAsync(r => r.Id == relationshipId);
+
+                if (relationship == null)
+                {
+                    _logger.LogWarning("Attempted to resend invitation for non-existent relationship {RelationshipId}", relationshipId);
+                    return false;
+                }
+
+                if (relationship.Status != RelationshipStatus.Pending)
+                {
+                    _logger.LogWarning("Attempted to resend invitation for non-pending relationship {RelationshipId}", relationshipId);
+                    return false;
+                }
+
+                // Update invitation details
+                relationship.InvitationToken = Guid.NewGuid().ToString("N");
+                relationship.LastModifiedDate = DateTime.UtcNow;
+                
+                // Set new expiry date if specified
+                if (expiryDays > 0)
+                {
+                    relationship.InvitationExpiryDate = DateTime.UtcNow.AddDays(expiryDays);
+                }
+
+                // Add a note about the resent invitation
+                if (relationship.Notes == null)
+                {
+                    relationship.Notes = new List<CoachNote>();
+                }
+
+                relationship.Notes.Add(new CoachNote
+                {
+                    Content = $"Invitation resent on {DateTime.UtcNow:g}.",
+                    CreatedDate = DateTime.UtcNow,
+                    IsVisibleToClient = false
+                });
+
+                // Add the custom message if provided
+                if (!string.IsNullOrEmpty(message))
+                {
+                    relationship.Notes.Add(new CoachNote
+                    {
+                        Content = $"Invitation message: {message}",
+                        CreatedDate = DateTime.UtcNow,
+                        IsVisibleToClient = true
+                    });
+                }
+
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Successfully resent invitation for relationship {RelationshipId}", relationshipId);
+                
+                // In a real implementation, you'd send an actual email here with the invitation token
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resending invitation for relationship {RelationshipId}", relationshipId);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Reactivates a previously ended or paused relationship
+        /// </summary>
+        /// <param name="relationshipId">The relationship ID</param>
+        /// <returns>True if successful, false otherwise</returns>
+        public async Task<bool> ReactivateRelationshipAsync(int relationshipId)
+        {
+            try
+            {
+                var relationship = await _context.CoachClientRelationships
+                    .Include(r => r.Notes)
+                    .FirstOrDefaultAsync(r => r.Id == relationshipId);
+
+                if (relationship == null)
+                {
+                    _logger.LogWarning("Attempted to reactivate non-existent relationship {RelationshipId}", relationshipId);
+                    return false;
+                }
+
+                if (relationship.Status == RelationshipStatus.Active)
+                {
+                    // Already active, nothing to do
+                    _logger.LogInformation("Relationship {RelationshipId} is already active", relationshipId);
+                    return true;
+                }
+
+                // Update relationship status
+                relationship.Status = RelationshipStatus.Active;
+                relationship.LastModifiedDate = DateTime.UtcNow;
+                
+                // If this is the first activation, set the start date
+                if (!relationship.StartDate.HasValue)
+                {
+                    relationship.StartDate = DateTime.UtcNow;
+                }
+                
+                // Clear the end date since relationship is now active
+                relationship.EndDate = null;
+
+                // Add a note about the reactivation
+                if (relationship.Notes == null)
+                {
+                    relationship.Notes = new List<CoachNote>();
+                }
+
+                relationship.Notes.Add(new CoachNote
+                {
+                    Content = $"Relationship reactivated on {DateTime.UtcNow:g}.",
+                    CreatedDate = DateTime.UtcNow,
+                    IsVisibleToClient = true
+                });
+
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Successfully reactivated relationship {RelationshipId}", relationshipId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error reactivating relationship {RelationshipId}", relationshipId);
                 return false;
             }
         }

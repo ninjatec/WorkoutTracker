@@ -48,6 +48,11 @@ namespace WorkoutTrackerWeb.Models.Coaching
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
 
         /// <summary>
+        /// Gets or sets the date when the group was last modified
+        /// </summary>
+        public DateTime LastModifiedDate { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
         /// Gets or sets the color code for the group (for UI display)
         /// </summary>
         [MaxLength(10)]

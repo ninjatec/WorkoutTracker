@@ -52,6 +52,7 @@ namespace WorkoutTrackerWeb.Data
         public DbSet<WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship> CoachClientRelationships { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Coaching.CoachClientPermission> CoachClientPermissions { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Coaching.ClientGroup> ClientGroups { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.Coaching.ClientGroupMember> ClientGroupMembers { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Coaching.CoachNote> CoachNotes { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Coaching.ClientGoal> ClientGoals { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Coaching.CoachClientMessage> CoachClientMessages { get; set; } = default!;
@@ -299,6 +300,32 @@ namespace WorkoutTrackerWeb.Data
                 .WithOne(r => r.ClientGroup)
                 .HasForeignKey(r => r.ClientGroupId)
                 .OnDelete(DeleteBehavior.SetNull);
+                
+            // Configure relationships for ClientGroupMember
+            modelBuilder.Entity<ClientGroupMember>()
+                .HasOne(m => m.ClientGroup)
+                .WithMany()
+                .HasForeignKey(m => m.ClientGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<ClientGroupMember>()
+                .HasOne(m => m.Relationship)
+                .WithMany()
+                .HasForeignKey(m => m.CoachClientRelationshipId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            // Query filter for ClientGroupMember
+            modelBuilder.Entity<ClientGroupMember>()
+                .HasQueryFilter(m => _currentUserId == null || 
+                              m.ClientGroup.CoachId == _currentUserId || 
+                              m.Relationship.ClientId == _currentUserId);
+                              
+            // Index for ClientGroupMember
+            modelBuilder.Entity<ClientGroupMember>()
+                .HasIndex(m => m.ClientGroupId);
+                
+            modelBuilder.Entity<ClientGroupMember>()
+                .HasIndex(m => m.CoachClientRelationshipId);
                 
             // Configure relationships for CoachNote
             modelBuilder.Entity<CoachNote>()

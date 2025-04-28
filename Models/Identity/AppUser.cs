@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.Identity;
 using WorkoutTrackerWeb.Models.Coaching;
@@ -12,5 +13,9 @@ namespace WorkoutTrackerWeb.Models.Identity
         
         // Client navigation properties
         public virtual ICollection<CoachClientRelationship> ClientRelationships { get; set; } = new List<CoachClientRelationship>();
+        
+        // Audit fields
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+        public DateTime LastModifiedDate { get; set; } = DateTime.UtcNow;
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 using WorkoutTrackerWeb.Attributes;
@@ -11,6 +12,7 @@ using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models.Coaching;
 using WorkoutTrackerWeb.Models.Identity;
 using WorkoutTrackerWeb.Services.Coaching;
+using WorkoutTrackerWeb.Extensions;
 
 namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 {
@@ -39,12 +41,11 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         public string StatusMessage { get; set; }
 
         [TempData]
-        public string StatusMessageType { get; set; } = "Success";
-
-        [BindProperty(SupportsGet = true)]
-        public bool ShowInvite { get; set; }
+        public string StatusMessageType { get; set; }
 
         [BindProperty]
+        [Required(ErrorMessage = "Email address is required")]
+        [EmailAddress(ErrorMessage = "Invalid email address")]
         public string ClientEmail { get; set; }
 
         [BindProperty]
@@ -54,14 +55,15 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         public int ExpiryDays { get; set; } = 14;
 
         [BindProperty]
-        public string[] Permissions { get; set; }
+        public List<string> Permissions { get; set; } = new List<string>();
 
         public List<ClientViewModel> ActiveClients { get; set; } = new List<ClientViewModel>();
-        public List<PendingInvitationViewModel> PendingClients { get; set; } = new List<PendingInvitationViewModel>();
+        public List<ClientViewModel> PendingClients { get; set; } = new List<ClientViewModel>();
         public List<ClientViewModel> InactiveClients { get; set; } = new List<ClientViewModel>();
         public List<ClientGroupViewModel> ClientGroups { get; set; } = new List<ClientGroupViewModel>();
+        public bool ShowInvite { get; set; }
 
-        public async Task<IActionResult> OnGetAsync()
+        public async Task<IActionResult> OnGetAsync(bool showInvite = false)
         {
             var userId = _userManager.GetUserId(User);
             if (string.IsNullOrEmpty(userId))
@@ -76,264 +78,243 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             // Populate client lists
             await PopulateClientLists(relationshipsList);
 
-            // For the demo, populate groups with sample data
-            PopulateSampleClientGroups();
+            // Get client groups
+            await PopulateClientGroups(userId);
+
+            // Set flag for showing invitation form
+            ShowInvite = showInvite;
 
             return Page();
         }
 
-        private async Task PopulateClientLists(List<CoachClientRelationship> relationships)
+        private async Task PopulateClientGroups(string coachId)
         {
-            // Active clients
-            ActiveClients = relationships
-                .Where(r => r.Status == RelationshipStatus.Active)
-                .Select(r => new ClientViewModel
-                {
-                    Id = r.Id,
-                    Name = r.Client?.UserName?.Split('@')[0] ?? "Client",
-                    Email = r.Client?.Email ?? "N/A",
-                    StartDate = r.StartDate ?? r.CreatedDate,
-                    // Sample data for demo - in real app these would come from the database
-                    ActiveGoalsCount = new Random().Next(0, 5),
-                    WorkoutsLast30Days = new Random().Next(0, 20),
-                    LastWorkout = DateTime.Now.AddDays(-new Random().Next(0, 14))
-                })
-                .ToList();
+            // Get all client groups for this coach
+            var groups = await _context.ClientGroups
+                .Where(g => g.CoachId == coachId)
+                .OrderBy(g => g.Name)
+                .ToListAsync();
 
-            // Pending invitations
-            PendingClients = relationships
-                .Where(r => r.Status == RelationshipStatus.Pending)
-                .Select(r => new PendingInvitationViewModel
-                {
-                    Id = r.Id,
-                    Email = r.Client?.Email ?? "pending@example.com",
-                    InvitationDate = r.CreatedDate,
-                    ExpiryDate = r.InvitationExpiryDate
-                })
-                .ToList();
-
-            // Inactive clients (paused or ended relationships)
-            InactiveClients = relationships
-                .Where(r => r.Status == RelationshipStatus.Paused || r.Status == RelationshipStatus.Ended)
-                .Select(r => new ClientViewModel
-                {
-                    Id = r.Id,
-                    Name = r.Client?.UserName?.Split('@')[0] ?? "Former Client",
-                    Email = r.Client?.Email ?? "N/A",
-                    StartDate = r.StartDate ?? r.CreatedDate,
-                    EndDate = r.EndDate,
-                    Status = r.Status.ToString()
-                })
-                .ToList();
-        }
-
-        private void PopulateSampleClientGroups()
-        {
-            // In a real implementation, these would be fetched from the database
-            var groupNames = new string[] { "Strength Training", "Weight Loss", "Marathon Prep", "Beginners" };
-            var groupDescriptions = new string[]
+            foreach (var group in groups)
             {
-                "Clients focused on building strength and muscle mass",
-                "Clients with primary goal of weight loss",
-                "Runners training for upcoming marathons",
-                "New clients just starting their fitness journey"
-            };
+                // Get member count
+                var memberCount = await _context.ClientGroupMembers
+                    .CountAsync(m => m.ClientGroupId == group.Id);
 
-            var random = new Random();
+                // Get up to 3 member names for display
+                var members = await _context.ClientGroupMembers
+                    .Where(m => m.ClientGroupId == group.Id)
+                    .Take(4)
+                    .Join(_context.CoachClientRelationships,
+                        m => m.CoachClientRelationshipId,
+                        r => r.Id,
+                        (m, r) => new { Member = m, Relationship = r })
+                    .ToListAsync();
 
-            // Create sample groups
-            for (int i = 0; i < groupNames.Length; i++)
-            {
-                // Only create the group if we have active clients
-                if (ActiveClients.Any())
+                var memberNames = new List<string>();
+                foreach (var member in members.Take(3))
                 {
-                    var group = new ClientGroupViewModel
+                    var client = await _userManager.FindByIdAsync(member.Relationship.ClientId);
+                    if (client != null)
                     {
-                        Id = i + 1,
-                        Name = groupNames[i],
-                        Description = groupDescriptions[i],
-                        Members = new List<string>(),
-                        MemberIds = new List<int>()
-                    };
-
-                    // Randomly assign some active clients to this group
-                    foreach (var client in ActiveClients.Where(_ => random.Next(0, 3) == 0).Take(random.Next(1, 5)))
-                    {
-                        group.Members.Add(client.Name);
-                        group.MemberIds.Add(client.Id);
-                        
-                        // Assign the group to the client for display
-                        if (string.IsNullOrEmpty(client.Group) && random.Next(0, 2) == 0)
-                        {
-                            client.Group = group.Name;
-                        }
-                    }
-
-                    group.MemberCount = group.Members.Count;
-                    
-                    if (group.MemberCount > 0)
-                    {
-                        ClientGroups.Add(group);
+                        memberNames.Add(client.UserName.Split('@')[0]);
                     }
                 }
+
+                ClientGroups.Add(new ClientGroupViewModel
+                {
+                    Id = group.Id,
+                    Name = group.Name,
+                    Description = group.Description,
+                    MemberCount = memberCount,
+                    MemberNames = memberNames
+                });
             }
+        }
+
+        private async Task PopulateClientLists(List<CoachClientRelationship> relationships)
+        {
+            foreach (var relationship in relationships)
+            {
+                var client = await _userManager.FindByIdAsync(relationship.ClientId);
+                if (client == null) continue;
+
+                var clientViewModel = new ClientViewModel
+                {
+                    Id = relationship.Id,
+                    RelationshipId = relationship.Id,
+                    Name = client.FullName() ?? client.UserName.Split('@')[0],
+                    Email = client.Email,
+                    Status = relationship.Status.ToString(),
+                    StartDate = relationship.CreatedDate,
+                    EndDate = relationship.EndDate,
+                    Group = await GetClientGroupName(relationship.Id)
+                };
+
+                switch (relationship.Status)
+                {
+                    case RelationshipStatus.Active:
+                        ActiveClients.Add(clientViewModel);
+                        break;
+                    case RelationshipStatus.Pending:
+                        PendingClients.Add(clientViewModel);
+                        break;
+                    default:
+                        InactiveClients.Add(clientViewModel);
+                        break;
+                }
+            }
+
+            // Sort the lists
+            ActiveClients = ActiveClients.OrderBy(c => c.Name).ToList();
+            PendingClients = PendingClients.OrderBy(c => c.StartDate).ToList();
+            InactiveClients = InactiveClients.OrderByDescending(c => c.EndDate).ToList();
+        }
+
+        private async Task<string> GetClientGroupName(int relationshipId)
+        {
+            var groupMembership = await _context.ClientGroupMembers
+                .Where(m => m.CoachClientRelationshipId == relationshipId)
+                .Join(_context.ClientGroups,
+                    m => m.ClientGroupId,
+                    g => g.Id,
+                    (m, g) => g.Name)
+                .FirstOrDefaultAsync();
+
+            return groupMembership;
         }
 
         public async Task<IActionResult> OnPostInviteClientAsync()
         {
-            // Redirect to the new parameter-less handler method
-            return await OnPostInviteClient();
-        }
-
-        public async Task<IActionResult> OnPostInviteClient()
-        {
             try
             {
-                _logger.LogInformation("=== INVITATION PROCESS STARTED ===");
-                
-                // Log all form values for diagnostic purposes
-                var formValues = new Dictionary<string, string>();
-                foreach (var key in Request.Form.Keys)
+                if (!ModelState.IsValid)
                 {
-                    formValues[key] = string.Join(", ", Request.Form[key].ToArray());
-                }
-                
-                _logger.LogInformation("Client invitation form submission: {@FormValues}", formValues);
-                
-                if (string.IsNullOrWhiteSpace(ClientEmail))
-                {
-                    _logger.LogWarning("Error: Email address is required.");
-                    StatusMessage = "Error: Email address is required.";
+                    var errors = string.Join("; ", ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage));
+                        
+                    StatusMessage = $"Error: {errors}";
                     StatusMessageType = "Error";
-                    return RedirectToPage();
+                    return RedirectToPage(new { showInvite = true });
                 }
-                
+
                 var coachId = _userManager.GetUserId(User);
-                _logger.LogInformation("Current user identity: {UserId}", User?.Identity?.Name);
-                
                 if (string.IsNullOrEmpty(coachId))
                 {
-                    _logger.LogCritical("CRITICAL ERROR: User ID is null when attempting to create invitation");
                     return Forbid();
                 }
 
-                _logger.LogInformation("Coach ID retrieved: {CoachId}", coachId);
-
-                // Verify coach role first (as a double-check)
-                var isCoach = await _coachingService.IsCoachAsync(coachId);
-                _logger.LogInformation("Is user a coach? {IsCoach}", isCoach);
-                
-                if (!isCoach)
-                {
-                    _logger.LogWarning("User {CoachId} is not a coach but attempted to invite client", coachId);
-                    StatusMessage = "Error: You must be a coach to invite clients.";
-                    StatusMessageType = "Error";
-                    return RedirectToPage();
-                }
-
-                // Check if the user already exists
+                // Look up the client by email
                 var client = await _userManager.FindByEmailAsync(ClientEmail);
-                string clientId;
-                _logger.LogInformation("Checking if client with email {Email} exists", ClientEmail);
-
-                if (client != null)
-                {
-                    clientId = client.Id;
-                    _logger.LogInformation("Using existing user with ID {ClientId} for invitation", clientId);
-                    
-                    // Check if a relationship already exists between coach and client
-                    var existingRelationship = await _coachingService.GetCoachClientRelationshipAsync(coachId, clientId);
-                    if (existingRelationship != null)
-                    {
-                        _logger.LogInformation("Found existing relationship with status {Status}", existingRelationship.Status);
-                        
-                        if (existingRelationship.Status == RelationshipStatus.Active)
-                        {
-                            StatusMessage = $"Error: {ClientEmail} is already your active client.";
-                            StatusMessageType = "Error";
-                            return RedirectToPage();
-                        }
-                        else if (existingRelationship.Status == RelationshipStatus.Pending)
-                        {
-                            StatusMessage = $"Error: An invitation to {ClientEmail} is already pending.";
-                            StatusMessageType = "Error";
-                            return RedirectToPage();
-                        }
-                    }
-                }
-                else
-                {
-                    // Create a temporary AppUser record for the invited email
-                    var pendingUser = new AppUser
-                    {
-                        UserName = ClientEmail,
-                        Email = ClientEmail,
-                        EmailConfirmed = false
-                    };
-                    
-                    _logger.LogInformation("Creating new temporary user for {Email}", ClientEmail);
-                    
-                    // Store in database with a placeholder password they'll never use
-                    // (they'll set their own password when they register)
-                    var result = await _userManager.CreateAsync(pendingUser, Guid.NewGuid().ToString());
-                    
-                    if (!result.Succeeded)
-                    {
-                        var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                        _logger.LogError("Failed to create temporary user for invitation: {Errors}", errors);
-                        StatusMessage = $"Error: Unable to create invitation: {errors}";
-                        StatusMessageType = "Error";
-                        return RedirectToPage();
-                    }
-                    
-                    clientId = pendingUser.Id;
-                    _logger.LogInformation("Created temporary user with ID {UserId} for invitation email {Email}", clientId, ClientEmail);
-                    
-                    // Double check user was created
-                    var createdUser = await _userManager.FindByIdAsync(clientId);
-                    _logger.LogInformation("Verification - Created user exists: {Exists}", createdUser != null);
-                }
-
-                // Diagnostic database check
-                try 
-                {
-                    _logger.LogInformation("=== DIAGNOSTIC DATABASE CHECK ===");
-                    var connection = _context.Database.GetDbConnection();
-                    if (connection.State != System.Data.ConnectionState.Open)
-                    {
-                        await connection.OpenAsync();
-                        _logger.LogInformation("Successfully opened database connection");
-                    }
-                    
-                    var dbState = _context.Database.CanConnect();
-                    _logger.LogInformation("Database connection check - Can connect: {CanConnect}", dbState);
-                    
-                    // Check current tables
-                    var tableMapping = _context.Model.FindEntityType(typeof(CoachClientRelationship));
-                    var schema = tableMapping.GetSchema();
-                    var tableName = tableMapping.GetTableName();
-                    _logger.LogInformation("Table information - Schema: {Schema}, Table: {Table}", schema, tableName);
-                    
-                    await connection.CloseAsync();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error performing diagnostic database check");
-                }
-
-                // Log relationship counts before creation 
-                var beforeCount = await _context.CoachClientRelationships.CountAsync();
-                _logger.LogInformation("Relationship count before creation: {Count}", beforeCount);
-
-                // Convert permissions to List for compatibility with existing code
-                var permissionsList = Permissions != null ? new List<string>(Permissions) : new List<string>();
-                _logger.LogInformation("Permissions selected: {Permissions}", string.Join(", ", permissionsList));
-
+                
                 // Using a transaction for creating the relationship to ensure atomicity
-                _logger.LogInformation("Beginning transaction for relationship creation");
+                _logger.LogInformation("Beginning transaction for invitation process");
                 using var transaction = await _context.Database.BeginTransactionAsync();
+                
                 try
                 {
+                    string clientId;
+                    
+                    if (client == null)
+                    {
+                        // User doesn't exist yet, create a pending invitation that will be claimed later
+                        _logger.LogInformation("Client {Email} doesn't exist yet, creating pending invitation", ClientEmail);
+                        
+                        // Create temporary user account that will be completed during registration
+                        var pendingUser = new AppUser
+                        {
+                            UserName = ClientEmail,
+                            Email = ClientEmail,
+                            EmailConfirmed = false,
+                            CreatedDate = DateTime.UtcNow,
+                            LastModifiedDate = DateTime.UtcNow,
+                            SecurityStamp = Guid.NewGuid().ToString()
+                        };
+                        
+                        var result = await _userManager.CreateAsync(pendingUser);
+                        
+                        if (!result.Succeeded)
+                        {
+                            _logger.LogError("Failed to create temporary user: {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
+                            throw new Exception($"Failed to create temporary user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                        }
+                        
+                        clientId = pendingUser.Id;
+                        _logger.LogInformation("Created temporary user with ID {UserId} for invitation email {Email}", clientId, ClientEmail);
+                        
+                        // Double check user was created
+                        var createdUser = await _userManager.FindByIdAsync(clientId);
+                        _logger.LogInformation("Verification - Created user exists: {Exists}", createdUser != null);
+                    }
+                    else
+                    {
+                        clientId = client.Id;
+                        
+                        // Client exists, check if they already have a relationship with this coach
+                        var existingRelationship = await _context.CoachClientRelationships
+                            .Where(r => r.CoachId == coachId && r.ClientId == clientId)
+                            .FirstOrDefaultAsync();
+
+                        if (existingRelationship != null)
+                        {
+                            // Relationship already exists, but might be inactive or pending
+                            if (existingRelationship.Status == RelationshipStatus.Active)
+                            {
+                                StatusMessage = $"{client.Email} is already your active client.";
+                                StatusMessageType = "Info";
+                                await transaction.RollbackAsync(); // No changes needed
+                                return RedirectToPage();
+                            }
+                            else if (existingRelationship.Status == RelationshipStatus.Pending)
+                            {
+                                // Resend invitation
+                                var result = await _coachingService.ResendInvitationAsync(
+                                    existingRelationship.Id, 
+                                    InvitationMessage, 
+                                    ExpiryDays);
+                                    
+                                if (result)
+                                {
+                                    StatusMessage = $"Invitation resent to {client.Email}";
+                                    StatusMessageType = "Success";
+                                    await transaction.CommitAsync();
+                                    return RedirectToPage(new { showInvite = false });
+                                }
+                                else
+                                {
+                                    StatusMessage = "Error resending invitation. Please try again.";
+                                    StatusMessageType = "Error";
+                                    await transaction.RollbackAsync();
+                                    return RedirectToPage(new { showInvite = true });
+                                }
+                            }
+                            else
+                            {
+                                // Reactivate the relationship
+                                var result = await _coachingService.ReactivateRelationshipAsync(existingRelationship.Id);
+                                if (result)
+                                {
+                                    StatusMessage = $"Relationship with {client.Email} has been reactivated.";
+                                    StatusMessageType = "Success";
+                                    await transaction.CommitAsync();
+                                    return RedirectToPage();
+                                }
+                                else
+                                {
+                                    StatusMessage = "Error reactivating relationship. Please try again.";
+                                    StatusMessageType = "Error";
+                                    await transaction.RollbackAsync();
+                                    return RedirectToPage(new { showInvite = true });
+                                }
+                            }
+                        }
+                    }
+
+                    // Convert permissions to List for compatibility with existing code
+                    var permissionsList = Permissions != null ? new List<string>(Permissions) : new List<string>();
+                    _logger.LogInformation("Permissions selected: {Permissions}", string.Join(", ", permissionsList));
+
                     // Create the coach-client relationship with the expiry days parameter
                     _logger.LogInformation("Calling CreateCoachClientRelationshipAsync with coach {CoachId}, client {ClientId}, expiry {ExpiryDays}", 
                         coachId, clientId, ExpiryDays);
@@ -386,67 +367,18 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                             _logger.LogInformation("Note added successfully");
                         }
 
-                        // Direct SQL verification that bypasses EF filters
-                        _logger.LogInformation("Performing direct SQL verification");
-                        var verification = await _coachingService.VerifyRelationshipExistsAsync(coachId, clientId);
-                        _logger.LogInformation("SQL verification: Relationship exists: {Exists}, Total count: {Count}", 
-                            verification.exists, verification.count);
-
-                        // If verification fails but EF says it succeeded, something is wrong with query filters
-                        if (!verification.exists)
-                        {
-                            _logger.LogWarning("Relationship was not found in database despite successful creation. Possible filter issue.");
-                        }
-
-                        // Verify relationship has been created
-                        var verifyRelationship = await _context.CoachClientRelationships.FindAsync(relationship.Id);
-                        _logger.LogInformation("Relationship verification using EF Find: {Found}", verifyRelationship != null);
-                        
-                        if (verifyRelationship == null)
-                        {
-                            _logger.LogError("Failed to find relationship with ID {Id} after creation", relationship.Id);
-                        }
-
-                        // Count relationships after creation
-                        var afterCount = await _context.CoachClientRelationships.CountAsync();
-                        _logger.LogInformation("Relationship count after creation: {Count}", afterCount);
-                        _logger.LogInformation("Difference in relationship count: {Diff}", afterCount - beforeCount);
-
                         // Commit the transaction
                         await transaction.CommitAsync();
                         _logger.LogInformation("Transaction committed successfully");
 
-                        // In a real implementation, you'd send an actual email here
-                        // Send email with the invitation link that includes the token
-                        // Example link: /register?invite=relationship.InvitationToken
+                        // In a real implementation, you'd send an actual email here with the invitation token
 
                         StatusMessage = $"Success: Invitation sent to {ClientEmail}.";
                         StatusMessageType = "Success";
                         
-                        // Reload data to ensure the pending invitations list is updated
-                        _logger.LogInformation("Reloading coach relationships data");
-                        var relationships = await _coachingService.GetCoachRelationshipsAsync(coachId);
-                        var relationshipList = relationships.ToList();
-                        _logger.LogInformation("Retrieved {Count} relationships for coach {CoachId} after creation", 
-                            relationshipList.Count, coachId);
-                        
-                        var pendingCount = relationshipList.Count(r => r.Status == RelationshipStatus.Pending);
-                        _logger.LogInformation("Pending relationships count: {Count}", pendingCount);
-                        
-                        await PopulateClientLists(relationshipList);
-                        
                         // Switch to the Pending tab
                         ViewData["ActiveTab"] = "pending";
-
-                        // Log DB stats for debugging
-                        var stats = new
-                        {
-                            CoachClientRelationships = await _context.CoachClientRelationships.CountAsync(),
-                            CoachClientPermissions = await _context.CoachClientPermissions.CountAsync(),
-                            CoachNotes = await _context.CoachNotes.CountAsync(),
-                            UserCount = await _userManager.Users.CountAsync()
-                        };
-                        _logger.LogInformation("Database statistics: {@Stats}", stats);
+                        
                         _logger.LogInformation("=== INVITATION PROCESS COMPLETED SUCCESSFULLY ===");
                     }
                     else
@@ -562,6 +494,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 return Forbid();
             }
 
+            // Validate group name
             if (string.IsNullOrEmpty(groupName))
             {
                 StatusMessage = "Error: Group name is required.";
@@ -569,17 +502,98 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 return RedirectToPage();
             }
 
-            // In a real implementation, you would create the group in the database
-            // For now, just return a success message
-            StatusMessage = $"Success: Client group '{groupName}' created.";
-            StatusMessageType = "Success";
+            // Check for existing group with the same name
+            var existingGroup = await _context.ClientGroups
+                .Where(g => g.CoachId == coachId && g.Name == groupName)
+                .FirstOrDefaultAsync();
+                
+            if (existingGroup != null)
+            {
+                StatusMessage = $"Error: A group named '{groupName}' already exists.";
+                StatusMessageType = "Error";
+                return RedirectToPage();
+            }
 
-            return RedirectToPage();
+            // Use a transaction to ensure all operations succeed or fail together
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Create the new group
+                var newGroup = new ClientGroup
+                {
+                    CoachId = coachId,
+                    Name = groupName,
+                    Description = groupDescription,
+                    CreatedDate = DateTime.UtcNow,
+                    LastModifiedDate = DateTime.UtcNow
+                };
+
+                _context.ClientGroups.Add(newGroup);
+                await _context.SaveChangesAsync();
+                
+                _logger.LogInformation("Coach {CoachId} created new client group {GroupId}: {GroupName}", 
+                    coachId, newGroup.Id, newGroup.Name);
+
+                // Add selected clients to the group if any were selected
+                if (selectedClients.Any())
+                {
+                    int addedCount = 0;
+                    
+                    foreach (var relationshipId in selectedClients)
+                    {
+                        // Verify relationship exists and belongs to this coach
+                        var relationship = await _context.CoachClientRelationships
+                            .Where(r => r.Id == relationshipId && r.CoachId == coachId && r.Status == RelationshipStatus.Active)
+                            .FirstOrDefaultAsync();
+
+                        if (relationship != null)
+                        {
+                            _context.ClientGroupMembers.Add(new ClientGroupMember
+                            {
+                                ClientGroupId = newGroup.Id,
+                                CoachClientRelationshipId = relationshipId,
+                                AddedDate = DateTime.UtcNow
+                            });
+                            addedCount++;
+                        }
+                    }
+
+                    if (addedCount > 0)
+                    {
+                        await _context.SaveChangesAsync();
+                        _logger.LogInformation("Added {Count} clients to group {GroupId}", addedCount, newGroup.Id);
+                        StatusMessage = $"Success: Created client group '{groupName}' with {addedCount} client{(addedCount > 1 ? "s" : "")}.";
+                    }
+                    else
+                    {
+                        StatusMessage = $"Success: Created client group '{groupName}'. No valid clients were added.";
+                    }
+                }
+                else
+                {
+                    StatusMessage = $"Success: Created client group '{groupName}'.";
+                }
+                
+                StatusMessageType = "Success";
+                await transaction.CommitAsync();
+                
+                // Redirect to the new group's page
+                return RedirectToPage("./Group", new { id = newGroup.Id });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error creating client group: {Message}", ex.Message);
+                StatusMessage = $"Error: Failed to create client group: {ex.Message}";
+                StatusMessageType = "Error";
+                return RedirectToPage();
+            }
         }
 
         public class ClientViewModel
         {
             public int Id { get; set; }
+            public int RelationshipId { get; set; }
             public string Name { get; set; }
             public string Email { get; set; }
             public DateTime StartDate { get; set; }
@@ -589,6 +603,8 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             public int ActiveGoalsCount { get; set; }
             public int WorkoutsLast30Days { get; set; }
             public DateTime? LastWorkout { get; set; }
+            public DateTime? InvitationDate { get; set; }
+            public DateTime? ExpiryDate { get; set; }
         }
 
         public class PendingInvitationViewModel
@@ -605,6 +621,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             public string Name { get; set; }
             public string Description { get; set; }
             public int MemberCount { get; set; }
+            public List<string> MemberNames { get; set; } = new List<string>();
             public List<string> Members { get; set; } = new List<string>();
             public List<int> MemberIds { get; set; } = new List<int>();
         }
