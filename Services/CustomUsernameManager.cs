@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Threading.Tasks;
 using WorkoutTrackerWeb.Models.Identity;
+using System.Linq;
 
 namespace WorkoutTrackerWeb.Services
 {
@@ -11,11 +13,11 @@ namespace WorkoutTrackerWeb.Services
     /// </summary>
     public class CustomUsernameManager
     {
-        private readonly UserManager<AppUser> _userManager;
+        private readonly IServiceProvider _serviceProvider;
         
-        public CustomUsernameManager(UserManager<AppUser> userManager)
+        public CustomUsernameManager(IServiceProvider serviceProvider)
         {
-            _userManager = userManager;
+            _serviceProvider = serviceProvider;
         }
         
         /// <summary>
@@ -44,8 +46,12 @@ namespace WorkoutTrackerWeb.Services
                 baseUsername = "user" + baseUsername;
             }
             
+            // Use a scoped service to check usernames to avoid circular dependency
+            using var scope = _serviceProvider.CreateScope();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+            
             // Check if the base username is already in use
-            var existingUser = await _userManager.FindByNameAsync(baseUsername);
+            var existingUser = await userManager.FindByNameAsync(baseUsername);
             if (existingUser == null)
             {
                 return baseUsername; // Username is available
@@ -55,7 +61,7 @@ namespace WorkoutTrackerWeb.Services
             for (int i = 1; i <= 100; i++)
             {
                 string suffixedUsername = $"{baseUsername}{i}";
-                existingUser = await _userManager.FindByNameAsync(suffixedUsername);
+                existingUser = await userManager.FindByNameAsync(suffixedUsername);
                 
                 if (existingUser == null)
                 {
