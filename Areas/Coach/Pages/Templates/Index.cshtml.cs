@@ -9,6 +9,7 @@ using WorkoutTrackerWeb.Attributes;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Models.Coaching;
+using WorkoutTrackerWeb.Models.Filters;
 using WorkoutTrackerWeb.Extensions;
 
 namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
@@ -23,9 +24,11 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
             _context = context;
         }
 
+        [BindProperty(SupportsGet = true)]
+        public TemplateFilterModel Filter { get; set; } = new TemplateFilterModel();
+
         public List<WorkoutTemplateViewModel> WorkoutTemplates { get; set; } = new List<WorkoutTemplateViewModel>();
         public List<ClientViewModel> Clients { get; set; } = new List<ClientViewModel>();
-        public List<string> Categories { get; set; } = new List<string>();
 
         public async Task<IActionResult> OnGetAsync()
         {
@@ -36,9 +39,17 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
                 return Unauthorized();
             }
 
-            // Load the user's templates with exercise counts
-            var templates = await _context.WorkoutTemplate
-                .Where(t => t.UserId == user.UserId)
+            // Load categories for filter dropdown
+            await Filter.LoadCategoriesAsync(_context, user.UserId);
+
+            // Create initial query for templates
+            var templatesQuery = _context.WorkoutTemplate.AsQueryable();
+            
+            // Apply standardized filters
+            templatesQuery = Filter.ApplyFilters(templatesQuery, user.UserId);
+
+            // Load the templates with exercise counts
+            WorkoutTemplates = await templatesQuery
                 .Select(t => new WorkoutTemplateViewModel
                 {
                     WorkoutTemplateId = t.WorkoutTemplateId,
@@ -49,42 +60,11 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
                     CreatedDate = t.CreatedDate,
                     LastModifiedDate = t.LastModifiedDate,
                     IsPublic = t.IsPublic,
+                    IsOwner = t.UserId == user.UserId,
                     ExerciseCount = _context.WorkoutTemplateExercise
                         .Count(e => e.WorkoutTemplateId == t.WorkoutTemplateId)
                 })
                 .OrderByDescending(t => t.LastModifiedDate)
-                .ToListAsync();
-
-            // Also include public templates from other coaches
-            var publicTemplates = await _context.WorkoutTemplate
-                .Where(t => t.UserId != user.UserId && t.IsPublic)
-                .Select(t => new WorkoutTemplateViewModel
-                {
-                    WorkoutTemplateId = t.WorkoutTemplateId,
-                    Name = t.Name,
-                    Description = t.Description,
-                    Category = t.Category,
-                    Tags = t.Tags,
-                    CreatedDate = t.CreatedDate,
-                    LastModifiedDate = t.LastModifiedDate,
-                    IsPublic = t.IsPublic,
-                    ExerciseCount = _context.WorkoutTemplateExercise
-                        .Count(e => e.WorkoutTemplateId == t.WorkoutTemplateId)
-                })
-                .OrderByDescending(t => t.LastModifiedDate)
-                .ToListAsync();
-
-            // Add to the overall templates list (user's templates first)
-            WorkoutTemplates = templates;
-            // Public templates will be shown/hidden via client-side filtering
-
-            // Get unique categories for filtering
-            Categories = await _context.WorkoutTemplate
-                .Where(t => t.UserId == user.UserId || t.IsPublic)
-                .Where(t => !string.IsNullOrEmpty(t.Category))
-                .Select(t => t.Category)
-                .Distinct()
-                .OrderBy(c => c)
                 .ToListAsync();
 
             // Get clients for the assignment modal
@@ -103,6 +83,43 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
                 .ToList();
 
             return Page();
+        }
+
+        public async Task<IActionResult> OnGetFilterTemplatesAsync()
+        {
+            // Get the current user
+            var user = await _context.GetCurrentUserAsync();
+            if (user == null)
+            {
+                return new UnauthorizedResult();
+            }
+
+            // Create initial query for templates
+            var templatesQuery = _context.WorkoutTemplate.AsQueryable();
+            
+            // Apply standardized filters
+            templatesQuery = Filter.ApplyFilters(templatesQuery, user.UserId);
+
+            // Get filtered templates
+            var templates = await templatesQuery
+                .Select(t => new WorkoutTemplateViewModel
+                {
+                    WorkoutTemplateId = t.WorkoutTemplateId,
+                    Name = t.Name,
+                    Description = t.Description,
+                    Category = t.Category,
+                    Tags = t.Tags,
+                    CreatedDate = t.CreatedDate,
+                    LastModifiedDate = t.LastModifiedDate,
+                    IsPublic = t.IsPublic,
+                    IsOwner = t.UserId == user.UserId,
+                    ExerciseCount = _context.WorkoutTemplateExercise
+                        .Count(e => e.WorkoutTemplateId == t.WorkoutTemplateId)
+                })
+                .OrderByDescending(t => t.LastModifiedDate)
+                .ToListAsync();
+
+            return new JsonResult(templates);
         }
 
         public async Task<IActionResult> OnPostAssignAsync(int templateId, int clientId, string name, string notes, 
@@ -227,6 +244,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
             public DateTime CreatedDate { get; set; }
             public DateTime LastModifiedDate { get; set; }
             public bool IsPublic { get; set; }
+            public bool IsOwner { get; set; }
             public int ExerciseCount { get; set; }
         }
 

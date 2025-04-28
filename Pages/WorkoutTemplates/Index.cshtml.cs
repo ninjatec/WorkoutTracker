@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Models.Coaching;
+using WorkoutTrackerWeb.Models.Filters;
 using WorkoutTrackerWeb.Services;
 
 namespace WorkoutTrackerWeb.Pages.WorkoutTemplates
@@ -31,9 +32,12 @@ namespace WorkoutTrackerWeb.Pages.WorkoutTemplates
             _userService = userService;
         }
 
+        [BindProperty(SupportsGet = true)]
+        public TemplateFilterModel Filter { get; set; } = new TemplateFilterModel();
+        
         public List<TemplateViewModel> Templates { get; set; } = new List<TemplateViewModel>();
 
-        public async Task<IActionResult> OnGetAsync(string category = null, string searchTerm = null, bool includePublic = true)
+        public async Task<IActionResult> OnGetAsync()
         {
             var userId = await _userService.GetCurrentUserIdAsync();
             if (userId == null)
@@ -41,26 +45,14 @@ namespace WorkoutTrackerWeb.Pages.WorkoutTemplates
                 return Unauthorized();
             }
 
+            // Load categories for filter dropdown
+            await Filter.LoadCategoriesAsync(_context, userId);
+
             // Get templates owned by the user or public templates
-            var query = _context.WorkoutTemplate
-                .AsQueryable();
+            var query = _context.WorkoutTemplate.AsQueryable();
 
-            // Apply filter for the owner or public templates
-            query = query.Where(t => t.UserId == userId || (t.IsPublic && includePublic));
-
-            // Apply category filter if provided
-            if (!string.IsNullOrEmpty(category))
-            {
-                query = query.Where(t => t.Category == category);
-            }
-
-            // Apply search term if provided
-            if (!string.IsNullOrEmpty(searchTerm))
-            {
-                query = query.Where(t => t.Name.Contains(searchTerm) || 
-                                      t.Description.Contains(searchTerm) || 
-                                      t.Tags.Contains(searchTerm));
-            }
+            // Apply standardized filters
+            query = Filter.ApplyFilters(query, userId);
 
             // Get available templates
             var availableTemplates = await query
@@ -104,20 +96,20 @@ namespace WorkoutTrackerWeb.Pages.WorkoutTemplates
                 })
                 .ToListAsync();
 
-            // Apply filters to assigned templates too
-            if (!string.IsNullOrEmpty(category))
+            // Apply filters to assigned templates
+            if (!string.IsNullOrEmpty(Filter.Category))
             {
                 assignedTemplates = assignedTemplates
-                    .Where(t => t.Category == category)
+                    .Where(t => t.Category == Filter.Category)
                     .ToList();
             }
 
-            if (!string.IsNullOrEmpty(searchTerm))
+            if (!string.IsNullOrEmpty(Filter.SearchTerm))
             {
                 assignedTemplates = assignedTemplates
-                    .Where(t => t.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || 
-                             t.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) || 
-                             (t.Tags != null && t.Tags.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)))
+                    .Where(t => t.Name.Contains(Filter.SearchTerm, StringComparison.OrdinalIgnoreCase) || 
+                             t.Description.Contains(Filter.SearchTerm, StringComparison.OrdinalIgnoreCase) || 
+                             (t.Tags != null && t.Tags.Contains(Filter.SearchTerm, StringComparison.OrdinalIgnoreCase)))
                     .ToList();
             }
 
@@ -135,7 +127,7 @@ namespace WorkoutTrackerWeb.Pages.WorkoutTemplates
             return Page();
         }
 
-        public async Task<JsonResult> OnGetTemplatesJson(string category = null, string searchTerm = null, bool includePublic = true)
+        public async Task<JsonResult> OnGetTemplatesJsonAsync()
         {
             var userId = await _userService.GetCurrentUserIdAsync();
             if (userId == null)
@@ -144,7 +136,7 @@ namespace WorkoutTrackerWeb.Pages.WorkoutTemplates
             }
 
             // Reuse the same logic as the GET handler
-            await OnGetAsync(category, searchTerm, includePublic);
+            await OnGetAsync();
             
             return new JsonResult(Templates);
         }

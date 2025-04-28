@@ -8,35 +8,40 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
+using WorkoutTrackerWeb.Models.Filters;
+using WorkoutTrackerWeb.Models.Identity;
+using WorkoutTrackerWeb.Services;
 
 namespace WorkoutTrackerWeb.Pages.Templates
 {
     [Authorize]
-    [OutputCache(Duration = 300, VaryByQueryKeys = new[] { "searchString", "category", "isPublic" })]
+    [OutputCache(Duration = 300, VaryByQueryKeys = new[] { "Filter.SearchTerm", "Filter.Category", "Filter.IncludePublic" })]
     public class IndexModel : PageModel
     {
         private readonly WorkoutTrackerWebContext _context;
         private readonly IWebHostEnvironment _environment;
+        private readonly UserManager<AppUser> _userManager;
+        private readonly UserService _userService;
 
-        public IndexModel(WorkoutTrackerWebContext context, IWebHostEnvironment environment)
+        public IndexModel(
+            WorkoutTrackerWebContext context, 
+            IWebHostEnvironment environment,
+            UserManager<AppUser> userManager,
+            UserService userService)
         {
             _context = context;
             _environment = environment;
+            _userManager = userManager;
+            _userService = userService;
         }
 
-        public IList<WorkoutTemplate> Templates { get;set; } = default!;
-        public List<string> Categories { get; set; } = new List<string>();
+        public IList<WorkoutTemplate> Templates { get; set; } = default!;
         
         [BindProperty(SupportsGet = true)]
-        public string SearchString { get; set; }
-        
-        [BindProperty(SupportsGet = true)]
-        public string Category { get; set; }
-        
-        [BindProperty(SupportsGet = true)]
-        public bool? IsPublic { get; set; }
+        public TemplateFilterModel Filter { get; set; } = new TemplateFilterModel();
 
         public async Task OnGetAsync()
         {
@@ -48,14 +53,11 @@ namespace WorkoutTrackerWeb.Pages.Templates
                 // The actual cache duration is set at the class level attribute
             }
 
-            // Get all distinct categories for the filter dropdown - this can use a separate query
-            Categories = await _context.WorkoutTemplate
-                .Where(t => !string.IsNullOrEmpty(t.Category))
-                .Select(t => t.Category)
-                .Distinct()
-                .OrderBy(c => c)
-                .AsNoTracking()  // No need to track these entities
-                .ToListAsync();
+            // Get current user ID for template filtering
+            var userId = await _userService.GetCurrentUserIdAsync();
+
+            // Load categories for filter dropdown
+            await Filter.LoadCategoriesAsync(_context, userId);
 
             // Create a more efficient query that only loads what's needed for the template list
             IQueryable<WorkoutTemplate> templatesQuery = _context.WorkoutTemplate
@@ -83,26 +85,8 @@ namespace WorkoutTrackerWeb.Pages.Templates
                     }).ToList()
                 });
 
-            // Apply search filter
-            if (!string.IsNullOrEmpty(SearchString))
-            {
-                templatesQuery = templatesQuery.Where(t => 
-                    t.Name.Contains(SearchString) || 
-                    t.Description.Contains(SearchString) || 
-                    (t.Tags != null && t.Tags.Contains(SearchString)));
-            }
-
-            // Apply category filter
-            if (!string.IsNullOrEmpty(Category))
-            {
-                templatesQuery = templatesQuery.Where(t => t.Category == Category);
-            }
-
-            // Apply visibility filter
-            if (IsPublic.HasValue)
-            {
-                templatesQuery = templatesQuery.Where(t => t.IsPublic == IsPublic.Value);
-            }
+            // Apply the standardized template filters
+            templatesQuery = Filter.ApplyFilters(templatesQuery, userId);
 
             // Apply ordering at the end of the query after all filters
             templatesQuery = templatesQuery.OrderByDescending(t => t.LastModifiedDate);

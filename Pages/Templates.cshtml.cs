@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Models.Coaching;
+using WorkoutTrackerWeb.Models.Filters;
 using WorkoutTrackerWeb.Models.Identity;
 using WorkoutTrackerWeb.Services.Coaching;
 
@@ -33,16 +34,9 @@ namespace WorkoutTrackerWeb.Pages
         }
 
         [BindProperty(SupportsGet = true)]
-        public string SearchTerm { get; set; }
-
-        [BindProperty(SupportsGet = true)]
-        public string Category { get; set; }
-
-        [BindProperty(SupportsGet = true)]
-        public bool IncludePublic { get; set; } = true;
+        public TemplateFilterModel Filter { get; set; } = new TemplateFilterModel();
 
         public List<WorkoutTemplate> Templates { get; set; } = new List<WorkoutTemplate>();
-        public List<string> Categories { get; set; } = new List<string>();
         public List<TemplateAssignment> AssignedTemplates { get; set; } = new List<TemplateAssignment>();
 
         public async Task<IActionResult> OnGetAsync()
@@ -53,41 +47,14 @@ namespace WorkoutTrackerWeb.Pages
                 return Forbid();
             }
 
-            // Get distinct categories for filter dropdown
-            Categories = await _context.WorkoutTemplate
-                .Where(t => t.UserId == int.Parse(userId) || t.IsPublic)
-                .Select(t => t.Category)
-                .Where(c => !string.IsNullOrEmpty(c))
-                .Distinct()
-                .OrderBy(c => c)
-                .ToListAsync();
+            // Load categories for filter dropdown
+            await Filter.LoadCategoriesAsync(_context, int.Parse(userId));
 
             // Load templates with filtering
             var query = _context.WorkoutTemplate.AsQueryable();
 
-            // Filter by owner and public status
-            if (IncludePublic)
-            {
-                query = query.Where(t => t.UserId == int.Parse(userId) || t.IsPublic);
-            }
-            else
-            {
-                query = query.Where(t => t.UserId == int.Parse(userId));
-            }
-
-            // Apply search term filter if provided
-            if (!string.IsNullOrEmpty(SearchTerm))
-            {
-                query = query.Where(t => 
-                    t.Name.Contains(SearchTerm) || 
-                    (t.Description != null && t.Description.Contains(SearchTerm)));
-            }
-
-            // Apply category filter if provided
-            if (!string.IsNullOrEmpty(Category))
-            {
-                query = query.Where(t => t.Category == Category);
-            }
+            // Apply standardized filters
+            query = Filter.ApplyFilters(query, int.Parse(userId));
 
             // Get the filtered list of templates
             Templates = await query
@@ -116,29 +83,8 @@ namespace WorkoutTrackerWeb.Pages
             // Load templates with filtering
             var query = _context.WorkoutTemplate.AsQueryable();
 
-            // Filter by owner and public status
-            if (IncludePublic)
-            {
-                query = query.Where(t => t.UserId == int.Parse(userId) || t.IsPublic);
-            }
-            else
-            {
-                query = query.Where(t => t.UserId == int.Parse(userId));
-            }
-
-            // Apply search term filter if provided
-            if (!string.IsNullOrEmpty(SearchTerm))
-            {
-                query = query.Where(t => 
-                    t.Name.Contains(SearchTerm) || 
-                    (t.Description != null && t.Description.Contains(SearchTerm)));
-            }
-
-            // Apply category filter if provided
-            if (!string.IsNullOrEmpty(Category))
-            {
-                query = query.Where(t => t.Category == Category);
-            }
+            // Apply standardized filters
+            query = Filter.ApplyFilters(query, int.Parse(userId));
 
             // Get the filtered list of templates
             var templates = await query
@@ -154,11 +100,31 @@ namespace WorkoutTrackerWeb.Pages
                 })
                 .ToListAsync();
 
-            // Load templates assigned to the user by coaches
-            var assignedTemplates = await _context.TemplateAssignments
+            // Apply filter to assigned templates as well
+            var assignedTemplatesQuery = _context.TemplateAssignments
                 .Include(a => a.WorkoutTemplate)
                 .Include(a => a.Coach)
                 .Where(a => a.ClientUserId == int.Parse(userId) && a.IsActive)
+                .AsQueryable();
+
+            // Filter by category if provided
+            if (!string.IsNullOrEmpty(Filter.Category))
+            {
+                assignedTemplatesQuery = assignedTemplatesQuery
+                    .Where(a => a.WorkoutTemplate.Category == Filter.Category);
+            }
+
+            // Filter by search term if provided
+            if (!string.IsNullOrEmpty(Filter.SearchTerm))
+            {
+                assignedTemplatesQuery = assignedTemplatesQuery
+                    .Where(a => a.WorkoutTemplate.Name.Contains(Filter.SearchTerm) ||
+                               (a.WorkoutTemplate.Description != null && 
+                                a.WorkoutTemplate.Description.Contains(Filter.SearchTerm)));
+            }
+
+            // Get the filtered list of assigned templates
+            var assignedTemplates = await assignedTemplatesQuery
                 .OrderBy(a => a.WorkoutTemplate.Name)
                 .Select(a => new
                 {

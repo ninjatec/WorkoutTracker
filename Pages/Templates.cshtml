@@ -7,39 +7,8 @@
 <div class="container mt-4">
     <h1>Workout Templates</h1>
     
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="input-group">
-                <input type="text" id="searchInput" class="form-control" placeholder="Search templates..." 
-                       value="@Model.SearchTerm">
-                <button class="btn btn-outline-primary" type="button" id="searchButton">
-                    <i class="fas fa-search"></i>
-                </button>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <select id="categoryFilter" class="form-select">
-                <option value="">All Categories</option>
-                @foreach (var category in Model.Categories)
-                {
-                    <option value="@category" selected="@(category == Model.Category)">@category</option>
-                }
-            </select>
-        </div>
-        <div class="col-md-3">
-            <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="includePublicTemplates" 
-                       @(Model.IncludePublic ? "checked" : "")>
-                <label class="form-check-label" for="includePublicTemplates">Include public templates</label>
-            </div>
-        </div>
-        <div class="col-md-2 text-end">
-            <a href="/Templates/Create" class="btn btn-success">
-                <i class="fas fa-plus"></i> New Template
-            </a>
-        </div>
-    </div>
-
+    @await Component.InvokeAsync("TemplateFilters", Model.Filter)
+    
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -68,6 +37,11 @@
                              aria-labelledby="my-templates-tab">
                             @if (Model.Templates.Any())
                             {
+                                <div class="d-flex justify-content-end mb-3">
+                                    <a href="/Templates/Create" class="btn btn-success">
+                                        <i class="fas fa-plus"></i> New Template
+                                    </a>
+                                </div>
                                 <div class="table-responsive">
                                     <table class="table table-striped table-hover" id="templatesTable">
                                         <thead>
@@ -208,37 +182,6 @@
                     "searchPlaceholder": "Type to filter..."
                 }
             });
-            
-            // Handle search button click
-            $('#searchButton').on('click', function() {
-                applyFilters();
-            });
-            
-            // Handle pressing Enter in search input
-            $('#searchInput').on('keypress', function(e) {
-                if (e.which === 13) {
-                    applyFilters();
-                }
-            });
-            
-            // Handle category filter change
-            $('#categoryFilter').on('change', function() {
-                applyFilters();
-            });
-            
-            // Handle public templates toggle
-            $('#includePublicTemplates').on('change', function() {
-                applyFilters();
-            });
-            
-            function applyFilters() {
-                const searchTerm = $('#searchInput').val();
-                const category = $('#categoryFilter').val();
-                const includePublic = $('#includePublicTemplates').is(':checked');
-                
-                // Redirect with filter parameters
-                window.location.href = `/Templates?SearchTerm=${encodeURIComponent(searchTerm)}&Category=${encodeURIComponent(category)}&IncludePublic=${includePublic}`;
-            }
         });
     </script>
 }

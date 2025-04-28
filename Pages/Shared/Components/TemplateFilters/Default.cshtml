@@ -1,0 +1,38 @@
+@model WorkoutTrackerWeb.Models.Filters.TemplateFilterModel
+
+<div class="row mb-4">
+    <form method="get" class="row g-3">
+        <div class="col-md-4">
+            <div class="input-group">
+                <input type="text" asp-for="SearchTerm" class="form-control" placeholder="Search templates..." />
+                <button class="btn btn-outline-primary" type="submit">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <select asp-for="Category" class="form-select">
+                <option value="">All Categories</option>
+                @foreach (var category in Model.Categories)
+                {
+                    <option value="@category">@category</option>
+                }
+            </select>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="form-check form-switch">
+                <input asp-for="IncludePublic" class="form-check-input" type="checkbox" />
+                <label asp-for="IncludePublic" class="form-check-label">Include public templates</label>
+            </div>
+        </div>
+        
+        <div class="col-md-2">
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Filter</button>
+                <a href="@Context.Request.Path" class="btn btn-outline-secondary">Clear</a>
+            </div>
+        </div>
+    </form>
+</div>

@@ -7,24 +7,7 @@
 <div class="container-fluid">
     <h1>Workout Templates</h1>
     
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <div class="input-group">
-                <input type="text" id="templateSearch" class="form-control" placeholder="Search templates...">
-                <div class="input-group-append">
-                    <button class="btn btn-outline-secondary" type="button" id="searchButton">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="form-check form-switch">
-                <input class="form-check-input" type="checkbox" id="showPublicTemplates" checked>
-                <label class="form-check-label" for="showPublicTemplates">Include public templates</label>
-            </div>
-        </div>
-    </div>
+    @await Component.InvokeAsync("TemplateFilters", Model.Filter)
 
     <div class="row">
         <div class="col-md-12">
@@ -91,78 +74,6 @@
                 info: true,
                 autoWidth: false
             });
-            
-            // Handle search input
-            $('#searchButton').on('click', function() {
-                refreshTemplates();
-            });
-            
-            $('#templateSearch').on('keypress', function(e) {
-                if (e.which === 13) {
-                    refreshTemplates();
-                }
-            });
-            
-            // Handle public templates toggle
-            $('#showPublicTemplates').on('change', function() {
-                refreshTemplates();
-            });
-            
-            function refreshTemplates() {
-                var searchTerm = $('#templateSearch').val();
-                var includePublic = $('#showPublicTemplates').is(':checked');
-                
-                // Use the Razor Page handler to get filtered templates
-                $.ajax({
-                    url: '/WorkoutTemplates/Index?handler=TemplatesJson',
-                    type: 'GET',
-                    data: {
-                        searchTerm: searchTerm,
-                        includePublic: includePublic
-                    },
-                    headers: {
-                        "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val()
-                    },
-                    success: function(data) {
-                        // Clear the existing table
-                        table.clear();
-                        
-                        // Add the new data
-                        data.forEach(function(template) {
-                            var typeLabel = '';
-                            if (template.isOwner) {
-                                typeLabel = '<span class="badge bg-primary">My Template</span>';
-                            } else if (template.isAssigned) {
-                                typeLabel = '<span class="badge bg-success">Assigned by ' + template.assignedBy + '</span>';
-                            } else if (template.isPublic) {
-                                typeLabel = '<span class="badge bg-info">Public Template</span>';
-                            }
-                            
-                            var actions = '<a href="#" class="btn btn-sm btn-primary view-template-btn" data-template-id="' + template.workoutTemplateId + '">View</a> ';
-                            if (template.isOwner) {
-                                actions += '<a href="#" class="btn btn-sm btn-secondary edit-template-btn" data-template-id="' + template.workoutTemplateId + '">Edit</a> ';
-                            }
-                            actions += '<a href="#" class="btn btn-sm btn-success schedule-workout-btn" data-template-id="' + template.workoutTemplateId + '" data-template-name="' + template.name + '">Schedule</a>';
-                            
-                            table.row.add([
-                                template.name,
-                                template.description,
-                                template.category,
-                                template.exerciseCount,
-                                typeLabel,
-                                actions
-                            ]);
-                        });
-                        
-                        // Draw the table
-                        table.draw();
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Error fetching templates:', error);
-                        alert('An error occurred while fetching templates. Please try again.');
-                    }
-                });
-            }
 
             // Handle view template button click
             $(document).on('click', '.view-template-btn', function(e) {
