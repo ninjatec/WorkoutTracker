@@ -14,6 +14,7 @@ using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Models.Coaching;
 using WorkoutTrackerWeb.Models.Identity;
 using WorkoutTrackerWeb.Services.Coaching;
+using WorkoutTrackerWeb.Services.Validation;
 
 namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 {
@@ -25,17 +26,20 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         private readonly UserManager<AppUser> _userManager;
         private readonly ICoachingService _coachingService;
         private readonly ILogger<GroupModel> _logger;
+        private readonly CoachingValidationService _validationService;
 
         public GroupModel(
             WorkoutTrackerWebContext context,
             UserManager<AppUser> userManager,
             ICoachingService coachingService,
-            ILogger<GroupModel> logger)
+            ILogger<GroupModel> logger,
+            CoachingValidationService validationService)
         {
             _context = context;
             _userManager = userManager;
             _coachingService = coachingService;
             _logger = logger;
+            _validationService = validationService;
         }
 
         [TempData]
@@ -174,11 +178,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         {
             if (!ModelState.IsValid)
             {
-                var errors = string.Join("; ", ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage));
-                
-                ErrorUtils.HandleValidationError(this, "Please correct the following errors: " + errors);
+                _validationService.HandleInvalidModelState(this);
                 return RedirectToPage(new { id = groupId });
             }
 
@@ -188,24 +188,12 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 return Forbid();
             }
 
-            // Validate inputs
-            if (string.IsNullOrEmpty(groupName))
-            {
-                ErrorUtils.HandleValidationError(this, "Group name is required.");
+            // Validate group name and description
+            if (!_validationService.ValidateGroupName(groupName, this))
                 return RedirectToPage(new { id = groupId });
-            }
-
-            if (groupName.Length > 100)
-            {
-                ErrorUtils.HandleValidationError(this, "Group name cannot exceed 100 characters.");
+            
+            if (!_validationService.ValidateGroupDescription(groupDescription, this))
                 return RedirectToPage(new { id = groupId });
-            }
-
-            if (groupDescription?.Length > 500)
-            {
-                ErrorUtils.HandleValidationError(this, "Group description cannot exceed 500 characters.");
-                return RedirectToPage(new { id = groupId });
-            }
 
             try
             {
@@ -215,7 +203,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
                 if (group == null)
                 {
-                    ErrorUtils.HandleValidationError(this, "Group not found or you don't have access to it.");
+                    _validationService.SetError(this, "Group not found or you don't have access to it.");
                     return RedirectToPage("./Index");
                 }
 
@@ -226,7 +214,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                     
                 if (existingGroup != null)
                 {
-                    ErrorUtils.HandleValidationError(this, $"A group named '{groupName}' already exists.");
+                    _validationService.SetError(this, $"A group named '{groupName}' already exists.");
                     return RedirectToPage(new { id = groupId });
                 }
 
@@ -241,11 +229,11 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 _logger.LogInformation("Coach {CoachId} updated group {GroupId}: {GroupName}", 
                     coachId, groupId, groupName);
                     
-                ErrorUtils.SetSuccessMessage(this, "Group details updated successfully.");
+                _validationService.SetSuccess(this, "Group details updated successfully.");
             }
             catch (Exception ex)
             {
-                ErrorUtils.HandleException(_logger, ex, this, 
+                _validationService.HandleException(_logger, ex, this, 
                     "An error occurred while updating the group details.",
                     $"updating group {groupId}");
             }
@@ -257,11 +245,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         {
             if (!ModelState.IsValid)
             {
-                var errors = string.Join("; ", ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage));
-                
-                ErrorUtils.HandleValidationError(this, "Please correct the following errors: " + errors);
+                _validationService.HandleInvalidModelState(this);
                 return RedirectToPage(new { id = groupId });
             }
 
@@ -271,9 +255,8 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 return Forbid();
             }
 
-            if (selectedClients == null || !selectedClients.Any())
+            if (!_validationService.ValidateClientSelection(selectedClients, this))
             {
-                ErrorUtils.HandleValidationError(this, "No clients selected.");
                 return RedirectToPage(new { id = groupId });
             }
 
@@ -285,7 +268,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
                 if (group == null)
                 {
-                    ErrorUtils.HandleValidationError(this, "Group not found or you don't have access to it.");
+                    _validationService.SetError(this, "Group not found or you don't have access to it.");
                     return RedirectToPage("./Index");
                 }
 
@@ -326,16 +309,16 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 {
                     await _context.SaveChangesAsync();
                     _logger.LogInformation("Added {Count} clients to group {GroupId}", addedCount, groupId);
-                    ErrorUtils.SetSuccessMessage(this, $"Successfully added {addedCount} client{(addedCount > 1 ? "s" : "")} to the group.");
+                    _validationService.SetSuccess(this, $"Successfully added {addedCount} client{(addedCount > 1 ? "s" : "")} to the group.");
                 }
                 else
                 {
-                    TempData["SuccessMessage"] = "No new clients were added to the group.";
+                    _validationService.SetInfo(this, "No new clients were added to the group.");
                 }
             }
             catch (Exception ex)
             {
-                ErrorUtils.HandleException(_logger, ex, this,
+                _validationService.HandleException(_logger, ex, this,
                     "An error occurred while adding members to the group.",
                     $"adding members to group {groupId}");
             }
@@ -347,11 +330,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         {
             if (!ModelState.IsValid)
             {
-                var errors = string.Join("; ", ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage));
-                
-                ErrorUtils.HandleValidationError(this, "Please correct the following errors: " + errors);
+                _validationService.HandleInvalidModelState(this);
                 return RedirectToPage(new { id = groupId });
             }
 
@@ -370,7 +349,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
                 if (group == null)
                 {
-                    ErrorUtils.HandleValidationError(this, "Group not found or you don't have access to it.");
+                    _validationService.SetError(this, "Group not found or you don't have access to it.");
                     return RedirectToPage("./Index");
                 }
 
@@ -385,16 +364,16 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                     await _context.SaveChangesAsync();
                     _logger.LogInformation("Coach {CoachId} removed client {RelationshipId} from group {GroupId}", 
                         coachId, relationshipId, groupId);
-                    ErrorUtils.SetSuccessMessage(this, "Client removed from group successfully.");
+                    _validationService.SetSuccess(this, "Client removed from group successfully.");
                 }
                 else
                 {
-                    ErrorUtils.HandleValidationError(this, "Client not found in this group.");
+                    _validationService.SetError(this, "Client not found in this group.");
                 }
             }
             catch (Exception ex)
             {
-                ErrorUtils.HandleException(_logger, ex, this,
+                _validationService.HandleException(_logger, ex, this,
                     "An error occurred while removing the client from the group.",
                     $"removing client {relationshipId} from group {groupId}");
             }
@@ -406,11 +385,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         {
             if (!ModelState.IsValid)
             {
-                var errors = string.Join("; ", ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage));
-                
-                ErrorUtils.HandleValidationError(this, "Please correct the following errors: " + errors);
+                _validationService.HandleInvalidModelState(this);
                 return RedirectToPage(new { id = groupId });
             }
 
@@ -430,7 +405,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
                 if (group == null)
                 {
-                    ErrorUtils.HandleValidationError(this, "Group not found or you don't have access to it.");
+                    _validationService.SetError(this, "Group not found or you don't have access to it.");
                     return RedirectToPage("./Index");
                 }
 
@@ -450,12 +425,12 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 _logger.LogInformation("Coach {CoachId} deleted group {GroupId}: {GroupName} with {MemberCount} members", 
                     coachId, groupId, group.Name, members.Count);
                     
-                ErrorUtils.SetSuccessMessage(this, $"Group '{group.Name}' deleted successfully.");
+                _validationService.SetSuccess(this, $"Group '{group.Name}' deleted successfully.");
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                ErrorUtils.HandleException(_logger, ex, this,
+                _validationService.HandleException(_logger, ex, this,
                     "An error occurred while deleting the group.",
                     $"deleting group {groupId}");
             }
@@ -467,11 +442,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         {
             if (!ModelState.IsValid)
             {
-                var errors = string.Join("; ", ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage));
-                
-                ErrorUtils.HandleValidationError(this, "Please correct the following errors: " + errors);
+                _validationService.HandleInvalidModelState(this);
                 return RedirectToPage(new { id = groupId });
             }
 
@@ -481,10 +452,9 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 return Forbid();
             }
 
-            // Validate inputs
-            if (string.IsNullOrEmpty(assignmentName))
+            // Validate template assignment inputs
+            if (!_validationService.ValidateRequiredField(assignmentName, "assignment name", this))
             {
-                ErrorUtils.HandleValidationError(this, "Assignment name is required.");
                 return RedirectToPage(new { id = groupId });
             }
 
@@ -497,7 +467,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
                 if (group == null)
                 {
-                    ErrorUtils.HandleValidationError(this, "Group not found or you don't have access to it.");
+                    _validationService.SetError(this, "Group not found or you don't have access to it.");
                     return RedirectToPage("./Index");
                 }
 
@@ -508,7 +478,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
                 if (template == null)
                 {
-                    ErrorUtils.HandleValidationError(this, "Template not found or you don't have access to it.");
+                    _validationService.SetError(this, "Template not found or you don't have access to it.");
                     return RedirectToPage(new { id = groupId });
                 }
 
@@ -524,7 +494,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
                 if (!members.Any())
                 {
-                    ErrorUtils.HandleValidationError(this, "This group has no active members to assign the template to.");
+                    _validationService.SetError(this, "This group has no active members to assign the template to.");
                     return RedirectToPage(new { id = groupId });
                 }
 
@@ -575,28 +545,28 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
                     if (assignedCount > 0)
                     {
-                        ErrorUtils.SetSuccessMessage(this, $"Template '{template.Name}' assigned to {assignedCount} client{(assignedCount > 1 ? "s" : "")} in group '{group.Name}'.");
+                        _validationService.SetSuccess(this, $"Template '{template.Name}' assigned to {assignedCount} client{(assignedCount > 1 ? "s" : "")} in group '{group.Name}'.");
                     }
                     else if (alreadyAssignedCount > 0)
                     {
-                        ErrorUtils.SetInfoMessage(this, $"No new assignments created. All clients in this group already have the template '{template.Name}' assigned.");
+                        _validationService.SetInfo(this, $"No new assignments created. All clients in this group already have the template '{template.Name}' assigned.");
                     }
                     else
                     {
-                        ErrorUtils.SetInfoMessage(this, "No template assignments were created.");
+                        _validationService.SetInfo(this, "No template assignments were created.");
                     }
                 }
                 catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
-                    ErrorUtils.HandleException(_logger, ex, this,
+                    _validationService.HandleException(_logger, ex, this,
                         "An error occurred while assigning the template to the group.",
                         $"assigning template {templateId} to group {groupId}");
                 }
             }
             catch (Exception ex)
             {
-                ErrorUtils.HandleException(_logger, ex, this,
+                _validationService.HandleException(_logger, ex, this,
                     "An error occurred while verifying the group or template.",
                     $"verifying group {groupId} or template {templateId}");
             }

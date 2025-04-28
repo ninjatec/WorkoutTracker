@@ -102,7 +102,7 @@
  - [ ] Client Management Refinement
    - [x] Standardize all client invitation processes to use Razor Pages
    - [x] Complete client group management functionality
-   - [ ] Ensure consistent error handling across client management workflows
+   - [x] Ensure consistent error handling across client management workflows
    - [ ] Standardize validation across all coaching client features
 
  - [ ] Workout Template System Completion

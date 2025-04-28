@@ -15,6 +15,7 @@ using WorkoutTrackerWeb.Extensions;
 using WorkoutTrackerWeb.Models.Coaching;
 using WorkoutTrackerWeb.Models.Identity;
 using WorkoutTrackerWeb.Services.Coaching;
+using WorkoutTrackerWeb.Services.Validation;
 
 namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 {
@@ -26,17 +27,20 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         private readonly WorkoutTrackerWebContext _context;
         private readonly UserManager<AppUser> _userManager;
         private readonly ILogger<IndexModel> _logger;
+        private readonly CoachingValidationService _validationService;
 
         public IndexModel(
             ICoachingService coachingService,
             WorkoutTrackerWebContext context,
             UserManager<AppUser> userManager,
-            ILogger<IndexModel> logger)
+            ILogger<IndexModel> logger,
+            CoachingValidationService validationService)
         {
             _coachingService = coachingService;
             _context = context;
             _userManager = userManager;
             _logger = logger;
+            _validationService = validationService;
         }
 
         [TempData]
@@ -76,7 +80,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             // If an error message was passed in the query string, display it
             if (!string.IsNullOrEmpty(errorMessage))
             {
-                ErrorUtils.HandleValidationError(this, errorMessage);
+                _validationService.SetError(this, errorMessage);
             }
 
             try
@@ -96,7 +100,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             }
             catch (Exception ex)
             {
-                ErrorUtils.HandleException(_logger, ex, this, 
+                _validationService.HandleException(_logger, ex, this, 
                     "An error occurred while loading your client data.",
                     "loading client dashboard");
             }
@@ -237,11 +241,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             {
                 if (!ModelState.IsValid)
                 {
-                    var errors = string.Join("; ", ModelState.Values
-                        .SelectMany(v => v.Errors)
-                        .Select(e => e.ErrorMessage));
-                        
-                    ErrorUtils.HandleValidationError(this, "Please correct the following errors: " + errors);
+                    _validationService.HandleInvalidModelState(this);
                     return RedirectToPage(new { showInvite = true });
                 }
 
@@ -256,8 +256,8 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             }
             catch (Exception ex)
             {
-                // Handle the exception using our utilities
-                ErrorUtils.HandleException(_logger, ex, this, 
+                // Handle the exception using our validation service
+                _validationService.HandleException(_logger, ex, this, 
                     "An error occurred while preparing the client invitation.",
                     "preparing client invitation");
                 return RedirectToPage(new { showInvite = true });
@@ -280,13 +280,13 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
                 if (relationship == null)
                 {
-                    ErrorUtils.HandleValidationError(this, "Invitation not found or you don't have permission to cancel it.");
+                    _validationService.SetError(this, "Invitation not found or you don't have permission to cancel it.");
                     return RedirectToPage();
                 }
 
                 if (relationship.Status != RelationshipStatus.Pending)
                 {
-                    ErrorUtils.HandleValidationError(this, "This invitation cannot be cancelled because it is not in pending status.");
+                    _validationService.SetError(this, "This invitation cannot be cancelled because it is not in pending status.");
                     return RedirectToPage();
                 }
 
@@ -294,16 +294,16 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 bool success = await _coachingService.UpdateRelationshipStatusAsync(relationship.Id, RelationshipStatus.Ended);
                 if (success)
                 {
-                    ErrorUtils.SetSuccessMessage(this, "Invitation cancelled successfully.");
+                    _validationService.SetSuccess(this, "Invitation cancelled successfully.");
                 }
                 else
                 {
-                    ErrorUtils.HandleValidationError(this, "Failed to cancel invitation. Please try again.");
+                    _validationService.SetError(this, "Failed to cancel invitation. Please try again.");
                 }
             }
             catch (Exception ex)
             {
-                ErrorUtils.HandleException(_logger, ex, this, 
+                _validationService.HandleException(_logger, ex, this, 
                     "An error occurred while cancelling the invitation.",
                     $"cancelling invitation {clientId}");
             }
@@ -327,13 +327,13 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
                 if (relationship == null)
                 {
-                    ErrorUtils.HandleValidationError(this, "Client relationship not found or you don't have permission to reactivate it.");
+                    _validationService.SetError(this, "Client relationship not found or you don't have permission to reactivate it.");
                     return RedirectToPage();
                 }
 
                 if (relationship.Status != RelationshipStatus.Paused)
                 {
-                    ErrorUtils.HandleValidationError(this, "This client cannot be reactivated because they are not in paused status.");
+                    _validationService.SetError(this, "This client cannot be reactivated because they are not in paused status.");
                     return RedirectToPage();
                 }
 
@@ -341,16 +341,16 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 bool success = await _coachingService.UpdateRelationshipStatusAsync(relationship.Id, RelationshipStatus.Active);
                 if (success)
                 {
-                    ErrorUtils.SetSuccessMessage(this, "Client reactivated successfully.");
+                    _validationService.SetSuccess(this, "Client reactivated successfully.");
                 }
                 else
                 {
-                    ErrorUtils.HandleValidationError(this, "Failed to reactivate client. Please try again.");
+                    _validationService.SetError(this, "Failed to reactivate client. Please try again.");
                 }
             }
             catch (Exception ex)
             {
-                ErrorUtils.HandleException(_logger, ex, this, 
+                _validationService.HandleException(_logger, ex, this, 
                     "An error occurred while reactivating the client.",
                     $"reactivating client {clientId}");
             }
@@ -368,10 +368,14 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 return Forbid();
             }
 
-            // Validate group name
-            if (string.IsNullOrEmpty(groupName))
+            // Validate group name and description using our validation service
+            if (!_validationService.ValidateGroupName(groupName, this))
             {
-                ErrorUtils.HandleValidationError(this, "Group name is required.");
+                return RedirectToPage();
+            }
+            
+            if (!_validationService.ValidateGroupDescription(groupDescription, this))
+            {
                 return RedirectToPage();
             }
 
@@ -384,7 +388,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                     
                 if (existingGroup != null)
                 {
-                    ErrorUtils.HandleValidationError(this, $"A group named '{groupName}' already exists.");
+                    _validationService.SetError(this, $"A group named '{groupName}' already exists.");
                     return RedirectToPage();
                 }
 
@@ -435,16 +439,16 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                     {
                         await _context.SaveChangesAsync();
                         _logger.LogInformation("Added {Count} clients to group {GroupId}", addedCount, newGroup.Id);
-                        ErrorUtils.SetSuccessMessage(this, $"Created client group '{groupName}' with {addedCount} client{(addedCount > 1 ? "s" : "")}.");
+                        _validationService.SetSuccess(this, $"Created client group '{groupName}' with {addedCount} client{(addedCount > 1 ? "s" : "")}.");
                     }
                     else
                     {
-                        ErrorUtils.SetSuccessMessage(this, $"Created client group '{groupName}'. No valid clients were added.");
+                        _validationService.SetSuccess(this, $"Created client group '{groupName}'. No valid clients were added.");
                     }
                 }
                 else
                 {
-                    ErrorUtils.SetSuccessMessage(this, $"Created client group '{groupName}'.");
+                    _validationService.SetSuccess(this, $"Created client group '{groupName}'.");
                 }
                 
                 await transaction.CommitAsync();
@@ -454,7 +458,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             }
             catch (Exception ex)
             {
-                ErrorUtils.HandleException(_logger, ex, this, 
+                _validationService.HandleException(_logger, ex, this, 
                     "An error occurred while creating the client group.",
                     $"creating client group '{groupName}'");
                 return RedirectToPage();

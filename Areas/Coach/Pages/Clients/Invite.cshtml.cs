@@ -19,6 +19,7 @@ using WorkoutTrackerWeb.Models.Coaching;
 using WorkoutTrackerWeb.Models.Identity;
 using WorkoutTrackerWeb.Services.Coaching;
 using WorkoutTrackerWeb.Services.Email;
+using WorkoutTrackerWeb.Services.Validation;
 
 namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 {
@@ -31,19 +32,22 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         private readonly IEmailSender _emailSender;
         private readonly ILogger<InviteModel> _logger;
         private readonly ICoachingService _coachingService;
+        private readonly CoachingValidationService _validationService;
 
         public InviteModel(
             WorkoutTrackerWebContext context,
             UserManager<AppUser> userManager,
             IEmailSender emailSender,
             ILogger<InviteModel> logger,
-            ICoachingService coachingService)
+            ICoachingService coachingService,
+            CoachingValidationService validationService)
         {
             _context = context;
             _userManager = userManager;
             _emailSender = emailSender;
             _logger = logger;
             _coachingService = coachingService;
+            _validationService = validationService;
         }
 
         [BindProperty]
@@ -107,11 +111,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 
                 if (!ModelState.IsValid)
                 {
-                    var errors = string.Join("; ", ModelState.Values
-                        .SelectMany(v => v.Errors)
-                        .Select(e => e.ErrorMessage));
-                        
-                    ErrorUtils.HandleValidationError(this, "Please correct the following errors: " + errors);
+                    _validationService.HandleInvalidModelState(this);
                     return Page();
                 }
 
@@ -119,6 +119,12 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 if (string.IsNullOrEmpty(coachId))
                 {
                     return Forbid();
+                }
+                
+                // Validate the invitation message
+                if (!_validationService.ValidateInvitationMessage(InvitationMessage, this))
+                {
+                    return Page();
                 }
 
                 // Look up the client by email
@@ -153,7 +159,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                         if (!result.Succeeded)
                         {
                             _logger.LogError("Failed to create temporary user: {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
-                            ErrorUtils.HandleValidationError(this, $"Failed to create temporary user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                            _validationService.SetError(this, $"Failed to create temporary user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
                             return Page();
                         }
                         
@@ -178,7 +184,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                             // Relationship already exists, but might be inactive or pending
                             if (existingRelationship.Status == RelationshipStatus.Active)
                             {
-                                ErrorUtils.SetInfoMessage(this, $"{ClientEmail} is already your active client.");
+                                _validationService.SetInfo(this, $"{ClientEmail} is already your active client.");
                                 await transaction.RollbackAsync(); // No changes needed
                                 return RedirectToPage("./Index");
                             }
@@ -192,13 +198,13 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                                     
                                 if (result)
                                 {
-                                    ErrorUtils.SetSuccessMessage(this, $"Invitation resent to {ClientEmail}");
+                                    _validationService.SetSuccess(this, $"Invitation resent to {ClientEmail}");
                                     await transaction.CommitAsync();
                                     return RedirectToPage("./Index");
                                 }
                                 else
                                 {
-                                    ErrorUtils.HandleValidationError(this, "Failed to resend invitation. Please try again.");
+                                    _validationService.SetError(this, "Failed to resend invitation. Please try again.");
                                     await transaction.RollbackAsync();
                                     return Page();
                                 }
@@ -209,13 +215,13 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                                 var result = await _coachingService.ReactivateRelationshipAsync(existingRelationship.Id);
                                 if (result)
                                 {
-                                    ErrorUtils.SetSuccessMessage(this, $"Relationship with {ClientEmail} has been reactivated.");
+                                    _validationService.SetSuccess(this, $"Relationship with {ClientEmail} has been reactivated.");
                                     await transaction.CommitAsync();
                                     return RedirectToPage("./Index");
                                 }
                                 else
                                 {
-                                    ErrorUtils.HandleValidationError(this, "Failed to reactivate relationship. Please try again.");
+                                    _validationService.SetError(this, "Failed to reactivate relationship. Please try again.");
                                     await transaction.RollbackAsync();
                                     return Page();
                                 }
@@ -323,11 +329,11 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                         {
                             // Log email error but don't fail the whole process - the invite is still created
                             _logger.LogError(ex, "Error sending invitation email to {Email}", ClientEmail);
-                            ErrorUtils.SetSuccessMessage(this, $"Invitation created for {ClientEmail}, but there was an error sending the email.");
+                            _validationService.SetSuccess(this, $"Invitation created for {ClientEmail}, but there was an error sending the email.");
                             // Continue with the process
                         }
 
-                        ErrorUtils.SetSuccessMessage(this, $"Invitation sent to {ClientEmail}.");
+                        _validationService.SetSuccess(this, $"Invitation sent to {ClientEmail}.");
                         
                         // Add flag to switch to the Pending tab
                         TempData["ActiveTab"] = "pending";
@@ -338,7 +344,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                     {
                         _logger.LogError("CreateCoachClientRelationshipAsync returned null - Failed to create relationship");
                         await transaction.RollbackAsync();
-                        ErrorUtils.HandleValidationError(this, $"Failed to create relationship with {ClientEmail}.");
+                        _validationService.SetError(this, $"Failed to create relationship with {ClientEmail}.");
                         _logger.LogInformation("=== INVITATION PROCESS FAILED ===");
                         return Page();
                     }
@@ -347,7 +353,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 {
                     _logger.LogError(ex, "Error during transaction for creating relationship");
                     await transaction.RollbackAsync();
-                    ErrorUtils.HandleException(_logger, ex, this,
+                    _validationService.HandleException(_logger, ex, this,
                         "An error occurred while creating the client relationship.",
                         $"creating relationship with {ClientEmail}");
                     _logger.LogInformation("=== INVITATION PROCESS FAILED WITH EXCEPTION ===");
@@ -359,7 +365,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             catch (Exception ex)
             {
                 // Handle unhandled exceptions using our utility
-                ErrorUtils.HandleException(_logger, ex, this,
+                _validationService.HandleException(_logger, ex, this,
                     "An unexpected error occurred during the invitation process. Please try again.",
                     $"unhandled exception in client invitation");
                 _logger.LogInformation("=== INVITATION PROCESS FAILED WITH UNHANDLED EXCEPTION ===");

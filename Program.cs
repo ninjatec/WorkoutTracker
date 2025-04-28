@@ -496,6 +496,9 @@ try
 
     // Register coaching services
     builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.ICoachingService, WorkoutTrackerWeb.Services.Coaching.CoachingService>();
+    
+    // Register validation services
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Validation.CoachingValidationService>();
 
     // Add session state with Redis caching and JSON serialization
     builder.Services.AddSession(options =>
