@@ -77,6 +77,14 @@ namespace WorkoutTrackerWeb.Areas.Admin.ViewModels
         public List<string> SelectedRoles { get; set; } = new List<string>();
         
         public List<IdentityRole> AvailableRoles { get; set; } = new List<IdentityRole>();
+        
+        // Application User properties
+        [Display(Name = "Display Name")]
+        [StringLength(50, ErrorMessage = "Name must be between 2 and 50 characters.", MinimumLength = 2)]
+        public string Name { get; set; }
+        
+        // Reference to the application user ID if it exists
+        public int? ApplicationUserId { get; set; }
     }
     
     // ViewModel for creating new users
@@ -115,6 +123,11 @@ namespace WorkoutTrackerWeb.Areas.Admin.ViewModels
         public List<string> SelectedRoles { get; set; } = new List<string>();
         
         public List<IdentityRole> AvailableRoles { get; set; } = new List<IdentityRole>();
+        
+        // Application User properties
+        [Display(Name = "Display Name")]
+        [StringLength(50, ErrorMessage = "Name must be between 2 and 50 characters.", MinimumLength = 2)]
+        public string Name { get; set; }
     }
     
     // ViewModel for resetting user passwords

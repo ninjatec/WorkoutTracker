@@ -17,7 +17,9 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models.Identity;
 
 namespace WorkoutTrackerWeb.Areas.Identity.Pages.Account
@@ -30,13 +32,15 @@ namespace WorkoutTrackerWeb.Areas.Identity.Pages.Account
         private readonly IUserEmailStore<AppUser> _emailStore;
         private readonly ILogger<RegisterModel> _logger;
         private readonly IEmailSender _emailSender;
+        private readonly WorkoutTrackerWebContext _context;
 
         public RegisterModel(
             UserManager<AppUser> userManager,
             IUserStore<AppUser> userStore,
             SignInManager<AppUser> signInManager,
             ILogger<RegisterModel> logger,
-            IEmailSender emailSender)
+            IEmailSender emailSender,
+            WorkoutTrackerWebContext context)
         {
             _userManager = userManager;
             _userStore = userStore;
@@ -44,6 +48,7 @@ namespace WorkoutTrackerWeb.Areas.Identity.Pages.Account
             _signInManager = signInManager;
             _logger = logger;
             _emailSender = emailSender;
+            _context = context;
         }
 
         /// <summary>
@@ -109,7 +114,6 @@ namespace WorkoutTrackerWeb.Areas.Identity.Pages.Account
             public string ConfirmPassword { get; set; }
         }
 
-
         public async Task OnGetAsync(string returnUrl = null)
         {
             ReturnUrl = returnUrl;
@@ -133,6 +137,43 @@ namespace WorkoutTrackerWeb.Areas.Identity.Pages.Account
                     _logger.LogInformation("User created a new account with password.");
 
                     var userId = await _userManager.GetUserIdAsync(user);
+
+                    try
+                    {
+                        var executionStrategy = _context.Database.CreateExecutionStrategy();
+
+                        await executionStrategy.ExecuteAsync(async () =>
+                        {
+                            using var transaction = await _context.Database.BeginTransactionAsync();
+                            try
+                            {
+                                var appUser = new WorkoutTrackerWeb.Models.User
+                                {
+                                    IdentityUserId = userId,
+                                    Name = Input.UserName
+                                };
+
+                                _context.User.Add(appUser);
+                                await _context.SaveChangesAsync();
+
+                                _logger.LogInformation("Application user record created with UserId: {AppUserId}, linked to Identity user: {IdentityUserId}",
+                                    appUser.UserId, appUser.IdentityUserId);
+
+                                await transaction.CommitAsync();
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Error creating application user record for Identity user: {UserId}", userId);
+                                await transaction.RollbackAsync();
+                                _logger.LogWarning("User registration completed without creating application user record for {UserId}", userId);
+                            }
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error during application user creation for Identity user: {UserId}", userId);
+                    }
+
                     var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
                     code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
                     var callbackUrl = Url.Page(
@@ -160,7 +201,6 @@ namespace WorkoutTrackerWeb.Areas.Identity.Pages.Account
                 }
             }
 
-            // If we got this far, something failed, redisplay form
             return Page();
         }
 

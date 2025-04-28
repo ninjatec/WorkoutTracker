@@ -8,7 +8,7 @@
 - Use Microsoft.Data.SqlClient (not System.Data.SqlClient)
 - Only use free, open-source NuGet packages
 - Make all code and configuration compatible with Linux containers
-- The application runs on Kubernetes across multiple pods in production
+- Remenber User details are stored accross 2 db contexts
 
 ## Development Practices
 - ALWAYS reference SoW, WiP, README, Inventory and Models to build context

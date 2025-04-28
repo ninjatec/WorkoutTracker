@@ -49,6 +49,19 @@
                         </div>
 
                         <div class="mb-3">
+                            <label asp-for="UserCreate.UserName" class="form-label"></label>
+                            <input asp-for="UserCreate.UserName" class="form-control" />
+                            <span asp-validation-for="UserCreate.UserName" class="text-danger"></span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label asp-for="UserCreate.Name" class="form-label"></label>
+                            <input asp-for="UserCreate.Name" class="form-control" />
+                            <span asp-validation-for="UserCreate.Name" class="text-danger"></span>
+                            <div class="form-text">Display name shown throughout the application</div>
+                        </div>
+
+                        <div class="mb-3">
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" asp-for="UserCreate.EmailConfirmed">
                                 <label class="form-check-label" asp-for="UserCreate.EmailConfirmed"></label>
