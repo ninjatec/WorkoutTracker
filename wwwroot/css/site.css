@@ -313,3 +313,10 @@ a:focus, button:focus {
 .tab-content > .tab-pane {
   padding: 1rem 0;
 }
+
+/* Required field indicator */
+.form-label.required:after {
+  content: " *";
+  color: var(--error-color);
+  font-weight: bold;
+}

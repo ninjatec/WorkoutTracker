@@ -57,8 +57,13 @@ namespace WorkoutTrackerWeb.Models.Coaching
         /// <summary>
         /// Gets or sets the ID of the client user
         /// </summary>
-        [Required]
         public string ClientId { get; set; }
+        
+        /// <summary>
+        /// Gets or sets the email of the invited user who is not yet registered
+        /// </summary>
+        [MaxLength(256)]
+        public string InvitedEmail { get; set; }
         
         /// <summary>
         /// Gets or sets the coach user

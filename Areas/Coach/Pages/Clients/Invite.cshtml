@@ -31,12 +31,13 @@
                     </div>
                 }
 
-                <form method="post">
-                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                <form method="post" id="inviteForm">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="All" class="text-danger"></div>
                     
                     <div class="mb-3">
-                        <label asp-for="ClientEmail" class="form-label">Email Address</label>
-                        <input asp-for="ClientEmail" class="form-control" />
+                        <label asp-for="ClientEmail" class="form-label required">Email Address</label>
+                        <input asp-for="ClientEmail" class="form-control" name="ClientEmail" id="ClientEmail" required />
                         <span asp-validation-for="ClientEmail" class="text-danger"></span>
                         <div class="form-text">An invitation will be sent to this email address.</div>
                     </div>
@@ -155,4 +156,40 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        $(document).ready(function() {
+            // Add extra client-side validation for the Email field
+            $("#inviteForm").on("submit", function(e) {
+                const emailValue = $("#ClientEmail").val();
+                console.log("Form submitted with email: ", emailValue);
+                
+                if (!emailValue || emailValue.trim() === "") {
+                    e.preventDefault();
+                    
+                    // Add custom validation error
+                    $(".text-danger[data-valmsg-for='ClientEmail']").text("Email address is required");
+                    
+                    // Highlight the field
+                    $("#ClientEmail").addClass("input-validation-error");
+                    
+                    // Focus on the email field
+                    $("#ClientEmail").focus();
+                    
+                    return false;
+                }
+                
+                // Store email in localStorage as a backup
+                localStorage.setItem("lastClientEmail", emailValue);
+                
+                return true;
+            });
+            
+            // Restore email from localStorage if it exists and field is empty
+            const savedEmail = localStorage.getItem("lastClientEmail");
+            if (savedEmail && $("#ClientEmail").val() === "") {
+                $("#ClientEmail").val(savedEmail);
+            }
+        });
+    </script>
 }

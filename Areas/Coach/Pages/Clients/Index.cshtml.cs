@@ -171,22 +171,52 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             {
                 try
                 {
-                    var client = await _userManager.FindByIdAsync(relationship.ClientId);
-                    if (client == null) continue;
-
-                    var clientViewModel = new ClientViewModel
+                    ClientViewModel clientViewModel;
+                    
+                    // Handle two cases: registered users and invited users who aren't registered yet
+                    if (!string.IsNullOrEmpty(relationship.ClientId))
                     {
-                        Id = relationship.Id,
-                        RelationshipId = relationship.Id,
-                        Name = client.FullName() ?? client.UserName.Split('@')[0],
-                        Email = client.Email,
-                        Status = relationship.Status.ToString(),
-                        StartDate = relationship.CreatedDate,
-                        EndDate = relationship.EndDate,
-                        Group = await GetClientGroupName(relationship.Id),
-                        InvitationDate = relationship.Status == RelationshipStatus.Pending ? relationship.CreatedDate : null,
-                        ExpiryDate = relationship.InvitationExpiryDate
-                    };
+                        // This is a registered user
+                        var client = await _userManager.FindByIdAsync(relationship.ClientId);
+                        if (client == null) continue;
+
+                        clientViewModel = new ClientViewModel
+                        {
+                            Id = relationship.Id,
+                            RelationshipId = relationship.Id,
+                            Name = client.FullName() ?? client.UserName.Split('@')[0],
+                            Email = client.Email,
+                            Status = relationship.Status.ToString(),
+                            StartDate = relationship.CreatedDate,
+                            EndDate = relationship.EndDate,
+                            Group = await GetClientGroupName(relationship.Id),
+                            InvitationDate = relationship.Status == RelationshipStatus.Pending ? relationship.CreatedDate : null,
+                            ExpiryDate = relationship.InvitationExpiryDate
+                        };
+                    }
+                    else if (!string.IsNullOrEmpty(relationship.InvitedEmail))
+                    {
+                        // This is an invited user who hasn't registered yet
+                        clientViewModel = new ClientViewModel
+                        {
+                            Id = relationship.Id,
+                            RelationshipId = relationship.Id,
+                            Name = relationship.InvitedEmail.Split('@')[0], // Just use the part before @ as a display name
+                            Email = relationship.InvitedEmail,
+                            Status = relationship.Status.ToString(),
+                            StartDate = relationship.CreatedDate,
+                            EndDate = relationship.EndDate,
+                            Group = await GetClientGroupName(relationship.Id),
+                            InvitationDate = relationship.CreatedDate,
+                            ExpiryDate = relationship.InvitationExpiryDate
+                        };
+                    }
+                    else
+                    {
+                        // Invalid relationship with no client ID or invited email
+                        _logger.LogWarning("Relationship {RelationshipId} has neither ClientId nor InvitedEmail", relationship.Id);
+                        continue;
+                    }
 
                     switch (relationship.Status)
                     {
