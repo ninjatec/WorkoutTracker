@@ -232,9 +232,17 @@ try
         options.Password.RequireUppercase = true;
         options.Password.RequireNonAlphanumeric = true;
         options.Password.RequiredLength = 8;
+        
+        // Configure username requirements
+        options.User.RequireUniqueEmail = true;
+        options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
     })
         .AddRoles<IdentityRole>() // Add role services
-        .AddEntityFrameworkStores<ApplicationDbContext>();
+        .AddEntityFrameworkStores<ApplicationDbContext>()
+        .AddUserValidator<CustomUserValidator>(); // Register our custom user validator
+
+    // Register CustomUsernameManager service for handling unique usernames
+    builder.Services.AddScoped<CustomUsernameManager>();
 
     // Configure Authorization policies for Admin role
     builder.Services.AddAuthorization(options =>

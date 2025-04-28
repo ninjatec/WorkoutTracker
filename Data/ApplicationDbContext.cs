@@ -30,6 +30,11 @@ public class ApplicationDbContext : IdentityDbContext<AppUser>
     {
         base.OnModelCreating(builder);
         
+        // Add index on UserName to enforce uniqueness
+        builder.Entity<AppUser>()
+            .HasIndex(u => u.UserName)
+            .IsUnique();
+            
         // Configure relationships for log level settings
         builder.Entity<LogLevelSettings>()
             .HasMany(s => s.Overrides)

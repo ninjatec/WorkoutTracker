@@ -145,8 +145,6 @@
    - [ ] Add audit logging for sensitive coaching operations
    - [ ] Implement proper security for coaching data access
 ---
-add user name
----
 
 [ ] Allow Import from apple via HealthKit
  - [ ] Set up HealthKit integration prerequisites
