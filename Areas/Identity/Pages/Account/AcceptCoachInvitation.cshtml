@@ -1,0 +1,61 @@
+@page
+@model WorkoutTrackerWeb.Areas.Identity.Pages.Account.AcceptCoachInvitationModel
+@{
+    ViewData["Title"] = "Accept Coach Invitation";
+}
+
+<div class="container">
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-person-check me-2"></i>Coach Invitation</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h5><i class="bi bi-info-circle me-2"></i>You've Been Invited</h5>
+                        @if (!string.IsNullOrEmpty(Model.CoachName))
+                        {
+                            <p>You've been invited by <strong>@Model.CoachName</strong> to connect as a client on WorkoutTracker.</p>
+                        }
+                        else
+                        {
+                            <p>You've been invited to connect as a client on WorkoutTracker.</p>
+                        }
+                        
+                        @if (!string.IsNullOrEmpty(Model.InvitationMessage))
+                        {
+                            <p class="mb-0"><strong>Message from coach:</strong> @Model.InvitationMessage</p>
+                        }
+                    </div>
+                    
+                    <h5 class="mb-3">What happens when you accept:</h5>
+                    <ul class="mb-4">
+                        <li>Your coach will be able to create and assign workout programs for you</li>
+                        <li>Your coach can monitor your progress and provide feedback</li>
+                        <li>You'll receive notifications when your coach assigns new workouts</li>
+                        <li>You can easily communicate with your coach about your fitness journey</li>
+                    </ul>
+                    
+                    <div class="d-flex justify-content-between">
+                        <form method="post" asp-page-handler="Reject">
+                            <input type="hidden" name="relationshipId" value="@Model.RelationshipId" />
+                            <input type="hidden" name="token" value="@Model.Token" />
+                            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Are you sure you want to decline this invitation?')">
+                                <i class="bi bi-x-circle me-2"></i>Decline Invitation
+                            </button>
+                        </form>
+                        
+                        <form method="post" asp-page-handler="Accept">
+                            <input type="hidden" name="relationshipId" value="@Model.RelationshipId" />
+                            <input type="hidden" name="token" value="@Model.Token" />
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-check-circle me-2"></i>Accept Invitation
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

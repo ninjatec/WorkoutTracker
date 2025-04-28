@@ -962,6 +962,9 @@ try
     // Use ForwardedHeaders middleware early in the pipeline to handle proxy headers
     app.UseForwardedHeaders();
 
+    // Add InvitationRedirectMiddleware early in the pipeline, right after ForwardedHeaders
+    app.UseInvitationRedirect();
+
     // Add Content Security Policy middleware
     app.Use(async (context, next) =>
     {
