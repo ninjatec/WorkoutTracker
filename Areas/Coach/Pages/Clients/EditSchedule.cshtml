@@ -1,0 +1,91 @@
+@page
+@model WorkoutTrackerWeb.Areas.Coach.Pages.Clients.EditScheduleModel
+@{
+    ViewData["Title"] = "Edit Workout Schedule";
+}
+
+<div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-page="./Index">Clients</a></li>
+                    <li class="breadcrumb-item"><a asp-page="./Details" asp-route-id="@Model.ClientId">@Model.Client?.Name</a></li>
+                    <li class="breadcrumb-item"><a asp-page="./AssignedWorkouts" asp-route-clientId="@Model.ClientId">Assigned Workouts</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Edit Schedule</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-calendar-check me-2"></i>Edit Workout Schedule</h4>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                    {
+                        <div class="alert alert-danger" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i> @Model.ErrorMessage
+                        </div>
+                    }
+
+                    <form method="post">
+                        <input type="hidden" asp-for="WorkoutSchedule.WorkoutScheduleId" />
+                        <input type="hidden" asp-for="ClientId" />
+
+                        <div class="mb-3">
+                            <label class="form-label">Client</label>
+                            <input type="text" class="form-control" value="@Model.Client?.Name" readonly />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Workout Template</label>
+                            <input type="text" class="form-control" value="@(Model.WorkoutSchedule.TemplateAssignment?.WorkoutTemplate?.Name ?? Model.WorkoutSchedule.Template?.Name ?? "N/A")" readonly />
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label asp-for="WorkoutSchedule.ScheduledDateTime" class="form-label">Schedule Date</label>
+                                <input type="date" name="scheduleDate" class="form-control" 
+                                       value="@(Model.WorkoutSchedule.ScheduledDateTime.HasValue ? Model.WorkoutSchedule.ScheduledDateTime.Value.ToString("yyyy-MM-dd") : DateTime.Now.ToString("yyyy-MM-dd"))" required />
+                                <span asp-validation-for="WorkoutSchedule.ScheduledDateTime" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Schedule Time</label>
+                                <input type="time" name="scheduleTime" class="form-control" 
+                                       value="@(Model.WorkoutSchedule.ScheduledDateTime.HasValue ? Model.WorkoutSchedule.ScheduledDateTime.Value.ToString("HH:mm") : DateTime.Now.ToString("HH:mm"))" required />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="WorkoutSchedule.Notes" class="form-label">Notes</label>
+                            <textarea asp-for="WorkoutSchedule.Notes" class="form-control" rows="3"></textarea>
+                            <span asp-validation-for="WorkoutSchedule.Notes" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input asp-for="WorkoutSchedule.IsCompleted" class="form-check-input" />
+                            <label asp-for="WorkoutSchedule.IsCompleted" class="form-check-label">Mark as Completed</label>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a asp-page="./AssignedWorkouts" asp-route-clientId="@Model.ClientId" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-1"></i> Back to Assigned Workouts
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save me-1"></i> Save Changes
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

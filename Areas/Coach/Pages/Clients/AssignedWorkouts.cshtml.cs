@@ -30,7 +30,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         [BindProperty(SupportsGet = true)]
         public int ClientId { get; set; }
 
-        public AppUser Client { get; set; }
+        public User Client { get; set; }
         public List<TemplateAssignmentViewModel> TemplateAssignments { get; set; } = new List<TemplateAssignmentViewModel>();
         public List<WorkoutScheduleViewModel> WorkoutSchedules { get; set; } = new List<WorkoutScheduleViewModel>();
         public List<WorkoutFeedbackViewModel> RecentFeedback { get; set; } = new List<WorkoutFeedbackViewModel>();
@@ -61,7 +61,10 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 }
 
                 // Set the client
-                Client = relationship.Client;
+                Client = new User { 
+                    UserId = int.Parse(relationship.Client.Id),
+                    Name = relationship.Client.UserName 
+                };
 
                 try
                 {
@@ -577,6 +580,80 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                     "An error occurred while scheduling the workout.",
                     $"scheduling workout for assignment {assignmentId}, client {ClientId}");
                 return RedirectToPage(new { ClientId });
+            }
+        }
+
+        public async Task<IActionResult> OnPostScheduleWorkoutAsync(int clientId, int? templateId, int? assignmentId,
+                                                      string name, string description,
+                                                      DateTime scheduleDate, string scheduleTime,
+                                                      string recurrencePattern = "Once",
+                                                      int? dayOfWeek = null, int? dayOfMonth = null,
+                                                      DateTime? endDate = null, bool sendReminder = false,
+                                                      int reminderHoursBefore = 3)
+        {
+            // Get the current user (coach)
+            var user = await _context.GetCurrentUserAsync();
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            // Verify the client exists and is a client of the coach
+            var relationship = await _context.CoachClientRelationships
+                .FirstOrDefaultAsync(r => r.CoachId == user.UserId.ToString() && r.ClientId == clientId.ToString() && r.Status == RelationshipStatus.Active);
+
+            if (relationship == null)
+            {
+                ErrorUtils.HandleValidationError(this, "Client relationship not found or inactive.");
+                return RedirectToPage(new { ClientId = clientId });
+            }
+
+            try
+            {
+                // Parse workout time
+                TimeSpan workoutTimeOfDay = TimeSpan.Parse(scheduleTime);
+
+                // Create workout schedule
+                var schedule = new WorkoutSchedule
+                {
+                    TemplateId = templateId,
+                    TemplateAssignmentId = assignmentId,
+                    ClientUserId = clientId,
+                    CoachUserId = user.UserId,
+                    Name = name,
+                    Description = description,
+                    StartDate = scheduleDate,
+                    EndDate = endDate,
+                    ScheduledDateTime = scheduleDate.Date.Add(workoutTimeOfDay),
+                    IsRecurring = recurrencePattern != "Once",
+                    RecurrencePattern = recurrencePattern,
+                    SendReminder = sendReminder,
+                    ReminderHoursBefore = reminderHoursBefore,
+                    IsActive = true
+                };
+
+                // Set recurrence specifics based on recurrence pattern
+                if ((recurrencePattern == "Weekly" || recurrencePattern == "BiWeekly") && dayOfWeek.HasValue)
+                {
+                    schedule.RecurrenceDayOfWeek = dayOfWeek.Value;
+                }
+                else if (recurrencePattern == "Monthly" && dayOfMonth.HasValue)
+                {
+                    schedule.RecurrenceDayOfMonth = dayOfMonth.Value;
+                }
+
+                _context.WorkoutSchedules.Add(schedule);
+                await _context.SaveChangesAsync();
+
+                ErrorUtils.SetSuccessMessage(this, $"Workout '{name}' scheduled successfully.");
+                return RedirectToPage(new { ClientId = clientId });
+            }
+            catch (Exception ex)
+            {
+                ErrorUtils.HandleException(_logger, ex, this, 
+                    "An error occurred while scheduling the workout.",
+                    $"scheduling workout for client {clientId}");
+                return RedirectToPage(new { ClientId = clientId });
             }
         }
 

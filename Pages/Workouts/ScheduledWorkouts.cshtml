@@ -117,11 +117,9 @@
                                             </td>
                                             <td>
                                                 <div class="btn-group">
-                                                    <button type="button" class="btn btn-sm btn-outline-primary edit-schedule" 
-                                                            data-schedule-id="@schedule.WorkoutScheduleId"
-                                                            data-bs-toggle="modal" data-bs-target="#editScheduleModal">
+                                                    <a asp-page="./EditWorkoutSchedule" asp-route-scheduleId="@schedule.WorkoutScheduleId" class="btn btn-sm btn-outline-primary">
                                                         <i class="bi bi-pencil"></i>
-                                                    </button>
+                                                    </a>
                                                     <form method="post" asp-page-handler="ToggleSchedule" class="d-inline">
                                                         <input type="hidden" name="scheduleId" value="@schedule.WorkoutScheduleId" />
                                                         <input type="hidden" name="isActive" value="@(!schedule.IsActive)" />
@@ -220,74 +218,6 @@
             </div>
         </div>
     }
-</div>
-
-<!-- Edit Schedule Modal -->
-<div class="modal fade" id="editScheduleModal" tabindex="-1" aria-labelledby="editScheduleModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="post" asp-page-handler="EditSchedule">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editScheduleModalLabel">Edit Scheduled Workout</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" id="editScheduleId" name="scheduleId" />
-                    
-                    <div class="mb-3">
-                        <label for="editScheduleName" class="form-label">Schedule Name</label>
-                        <input type="text" class="form-control" id="editScheduleName" name="name" required />
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="editScheduleDescription" class="form-label">Description</label>
-                        <textarea class="form-control" id="editScheduleDescription" name="description" rows="2"></textarea>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="editScheduleDateTime" class="form-label">Next Workout Date/Time</label>
-                        <div class="row">
-                            <div class="col">
-                                <input type="date" class="form-control" id="editScheduleDate" name="scheduleDate" required />
-                            </div>
-                            <div class="col">
-                                <input type="time" class="form-control" id="editScheduleTime" name="scheduleTime" required />
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="editEndDate" class="form-label">End Date</label>
-                        <input type="date" class="form-control" id="editEndDate" name="endDate" />
-                        <small class="text-muted">Optional. Leave blank for recurring workouts with no end date.</small>
-                    </div>
-                    
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="editSendReminder" name="sendReminder" value="true" checked />
-                        <label class="form-check-label" for="editSendReminder">
-                            Send workout reminders
-                        </label>
-                    </div>
-                    
-                    <div id="editReminderOptions" class="mb-3">
-                        <label for="editReminderHoursBefore" class="form-label">Hours Before Workout</label>
-                        <select id="editReminderHoursBefore" name="reminderHoursBefore" class="form-select">
-                            <option value="1">1 hour</option>
-                            <option value="2">2 hours</option>
-                            <option value="3" selected>3 hours</option>
-                            <option value="6">6 hours</option>
-                            <option value="12">12 hours</option>
-                            <option value="24">24 hours</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Changes</button>
-                </div>
-            </form>
-        </div>
-    </div>
 </div>
 
 <!-- Schedule New Workout Modal -->
@@ -510,70 +440,6 @@
                 $('#reminderOptions').removeClass('d-none');
             } else {
                 $('#reminderOptions').addClass('d-none');
-            }
-        });
-
-        // Handle edit schedule modal
-        $('.edit-schedule').on('click', function() {
-            var scheduleId = $(this).data('schedule-id');
-            
-            // Loading indicator if needed
-            $('#editScheduleModalLabel').text('Loading...');
-            
-            // Fetch schedule data
-            $.ajax({
-                url: '/api/WorkoutSchedule/' + scheduleId,
-                type: 'GET',
-                success: function(data) {
-                    // Populate form fields
-                    $('#editScheduleId').val(data.workoutScheduleId);
-                    $('#editScheduleName').val(data.name);
-                    $('#editScheduleDescription').val(data.description);
-                    
-                    // Format date and time
-                    var scheduledDate = new Date(data.scheduledDateTime);
-                    var dateString = scheduledDate.toISOString().split('T')[0];
-                    var timeString = scheduledDate.toTimeString().split(' ')[0].substring(0, 5);
-                    
-                    $('#editScheduleDate').val(dateString);
-                    $('#editScheduleTime').val(timeString);
-                    
-                    // Handle end date
-                    if (data.endDate) {
-                        var endDate = new Date(data.endDate);
-                        $('#editEndDate').val(endDate.toISOString().split('T')[0]);
-                    } else {
-                        $('#editEndDate').val('');
-                    }
-                    
-                    // Reminder settings
-                    $('#editSendReminder').prop('checked', data.sendReminder);
-                    $('#editReminderHoursBefore').val(data.reminderHoursBefore);
-                    
-                    // Toggle reminder options based on checkbox
-                    if (data.sendReminder) {
-                        $('#editReminderOptions').removeClass('d-none');
-                    } else {
-                        $('#editReminderOptions').addClass('d-none');
-                    }
-                    
-                    // Update modal title
-                    $('#editScheduleModalLabel').text('Edit Scheduled Workout');
-                },
-                error: function() {
-                    alert('Error loading schedule data');
-                    // Close the modal
-                    $('#editScheduleModal').modal('hide');
-                }
-            });
-        });
-        
-        // Toggle reminder options in edit modal
-        $('#editSendReminder').on('change', function() {
-            if ($(this).prop('checked')) {
-                $('#editReminderOptions').removeClass('d-none');
-            } else {
-                $('#editReminderOptions').addClass('d-none');
             }
         });
         
