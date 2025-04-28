@@ -107,7 +107,7 @@
 
  - [x] Workout Template System Completion
    - [x] Refine template assignment workflow with Razor Pages
-   - [ ] Complete scheduling options for assigned workouts
+   - [x] Complete scheduling options for assigned workouts
    - [ ] Standardize template filtering and search functionality
    - [ ] Create unified template management experience
 
