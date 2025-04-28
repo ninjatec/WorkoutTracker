@@ -9,64 +9,10 @@
     @await RenderSectionAsync("Styles", required: false)
 }
 
-<div class="container-fluid mt-4">
-    <div class="row">
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">Coach Menu</h5>
-                </div>
-                <div class="list-group list-group-flush">
-                    <a href="#" onclick="window.location='@Url.Page("/Index", new { area = "Coach" })'" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString() == "/Index" ? "active" : "")">
-                        <i class="bi bi-speedometer2 me-2"></i> Dashboard
-                    </a>
-                    <a href="#" onclick="window.location='@Url.Page("/Clients/Index", new { area = "Coach" })'" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Clients") == true ? "active" : "")">
-                        <i class="bi bi-people-fill me-2"></i> Client Management
-                    </a>
-                    <a href="#" onclick="window.location='@Url.Page("/Templates/Index", new { area = "Coach" })'" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Templates") == true ? "active" : "")">
-                        <i class="bi bi-file-earmark-text me-2"></i> Workout Templates
-                    </a>
-                    <a href="#" onclick="window.location='@Url.Page("/Clients/Index", new { area = "Coach", showInvite = true })'" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString() == "/Clients/Invite" ? "active" : "")">
-                        <i class="bi bi-envelope-plus me-2"></i> Invite Client
-                    </a>
-                    <a href="#" onclick="window.location='@Url.Page("/Clients/AssignedWorkouts", new { area = "Coach" })'" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString() == "/Clients/AssignedWorkouts" ? "active" : "")">
-                        <i class="bi bi-calendar-check me-2"></i> Assigned Workouts
-                    </a>
-                </div>
-            </div>
-
-            <!-- Quick Links Card -->
-            <div class="card mt-4">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">Quick Links</h5>
-                </div>
-                <div class="list-group list-group-flush">
-                    <a href="#" onclick="window.location='@Url.Page("/Clients/Index", new { area = "Coach" })'" class="list-group-item list-group-item-action">
-                        <i class="bi bi-people me-2"></i> Client Management
-                    </a>
-                    <a href="#" onclick="window.location='@Url.Page("/Templates/Index", new { area = "Coach" })'" class="list-group-item list-group-item-action">
-                        <i class="bi bi-file-earmark-text me-2"></i> Workout Templates
-                    </a>
-                    <a href="#" onclick="window.location='@Url.Page("/Clients/Index", new { area = "Coach", showInvite = true })'" class="list-group-item list-group-item-action">
-                        <i class="bi bi-envelope-plus me-2"></i> Invite New Client
-                    </a>
-                    <a href="#" onclick="window.location='@Url.Page("/Templates/Create", new { area = "Coach" })'" class="list-group-item list-group-item-action">
-                        <i class="bi bi-plus-circle me-2"></i> Create Template
-                    </a>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-9">
-            <div class="card">
-                <div class="card-header bg-light">
-                    <h4>@ViewData["Title"]</h4>
-                </div>
-                <div class="card-body">
-                    @RenderBody()
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="container-fluid">
+    <partial name="_StatusMessages" />
+    
+    @RenderBody()
 </div>
 
 @section Scripts {

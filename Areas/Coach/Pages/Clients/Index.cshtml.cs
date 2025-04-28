@@ -2,17 +2,19 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Threading.Tasks;
 using WorkoutTrackerWeb.Attributes;
+using WorkoutTrackerWeb.Areas.Coach.Pages.ErrorHandling;
 using WorkoutTrackerWeb.Data;
+using WorkoutTrackerWeb.Extensions;
 using WorkoutTrackerWeb.Models.Coaching;
 using WorkoutTrackerWeb.Models.Identity;
 using WorkoutTrackerWeb.Services.Coaching;
-using WorkoutTrackerWeb.Extensions;
 
 namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 {
@@ -63,7 +65,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         public List<ClientGroupViewModel> ClientGroups { get; set; } = new List<ClientGroupViewModel>();
         public bool ShowInvite { get; set; }
 
-        public async Task<IActionResult> OnGetAsync(bool showInvite = false)
+        public async Task<IActionResult> OnGetAsync(bool showInvite = false, string errorMessage = null)
         {
             var userId = _userManager.GetUserId(User);
             if (string.IsNullOrEmpty(userId))
@@ -71,65 +73,91 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 return Forbid();
             }
 
-            // Get all coach-client relationships
-            var relationships = await _coachingService.GetCoachRelationshipsAsync(userId);
-            var relationshipsList = relationships.ToList();
+            // If an error message was passed in the query string, display it
+            if (!string.IsNullOrEmpty(errorMessage))
+            {
+                ErrorUtils.HandleValidationError(this, errorMessage);
+            }
 
-            // Populate client lists
-            await PopulateClientLists(relationshipsList);
+            try
+            {
+                // Get all coach-client relationships
+                var relationships = await _coachingService.GetCoachRelationshipsAsync(userId);
+                var relationshipsList = relationships.ToList();
 
-            // Get client groups
-            await PopulateClientGroups(userId);
+                // Populate client lists
+                await PopulateClientLists(relationshipsList);
 
-            // Set flag for showing invitation form
-            ShowInvite = showInvite;
+                // Get client groups
+                await PopulateClientGroups(userId);
+
+                // Set flag for showing invitation form
+                ShowInvite = showInvite;
+            }
+            catch (Exception ex)
+            {
+                ErrorUtils.HandleException(_logger, ex, this, 
+                    "An error occurred while loading your client data.",
+                    "loading client dashboard");
+            }
 
             return Page();
         }
 
         private async Task PopulateClientGroups(string coachId)
         {
-            // Get all client groups for this coach
-            var groups = await _context.ClientGroups
-                .Where(g => g.CoachId == coachId)
-                .OrderBy(g => g.Name)
-                .ToListAsync();
-
-            foreach (var group in groups)
+            try
             {
-                // Get member count
-                var memberCount = await _context.ClientGroupMembers
-                    .CountAsync(m => m.ClientGroupId == group.Id);
-
-                // Get up to 3 member names for display
-                var members = await _context.ClientGroupMembers
-                    .Where(m => m.ClientGroupId == group.Id)
-                    .Take(4)
-                    .Join(_context.CoachClientRelationships,
-                        m => m.CoachClientRelationshipId,
-                        r => r.Id,
-                        (m, r) => new { Member = m, Relationship = r })
+                // Get all client groups for this coach
+                var groups = await _context.ClientGroups
+                    .Where(g => g.CoachId == coachId)
+                    .OrderBy(g => g.Name)
                     .ToListAsync();
 
-                var memberNames = new List<string>();
-                foreach (var member in members.Take(3))
+                foreach (var group in groups)
                 {
-                    var client = await _userManager.FindByIdAsync(member.Relationship.ClientId);
-                    if (client != null)
-                    {
-                        memberNames.Add(client.UserName.Split('@')[0]);
-                    }
-                }
+                    // Get member count
+                    var memberCount = await _context.ClientGroupMembers
+                        .CountAsync(m => m.ClientGroupId == group.Id);
 
-                ClientGroups.Add(new ClientGroupViewModel
-                {
-                    Id = group.Id,
-                    Name = group.Name,
-                    Description = group.Description,
-                    ColorCode = group.ColorCode,
-                    MemberCount = memberCount,
-                    MemberNames = memberNames
-                });
+                    // Get up to 3 member names for display
+                    var members = await _context.ClientGroupMembers
+                        .Where(m => m.ClientGroupId == group.Id)
+                        .Take(4)
+                        .Join(_context.CoachClientRelationships,
+                            m => m.CoachClientRelationshipId,
+                            r => r.Id,
+                            (m, r) => new { Member = m, Relationship = r })
+                        .ToListAsync();
+
+                    var memberNames = new List<string>();
+                    var memberIds = new List<int>();
+                    foreach (var member in members.Take(3))
+                    {
+                        var client = await _userManager.FindByIdAsync(member.Relationship.ClientId);
+                        if (client != null)
+                        {
+                            memberNames.Add(client.UserName.Split('@')[0]);
+                            memberIds.Add(member.Relationship.Id);
+                        }
+                    }
+
+                    ClientGroups.Add(new ClientGroupViewModel
+                    {
+                        Id = group.Id,
+                        Name = group.Name,
+                        Description = group.Description,
+                        ColorCode = group.ColorCode,
+                        MemberCount = memberCount,
+                        Members = memberNames,
+                        MemberIds = memberIds
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading client groups for coach {CoachId}", coachId);
+                // Continue without groups rather than failing the whole page
             }
         }
 
@@ -137,32 +165,42 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         {
             foreach (var relationship in relationships)
             {
-                var client = await _userManager.FindByIdAsync(relationship.ClientId);
-                if (client == null) continue;
-
-                var clientViewModel = new ClientViewModel
+                try
                 {
-                    Id = relationship.Id,
-                    RelationshipId = relationship.Id,
-                    Name = client.FullName() ?? client.UserName.Split('@')[0],
-                    Email = client.Email,
-                    Status = relationship.Status.ToString(),
-                    StartDate = relationship.CreatedDate,
-                    EndDate = relationship.EndDate,
-                    Group = await GetClientGroupName(relationship.Id)
-                };
+                    var client = await _userManager.FindByIdAsync(relationship.ClientId);
+                    if (client == null) continue;
 
-                switch (relationship.Status)
+                    var clientViewModel = new ClientViewModel
+                    {
+                        Id = relationship.Id,
+                        RelationshipId = relationship.Id,
+                        Name = client.FullName() ?? client.UserName.Split('@')[0],
+                        Email = client.Email,
+                        Status = relationship.Status.ToString(),
+                        StartDate = relationship.CreatedDate,
+                        EndDate = relationship.EndDate,
+                        Group = await GetClientGroupName(relationship.Id),
+                        InvitationDate = relationship.Status == RelationshipStatus.Pending ? relationship.CreatedDate : null,
+                        ExpiryDate = relationship.InvitationExpiryDate
+                    };
+
+                    switch (relationship.Status)
+                    {
+                        case RelationshipStatus.Active:
+                            ActiveClients.Add(clientViewModel);
+                            break;
+                        case RelationshipStatus.Pending:
+                            PendingClients.Add(clientViewModel);
+                            break;
+                        default:
+                            InactiveClients.Add(clientViewModel);
+                            break;
+                    }
+                }
+                catch (Exception ex)
                 {
-                    case RelationshipStatus.Active:
-                        ActiveClients.Add(clientViewModel);
-                        break;
-                    case RelationshipStatus.Pending:
-                        PendingClients.Add(clientViewModel);
-                        break;
-                    default:
-                        InactiveClients.Add(clientViewModel);
-                        break;
+                    _logger.LogError(ex, "Error processing client relationship {RelationshipId}", relationship.Id);
+                    // Continue processing other relationships
                 }
             }
 
@@ -174,15 +212,23 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
         private async Task<string> GetClientGroupName(int relationshipId)
         {
-            var groupMembership = await _context.ClientGroupMembers
-                .Where(m => m.CoachClientRelationshipId == relationshipId)
-                .Join(_context.ClientGroups,
-                    m => m.ClientGroupId,
-                    g => g.Id,
-                    (m, g) => g.Name)
-                .FirstOrDefaultAsync();
+            try
+            {
+                var groupMembership = await _context.ClientGroupMembers
+                    .Where(m => m.CoachClientRelationshipId == relationshipId)
+                    .Join(_context.ClientGroups,
+                        m => m.ClientGroupId,
+                        g => g.Id,
+                        (m, g) => g.Name)
+                    .FirstOrDefaultAsync();
 
-            return groupMembership;
+                return groupMembership;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting group name for relationship {RelationshipId}", relationshipId);
+                return null;
+            }
         }
 
         public async Task<IActionResult> OnPostInviteClientAsync()
@@ -195,8 +241,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                         .SelectMany(v => v.Errors)
                         .Select(e => e.ErrorMessage));
                         
-                    StatusMessage = $"Error: {errors}";
-                    StatusMessageType = "Error";
+                    ErrorUtils.HandleValidationError(this, "Please correct the following errors: " + errors);
                     return RedirectToPage(new { showInvite = true });
                 }
 
@@ -211,11 +256,11 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             }
             catch (Exception ex)
             {
-                // Log the exception details
-                _logger.LogError(ex, "Error preparing client invitation: {Message}", ex.Message);
-                StatusMessage = $"Error: An unexpected error occurred: {ex.Message}";
-                StatusMessageType = "Error";
-                return RedirectToPage();
+                // Handle the exception using our utilities
+                ErrorUtils.HandleException(_logger, ex, this, 
+                    "An error occurred while preparing the client invitation.",
+                    "preparing client invitation");
+                return RedirectToPage(new { showInvite = true });
             }
         }
 
@@ -227,29 +272,40 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 return Forbid();
             }
 
-            // Get the relationship
-            var relationship = await _context.CoachClientRelationships
-                .FirstOrDefaultAsync(r => r.Id == clientId && r.CoachId == coachId);
-
-            if (relationship != null && relationship.Status == RelationshipStatus.Pending)
+            try
             {
+                // Get the relationship
+                var relationship = await _context.CoachClientRelationships
+                    .FirstOrDefaultAsync(r => r.Id == clientId && r.CoachId == coachId);
+
+                if (relationship == null)
+                {
+                    ErrorUtils.HandleValidationError(this, "Invitation not found or you don't have permission to cancel it.");
+                    return RedirectToPage();
+                }
+
+                if (relationship.Status != RelationshipStatus.Pending)
+                {
+                    ErrorUtils.HandleValidationError(this, "This invitation cannot be cancelled because it is not in pending status.");
+                    return RedirectToPage();
+                }
+
                 // Update status to ended
                 bool success = await _coachingService.UpdateRelationshipStatusAsync(relationship.Id, RelationshipStatus.Ended);
                 if (success)
                 {
-                    StatusMessage = "Success: Invitation cancelled.";
-                    StatusMessageType = "Success";
+                    ErrorUtils.SetSuccessMessage(this, "Invitation cancelled successfully.");
                 }
                 else
                 {
-                    StatusMessage = "Error: Failed to cancel invitation.";
-                    StatusMessageType = "Error";
+                    ErrorUtils.HandleValidationError(this, "Failed to cancel invitation. Please try again.");
                 }
             }
-            else
+            catch (Exception ex)
             {
-                StatusMessage = "Error: Invitation not found or cannot be cancelled.";
-                StatusMessageType = "Error";
+                ErrorUtils.HandleException(_logger, ex, this, 
+                    "An error occurred while cancelling the invitation.",
+                    $"cancelling invitation {clientId}");
             }
 
             return RedirectToPage();
@@ -263,29 +319,40 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 return Forbid();
             }
 
-            // Get the relationship
-            var relationship = await _context.CoachClientRelationships
-                .FirstOrDefaultAsync(r => r.Id == clientId && r.CoachId == coachId);
-
-            if (relationship != null && relationship.Status == RelationshipStatus.Paused)
+            try
             {
+                // Get the relationship
+                var relationship = await _context.CoachClientRelationships
+                    .FirstOrDefaultAsync(r => r.Id == clientId && r.CoachId == coachId);
+
+                if (relationship == null)
+                {
+                    ErrorUtils.HandleValidationError(this, "Client relationship not found or you don't have permission to reactivate it.");
+                    return RedirectToPage();
+                }
+
+                if (relationship.Status != RelationshipStatus.Paused)
+                {
+                    ErrorUtils.HandleValidationError(this, "This client cannot be reactivated because they are not in paused status.");
+                    return RedirectToPage();
+                }
+
                 // Update status to active
                 bool success = await _coachingService.UpdateRelationshipStatusAsync(relationship.Id, RelationshipStatus.Active);
                 if (success)
                 {
-                    StatusMessage = "Success: Client reactivated.";
-                    StatusMessageType = "Success";
+                    ErrorUtils.SetSuccessMessage(this, "Client reactivated successfully.");
                 }
                 else
                 {
-                    StatusMessage = "Error: Failed to reactivate client.";
-                    StatusMessageType = "Error";
+                    ErrorUtils.HandleValidationError(this, "Failed to reactivate client. Please try again.");
                 }
             }
-            else
+            catch (Exception ex)
             {
-                StatusMessage = "Error: Client relationship not found or cannot be reactivated.";
-                StatusMessageType = "Error";
+                ErrorUtils.HandleException(_logger, ex, this, 
+                    "An error occurred while reactivating the client.",
+                    $"reactivating client {clientId}");
             }
 
             return RedirectToPage();
@@ -304,27 +371,26 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             // Validate group name
             if (string.IsNullOrEmpty(groupName))
             {
-                StatusMessage = "Error: Group name is required.";
-                StatusMessageType = "Error";
+                ErrorUtils.HandleValidationError(this, "Group name is required.");
                 return RedirectToPage();
             }
 
-            // Check for existing group with the same name
-            var existingGroup = await _context.ClientGroups
-                .Where(g => g.CoachId == coachId && g.Name == groupName)
-                .FirstOrDefaultAsync();
-                
-            if (existingGroup != null)
-            {
-                StatusMessage = $"Error: A group named '{groupName}' already exists.";
-                StatusMessageType = "Error";
-                return RedirectToPage();
-            }
-
-            // Use a transaction to ensure all operations succeed or fail together
-            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
+                // Check for existing group with the same name
+                var existingGroup = await _context.ClientGroups
+                    .Where(g => g.CoachId == coachId && g.Name == groupName)
+                    .FirstOrDefaultAsync();
+                    
+                if (existingGroup != null)
+                {
+                    ErrorUtils.HandleValidationError(this, $"A group named '{groupName}' already exists.");
+                    return RedirectToPage();
+                }
+
+                // Use a transaction to ensure all operations succeed or fail together
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                
                 // Create the new group
                 var newGroup = new ClientGroup
                 {
@@ -369,19 +435,18 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                     {
                         await _context.SaveChangesAsync();
                         _logger.LogInformation("Added {Count} clients to group {GroupId}", addedCount, newGroup.Id);
-                        StatusMessage = $"Success: Created client group '{groupName}' with {addedCount} client{(addedCount > 1 ? "s" : "")}.";
+                        ErrorUtils.SetSuccessMessage(this, $"Created client group '{groupName}' with {addedCount} client{(addedCount > 1 ? "s" : "")}.");
                     }
                     else
                     {
-                        StatusMessage = $"Success: Created client group '{groupName}'. No valid clients were added.";
+                        ErrorUtils.SetSuccessMessage(this, $"Created client group '{groupName}'. No valid clients were added.");
                     }
                 }
                 else
                 {
-                    StatusMessage = $"Success: Created client group '{groupName}'.";
+                    ErrorUtils.SetSuccessMessage(this, $"Created client group '{groupName}'.");
                 }
                 
-                StatusMessageType = "Success";
                 await transaction.CommitAsync();
                 
                 // Redirect to the new group's page
@@ -389,10 +454,9 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Error creating client group: {Message}", ex.Message);
-                StatusMessage = $"Error: Failed to create client group: {ex.Message}";
-                StatusMessageType = "Error";
+                ErrorUtils.HandleException(_logger, ex, this, 
+                    "An error occurred while creating the client group.",
+                    $"creating client group '{groupName}'");
                 return RedirectToPage();
             }
         }
@@ -429,7 +493,6 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             public string Description { get; set; }
             public string ColorCode { get; set; }
             public int MemberCount { get; set; }
-            public List<string> MemberNames { get; set; } = new List<string>();
             public List<string> Members { get; set; } = new List<string>();
             public List<int> MemberIds { get; set; } = new List<int>();
         }

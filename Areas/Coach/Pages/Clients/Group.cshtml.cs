@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Attributes;
+using WorkoutTrackerWeb.Areas.Coach.Pages.ErrorHandling;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Models.Coaching;
@@ -72,9 +73,9 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             if (group == null)
             {
                 _logger.LogWarning("Client group {GroupId} not found for coach {CoachId}", id, coachId);
-                StatusMessage = "Error: Group not found.";
-                StatusMessageType = "Error";
-                return RedirectToPage("./Index");
+                return RedirectToPage("./Index", new { 
+                    errorMessage = "The requested client group was not found or you don't have access to it."
+                });
             }
 
             // Set group properties
@@ -84,77 +85,86 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             ColorCode = group.ColorCode ?? "#0d6efd"; // Default to blue if not set
             CreatedDate = group.CreatedDate;
 
-            // Get group members
-            var memberRelationships = await _context.ClientGroupMembers
-                .Where(m => m.ClientGroupId == id)
-                .Join(_context.CoachClientRelationships,
-                    m => m.CoachClientRelationshipId,
-                    r => r.Id,
-                    (m, r) => new { Member = m, Relationship = r })
-                .ToListAsync();
-
-            MemberCount = memberRelationships.Count;
-
-            // Load member details
-            foreach (var item in memberRelationships)
+            try
             {
-                var client = await _userManager.FindByIdAsync(item.Relationship.ClientId);
-                if (client != null)
+                // Get group members
+                var memberRelationships = await _context.ClientGroupMembers
+                    .Where(m => m.ClientGroupId == id)
+                    .Join(_context.CoachClientRelationships,
+                        m => m.CoachClientRelationshipId,
+                        r => r.Id,
+                        (m, r) => new { Member = m, Relationship = r })
+                    .ToListAsync();
+
+                MemberCount = memberRelationships.Count;
+
+                // Load member details
+                foreach (var item in memberRelationships)
                 {
-                    Members.Add(new GroupMemberViewModel
-                    {
-                        ClientRelationshipId = item.Relationship.Id,
-                        Name = client.UserName.Split('@')[0],  // Use username as name or better use a profile name if available
-                        Email = client.Email,
-                        AddedDate = item.Member.AddedDate
-                    });
-                }
-            }
-
-            // Sort members by name initially
-            Members = Members.OrderBy(m => m.Name).ToList();
-
-            // Get available clients (active clients not in this group)
-            var activeRelationships = await _context.CoachClientRelationships
-                .Where(r => r.CoachId == coachId && r.Status == RelationshipStatus.Active)
-                .ToListAsync();
-
-            var memberRelationshipIds = memberRelationships.Select(m => m.Relationship.Id).ToList();
-            
-            foreach (var relationship in activeRelationships)
-            {
-                if (!memberRelationshipIds.Contains(relationship.Id))
-                {
-                    var client = await _userManager.FindByIdAsync(relationship.ClientId);
+                    var client = await _userManager.FindByIdAsync(item.Relationship.ClientId);
                     if (client != null)
                     {
-                        AvailableClients.Add(new ClientViewModel
+                        Members.Add(new GroupMemberViewModel
                         {
-                            RelationshipId = relationship.Id,
+                            ClientRelationshipId = item.Relationship.Id,
                             Name = client.UserName.Split('@')[0],
-                            Email = client.Email
+                            Email = client.Email,
+                            AddedDate = item.Member.AddedDate
                         });
                     }
                 }
-            }
 
-            // Sort available clients by name
-            AvailableClients = AvailableClients.OrderBy(c => c.Name).ToList();
+                // Sort members by name initially
+                Members = Members.OrderBy(m => m.Name).ToList();
 
-            // Get available templates
-            var templates = await _context.WorkoutTemplate
-                .Where(t => t.UserId == int.Parse(coachId) || t.IsPublic)
-                .OrderBy(t => t.Name)
-                .ToListAsync();
+                // Get available clients (active clients not in this group)
+                var activeRelationships = await _context.CoachClientRelationships
+                    .Where(r => r.CoachId == coachId && r.Status == RelationshipStatus.Active)
+                    .ToListAsync();
 
-            foreach (var template in templates)
-            {
-                AvailableTemplates.Add(new TemplateViewModel
+                var memberRelationshipIds = memberRelationships.Select(m => m.Relationship.Id).ToList();
+                
+                foreach (var relationship in activeRelationships)
                 {
-                    TemplateId = template.WorkoutTemplateId,
-                    Name = template.Name,
-                    IsOwner = template.UserId == int.Parse(coachId)
-                });
+                    if (!memberRelationshipIds.Contains(relationship.Id))
+                    {
+                        var client = await _userManager.FindByIdAsync(relationship.ClientId);
+                        if (client != null)
+                        {
+                            AvailableClients.Add(new ClientViewModel
+                            {
+                                RelationshipId = relationship.Id,
+                                Name = client.UserName.Split('@')[0],
+                                Email = client.Email
+                            });
+                        }
+                    }
+                }
+
+                // Sort available clients by name
+                AvailableClients = AvailableClients.OrderBy(c => c.Name).ToList();
+
+                // Get available templates
+                var templates = await _context.WorkoutTemplate
+                    .Where(t => t.UserId == int.Parse(coachId) || t.IsPublic)
+                    .OrderBy(t => t.Name)
+                    .ToListAsync();
+
+                foreach (var template in templates)
+                {
+                    AvailableTemplates.Add(new TemplateViewModel
+                    {
+                        TemplateId = template.WorkoutTemplateId,
+                        Name = template.Name,
+                        IsOwner = template.UserId == int.Parse(coachId)
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorUtils.HandleException(_logger, ex, this, 
+                    "An error occurred while loading the client group details.",
+                    $"loading client group {id}");
             }
 
             return Page();
@@ -164,10 +174,11 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         {
             if (!ModelState.IsValid)
             {
-                StatusMessage = "Error: " + string.Join("; ", ModelState.Values
+                var errors = string.Join("; ", ModelState.Values
                     .SelectMany(v => v.Errors)
                     .Select(e => e.ErrorMessage));
-                StatusMessageType = "Error";
+                
+                ErrorUtils.HandleValidationError(this, "Please correct the following errors: " + errors);
                 return RedirectToPage(new { id = groupId });
             }
 
@@ -180,51 +191,45 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             // Validate inputs
             if (string.IsNullOrEmpty(groupName))
             {
-                StatusMessage = "Error: Group name is required.";
-                StatusMessageType = "Error";
+                ErrorUtils.HandleValidationError(this, "Group name is required.");
                 return RedirectToPage(new { id = groupId });
             }
 
             if (groupName.Length > 100)
             {
-                StatusMessage = "Error: Group name cannot exceed 100 characters.";
-                StatusMessageType = "Error";
+                ErrorUtils.HandleValidationError(this, "Group name cannot exceed 100 characters.");
                 return RedirectToPage(new { id = groupId });
             }
 
             if (groupDescription?.Length > 500)
             {
-                StatusMessage = "Error: Group description cannot exceed 500 characters.";
-                StatusMessageType = "Error";
-                return RedirectToPage(new { id = groupId });
-            }
-
-            var group = await _context.ClientGroups
-                .Where(g => g.Id == groupId && g.CoachId == coachId)
-                .FirstOrDefaultAsync();
-
-            if (group == null)
-            {
-                _logger.LogWarning("Group {GroupId} not found for coach {CoachId}", groupId, coachId);
-                StatusMessage = "Error: Group not found.";
-                StatusMessageType = "Error";
-                return RedirectToPage("./Index");
-            }
-
-            // Check for duplicate name (excluding current group)
-            var existingGroup = await _context.ClientGroups
-                .Where(g => g.CoachId == coachId && g.Name == groupName && g.Id != groupId)
-                .FirstOrDefaultAsync();
-                
-            if (existingGroup != null)
-            {
-                StatusMessage = $"Error: A group named '{groupName}' already exists.";
-                StatusMessageType = "Error";
+                ErrorUtils.HandleValidationError(this, "Group description cannot exceed 500 characters.");
                 return RedirectToPage(new { id = groupId });
             }
 
             try
             {
+                var group = await _context.ClientGroups
+                    .Where(g => g.Id == groupId && g.CoachId == coachId)
+                    .FirstOrDefaultAsync();
+
+                if (group == null)
+                {
+                    ErrorUtils.HandleValidationError(this, "Group not found or you don't have access to it.");
+                    return RedirectToPage("./Index");
+                }
+
+                // Check for duplicate name (excluding current group)
+                var existingGroup = await _context.ClientGroups
+                    .Where(g => g.CoachId == coachId && g.Name == groupName && g.Id != groupId)
+                    .FirstOrDefaultAsync();
+                    
+                if (existingGroup != null)
+                {
+                    ErrorUtils.HandleValidationError(this, $"A group named '{groupName}' already exists.");
+                    return RedirectToPage(new { id = groupId });
+                }
+
                 // Update group details
                 group.Name = groupName;
                 group.Description = groupDescription;
@@ -236,14 +241,13 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 _logger.LogInformation("Coach {CoachId} updated group {GroupId}: {GroupName}", 
                     coachId, groupId, groupName);
                     
-                StatusMessage = "Group details updated successfully.";
-                StatusMessageType = "Success";
+                ErrorUtils.SetSuccessMessage(this, "Group details updated successfully.");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating group {GroupId}: {Message}", groupId, ex.Message);
-                StatusMessage = $"Error updating group: {ex.Message}";
-                StatusMessageType = "Error";
+                ErrorUtils.HandleException(_logger, ex, this, 
+                    "An error occurred while updating the group details.",
+                    $"updating group {groupId}");
             }
 
             return RedirectToPage(new { id = groupId });
@@ -253,10 +257,11 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         {
             if (!ModelState.IsValid)
             {
-                StatusMessage = "Error: " + string.Join("; ", ModelState.Values
+                var errors = string.Join("; ", ModelState.Values
                     .SelectMany(v => v.Errors)
                     .Select(e => e.ErrorMessage));
-                StatusMessageType = "Error";
+                
+                ErrorUtils.HandleValidationError(this, "Please correct the following errors: " + errors);
                 return RedirectToPage(new { id = groupId });
             }
 
@@ -268,31 +273,28 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
             if (selectedClients == null || !selectedClients.Any())
             {
-                StatusMessage = "Error: No clients selected.";
-                StatusMessageType = "Error";
+                ErrorUtils.HandleValidationError(this, "No clients selected.");
                 return RedirectToPage(new { id = groupId });
             }
 
-            var group = await _context.ClientGroups
-                .Where(g => g.Id == groupId && g.CoachId == coachId)
-                .FirstOrDefaultAsync();
-
-            if (group == null)
-            {
-                _logger.LogWarning("Group {GroupId} not found for coach {CoachId}", groupId, coachId);
-                StatusMessage = "Error: Group not found.";
-                StatusMessageType = "Error";
-                return RedirectToPage("./Index");
-            }
-
-            // Get existing members
-            var existingMembers = await _context.ClientGroupMembers
-                .Where(m => m.ClientGroupId == groupId)
-                .Select(m => m.CoachClientRelationshipId)
-                .ToListAsync();
-
             try
             {
+                var group = await _context.ClientGroups
+                    .Where(g => g.Id == groupId && g.CoachId == coachId)
+                    .FirstOrDefaultAsync();
+
+                if (group == null)
+                {
+                    ErrorUtils.HandleValidationError(this, "Group not found or you don't have access to it.");
+                    return RedirectToPage("./Index");
+                }
+
+                // Get existing members
+                var existingMembers = await _context.ClientGroupMembers
+                    .Where(m => m.ClientGroupId == groupId)
+                    .Select(m => m.CoachClientRelationshipId)
+                    .ToListAsync();
+
                 // Add new members
                 int addedCount = 0;
                 foreach (var relationshipId in selectedClients)
@@ -324,20 +326,18 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 {
                     await _context.SaveChangesAsync();
                     _logger.LogInformation("Added {Count} clients to group {GroupId}", addedCount, groupId);
-                    StatusMessage = $"Successfully added {addedCount} client{(addedCount > 1 ? "s" : "")} to the group.";
-                    StatusMessageType = "Success";
+                    ErrorUtils.SetSuccessMessage(this, $"Successfully added {addedCount} client{(addedCount > 1 ? "s" : "")} to the group.");
                 }
                 else
                 {
-                    StatusMessage = "No new clients were added to the group.";
-                    StatusMessageType = "Info";
+                    TempData["SuccessMessage"] = "No new clients were added to the group.";
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error adding members to group {GroupId}: {Message}", groupId, ex.Message);
-                StatusMessage = $"Error adding members to group: {ex.Message}";
-                StatusMessageType = "Error";
+                ErrorUtils.HandleException(_logger, ex, this,
+                    "An error occurred while adding members to the group.",
+                    $"adding members to group {groupId}");
             }
 
             return RedirectToPage(new { id = groupId });
@@ -347,10 +347,11 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         {
             if (!ModelState.IsValid)
             {
-                StatusMessage = "Error: " + string.Join("; ", ModelState.Values
+                var errors = string.Join("; ", ModelState.Values
                     .SelectMany(v => v.Errors)
                     .Select(e => e.ErrorMessage));
-                StatusMessageType = "Error";
+                
+                ErrorUtils.HandleValidationError(this, "Please correct the following errors: " + errors);
                 return RedirectToPage(new { id = groupId });
             }
 
@@ -360,21 +361,19 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 return Forbid();
             }
 
-            // Verify group belongs to coach
-            var group = await _context.ClientGroups
-                .Where(g => g.Id == groupId && g.CoachId == coachId)
-                .FirstOrDefaultAsync();
-
-            if (group == null)
-            {
-                _logger.LogWarning("Group {GroupId} not found for coach {CoachId}", groupId, coachId);
-                StatusMessage = "Error: Group not found.";
-                StatusMessageType = "Error";
-                return RedirectToPage("./Index");
-            }
-
             try
             {
+                // Verify group belongs to coach
+                var group = await _context.ClientGroups
+                    .Where(g => g.Id == groupId && g.CoachId == coachId)
+                    .FirstOrDefaultAsync();
+
+                if (group == null)
+                {
+                    ErrorUtils.HandleValidationError(this, "Group not found or you don't have access to it.");
+                    return RedirectToPage("./Index");
+                }
+
                 // Find and remove the member
                 var member = await _context.ClientGroupMembers
                     .Where(m => m.ClientGroupId == groupId && m.CoachClientRelationshipId == relationshipId)
@@ -386,22 +385,18 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                     await _context.SaveChangesAsync();
                     _logger.LogInformation("Coach {CoachId} removed client {RelationshipId} from group {GroupId}", 
                         coachId, relationshipId, groupId);
-                    StatusMessage = "Client removed from group successfully.";
-                    StatusMessageType = "Success";
+                    ErrorUtils.SetSuccessMessage(this, "Client removed from group successfully.");
                 }
                 else
                 {
-                    _logger.LogWarning("Client {RelationshipId} not found in group {GroupId}", relationshipId, groupId);
-                    StatusMessage = "Error: Client not found in this group.";
-                    StatusMessageType = "Error";
+                    ErrorUtils.HandleValidationError(this, "Client not found in this group.");
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error removing client {RelationshipId} from group {GroupId}: {Message}", 
-                    relationshipId, groupId, ex.Message);
-                StatusMessage = $"Error removing client from group: {ex.Message}";
-                StatusMessageType = "Error";
+                ErrorUtils.HandleException(_logger, ex, this,
+                    "An error occurred while removing the client from the group.",
+                    $"removing client {relationshipId} from group {groupId}");
             }
 
             return RedirectToPage(new { id = groupId });
@@ -411,10 +406,11 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         {
             if (!ModelState.IsValid)
             {
-                StatusMessage = "Error: " + string.Join("; ", ModelState.Values
+                var errors = string.Join("; ", ModelState.Values
                     .SelectMany(v => v.Errors)
                     .Select(e => e.ErrorMessage));
-                StatusMessageType = "Error";
+                
+                ErrorUtils.HandleValidationError(this, "Please correct the following errors: " + errors);
                 return RedirectToPage(new { id = groupId });
             }
 
@@ -424,27 +420,19 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 return Forbid();
             }
 
-            var group = await _context.ClientGroups
-                .Where(g => g.Id == groupId && g.CoachId == coachId)
-                .FirstOrDefaultAsync();
-
-            if (group == null)
-            {
-                _logger.LogWarning("Group {GroupId} not found for coach {CoachId}", groupId, coachId);
-                StatusMessage = "Error: Group not found.";
-                StatusMessageType = "Error";
-                return RedirectToPage("./Index");
-            }
-
             // Use a transaction to ensure all operations succeed or fail together
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // Check if there are any template assignments for this group's members
-                var groupMemberRelationships = await _context.ClientGroupMembers
-                    .Where(m => m.ClientGroupId == groupId)
-                    .Select(m => m.CoachClientRelationshipId)
-                    .ToListAsync();
+                var group = await _context.ClientGroups
+                    .Where(g => g.Id == groupId && g.CoachId == coachId)
+                    .FirstOrDefaultAsync();
+
+                if (group == null)
+                {
+                    ErrorUtils.HandleValidationError(this, "Group not found or you don't have access to it.");
+                    return RedirectToPage("./Index");
+                }
 
                 // Delete all group members first
                 var members = await _context.ClientGroupMembers
@@ -462,15 +450,14 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 _logger.LogInformation("Coach {CoachId} deleted group {GroupId}: {GroupName} with {MemberCount} members", 
                     coachId, groupId, group.Name, members.Count);
                     
-                StatusMessage = $"Group '{group.Name}' deleted successfully.";
-                StatusMessageType = "Success";
+                ErrorUtils.SetSuccessMessage(this, $"Group '{group.Name}' deleted successfully.");
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                _logger.LogError(ex, "Error deleting group {GroupId}: {Message}", groupId, ex.Message);
-                StatusMessage = $"Error deleting group: {ex.Message}";
-                StatusMessageType = "Error";
+                ErrorUtils.HandleException(_logger, ex, this,
+                    "An error occurred while deleting the group.",
+                    $"deleting group {groupId}");
             }
 
             return RedirectToPage("./Index");
@@ -480,10 +467,11 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         {
             if (!ModelState.IsValid)
             {
-                StatusMessage = "Error: " + string.Join("; ", ModelState.Values
+                var errors = string.Join("; ", ModelState.Values
                     .SelectMany(v => v.Errors)
                     .Select(e => e.ErrorMessage));
-                StatusMessageType = "Error";
+                
+                ErrorUtils.HandleValidationError(this, "Please correct the following errors: " + errors);
                 return RedirectToPage(new { id = groupId });
             }
 
@@ -496,122 +484,121 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             // Validate inputs
             if (string.IsNullOrEmpty(assignmentName))
             {
-                StatusMessage = "Error: Assignment name is required.";
-                StatusMessageType = "Error";
+                ErrorUtils.HandleValidationError(this, "Assignment name is required.");
                 return RedirectToPage(new { id = groupId });
             }
 
-            // Verify group belongs to coach
-            var group = await _context.ClientGroups
-                .Where(g => g.Id == groupId && g.CoachId == coachId)
-                .FirstOrDefaultAsync();
-
-            if (group == null)
-            {
-                _logger.LogWarning("Group {GroupId} not found for coach {CoachId}", groupId, coachId);
-                StatusMessage = "Error: Group not found.";
-                StatusMessageType = "Error";
-                return RedirectToPage("./Index");
-            }
-
-            // Verify template exists and coach has access to it
-            var template = await _context.WorkoutTemplate
-                .Where(t => t.WorkoutTemplateId == templateId && (t.UserId == int.Parse(coachId) || t.IsPublic))
-                .FirstOrDefaultAsync();
-
-            if (template == null)
-            {
-                _logger.LogWarning("Template {TemplateId} not found or not accessible by coach {CoachId}", templateId, coachId);
-                StatusMessage = "Error: Template not found or you don't have access to it.";
-                StatusMessageType = "Error";
-                return RedirectToPage(new { id = groupId });
-            }
-
-            // Get group members
-            var members = await _context.ClientGroupMembers
-                .Where(m => m.ClientGroupId == groupId)
-                .Join(_context.CoachClientRelationships,
-                    m => m.CoachClientRelationshipId,
-                    r => r.Id,
-                    (m, r) => new { Member = m, Relationship = r })
-                .Where(x => x.Relationship.Status == RelationshipStatus.Active)
-                .ToListAsync();
-
-            if (!members.Any())
-            {
-                _logger.LogWarning("Group {GroupId} has no active members to assign templates to", groupId);
-                StatusMessage = "Error: This group has no active members to assign the template to.";
-                StatusMessageType = "Error";
-                return RedirectToPage(new { id = groupId });
-            }
-
-            // Use a transaction to ensure all assignments succeed or fail together
-            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                int assignedCount = 0;
-                int alreadyAssignedCount = 0;
-                
-                foreach (var member in members)
-                {
-                    // Check if client already has this template assigned
-                    var existingAssignment = await _context.TemplateAssignments
-                        .Where(a => a.ClientRelationshipId == member.Relationship.Id && 
-                               a.WorkoutTemplateId == templateId && 
-                               a.IsActive)
-                        .FirstOrDefaultAsync();
+                // Verify group belongs to coach
+                var group = await _context.ClientGroups
+                    .Where(g => g.Id == groupId && g.CoachId == coachId)
+                    .FirstOrDefaultAsync();
 
-                    if (existingAssignment != null)
+                if (group == null)
+                {
+                    ErrorUtils.HandleValidationError(this, "Group not found or you don't have access to it.");
+                    return RedirectToPage("./Index");
+                }
+
+                // Verify template exists and coach has access to it
+                var template = await _context.WorkoutTemplate
+                    .Where(t => t.WorkoutTemplateId == templateId && (t.UserId == int.Parse(coachId) || t.IsPublic))
+                    .FirstOrDefaultAsync();
+
+                if (template == null)
+                {
+                    ErrorUtils.HandleValidationError(this, "Template not found or you don't have access to it.");
+                    return RedirectToPage(new { id = groupId });
+                }
+
+                // Get group members
+                var members = await _context.ClientGroupMembers
+                    .Where(m => m.ClientGroupId == groupId)
+                    .Join(_context.CoachClientRelationships,
+                        m => m.CoachClientRelationshipId,
+                        r => r.Id,
+                        (m, r) => new { Member = m, Relationship = r })
+                    .Where(x => x.Relationship.Status == RelationshipStatus.Active)
+                    .ToListAsync();
+
+                if (!members.Any())
+                {
+                    ErrorUtils.HandleValidationError(this, "This group has no active members to assign the template to.");
+                    return RedirectToPage(new { id = groupId });
+                }
+
+                // Use a transaction to ensure all assignments succeed or fail together
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    int assignedCount = 0;
+                    int alreadyAssignedCount = 0;
+                    
+                    foreach (var member in members)
                     {
-                        alreadyAssignedCount++;
-                        continue;
+                        // Check if client already has this template assigned
+                        var existingAssignment = await _context.TemplateAssignments
+                            .Where(a => a.ClientRelationshipId == member.Relationship.Id && 
+                                   a.WorkoutTemplateId == templateId && 
+                                   a.IsActive)
+                            .FirstOrDefaultAsync();
+
+                        if (existingAssignment != null)
+                        {
+                            alreadyAssignedCount++;
+                            continue;
+                        }
+
+                        // Create new assignment
+                        var assignment = new TemplateAssignment
+                        {
+                            WorkoutTemplateId = templateId,
+                            ClientRelationshipId = member.Relationship.Id,
+                            Name = assignmentName,
+                            Notes = notes,
+                            AssignedDate = DateTime.UtcNow,
+                            IsActive = true,
+                            ClientUserId = int.Parse(member.Relationship.ClientId),
+                            CoachUserId = int.Parse(coachId)
+                        };
+
+                        _context.TemplateAssignments.Add(assignment);
+                        assignedCount++;
                     }
 
-                    // Create new assignment
-                    var assignment = new TemplateAssignment
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+                    
+                    _logger.LogInformation("Coach {CoachId} assigned template {TemplateId} to {AssignedCount} clients in group {GroupId}, {AlreadyAssignedCount} already had it", 
+                        coachId, templateId, assignedCount, groupId, alreadyAssignedCount);
+
+                    if (assignedCount > 0)
                     {
-                        WorkoutTemplateId = templateId,
-                        ClientRelationshipId = member.Relationship.Id,
-                        Name = assignmentName,
-                        Notes = notes,
-                        AssignedDate = DateTime.UtcNow,
-                        IsActive = true,
-                        ClientUserId = int.Parse(member.Relationship.ClientId),
-                        CoachUserId = int.Parse(coachId)
-                    };
-
-                    _context.TemplateAssignments.Add(assignment);
-                    assignedCount++;
+                        ErrorUtils.SetSuccessMessage(this, $"Template '{template.Name}' assigned to {assignedCount} client{(assignedCount > 1 ? "s" : "")} in group '{group.Name}'.");
+                    }
+                    else if (alreadyAssignedCount > 0)
+                    {
+                        ErrorUtils.SetInfoMessage(this, $"No new assignments created. All clients in this group already have the template '{template.Name}' assigned.");
+                    }
+                    else
+                    {
+                        ErrorUtils.SetInfoMessage(this, "No template assignments were created.");
+                    }
                 }
-
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-                
-                _logger.LogInformation("Coach {CoachId} assigned template {TemplateId} to {AssignedCount} clients in group {GroupId}, {AlreadyAssignedCount} already had it", 
-                    coachId, templateId, assignedCount, groupId, alreadyAssignedCount);
-
-                if (assignedCount > 0)
+                catch (Exception ex)
                 {
-                    StatusMessage = $"Template '{template.Name}' assigned to {assignedCount} client{(assignedCount > 1 ? "s" : "")} in group '{group.Name}'.";
-                    StatusMessageType = "Success";
-                }
-                else if (alreadyAssignedCount > 0)
-                {
-                    StatusMessage = $"No new assignments created. All clients in this group already have the template '{template.Name}' assigned.";
-                    StatusMessageType = "Info";
-                }
-                else
-                {
-                    StatusMessage = "No template assignments were created.";
-                    StatusMessageType = "Info";
+                    await transaction.RollbackAsync();
+                    ErrorUtils.HandleException(_logger, ex, this,
+                        "An error occurred while assigning the template to the group.",
+                        $"assigning template {templateId} to group {groupId}");
                 }
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Error assigning template {TemplateId} to group {GroupId}: {Message}", templateId, groupId, ex.Message);
-                StatusMessage = $"Error assigning template: {ex.Message}";
-                StatusMessageType = "Error";
+                ErrorUtils.HandleException(_logger, ex, this,
+                    "An error occurred while verifying the group or template.",
+                    $"verifying group {groupId} or template {templateId}");
             }
 
             return RedirectToPage(new { id = groupId });

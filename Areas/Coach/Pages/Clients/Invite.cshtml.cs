@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Attributes;
+using WorkoutTrackerWeb.Areas.Coach.Pages.ErrorHandling;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Models.Coaching;
@@ -110,8 +111,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                         .SelectMany(v => v.Errors)
                         .Select(e => e.ErrorMessage));
                         
-                    StatusMessage = $"Error: {errors}";
-                    StatusMessageType = "Error";
+                    ErrorUtils.HandleValidationError(this, "Please correct the following errors: " + errors);
                     return Page();
                 }
 
@@ -153,7 +153,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                         if (!result.Succeeded)
                         {
                             _logger.LogError("Failed to create temporary user: {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
-                            ModelState.AddModelError("", $"Failed to create temporary user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                            ErrorUtils.HandleValidationError(this, $"Failed to create temporary user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
                             return Page();
                         }
                         
@@ -178,8 +178,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                             // Relationship already exists, but might be inactive or pending
                             if (existingRelationship.Status == RelationshipStatus.Active)
                             {
-                                StatusMessage = $"{ClientEmail} is already your active client.";
-                                StatusMessageType = "Info";
+                                ErrorUtils.SetInfoMessage(this, $"{ClientEmail} is already your active client.");
                                 await transaction.RollbackAsync(); // No changes needed
                                 return RedirectToPage("./Index");
                             }
@@ -193,15 +192,13 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                                     
                                 if (result)
                                 {
-                                    StatusMessage = $"Invitation resent to {ClientEmail}";
-                                    StatusMessageType = "Success";
+                                    ErrorUtils.SetSuccessMessage(this, $"Invitation resent to {ClientEmail}");
                                     await transaction.CommitAsync();
                                     return RedirectToPage("./Index");
                                 }
                                 else
                                 {
-                                    StatusMessage = "Error resending invitation. Please try again.";
-                                    StatusMessageType = "Error";
+                                    ErrorUtils.HandleValidationError(this, "Failed to resend invitation. Please try again.");
                                     await transaction.RollbackAsync();
                                     return Page();
                                 }
@@ -212,15 +209,13 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                                 var result = await _coachingService.ReactivateRelationshipAsync(existingRelationship.Id);
                                 if (result)
                                 {
-                                    StatusMessage = $"Relationship with {ClientEmail} has been reactivated.";
-                                    StatusMessageType = "Success";
+                                    ErrorUtils.SetSuccessMessage(this, $"Relationship with {ClientEmail} has been reactivated.");
                                     await transaction.CommitAsync();
                                     return RedirectToPage("./Index");
                                 }
                                 else
                                 {
-                                    StatusMessage = "Error reactivating relationship. Please try again.";
-                                    StatusMessageType = "Error";
+                                    ErrorUtils.HandleValidationError(this, "Failed to reactivate relationship. Please try again.");
                                     await transaction.RollbackAsync();
                                     return Page();
                                 }
@@ -288,42 +283,51 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                         await transaction.CommitAsync();
                         _logger.LogInformation("Transaction committed successfully");
 
-                        // In a real implementation, you'd send an actual email here with the invitation token
-                        if (client == null)
+                        try
                         {
-                            // Send invitation for new user
-                            var newUser = await _userManager.FindByIdAsync(clientId);
-                            var token = await _userManager.GenerateEmailConfirmationTokenAsync(newUser);
-                            var inviteUrl = Url.Page(
-                                "/Account/RegisterFromInvite",
-                                pageHandler: null,
-                                values: new { area = "Identity", userId = clientId, token, relationshipToken = relationship.InvitationToken },
-                                protocol: Request.Scheme);
+                            // In a real implementation, you'd send an actual email here with the invitation token
+                            if (client == null)
+                            {
+                                // Send invitation for new user
+                                var newUser = await _userManager.FindByIdAsync(clientId);
+                                var token = await _userManager.GenerateEmailConfirmationTokenAsync(newUser);
+                                var inviteUrl = Url.Page(
+                                    "/Account/RegisterFromInvite",
+                                    pageHandler: null,
+                                    values: new { area = "Identity", userId = clientId, token, relationshipToken = relationship.InvitationToken },
+                                    protocol: Request.Scheme);
 
-                            await _emailSender.SendEmailAsync(
-                                ClientEmail,
-                                "You've been invited to join WorkoutTracker",
-                                $"You've been invited to join WorkoutTracker as a client. " +
-                                $"<a href='{HtmlEncoder.Default.Encode(inviteUrl)}'>Click here to accept the invitation and set up your account.</a>");
+                                await _emailSender.SendEmailAsync(
+                                    ClientEmail,
+                                    "You've been invited to join WorkoutTracker",
+                                    $"You've been invited to join WorkoutTracker as a client. " +
+                                    $"<a href='{HtmlEncoder.Default.Encode(inviteUrl)}'>Click here to accept the invitation and set up your account.</a>");
+                            }
+                            else
+                            {
+                                // Send invitation for existing user
+                                var inviteUrl = Url.Page(
+                                    "/Account/AcceptCoachInvitation",
+                                    pageHandler: null,
+                                    values: new { area = "Identity", relationshipId = relationship.Id, token = relationship.InvitationToken },
+                                    protocol: Request.Scheme);
+
+                                await _emailSender.SendEmailAsync(
+                                    ClientEmail,
+                                    "Coaching invitation",
+                                    $"You have been invited to connect as a client on WorkoutTracker. " +
+                                    $"<a href='{HtmlEncoder.Default.Encode(inviteUrl)}'>Click here to accept the invitation.</a>");
+                            }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            // Send invitation for existing user
-                            var inviteUrl = Url.Page(
-                                "/Account/AcceptCoachInvitation",
-                                pageHandler: null,
-                                values: new { area = "Identity", relationshipId = relationship.Id, token = relationship.InvitationToken },
-                                protocol: Request.Scheme);
-
-                            await _emailSender.SendEmailAsync(
-                                ClientEmail,
-                                "Coaching invitation",
-                                $"You have been invited to connect as a client on WorkoutTracker. " +
-                                $"<a href='{HtmlEncoder.Default.Encode(inviteUrl)}'>Click here to accept the invitation.</a>");
+                            // Log email error but don't fail the whole process - the invite is still created
+                            _logger.LogError(ex, "Error sending invitation email to {Email}", ClientEmail);
+                            ErrorUtils.SetSuccessMessage(this, $"Invitation created for {ClientEmail}, but there was an error sending the email.");
+                            // Continue with the process
                         }
 
-                        StatusMessage = $"Success: Invitation sent to {ClientEmail}.";
-                        StatusMessageType = "Success";
+                        ErrorUtils.SetSuccessMessage(this, $"Invitation sent to {ClientEmail}.");
                         
                         // Add flag to switch to the Pending tab
                         TempData["ActiveTab"] = "pending";
@@ -334,8 +338,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                     {
                         _logger.LogError("CreateCoachClientRelationshipAsync returned null - Failed to create relationship");
                         await transaction.RollbackAsync();
-                        StatusMessage = $"Error: Failed to create relationship with {ClientEmail}.";
-                        StatusMessageType = "Error";
+                        ErrorUtils.HandleValidationError(this, $"Failed to create relationship with {ClientEmail}.");
                         _logger.LogInformation("=== INVITATION PROCESS FAILED ===");
                         return Page();
                     }
@@ -344,8 +347,9 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 {
                     _logger.LogError(ex, "Error during transaction for creating relationship");
                     await transaction.RollbackAsync();
-                    StatusMessage = $"Error: Transaction failed: {ex.Message}";
-                    StatusMessageType = "Error";
+                    ErrorUtils.HandleException(_logger, ex, this,
+                        "An error occurred while creating the client relationship.",
+                        $"creating relationship with {ClientEmail}");
                     _logger.LogInformation("=== INVITATION PROCESS FAILED WITH EXCEPTION ===");
                     return Page();
                 }
@@ -354,10 +358,10 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             }
             catch (Exception ex)
             {
-                // Log the exception details
-                _logger.LogError(ex, "Unhandled exception during client invitation: {Message}", ex.Message);
-                StatusMessage = $"Error: An unexpected error occurred: {ex.Message}";
-                StatusMessageType = "Error";
+                // Handle unhandled exceptions using our utility
+                ErrorUtils.HandleException(_logger, ex, this,
+                    "An unexpected error occurred during the invitation process. Please try again.",
+                    $"unhandled exception in client invitation");
                 _logger.LogInformation("=== INVITATION PROCESS FAILED WITH UNHANDLED EXCEPTION ===");
                 return Page();
             }

@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using WorkoutTrackerWeb.Areas.Coach.Pages.ErrorHandling;
 using WorkoutTrackerWeb.Attributes;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
@@ -55,7 +56,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
                 if (relationship == null)
                 {
-                    TempData["ErrorMessage"] = "Client relationship not found or inactive.";
+                    ErrorUtils.HandleValidationError(this, "Client relationship not found or inactive.");
                     return RedirectToPage("./Index");
                 }
 
@@ -87,7 +88,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error loading template assignments for client {ClientId}", ClientId);
-                    // Continue with empty template assignments
+                    // Continue with empty template assignments rather than failing the whole page
                 }
 
                 try
@@ -121,7 +122,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error loading workout schedules for client {ClientId}", ClientId);
-                    // Continue with empty workout schedules
+                    // Continue with empty workout schedules rather than failing the whole page
                 }
 
                 try
@@ -148,7 +149,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error loading workout feedback for client {ClientId}", ClientId);
-                    // Continue with empty feedback
+                    // Continue with empty feedback rather than failing the whole page
                 }
 
                 try
@@ -169,7 +170,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error loading available templates for client {ClientId}", ClientId);
-                    // Continue with empty templates
+                    // Continue with empty templates rather than failing the whole page
                 }
 
                 try
@@ -188,8 +189,9 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unhandled exception in AssignedWorkoutsModel.OnGetAsync for client {ClientId}", ClientId);
-                TempData["ErrorMessage"] = "An error occurred loading the page. Please try again.";
+                ErrorUtils.HandleException(_logger, ex, this, 
+                    "An error occurred loading the client's workout data. Please try again.",
+                    $"loading assigned workouts for client {ClientId}");
                 return RedirectToPage("./Index");
             }
         }
@@ -409,7 +411,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
             if (relationship == null)
             {
-                TempData["ErrorMessage"] = "Client relationship not found or inactive.";
+                ErrorUtils.HandleValidationError(this, "Client relationship not found or inactive.");
                 return RedirectToPage(new { ClientId });
             }
 
@@ -419,7 +421,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
             if (template == null)
             {
-                TempData["ErrorMessage"] = "Template not found.";
+                ErrorUtils.HandleValidationError(this, "Template not found.");
                 return RedirectToPage(new { ClientId });
             }
 
@@ -488,14 +490,16 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 // Commit the transaction
                 await transaction.CommitAsync();
 
-                TempData["SuccessMessage"] = $"Template '{template.Name}' successfully assigned to client.";
+                ErrorUtils.SetSuccessMessage(this, $"Template '{template.Name}' successfully assigned to client.");
                 return RedirectToPage(new { ClientId });
             }
             catch (Exception ex)
             {
                 // Roll back the transaction on error
                 await transaction.RollbackAsync();
-                TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
+                ErrorUtils.HandleException(_logger, ex, this, 
+                    "An error occurred while assigning the template to the client.",
+                    $"assigning template {templateId} to client {ClientId}");
                 return RedirectToPage(new { ClientId });
             }
         }
@@ -522,7 +526,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
             if (assignment == null)
             {
-                TempData["ErrorMessage"] = "Template assignment not found.";
+                ErrorUtils.HandleValidationError(this, "Template assignment not found.");
                 return RedirectToPage(new { ClientId });
             }
 
@@ -564,12 +568,14 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 _context.WorkoutSchedules.Add(schedule);
                 await _context.SaveChangesAsync();
 
-                TempData["SuccessMessage"] = "Workout scheduled successfully.";
+                ErrorUtils.SetSuccessMessage(this, "Workout scheduled successfully.");
                 return RedirectToPage(new { ClientId });
             }
             catch (Exception ex)
             {
-                TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
+                ErrorUtils.HandleException(_logger, ex, this, 
+                    "An error occurred while scheduling the workout.",
+                    $"scheduling workout for assignment {assignmentId}, client {ClientId}");
                 return RedirectToPage(new { ClientId });
             }
         }
@@ -583,24 +589,34 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 return Unauthorized();
             }
 
-            // Verify assignment exists and belongs to this client/coach
-            var assignment = await _context.TemplateAssignments
-                .FirstOrDefaultAsync(a => a.TemplateAssignmentId == assignmentId &&
-                                         a.ClientUserId == ClientId &&
-                                         a.CoachUserId == user.UserId);
-
-            if (assignment == null)
+            try
             {
-                TempData["ErrorMessage"] = "Template assignment not found.";
+                // Verify assignment exists and belongs to this client/coach
+                var assignment = await _context.TemplateAssignments
+                    .FirstOrDefaultAsync(a => a.TemplateAssignmentId == assignmentId &&
+                                             a.ClientUserId == ClientId &&
+                                             a.CoachUserId == user.UserId);
+
+                if (assignment == null)
+                {
+                    ErrorUtils.HandleValidationError(this, "Template assignment not found.");
+                    return RedirectToPage(new { ClientId });
+                }
+
+                // Update assignment status
+                assignment.IsActive = isActive;
+                await _context.SaveChangesAsync();
+
+                ErrorUtils.SetSuccessMessage(this, $"Assignment '{assignment.Name}' {(isActive ? "activated" : "deactivated")} successfully.");
                 return RedirectToPage(new { ClientId });
             }
-
-            // Update assignment status
-            assignment.IsActive = isActive;
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = $"Assignment '{assignment.Name}' {(isActive ? "activated" : "deactivated")} successfully.";
-            return RedirectToPage(new { ClientId });
+            catch (Exception ex)
+            {
+                ErrorUtils.HandleException(_logger, ex, this, 
+                    $"An error occurred while {(isActive ? "activating" : "deactivating")} the assignment.",
+                    $"toggling assignment {assignmentId} active state to {isActive}");
+                return RedirectToPage(new { ClientId });
+            }
         }
 
         public async Task<IActionResult> OnPostToggleScheduleAsync(int scheduleId, bool isActive)
@@ -612,24 +628,34 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 return Unauthorized();
             }
 
-            // Verify schedule exists and belongs to this client/coach
-            var schedule = await _context.WorkoutSchedules
-                .FirstOrDefaultAsync(s => s.WorkoutScheduleId == scheduleId &&
-                                         s.ClientUserId == ClientId &&
-                                         s.CoachUserId == user.UserId);
-
-            if (schedule == null)
+            try
             {
-                TempData["ErrorMessage"] = "Workout schedule not found.";
+                // Verify schedule exists and belongs to this client/coach
+                var schedule = await _context.WorkoutSchedules
+                    .FirstOrDefaultAsync(s => s.WorkoutScheduleId == scheduleId &&
+                                             s.ClientUserId == ClientId &&
+                                             s.CoachUserId == user.UserId);
+
+                if (schedule == null)
+                {
+                    ErrorUtils.HandleValidationError(this, "Workout schedule not found.");
+                    return RedirectToPage(new { ClientId });
+                }
+
+                // Update schedule status
+                schedule.IsActive = isActive;
+                await _context.SaveChangesAsync();
+
+                ErrorUtils.SetSuccessMessage(this, $"Schedule '{schedule.Name}' {(isActive ? "activated" : "deactivated")} successfully.");
                 return RedirectToPage(new { ClientId });
             }
-
-            // Update schedule status
-            schedule.IsActive = isActive;
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = $"Schedule '{schedule.Name}' {(isActive ? "activated" : "deactivated")} successfully.";
-            return RedirectToPage(new { ClientId });
+            catch (Exception ex)
+            {
+                ErrorUtils.HandleException(_logger, ex, this, 
+                    $"An error occurred while {(isActive ? "activating" : "deactivating")} the schedule.",
+                    $"toggling schedule {scheduleId} active state to {isActive}");
+                return RedirectToPage(new { ClientId });
+            }
         }
 
         public async Task<IActionResult> OnPostDeleteAssignmentAsync(int assignmentId)
@@ -650,7 +676,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 
             if (assignment == null)
             {
-                TempData["ErrorMessage"] = "Template assignment not found.";
+                ErrorUtils.HandleValidationError(this, "Template assignment not found.");
                 return RedirectToPage(new { ClientId });
             }
 
@@ -668,13 +694,15 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                TempData["SuccessMessage"] = $"Assignment '{assignment.Name}' deleted successfully.";
+                ErrorUtils.SetSuccessMessage(this, $"Assignment '{assignment.Name}' deleted successfully.");
                 return RedirectToPage(new { ClientId });
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
+                ErrorUtils.HandleException(_logger, ex, this, 
+                    "An error occurred while deleting the assignment.",
+                    $"deleting assignment {assignmentId}");
                 return RedirectToPage(new { ClientId });
             }
         }
@@ -688,24 +716,34 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 return Unauthorized();
             }
 
-            // Verify schedule exists and belongs to this client/coach
-            var schedule = await _context.WorkoutSchedules
-                .FirstOrDefaultAsync(s => s.WorkoutScheduleId == scheduleId &&
-                                         s.ClientUserId == ClientId &&
-                                         s.CoachUserId == user.UserId);
-
-            if (schedule == null)
+            try
             {
-                TempData["ErrorMessage"] = "Workout schedule not found.";
+                // Verify schedule exists and belongs to this client/coach
+                var schedule = await _context.WorkoutSchedules
+                    .FirstOrDefaultAsync(s => s.WorkoutScheduleId == scheduleId &&
+                                             s.ClientUserId == ClientId &&
+                                             s.CoachUserId == user.UserId);
+
+                if (schedule == null)
+                {
+                    ErrorUtils.HandleValidationError(this, "Workout schedule not found.");
+                    return RedirectToPage(new { ClientId });
+                }
+
+                // Remove the schedule
+                _context.WorkoutSchedules.Remove(schedule);
+                await _context.SaveChangesAsync();
+
+                ErrorUtils.SetSuccessMessage(this, $"Schedule '{schedule.Name}' deleted successfully.");
                 return RedirectToPage(new { ClientId });
             }
-
-            // Remove the schedule
-            _context.WorkoutSchedules.Remove(schedule);
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = $"Schedule '{schedule.Name}' deleted successfully.";
-            return RedirectToPage(new { ClientId });
+            catch (Exception ex)
+            {
+                ErrorUtils.HandleException(_logger, ex, this, 
+                    "An error occurred while deleting the schedule.",
+                    $"deleting schedule {scheduleId}");
+                return RedirectToPage(new { ClientId });
+            }
         }
 
         // Method to convert DayOfWeek? to int?
