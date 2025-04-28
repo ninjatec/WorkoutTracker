@@ -93,6 +93,65 @@
  
 ---
 
+[ ] Migrate Coaching Functionality to Razor Pages
+ - [ ] API Endpoints Migration
+   - [ ] Identify coaching-related API endpoints in WorkoutScheduleController
+   - [ ] Move GetAvailableTemplates endpoint to Razor Page handler
+   - [ ] Update client-side code to use new Razor Page endpoints
+   - [ ] Implement proper model binding for template filtering
+   - [ ] Migrate any remaining coaching API functionality to Razor Pages
+
+ - [ ] Client Management Refinement
+   - [ ] Standardize all client invitation processes to use Razor Pages
+   - [ ] Complete client group management functionality
+   - [ ] Implement Group.cshtml/Group.cshtml.cs for client group management
+   - [ ] Ensure consistent error handling across client management workflows
+   - [ ] Standardize validation across all coaching client features
+
+ - [ ] Workout Template System Completion
+   - [ ] Refine template assignment workflow with Razor Pages
+   - [ ] Complete scheduling options for assigned workouts
+   - [ ] Implement template sharing between coaches
+   - [ ] Standardize template filtering and search functionality
+   - [ ] Create unified template management experience
+
+ - [ ] Dashboard and Analytics Enhancement
+   - [ ] Replace demo data with real database data
+   - [ ] Implement proper data loading and caching for dashboard
+   - [ ] Create analytics pages for tracking client progress
+   - [ ] Implement data visualization components
+   - [ ] Optimize dashboard performance for multi-pod deployment
+
+ - [ ] Navigation and Layout Standardization
+   - [ ] Consolidate coaching navigation structure
+   - [ ] Ensure consistent layout across all coaching pages
+   - [ ] Standardize URL patterns for coaching functionality
+   - [ ] Implement responsive design for all coaching interfaces
+   - [ ] Create consistent breadcrumb navigation
+
+ - [ ] JavaScript Refactoring
+   - [ ] Update coach.js to work with Razor Page handlers
+   - [ ] Refactor AJAX calls to use Razor Page endpoints
+   - [ ] Implement proper error handling for client-side functions
+   - [ ] Optimize JavaScript performance for coaching functionality
+   - [ ] Standardize client-side validation
+
+ - [ ] Data Access Layer Standardization
+   - [ ] Review CoachingService implementation for Razor Pages support
+   - [ ] Implement consistent caching strategy for coaching data
+   - [ ] Standardize data access patterns across coaching features
+   - [ ] Optimize database queries for coaching functionality
+   - [ ] Implement proper connection pooling for multi-pod deployment
+
+ - [ ] Authentication and Authorization Refinement
+   - [ ] Update CoachAuthorizeAttribute for Razor Pages
+   - [ ] Implement consistent permission checking across pages
+   - [ ] Ensure proper role-based access control throughout
+   - [ ] Add audit logging for sensitive coaching operations
+   - [ ] Implement proper security for coaching data access
+
+---
+
 [ ] Allow Import from apple via HealthKit
  - [ ] Set up HealthKit integration prerequisites
    - [ ] Add HealthKit entitlements to the iOS app manifest

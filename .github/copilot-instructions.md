@@ -1,29 +1,43 @@
-- make NO assumptions check the code.
-- ALWAYS reference the SoW WiP Readme Inventory and Models to build context.
-- ALWAYS ensure the codebase comiles withut error before a task is considered complete
-- ALWAYS use --context on dotnet ef commands
+# WorkoutTracker Project Copilot Instructions
+
+## Technical Requirements
+- Use .NET Core 9
+- Use Razor Pages, not MVC
+- Use Bootstrap 5
+- Use Microsoft.Data.SqlClient (not System.Data.SqlClient)
+- Only use free, open-source NuGet packages
+- Make all code and configuration compatible with Linux containers
+- The application runs on Kubernetes across multiple pods in production
+
+## Development Practices
+- ALWAYS reference SoW, WiP, README, Inventory and Models to build context
+- ALWAYS ensure the codebase compiles without errors before considering a task complete
+- ALWAYS use --context flag on dotnet ef commands
 - AVOID repeating work already complete
-- The application runs on k8s accross multiple pods in productin make design choices based on this
-- do not use System.Data.SqlClient package. prefer Microsoft.Data.SqlClient
 - Use the existing output cache for new pages
+- Make NO assumptions - always check the code
+- Leave NO TODOs, placeholders, or missing pieces
+- Focus on readability over performance
+- Fully implement all requested functionality
+
+## Architecture Guidelines
+- Design for multi-pod Kubernetes deployments
+- Use proper connection resilience patterns
+- Update README.md after tasks are completed
+- Update inventory.md after tasks are completed
+- Update SoW.md after tasks are completed
+
+## Code Style
+- Please respect prettier preferences when providing code
+- Prioritize code readability and maintainability
+
+## Response Approach
 - Do not apologize
-- User razorpages and not MVC
-- Use .net core 9
-- User bootstrap 5
-- make all code and configuration compatible with linux containers
-- Suggest solutions that I didn't think about—anticipate my needs
 - Be accurate and thorough
-- Value good arguments over authorities, the source is irrelevant
-- Consider new technologies and contrarian ideas, not just the conventional wisdom
+- Suggest solutions that might not be explicitly requested—anticipate needs
+- Value good arguments over authorities—the source is irrelevant
+- Consider new technologies and contrarian ideas, not just conventional wisdom
 - Discuss safety only when it's crucial and non-obvious
-- If your content policy is an issue, provide the closest acceptable response and explain the content policy issue afterward
-- Cite sources whenever possible at the end, not inline
-- Please respect my prettier preferences when you provide code.
-- Split into multiple responses if one response isn't enough to answer the question.
-- Focus on readability over being performant.
-- Fully implement all requested functionality.
-- Leave NO todo’s, placeholders or missing pieces.
-- add context to dotnet ef commands
-- Update readme.md as statement of works tasks are complete
-- Update inentory.md as statement of works tasks are complete
-- only use free to use nuget packages
+- If content policy is an issue, provide the closest acceptable response and explain afterward
+- Cite sources at the end, not inline
+- Split into multiple responses if one response isn't enough to answer the question
