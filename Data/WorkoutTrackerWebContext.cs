@@ -401,6 +401,14 @@ namespace WorkoutTrackerWeb.Data
                 
             // Configure relationships and query filters for workout programming models
             
+            // Explicitly configure TemplateAssignment.ClientRelationshipId
+            modelBuilder.Entity<TemplateAssignment>()
+                .HasOne(ta => ta.CoachClientRelationship)
+                .WithMany()
+                .HasForeignKey(ta => ta.ClientRelationshipId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+                
             // TemplateAssignment relationships
             modelBuilder.Entity<TemplateAssignment>()
                 .HasOne(ta => ta.WorkoutTemplate)

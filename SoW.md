@@ -99,11 +99,11 @@
    - [x] Implement proper model binding for template filtering
    - [x] Migrate any remaining coaching API functionality to Razor Pages
 
- - [ ] Client Management Refinement
+ - [x] Client Management Refinement
    - [x] Standardize all client invitation processes to use Razor Pages
    - [x] Complete client group management functionality
    - [x] Ensure consistent error handling across client management workflows
-   - [ ] Standardize validation across all coaching client features
+   - [x] Standardize validation across all coaching client features
 
  - [ ] Workout Template System Completion
    - [ ] Refine template assignment workflow with Razor Pages
