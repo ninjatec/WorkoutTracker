@@ -23,6 +23,40 @@ namespace WorkoutTrackerWeb.Extensions
         }
 
         /// <summary>
+        /// Gets a user-friendly display name by removing email domain part if present
+        /// </summary>
+        /// <param name="user">The AppUser instance</param>
+        /// <returns>A user-friendly display name</returns>
+        public static string GetDisplayName(this AppUser user)
+        {
+            if (user == null)
+            {
+                return string.Empty;
+            }
+            
+            // Try to clean up the username if it's an email
+            var username = user.UserName ?? string.Empty;
+            return username.Contains('@') ? username.Split('@')[0] : username;
+        }
+        
+        /// <summary>
+        /// Gets a user-friendly display name for a User model
+        /// </summary>
+        /// <param name="user">The User instance</param>
+        /// <returns>A user-friendly display name</returns>
+        public static string GetDisplayName(this Models.User user)
+        {
+            if (user == null)
+            {
+                return string.Empty;
+            }
+            
+            // Try to clean up the username if it's an email
+            var username = user.Name ?? string.Empty;
+            return username.Contains('@') ? username.Split('@')[0] : username;
+        }
+
+        /// <summary>
         /// Gets the user ID from the current user's claims
         /// </summary>
         /// <param name="user">The ClaimsPrincipal representing the current user</param>

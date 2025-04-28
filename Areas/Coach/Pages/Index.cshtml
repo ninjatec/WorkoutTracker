@@ -135,6 +135,14 @@
                                     <small>@session.Date.ToString("MMM d, h:mm tt")</small>
                                 </div>
                                 <p class="mb-1">@session.Description</p>
+                                @if (session.ScheduleId > 0)
+                                {
+                                    <div class="mt-1">
+                                        <a href="/WorkoutSchedule/Details/@session.ScheduleId" class="btn btn-sm btn-outline-warning">
+                                            <i class="bi bi-eye"></i> View Schedule
+                                        </a>
+                                    </div>
+                                }
                             </li>
                         }
                     </ul>
@@ -146,7 +154,7 @@
                     </div>
                 }
                 <div class="text-center mt-3">
-                    <a asp-area="Coach" asp-page="/WorkoutSchedule/Index" class="btn btn-warning">Manage Schedules</a>
+                    <a asp-area="Coach" asp-page="/ScheduledWorkouts" class="btn btn-warning">Manage Schedules</a>
                 </div>
             </div>
         </div>
