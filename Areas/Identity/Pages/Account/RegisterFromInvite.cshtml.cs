@@ -393,12 +393,39 @@ namespace WorkoutTrackerWeb.Areas.Identity.Pages.Account
                             _logger.LogInformation("Application user created with UserId: {AppUserId}, linked to Identity user: {IdentityUserId}", 
                                 appUser.UserId, appUser.IdentityUserId);
                             
-                            // Step 4: Now update the relationship with the Identity user ID (not the application UserId)
-                            // The ClientId in CoachClientRelationships references the Identity user ID
+                            // Step 4: Now update the relationship with the Identity user ID
                             relationship.ClientId = userId; // This is the IdentityUserId, not the application UserId
                             relationship.Status = RelationshipStatus.Active;
                             relationship.StartDate = DateTime.UtcNow;
                             relationship.LastModifiedDate = DateTime.UtcNow;
+                            
+                            // Insert a verification step to check if the AppUser record exists in the AppUser table in WorkoutTrackerWebContext
+                            // (not in ApplicationDbContext, since we need it in both places)
+                            
+                            // The AppUser table in WorkoutTrackerWebContext should mirror the AspNetUsers table in ApplicationDbContext
+                            var appUserExists = await _context.Database.ExecuteSqlRawAsync(
+                                "SELECT COUNT(1) FROM AppUser WHERE Id = {0}", userId) > 0;
+                            
+                            if (!appUserExists)
+                            {
+                                _logger.LogError("AppUser record not found in AppUser table for ID: {UserId}", userId);
+                                // We need to create the AppUser record in the AppUser table to satisfy the foreign key constraint
+                                await _context.Database.ExecuteSqlRawAsync(
+                                    @"INSERT INTO AppUser (
+                                        Id, UserName, NormalizedUserName, Email, NormalizedEmail, EmailConfirmed, 
+                                        PasswordHash, SecurityStamp, ConcurrencyStamp, PhoneNumber, PhoneNumberConfirmed, 
+                                        TwoFactorEnabled, LockoutEnd, LockoutEnabled, AccessFailedCount, CreatedDate, LastModifiedDate
+                                    ) 
+                                    SELECT 
+                                        Id, UserName, NormalizedUserName, Email, NormalizedEmail, EmailConfirmed,
+                                        PasswordHash, SecurityStamp, ConcurrencyStamp, PhoneNumber, PhoneNumberConfirmed,
+                                        TwoFactorEnabled, LockoutEnd, LockoutEnabled, AccessFailedCount, {1}, {2}
+                                    FROM AspNetUsers 
+                                    WHERE Id = {0}",
+                                    userId, DateTime.UtcNow, DateTime.UtcNow);
+                                    
+                                _logger.LogInformation("Created missing AppUser record in AppUser table for ID: {UserId}", userId);
+                            }
                             
                             _context.CoachClientRelationships.Update(relationship);
                             

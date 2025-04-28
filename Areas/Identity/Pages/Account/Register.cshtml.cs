@@ -158,6 +158,29 @@ namespace WorkoutTrackerWeb.Areas.Identity.Pages.Account
 
                                 _logger.LogInformation("Application user record created with UserId: {AppUserId}, linked to Identity user: {IdentityUserId}",
                                     appUser.UserId, appUser.IdentityUserId);
+                                    
+                                var appUserExists = await _context.Database.ExecuteSqlRawAsync(
+                                    "SELECT COUNT(1) FROM AppUser WHERE Id = {0}", userId) > 0;
+                                
+                                if (!appUserExists)
+                                {
+                                    _logger.LogInformation("AppUser record not found in AppUser table for ID: {UserId}, creating it now", userId);
+                                    await _context.Database.ExecuteSqlRawAsync(
+                                        @"INSERT INTO AppUser (
+                                            Id, UserName, NormalizedUserName, Email, NormalizedEmail, EmailConfirmed, 
+                                            PasswordHash, SecurityStamp, ConcurrencyStamp, PhoneNumber, PhoneNumberConfirmed, 
+                                            TwoFactorEnabled, LockoutEnd, LockoutEnabled, AccessFailedCount, CreatedDate, LastModifiedDate
+                                        ) 
+                                        SELECT 
+                                            Id, UserName, NormalizedUserName, Email, NormalizedEmail, EmailConfirmed,
+                                            PasswordHash, SecurityStamp, ConcurrencyStamp, PhoneNumber, PhoneNumberConfirmed,
+                                            TwoFactorEnabled, LockoutEnd, LockoutEnabled, AccessFailedCount, {1}, {2}
+                                        FROM AspNetUsers 
+                                        WHERE Id = {0}",
+                                        userId, DateTime.UtcNow, DateTime.UtcNow);
+                                        
+                                    _logger.LogInformation("Created missing AppUser record in AppUser table for ID: {UserId}", userId);
+                                }
 
                                 await transaction.CommitAsync();
                             }
