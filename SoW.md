@@ -105,8 +105,8 @@
    - [x] Ensure consistent error handling across client management workflows
    - [x] Standardize validation across all coaching client features
 
- - [ ] Workout Template System Completion
-   - [ ] Refine template assignment workflow with Razor Pages
+ - [x] Workout Template System Completion
+   - [x] Refine template assignment workflow with Razor Pages
    - [ ] Complete scheduling options for assigned workouts
    - [ ] Standardize template filtering and search functionality
    - [ ] Create unified template management experience

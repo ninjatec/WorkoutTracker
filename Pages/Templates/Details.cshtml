@@ -65,11 +65,19 @@
                             <i class="bi bi-trash"></i> Delete
                         </a>
                     </div>
-                    <div>
+                    <div class="mb-3">
                         <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#scheduleModal">
                             <i class="bi bi-calendar-plus"></i> Schedule Workout
                         </button>
                     </div>
+                    @if (User.IsInRole("Coach"))
+                    {
+                        <div>
+                            <a asp-page="/TemplateAssignments/AssignTemplate" asp-route-templateId="@Model.WorkoutTemplate.WorkoutTemplateId" class="btn btn-outline-success">
+                                <i class="bi bi-person-plus"></i> Assign to Client
+                            </a>
+                        </div>
+                    }
                 </div>
             </div>
 
