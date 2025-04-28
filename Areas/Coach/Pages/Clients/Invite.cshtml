@@ -1,0 +1,158 @@
+@page
+@model WorkoutTrackerWeb.Areas.Coach.Pages.Clients.InviteModel
+@{
+    ViewData["Title"] = "Invite Client";
+    Layout = "_Layout";
+}
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4><i class="bi bi-person-plus-fill me-2"></i>Invite Client</h4>
+            <a asp-page="./Index" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Back to Clients
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Client Invitation</h5>
+            </div>
+            <div class="card-body">
+                @if (!string.IsNullOrEmpty(Model.StatusMessage) && Model.StatusMessageType == "Error")
+                {
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>@Model.StatusMessage
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                }
+
+                <form method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="ClientEmail" class="form-label">Email Address</label>
+                        <input asp-for="ClientEmail" class="form-control" />
+                        <span asp-validation-for="ClientEmail" class="text-danger"></span>
+                        <div class="form-text">An invitation will be sent to this email address.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="InvitationMessage" class="form-label">Personalized Message (Optional)</label>
+                        <textarea asp-for="InvitationMessage" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="ExpiryDays" class="form-label">Invitation Expiry</label>
+                        <select asp-for="ExpiryDays" class="form-select">
+                            <option value="7">7 days</option>
+                            <option value="14">14 days</option>
+                            <option value="30">30 days</option>
+                            <option value="60">60 days</option>
+                        </select>
+                    </div>
+                    
+                    <hr />
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Client Permissions</label>
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="canViewWorkouts" name="Permissions" value="canViewWorkouts" checked>
+                                    <label class="form-check-label" for="canViewWorkouts">
+                                        Can view their workouts
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="canCreateWorkouts" name="Permissions" value="canCreateWorkouts" checked>
+                                    <label class="form-check-label" for="canCreateWorkouts">
+                                        Can create workouts
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="canEditWorkouts" name="Permissions" value="canEditWorkouts" checked>
+                                    <label class="form-check-label" for="canEditWorkouts">
+                                        Can edit workouts
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="canDeleteWorkouts" name="Permissions" value="canDeleteWorkouts">
+                                    <label class="form-check-label" for="canDeleteWorkouts">
+                                        Can delete workouts
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="canViewReports" name="Permissions" value="canViewReports" checked>
+                                    <label class="form-check-label" for="canViewReports">
+                                        Can view reports
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="canCreateTemplates" name="Permissions" value="canCreateTemplates">
+                                    <label class="form-check-label" for="canCreateTemplates">
+                                        Can create workout templates
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="canAssignTemplates" name="Permissions" value="canAssignTemplates">
+                                    <label class="form-check-label" for="canAssignTemplates">
+                                        Can assign templates
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="canViewPersonalInfo" name="Permissions" value="canViewPersonalInfo">
+                                    <label class="form-check-label" for="canViewPersonalInfo">
+                                        Can view personal information
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="canCreateGoals" name="Permissions" value="canCreateGoals" checked>
+                                    <label class="form-check-label" for="canCreateGoals">
+                                        Can create goals
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-envelope me-2"></i>Send Invitation
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">About Client Invitations</h5>
+            </div>
+            <div class="card-body">
+                <p>When you invite a client:</p>
+                <ul>
+                    <li>They'll receive an email with a secure invitation link</li>
+                    <li>New users will be guided through account creation</li>
+                    <li>Existing users can accept to connect with you</li>
+                    <li>Invitations expire after the selected period</li>
+                    <li>You can modify permissions anytime after connection</li>
+                </ul>
+                <hr />
+                <p class="mb-0">
+                    <strong>Note:</strong> Customize the permissions based on your coaching relationship with this client.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

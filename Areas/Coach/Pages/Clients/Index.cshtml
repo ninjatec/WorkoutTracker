@@ -9,72 +9,9 @@
     <div class="col-md-12">
         <div class="d-flex justify-content-between align-items-center">
             <h4><i class="bi bi-people-fill me-2"></i>My Clients</h4>
-            <button type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#inviteClientAccordion" aria-expanded="false" aria-controls="inviteClientAccordion">
+            <a href="./Invite" class="btn btn-primary">
                 <i class="bi bi-person-plus-fill me-2"></i>Invite New Client
-            </button>
-        </div>
-    </div>
-</div>
-
-<!-- Invite Client Accordion -->
-<div class="collapse mb-4" id="inviteClientAccordion">
-    <div class="card">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">Invite New Client</h5>
-        </div>
-        <div class="card-body">
-            <form method="post" asp-page-handler="InviteClient">
-                @Html.AntiForgeryToken()
-                <div class="mb-3">
-                    <label for="clientEmail" class="form-label">Email Address</label>
-                    <input type="email" class="form-control" id="clientEmail" asp-for="ClientEmail" required>
-                    <div class="form-text">An invitation will be sent to this email address.</div>
-                </div>
-                <div class="mb-3">
-                    <label for="invitationMessage" class="form-label">Personalized Message (Optional)</label>
-                    <textarea class="form-control" id="invitationMessage" asp-for="InvitationMessage" rows="3"></textarea>
-                </div>
-                <div class="mb-3">
-                    <label for="expiryDays" class="form-label">Invitation Expiry</label>
-                    <select class="form-select" id="expiryDays" asp-for="ExpiryDays">
-                        <option value="7">7 days</option>
-                        <option value="14" selected>14 days</option>
-                        <option value="30">30 days</option>
-                        <option value="0">Never</option>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Default Permissions</label>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="canViewWorkouts" name="Permissions" value="canViewWorkouts" checked>
-                        <label class="form-check-label" for="canViewWorkouts">
-                            Can view client's workouts
-                        </label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="canCreateWorkouts" name="Permissions" value="canCreateWorkouts">
-                        <label class="form-check-label" for="canCreateWorkouts">
-                            Can create workouts for client
-                        </label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="canViewReports" name="Permissions" value="canViewReports" checked>
-                        <label class="form-check-label" for="canViewReports">
-                            Can view client's reports
-                        </label>
-                    </div>
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="canCreateGoals" name="Permissions" value="canCreateGoals" checked>
-                        <label class="form-check-label" for="canCreateGoals">
-                            Can create goals for client
-                        </label>
-                    </div>
-                </div>
-                <div class="d-flex justify-content-end">
-                    <button type="button" class="btn btn-secondary me-2" data-bs-toggle="collapse" data-bs-target="#inviteClientAccordion">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Send Invitation</button>
-                </div>
-            </form>
+            </a>
         </div>
     </div>
 </div>

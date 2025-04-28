@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text.Encodings.Web;
 using System.Threading.Tasks;
@@ -13,218 +15,350 @@ using WorkoutTrackerWeb.Attributes;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Models.Coaching;
+using WorkoutTrackerWeb.Models.Identity;
+using WorkoutTrackerWeb.Services.Coaching;
 using WorkoutTrackerWeb.Services.Email;
 
 namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
 {
+    [Area("Coach")]
     [CoachAuthorize]
     public class InviteModel : PageModel
     {
         private readonly WorkoutTrackerWebContext _context;
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<AppUser> _userManager;
         private readonly IEmailSender _emailSender;
         private readonly ILogger<InviteModel> _logger;
+        private readonly ICoachingService _coachingService;
 
         public InviteModel(
             WorkoutTrackerWebContext context,
-            UserManager<IdentityUser> userManager,
+            UserManager<AppUser> userManager,
             IEmailSender emailSender,
-            ILogger<InviteModel> logger)
+            ILogger<InviteModel> logger,
+            ICoachingService coachingService)
         {
             _context = context;
             _userManager = userManager;
             _emailSender = emailSender;
             _logger = logger;
+            _coachingService = coachingService;
         }
 
         [BindProperty]
+        [Required(ErrorMessage = "Email address is required")]
+        [EmailAddress(ErrorMessage = "Invalid email address")]
         public string ClientEmail { get; set; }
 
-        public IActionResult OnGet()
+        [BindProperty]
+        public string InvitationMessage { get; set; }
+
+        [BindProperty]
+        public int ExpiryDays { get; set; } = 14;
+
+        [BindProperty]
+        public List<string> Permissions { get; set; } = new List<string>() { 
+            "canViewWorkouts", "canCreateWorkouts", "canEditWorkouts", 
+            "canViewReports", "canCreateGoals" 
+        };
+
+        [TempData]
+        public string StatusMessage { get; set; }
+
+        [TempData]
+        public string StatusMessageType { get; set; }
+
+        public IActionResult OnGet(string email = null)
         {
+            // Initialize from query parameters or TempData
+            if (!string.IsNullOrEmpty(email))
+            {
+                ClientEmail = email;
+            }
+            else if (TempData["ClientEmail"] != null)
+            {
+                ClientEmail = TempData["ClientEmail"].ToString();
+            }
+
+            if (TempData["InvitationMessage"] != null)
+            {
+                InvitationMessage = TempData["InvitationMessage"].ToString();
+            }
+
+            if (TempData["ExpiryDays"] != null && int.TryParse(TempData["ExpiryDays"].ToString(), out int days))
+            {
+                ExpiryDays = days;
+            }
+
+            if (TempData["Permissions"] != null && TempData["Permissions"] is List<string> permissions)
+            {
+                Permissions = permissions;
+            }
+
             return Page();
         }
 
-        public async Task<IActionResult> OnPostInviteClient()
+        public async Task<IActionResult> OnPostAsync()
         {
             try 
             {
                 _logger.LogInformation("Starting client invitation process for email: {ClientEmail}", ClientEmail);
                 
-                if (string.IsNullOrEmpty(ClientEmail))
+                if (!ModelState.IsValid)
                 {
-                    _logger.LogWarning("Client invitation failed: Email is empty");
-                    ModelState.AddModelError("", "Email address is required.");
+                    var errors = string.Join("; ", ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage));
+                        
+                    StatusMessage = $"Error: {errors}";
+                    StatusMessageType = "Error";
                     return Page();
                 }
 
-                var coach = await _userManager.GetUserAsync(User);
-                if (coach == null)
+                var coachId = _userManager.GetUserId(User);
+                if (string.IsNullOrEmpty(coachId))
                 {
-                    _logger.LogError("Client invitation failed: Coach user not found");
-                    ModelState.AddModelError("", "Unable to identify the current coach.");
-                    return Page();
+                    return Forbid();
                 }
+
+                // Look up the client by email
+                var client = await _userManager.FindByEmailAsync(ClientEmail);
                 
-                _logger.LogInformation("Coach identified: {CoachId} ({CoachEmail})", coach.Id, coach.Email);
-
-                // Check if user already exists
-                var existingUser = await _userManager.FindByEmailAsync(ClientEmail);
-                _logger.LogInformation("Existing user check result: {UserExists}", existingUser != null);
-
-                IdentityUser clientUser;
-                bool isNewUser = false;
-
-                if (existingUser == null)
+                // Using a transaction for creating the relationship to ensure atomicity
+                _logger.LogInformation("Beginning transaction for invitation process");
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                
+                try
                 {
-                    _logger.LogInformation("Creating new user account for client {ClientEmail}", ClientEmail);
-                    // Create new user account
-                    var tempPassword = GenerateRandomPassword();
-                    clientUser = new IdentityUser
-                    {
-                        UserName = ClientEmail,
-                        Email = ClientEmail,
-                        EmailConfirmed = false
-                    };
-
-                    var result = await _userManager.CreateAsync(clientUser, tempPassword);
-                    if (!result.Succeeded)
-                    {
-                        _logger.LogError("Failed to create client user account: {Errors}", 
-                            string.Join(", ", result.Errors.Select(e => e.Description)));
-                        ModelState.AddModelError("", "Failed to create user account: " + string.Join(", ", result.Errors.Select(e => e.Description)));
-                        return Page();
-                    }
-
-                    // Add to client role
-                    await _userManager.AddToRoleAsync(clientUser, "Client");
-                    isNewUser = true;
-                    _logger.LogInformation("New client user created with ID: {ClientId}", clientUser.Id);
-                }
-                else
-                {
-                    clientUser = existingUser;
-                    _logger.LogInformation("Using existing client user with ID: {ClientId}", clientUser.Id);
-                }
-
-                // Check if relation already exists
-                _logger.LogInformation("Checking if relationship already exists between coach {CoachId} and client {ClientId}", coach.Id, clientUser.Id);
-                var existingRelation = await _context.CoachClientRelationships
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(r => r.CoachId == coach.Id && r.ClientId == clientUser.Id);
-
-                if (existingRelation != null)
-                {
-                    _logger.LogWarning("Relationship already exists with status: {Status}", existingRelation.Status);
+                    string clientId;
                     
-                    if (existingRelation.Status == RelationshipStatus.Active)
+                    if (client == null)
                     {
-                        ModelState.AddModelError("", "This client is already in your client list.");
+                        // User doesn't exist yet, create a pending invitation that will be claimed later
+                        _logger.LogInformation("Client {Email} doesn't exist yet, creating pending invitation", ClientEmail);
+                        
+                        // Create temporary user account that will be completed during registration
+                        var pendingUser = new AppUser
+                        {
+                            UserName = ClientEmail,
+                            Email = ClientEmail,
+                            EmailConfirmed = false,
+                            CreatedDate = DateTime.UtcNow,
+                            LastModifiedDate = DateTime.UtcNow,
+                            SecurityStamp = Guid.NewGuid().ToString()
+                        };
+                        
+                        var result = await _userManager.CreateAsync(pendingUser);
+                        
+                        if (!result.Succeeded)
+                        {
+                            _logger.LogError("Failed to create temporary user: {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
+                            ModelState.AddModelError("", $"Failed to create temporary user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                            return Page();
+                        }
+                        
+                        clientId = pendingUser.Id;
+                        _logger.LogInformation("Created temporary user with ID {UserId} for invitation email {Email}", clientId, ClientEmail);
+                        
+                        // Double check user was created
+                        var createdUser = await _userManager.FindByIdAsync(clientId);
+                        _logger.LogInformation("Verification - Created user exists: {Exists}", createdUser != null);
+                    }
+                    else
+                    {
+                        clientId = client.Id;
+                        
+                        // Client exists, check if they already have a relationship with this coach
+                        var existingRelationship = await _context.CoachClientRelationships
+                            .Where(r => r.CoachId == coachId && r.ClientId == clientId)
+                            .FirstOrDefaultAsync();
+
+                        if (existingRelationship != null)
+                        {
+                            // Relationship already exists, but might be inactive or pending
+                            if (existingRelationship.Status == RelationshipStatus.Active)
+                            {
+                                StatusMessage = $"{ClientEmail} is already your active client.";
+                                StatusMessageType = "Info";
+                                await transaction.RollbackAsync(); // No changes needed
+                                return RedirectToPage("./Index");
+                            }
+                            else if (existingRelationship.Status == RelationshipStatus.Pending)
+                            {
+                                // Resend invitation
+                                var result = await _coachingService.ResendInvitationAsync(
+                                    existingRelationship.Id, 
+                                    InvitationMessage, 
+                                    ExpiryDays);
+                                    
+                                if (result)
+                                {
+                                    StatusMessage = $"Invitation resent to {ClientEmail}";
+                                    StatusMessageType = "Success";
+                                    await transaction.CommitAsync();
+                                    return RedirectToPage("./Index");
+                                }
+                                else
+                                {
+                                    StatusMessage = "Error resending invitation. Please try again.";
+                                    StatusMessageType = "Error";
+                                    await transaction.RollbackAsync();
+                                    return Page();
+                                }
+                            }
+                            else
+                            {
+                                // Reactivate the relationship
+                                var result = await _coachingService.ReactivateRelationshipAsync(existingRelationship.Id);
+                                if (result)
+                                {
+                                    StatusMessage = $"Relationship with {ClientEmail} has been reactivated.";
+                                    StatusMessageType = "Success";
+                                    await transaction.CommitAsync();
+                                    return RedirectToPage("./Index");
+                                }
+                                else
+                                {
+                                    StatusMessage = "Error reactivating relationship. Please try again.";
+                                    StatusMessageType = "Error";
+                                    await transaction.RollbackAsync();
+                                    return Page();
+                                }
+                            }
+                        }
+                    }
+
+                    // Convert permissions to List for compatibility with existing code
+                    var permissionsList = Permissions ?? new List<string>();
+                    _logger.LogInformation("Permissions selected: {Permissions}", string.Join(", ", permissionsList));
+
+                    // Create the coach-client relationship with the expiry days parameter
+                    _logger.LogInformation("Calling CreateCoachClientRelationshipAsync with coach {CoachId}, client {ClientId}, expiry {ExpiryDays}", 
+                        coachId, clientId, ExpiryDays);
+                        
+                    var relationship = await _coachingService.CreateCoachClientRelationshipAsync(coachId, clientId, ExpiryDays);
+                    
+                    if (relationship != null)
+                    {
+                        _logger.LogInformation("Relationship created with ID: {RelationshipId}", relationship.Id);
+                        
+                        // Set permissions based on form selection
+                        if (relationship.Permissions != null)
+                        {
+                            _logger.LogInformation("Setting custom permissions for relationship {RelationshipId}", relationship.Id);
+                            
+                            var permissionsToUpdate = relationship.Permissions;
+                            
+                            // Update each permission based on checkbox selection
+                            permissionsToUpdate.CanViewWorkouts = permissionsList.Contains("canViewWorkouts");
+                            permissionsToUpdate.CanCreateWorkouts = permissionsList.Contains("canCreateWorkouts");
+                            permissionsToUpdate.CanEditWorkouts = permissionsList.Contains("canEditWorkouts");
+                            permissionsToUpdate.CanDeleteWorkouts = permissionsList.Contains("canDeleteWorkouts");
+                            permissionsToUpdate.CanViewReports = permissionsList.Contains("canViewReports");
+                            permissionsToUpdate.CanCreateTemplates = permissionsList.Contains("canCreateTemplates");
+                            permissionsToUpdate.CanAssignTemplates = permissionsList.Contains("canAssignTemplates");
+                            permissionsToUpdate.CanViewPersonalInfo = permissionsList.Contains("canViewPersonalInfo");
+                            permissionsToUpdate.CanCreateGoals = permissionsList.Contains("canCreateGoals");
+                            
+                            // Save the updated permissions
+                            var permissionUpdateSuccess = await _coachingService.UpdateCoachPermissionsAsync(relationship.Id, permissionsToUpdate);
+                            _logger.LogInformation("Permission update success: {Success}", permissionUpdateSuccess);
+                        }
+
+                        // Store invitation message if provided
+                        if (!string.IsNullOrEmpty(InvitationMessage))
+                        {
+                            _logger.LogInformation("Adding invitation message to relationship {RelationshipId}", relationship.Id);
+                            
+                            // Add a note with the invitation message
+                            var note = new CoachNote
+                            {
+                                CoachClientRelationshipId = relationship.Id,
+                                Content = $"Invitation message: {InvitationMessage}",
+                                CreatedDate = DateTime.UtcNow,
+                                IsVisibleToClient = true
+                            };
+                            
+                            _context.CoachNotes.Add(note);
+                            await _context.SaveChangesAsync();
+                            _logger.LogInformation("Note added successfully");
+                        }
+
+                        // Commit the transaction
+                        await transaction.CommitAsync();
+                        _logger.LogInformation("Transaction committed successfully");
+
+                        // In a real implementation, you'd send an actual email here with the invitation token
+                        if (client == null)
+                        {
+                            // Send invitation for new user
+                            var newUser = await _userManager.FindByIdAsync(clientId);
+                            var token = await _userManager.GenerateEmailConfirmationTokenAsync(newUser);
+                            var inviteUrl = Url.Page(
+                                "/Account/RegisterFromInvite",
+                                pageHandler: null,
+                                values: new { area = "Identity", userId = clientId, token, relationshipToken = relationship.InvitationToken },
+                                protocol: Request.Scheme);
+
+                            await _emailSender.SendEmailAsync(
+                                ClientEmail,
+                                "You've been invited to join WorkoutTracker",
+                                $"You've been invited to join WorkoutTracker as a client. " +
+                                $"<a href='{HtmlEncoder.Default.Encode(inviteUrl)}'>Click here to accept the invitation and set up your account.</a>");
+                        }
+                        else
+                        {
+                            // Send invitation for existing user
+                            var inviteUrl = Url.Page(
+                                "/Account/AcceptCoachInvitation",
+                                pageHandler: null,
+                                values: new { area = "Identity", relationshipId = relationship.Id, token = relationship.InvitationToken },
+                                protocol: Request.Scheme);
+
+                            await _emailSender.SendEmailAsync(
+                                ClientEmail,
+                                "Coaching invitation",
+                                $"You have been invited to connect as a client on WorkoutTracker. " +
+                                $"<a href='{HtmlEncoder.Default.Encode(inviteUrl)}'>Click here to accept the invitation.</a>");
+                        }
+
+                        StatusMessage = $"Success: Invitation sent to {ClientEmail}.";
+                        StatusMessageType = "Success";
+                        
+                        // Add flag to switch to the Pending tab
+                        TempData["ActiveTab"] = "pending";
+                        
+                        _logger.LogInformation("=== INVITATION PROCESS COMPLETED SUCCESSFULLY ===");
+                    }
+                    else
+                    {
+                        _logger.LogError("CreateCoachClientRelationshipAsync returned null - Failed to create relationship");
+                        await transaction.RollbackAsync();
+                        StatusMessage = $"Error: Failed to create relationship with {ClientEmail}.";
+                        StatusMessageType = "Error";
+                        _logger.LogInformation("=== INVITATION PROCESS FAILED ===");
                         return Page();
                     }
-                    else if (existingRelation.Status == RelationshipStatus.Pending)
-                    {
-                        ModelState.AddModelError("", "You have already sent an invitation to this client.");
-                        return Page();
-                    }
-                    else if (existingRelation.Status == RelationshipStatus.Rejected)
-                    {
-                        // Allow resending if previously declined
-                        _logger.LogInformation("Relationship was previously rejected, creating new invitation");
-                    }
-                }
-
-                // Create or update relationship
-                _logger.LogInformation("Creating new coach-client relationship");
-                var relationship = new CoachClientRelationship
-                {
-                    CoachId = coach.Id,
-                    ClientId = clientUser.Id,
-                    CreatedDate = DateTime.UtcNow,
-                    LastModifiedDate = DateTime.UtcNow,
-                    Status = RelationshipStatus.Pending,
-                    InvitationToken = Guid.NewGuid().ToString(),
-                    InvitationExpiryDate = DateTime.UtcNow.AddDays(7)
-                };
-
-                _logger.LogInformation("Generated invitation token: {Token}", relationship.InvitationToken);
-
-                // Create default permissions
-                _logger.LogInformation("Creating default permissions for the relationship");
-                var permissions = new CoachClientPermission
-                {
-                    CanViewWorkouts = true,
-                    CanCreateWorkouts = true,
-                    CanModifyWorkouts = true,
-                    CanDeleteWorkouts = false,
-                    CanEditWorkouts = true,
-                    CanMessage = true,
-                    CanViewReports = true,
-                    CanViewPersonalInfo = true,
-                    CanCreateTemplates = true,
-                    CanAssignTemplates = true,
-                    CanCreateGoals = true,
-                    LastModifiedDate = DateTime.UtcNow
-                };
-
-                relationship.Permissions = permissions;
-
-                // Save to database
-                try 
-                {
-                    _logger.LogInformation("Attempting to add relationship to database");
-                    _context.CoachClientRelationships.Add(relationship);
-                    await _context.SaveChangesAsync();
-                    _logger.LogInformation("Successfully saved relationship with ID: {RelationshipId}", relationship.Id);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to save relationship to database");
-                    ModelState.AddModelError("", "Failed to create relationship: " + ex.Message);
+                    _logger.LogError(ex, "Error during transaction for creating relationship");
+                    await transaction.RollbackAsync();
+                    StatusMessage = $"Error: Transaction failed: {ex.Message}";
+                    StatusMessageType = "Error";
+                    _logger.LogInformation("=== INVITATION PROCESS FAILED WITH EXCEPTION ===");
                     return Page();
                 }
 
-                // Send invitation email
-                if (isNewUser)
-                {
-                    _logger.LogInformation("Sending new user invitation email to {ClientEmail}", ClientEmail);
-                    var token = await _userManager.GenerateEmailConfirmationTokenAsync(clientUser);
-                    var inviteUrl = Url.Page(
-                        "/Account/RegisterFromInvite",
-                        pageHandler: null,
-                        values: new { area = "Identity", userId = clientUser.Id, token, relationshipToken = relationship.InvitationToken },
-                        protocol: Request.Scheme);
-
-                    await _emailSender.SendEmailAsync(
-                        ClientEmail,
-                        "You've been invited to join WorkoutTracker",
-                        $"You've been invited to join WorkoutTracker as a client. " +
-                        $"<a href='{HtmlEncoder.Default.Encode(inviteUrl)}'>Click here to accept the invitation and set up your account.</a>");
-                }
-                else
-                {
-                    _logger.LogInformation("Sending existing user invitation email to {ClientEmail}", ClientEmail);
-                    var inviteUrl = Url.Page(
-                        "/Account/AcceptCoachInvitation",
-                        pageHandler: null,
-                        values: new { area = "Identity", relationshipId = relationship.Id, token = relationship.InvitationToken },
-                        protocol: Request.Scheme);
-
-                    await _emailSender.SendEmailAsync(
-                        ClientEmail,
-                        "Coaching invitation",
-                        $"You have been invited to connect as a client on WorkoutTracker. " +
-                        $"<a href='{HtmlEncoder.Default.Encode(inviteUrl)}'>Click here to accept the invitation.</a>");
-                }
-
-                _logger.LogInformation("Client invitation process completed successfully for {ClientEmail}", ClientEmail);
-                TempData["StatusMessage"] = "Invitation sent successfully to " + ClientEmail;
                 return RedirectToPage("./Index");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unhandled exception in OnPostInviteClient");
-                ModelState.AddModelError("", "An unexpected error occurred: " + ex.Message);
+                // Log the exception details
+                _logger.LogError(ex, "Unhandled exception during client invitation: {Message}", ex.Message);
+                StatusMessage = $"Error: An unexpected error occurred: {ex.Message}";
+                StatusMessageType = "Error";
+                _logger.LogInformation("=== INVITATION PROCESS FAILED WITH UNHANDLED EXCEPTION ===");
                 return Page();
             }
         }
