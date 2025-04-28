@@ -51,7 +51,7 @@
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="trainingDropdown">
                                 <li><a class="dropdown-item" asp-area="" asp-page="/Sessions/Index"><i class="bi bi-list-check me-2"></i>Workouts</a></li>
-                                <li><a class="dropdown-item" asp-area="" asp-page="/Templates/Index"><i class="bi bi-card-list me-2"></i>Templates</a></li>
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Templates/Index" asp-route-handler="" asp-page-handler=""><i class="bi bi-card-list me-2"></i>Templates</a></li>
                                 <li><a class="dropdown-item" asp-area="" asp-page="/Workouts/ScheduledWorkouts"><i class="bi bi-calendar-check me-2"></i>Scheduled Workouts</a></li>
                                 <li><a class="dropdown-item" asp-area="" asp-page="/Workouts/QuickWorkout"><i class="bi bi-stopwatch me-2"></i>Quick Workout</a></li>
                             </ul>
@@ -143,7 +143,7 @@
             <a href="/Sessions/Create" class="session-shortcut-menu-item">
                 <i class="bi bi-plus-circle"></i> New Session
             </a>
-            <a href="/Templates/Index" class="session-shortcut-menu-item">
+            <a href="/Templates" class="session-shortcut-menu-item">
                 <i class="bi bi-card-list"></i> Templates
             </a>
             <a href="/Workouts/QuickWorkout" class="session-shortcut-menu-item">
@@ -236,7 +236,7 @@
                     </a>
                 </div>
                 <div class="col-4 text-center">
-                    <a href="/Templates/Index" class="d-block p-3 mobile-menu-item">
+                    <a href="/Templates" class="d-block p-3 mobile-menu-item">
                         <i class="bi bi-card-list fs-4 d-block mb-2"></i>
                         Templates
                     </a>

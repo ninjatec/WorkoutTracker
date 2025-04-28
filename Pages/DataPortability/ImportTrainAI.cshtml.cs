@@ -17,6 +17,7 @@ using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Hubs;
 using WorkoutTrackerWeb.Services;
 using WorkoutTrackerWeb.Pages.BackgroundJobs;
+using WorkoutTrackerWeb.Models.Identity;
 
 namespace WorkoutTrackerWeb.Pages.DataPortability
 {
@@ -28,7 +29,7 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
         private readonly TrainAIImportService _importService;
         private readonly BackgroundJobService _backgroundJobService;
         private readonly IHubContext<ImportProgressHub> _hubContext;
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<AppUser> _userManager;
         private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger<ImportTrainAIModel> _logger;
         private readonly ISharedStorageService _sharedStorageService;
@@ -37,7 +38,7 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
             TrainAIImportService importService,
             BackgroundJobService backgroundJobService,
             IHubContext<ImportProgressHub> hubContext,
-            UserManager<IdentityUser> userManager,
+            UserManager<AppUser> userManager,
             WorkoutTrackerWebContext context,
             ILogger<ImportTrainAIModel> logger,
             ISharedStorageService sharedStorageService)
