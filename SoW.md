@@ -94,12 +94,12 @@
 ---
 
 [ ] Migrate Coaching Functionality to Razor Pages
- - [ ] API Endpoints Migration
-   - [ ] Identify coaching-related API endpoints in WorkoutScheduleController
-   - [ ] Move GetAvailableTemplates endpoint to Razor Page handler
-   - [ ] Update client-side code to use new Razor Page endpoints
-   - [ ] Implement proper model binding for template filtering
-   - [ ] Migrate any remaining coaching API functionality to Razor Pages
+ - [x] API Endpoints Migration
+   - [x] Identify coaching-related API endpoints in WorkoutScheduleController
+   - [x] Move GetAvailableTemplates endpoint to Razor Page handler
+   - [x] Update client-side code to use new Razor Page endpoints
+   - [x] Implement proper model binding for template filtering
+   - [x] Migrate any remaining coaching API functionality to Razor Pages
 
  - [ ] Client Management Refinement
    - [ ] Standardize all client invitation processes to use Razor Pages

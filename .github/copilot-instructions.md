@@ -2,7 +2,8 @@
 
 ## Technical Requirements
 - Use .NET Core 9
-- Use Razor Pages, not MVC
+- Use Razor Pages
+- DO NOT use MVC
 - Use Bootstrap 5
 - Use Microsoft.Data.SqlClient (not System.Data.SqlClient)
 - Only use free, open-source NuGet packages
