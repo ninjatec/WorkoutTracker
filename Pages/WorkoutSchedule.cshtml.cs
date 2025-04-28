@@ -1,16 +1,19 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
+using System.Threading.Tasks;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Models.Coaching;
-using WorkoutTrackerWeb.Services;
+using WorkoutTrackerWeb.Models.Identity;
+using WorkoutTrackerWeb.Services.Coaching;
 
 namespace WorkoutTrackerWeb.Pages
 {
@@ -18,21 +21,18 @@ namespace WorkoutTrackerWeb.Pages
     public class WorkoutScheduleModel : PageModel
     {
         private readonly WorkoutTrackerWebContext _context;
-        private readonly ILogger<WorkoutScheduleModel> _logger;
-        private readonly UserService _userService;
+        private readonly UserManager<AppUser> _userManager;
+        private readonly ICoachingService _coachingService;
 
         public WorkoutScheduleModel(
             WorkoutTrackerWebContext context,
-            ILogger<WorkoutScheduleModel> logger,
-            UserService userService)
+            UserManager<AppUser> userManager,
+            ICoachingService coachingService)
         {
             _context = context;
-            _logger = logger;
-            _userService = userService;
+            _userManager = userManager;
+            _coachingService = coachingService;
         }
-
-        [BindProperty]
-        public WorkoutScheduleViewModel ScheduleData { get; set; }
 
         [BindProperty(SupportsGet = true)]
         public int? TemplateId { get; set; }
@@ -43,253 +43,237 @@ namespace WorkoutTrackerWeb.Pages
         [BindProperty(SupportsGet = true)]
         public int? AssignmentId { get; set; }
 
-        public List<WorkoutTemplate> AvailableTemplates { get; set; }
-        public List<TemplateAssignment> AvailableAssignments { get; set; }
+        [BindProperty]
+        public ScheduleWorkoutModel ScheduleData { get; set; } = new ScheduleWorkoutModel();
+
+        public List<WorkoutTemplate> AvailableTemplates { get; set; } = new List<WorkoutTemplate>();
+        public List<TemplateAssignment> AvailableAssignments { get; set; } = new List<TemplateAssignment>();
+
+        [TempData]
+        public string StatusMessage { get; set; }
+
+        [TempData]
+        public string StatusMessageType { get; set; } = "Success";
 
         public async Task<IActionResult> OnGetAsync()
         {
-            var userId = await _userService.GetCurrentUserIdAsync();
-            if (userId == null)
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized();
+                return Forbid();
             }
 
-            // Load available templates (both user-owned and assigned by coaches)
+            // Load available templates
             AvailableTemplates = await _context.WorkoutTemplate
-                .Where(t => t.UserId == userId || t.IsPublic)
+                .Where(t => t.UserId == int.Parse(userId) || t.IsPublic)
                 .OrderBy(t => t.Name)
                 .ToListAsync();
 
-            // Load available template assignments from coaches
+            // Load available template assignments
             AvailableAssignments = await _context.TemplateAssignments
-                .Where(a => a.ClientUserId == userId && a.IsActive)
                 .Include(a => a.WorkoutTemplate)
-                .OrderBy(a => a.Name)
+                .Where(a => a.ClientUserId == int.Parse(userId) && a.IsActive)
+                .OrderBy(a => a.WorkoutTemplate.Name)
                 .ToListAsync();
 
-            // Initialize the form model
-            ScheduleData = new WorkoutScheduleViewModel
-            {
-                ScheduleDate = DateTime.Today,
-                ScheduleTime = DateTime.Now.TimeOfDay,
-                SendReminder = true,
-                ReminderHoursBefore = 3,
-                RecurrenceType = "none"
-            };
-
-            // If template or assignment ID was provided, pre-select it in the form
+            // Pre-select template or assignment if specified in query parameters
             if (TemplateId.HasValue)
             {
-                var template = await _context.WorkoutTemplate.FindAsync(TemplateId.Value);
+                ScheduleData.TemplateId = TemplateId.Value;
+                
+                // Set default name if template is found
+                var template = AvailableTemplates.FirstOrDefault(t => t.WorkoutTemplateId == TemplateId.Value);
                 if (template != null)
                 {
-                    ScheduleData.TemplateId = TemplateId.Value;
-                    ScheduleData.ScheduleName = template.Name;
+                    ScheduleData.ScheduleName = $"{template.Name} - {DateTime.Now:MMM d}";
+                }
+                else if (!string.IsNullOrEmpty(TemplateName))
+                {
+                    ScheduleData.ScheduleName = $"{TemplateName} - {DateTime.Now:MMM d}";
                 }
             }
             else if (AssignmentId.HasValue)
             {
-                var assignment = await _context.TemplateAssignments.FindAsync(AssignmentId.Value);
-                if (assignment != null)
+                ScheduleData.AssignmentId = AssignmentId.Value;
+                
+                // Set default name if assignment is found
+                var assignment = AvailableAssignments.FirstOrDefault(a => a.TemplateAssignmentId == AssignmentId.Value);
+                if (assignment != null && assignment.WorkoutTemplate != null)
                 {
-                    ScheduleData.AssignmentId = AssignmentId.Value;
-                    ScheduleData.ScheduleName = assignment.Name;
+                    ScheduleData.ScheduleName = $"{assignment.WorkoutTemplate.Name} - {DateTime.Now:MMM d}";
                 }
             }
+
+            // Set default date to today
+            ScheduleData.ScheduleDate = DateTime.Today;
+            ScheduleData.ScheduleTime = DateTime.Now.TimeOfDay;
+            ScheduleData.SendReminder = true;
+            ScheduleData.ReminderHoursBefore = 24;
 
             return Page();
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
-            if (!ModelState.IsValid)
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userId))
             {
-                await OnGetAsync(); // Reload the form data
-                return Page();
+                return Forbid();
             }
 
-            var userId = await _userService.GetCurrentUserIdAsync();
-            if (userId == null)
+            if (!ModelState.IsValid)
             {
-                return Unauthorized();
+                await LoadTemplatesAndAssignments(userId);
+                return Page();
             }
 
             try
             {
-                // Determine if this is a self-scheduled workout or a coach-assigned workout
+                // Determine if we're using a template or an assignment
+                WorkoutTemplate template = null;
+                TemplateAssignment assignment = null;
+
                 if (ScheduleData.TemplateId.HasValue)
                 {
-                    // Self-scheduled workout (user is scheduling their own workout from a template)
-                    return await CreateSelfScheduledWorkout(userId.Value);
+                    template = await _context.WorkoutTemplate
+                        .FirstOrDefaultAsync(t => t.WorkoutTemplateId == ScheduleData.TemplateId.Value && 
+                                                 (t.UserId == int.Parse(userId) || t.IsPublic));
+                    
+                    if (template == null)
+                    {
+                        ModelState.AddModelError("", "Selected template not found or not accessible");
+                        await LoadTemplatesAndAssignments(userId);
+                        return Page();
+                    }
                 }
                 else if (ScheduleData.AssignmentId.HasValue)
                 {
-                    // Coach-assigned workout (user is scheduling from a template assigned by a coach)
-                    return await CreateAssignmentWorkout(userId.Value);
+                    assignment = await _context.TemplateAssignments
+                        .Include(a => a.WorkoutTemplate)
+                        .FirstOrDefaultAsync(a => a.TemplateAssignmentId == ScheduleData.AssignmentId.Value && 
+                                                 a.ClientUserId == int.Parse(userId) && a.IsActive);
+                    
+                    if (assignment == null)
+                    {
+                        ModelState.AddModelError("", "Selected assignment not found or not accessible");
+                        await LoadTemplatesAndAssignments(userId);
+                        return Page();
+                    }
+                    
+                    template = assignment.WorkoutTemplate;
                 }
                 else
                 {
-                    ModelState.AddModelError("", "Please select a template or assignment.");
-                    await OnGetAsync(); // Reload the form data
+                    ModelState.AddModelError("", "Please select a template or assignment");
+                    await LoadTemplatesAndAssignments(userId);
                     return Page();
                 }
+
+                // Combine date and time
+                var scheduleDateTime = ScheduleData.ScheduleDate.Date.Add(ScheduleData.ScheduleTime);
+
+                // Create the workout schedule
+                var workoutSchedule = new WorkoutSchedule
+                {
+                    ClientUserId = int.Parse(userId),
+                    // Make sure CoachUserId is not assigned null
+                    CoachUserId = assignment?.CoachUserId ?? int.Parse(userId), // Default to client if no coach
+                    // Use null if template is null, otherwise use its WorkoutTemplateId
+                    TemplateId = template == null ? null : (int?)template.WorkoutTemplateId,
+                    TemplateAssignmentId = assignment?.TemplateAssignmentId,
+                    Name = ScheduleData.ScheduleName,
+                    Description = ScheduleData.Description,
+                    StartDate = scheduleDateTime,
+                    IsRecurring = ScheduleData.RecurrenceType != "none",
+                    RecurrencePattern = ScheduleData.RecurrenceType,
+                    RecurrenceDayOfWeek = ScheduleData.SelectedDaysOfWeek?.FirstOrDefault() != null ? 
+                        (int?)ScheduleData.SelectedDaysOfWeek.FirstOrDefault() : null,
+                    RecurrenceDayOfMonth = ScheduleData.RecurrenceDayOfMonth,
+                    EndDate = ScheduleData.RecurrenceEndDate,
+                    SendReminder = ScheduleData.SendReminder,
+                    ReminderHoursBefore = ScheduleData.ReminderHoursBefore,
+                    IsActive = true,
+                    ScheduledDateTime = scheduleDateTime
+                };
+
+                _context.WorkoutSchedules.Add(workoutSchedule);
+                await _context.SaveChangesAsync();
+
+                StatusMessage = "Workout scheduled successfully!";
+                StatusMessageType = "Success";
+                
+                return RedirectToPage("/Workouts/Index");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, $"Error creating workout schedule for user {userId}");
-                ModelState.AddModelError("", $"Error creating schedule: {ex.Message}");
-                await OnGetAsync(); // Reload the form data
+                ModelState.AddModelError("", $"Error scheduling workout: {ex.Message}");
+                await LoadTemplatesAndAssignments(userId);
                 return Page();
             }
         }
 
-        private async Task<IActionResult> CreateSelfScheduledWorkout(int userId)
+        private async Task LoadTemplatesAndAssignments(string userId)
         {
-            // Validate template exists and belongs to the user
-            var template = await _context.WorkoutTemplate
-                .FirstOrDefaultAsync(t => t.WorkoutTemplateId == ScheduleData.TemplateId && 
-                                        (t.UserId == userId || t.IsPublic));
+            // Load available templates
+            AvailableTemplates = await _context.WorkoutTemplate
+                .Where(t => t.UserId == int.Parse(userId) || t.IsPublic)
+                .OrderBy(t => t.Name)
+                .ToListAsync();
 
-            if (template == null)
-            {
-                ModelState.AddModelError("", "Template not found or you don't have access to it");
-                await OnGetAsync(); // Reload the form data
-                return Page();
-            }
-
-            // Parse schedule date and time
-            var scheduledDateTime = ScheduleData.ScheduleDate.Add(ScheduleData.ScheduleTime);
-
-            // Create the workout schedule
-            var workoutSchedule = new WorkoutSchedule
-            {
-                ClientUserId = userId,
-                CoachUserId = userId, // Self-scheduling, so the user is both client and coach
-                Name = string.IsNullOrEmpty(ScheduleData.ScheduleName) ? template.Name : ScheduleData.ScheduleName,
-                Description = ScheduleData.Description ?? string.Empty,
-                StartDate = ScheduleData.ScheduleDate,
-                ScheduledDateTime = scheduledDateTime,
-                IsActive = true
-            };
-
-            // Set template information
-            workoutSchedule.TemplateId = template.WorkoutTemplateId;
-
-            // Handle recurrence pattern
-            ConfigureRecurrencePattern(workoutSchedule);
-
-            // Add reminder settings
-            workoutSchedule.SendReminder = ScheduleData.SendReminder;
-            workoutSchedule.ReminderHoursBefore = ScheduleData.ReminderHoursBefore;
-
-            _context.WorkoutSchedules.Add(workoutSchedule);
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation($"User {userId} created self-scheduled workout {workoutSchedule.WorkoutScheduleId}");
-
-            TempData["SuccessMessage"] = "Workout schedule created successfully!";
-            return RedirectToPage("/Workouts/Calendar");
-        }
-
-        private async Task<IActionResult> CreateAssignmentWorkout(int userId)
-        {
-            // Validate template assignment exists and belongs to the user
-            var assignment = await _context.TemplateAssignments
-                .FirstOrDefaultAsync(a => a.TemplateAssignmentId == ScheduleData.AssignmentId && 
-                                       a.ClientUserId == userId && 
-                                       a.IsActive);
-
-            if (assignment == null)
-            {
-                ModelState.AddModelError("", "Template assignment not found or inactive");
-                await OnGetAsync(); // Reload the form data
-                return Page();
-            }
-
-            // Parse schedule date and time
-            var scheduledDateTime = ScheduleData.ScheduleDate.Add(ScheduleData.ScheduleTime);
-
-            // Create the workout schedule
-            var workoutSchedule = new WorkoutSchedule
-            {
-                TemplateAssignmentId = ScheduleData.AssignmentId,
-                ClientUserId = userId,
-                CoachUserId = assignment.CoachUserId,
-                Name = string.IsNullOrEmpty(ScheduleData.ScheduleName) ? assignment.Name : ScheduleData.ScheduleName,
-                Description = ScheduleData.Description ?? string.Empty,
-                StartDate = ScheduleData.ScheduleDate,
-                ScheduledDateTime = scheduledDateTime,
-                IsActive = true
-            };
-
-            // Handle recurrence pattern
-            ConfigureRecurrencePattern(workoutSchedule);
-
-            // Add reminder settings
-            workoutSchedule.SendReminder = ScheduleData.SendReminder;
-            workoutSchedule.ReminderHoursBefore = ScheduleData.ReminderHoursBefore;
-
-            _context.WorkoutSchedules.Add(workoutSchedule);
-            await _context.SaveChangesAsync();
-
-            _logger.LogInformation($"User {userId} created assignment workout schedule {workoutSchedule.WorkoutScheduleId}");
-
-            TempData["SuccessMessage"] = "Workout schedule created successfully!";
-            return RedirectToPage("/Workouts/Calendar");
-        }
-
-        private void ConfigureRecurrencePattern(WorkoutSchedule workoutSchedule)
-        {
-            if (!string.IsNullOrEmpty(ScheduleData.RecurrenceType) && ScheduleData.RecurrenceType != "none")
-            {
-                workoutSchedule.IsRecurring = true;
-                workoutSchedule.RecurrencePattern = ScheduleData.RecurrenceType;
-                
-                // Set recurrence end date if provided
-                if (ScheduleData.RecurrenceEndDate.HasValue)
-                {
-                    workoutSchedule.EndDate = ScheduleData.RecurrenceEndDate;
-                }
-
-                // For weekly recurrence, set the day of week
-                if (ScheduleData.RecurrenceType == "weekly" || ScheduleData.RecurrenceType == "biweekly")
-                {
-                    workoutSchedule.RecurrenceDayOfWeek = (int)ScheduleData.ScheduleDate.DayOfWeek;
-                    
-                    // Handle specific days of week selection if provided
-                    if (ScheduleData.SelectedDaysOfWeek != null && ScheduleData.SelectedDaysOfWeek.Any())
-                    {
-                        workoutSchedule.RecurrenceDayOfWeek = (int)Enum.Parse<DayOfWeek>(ScheduleData.SelectedDaysOfWeek.First());
-                    }
-                }
-                // For monthly recurrence, set the day of month
-                else if (ScheduleData.RecurrenceType == "monthly")
-                {
-                    workoutSchedule.RecurrenceDayOfMonth = ScheduleData.ScheduleDate.Day;
-                    
-                    // Handle specific day of month if provided
-                    if (ScheduleData.RecurrenceDayOfMonth.HasValue)
-                    {
-                        workoutSchedule.RecurrenceDayOfMonth = ScheduleData.RecurrenceDayOfMonth.Value;
-                    }
-                }
-            }
+            // Load available template assignments
+            AvailableAssignments = await _context.TemplateAssignments
+                .Include(a => a.WorkoutTemplate)
+                .Where(a => a.ClientUserId == int.Parse(userId) && a.IsActive)
+                .OrderBy(a => a.WorkoutTemplate.Name)
+                .ToListAsync();
         }
     }
 
-    public class WorkoutScheduleViewModel
+    public class ScheduleWorkoutModel
     {
+        [Display(Name = "Template")]
         public int? TemplateId { get; set; }
+        
+        [Display(Name = "Assignment")]
         public int? AssignmentId { get; set; }
+        
+        [Required]
+        [Display(Name = "Schedule Name")]
+        [StringLength(100, MinimumLength = 3)]
         public string ScheduleName { get; set; }
+        
+        [Display(Name = "Description")]
+        [StringLength(500)]
         public string Description { get; set; }
+        
+        [Required]
+        [Display(Name = "Date")]
+        [DataType(DataType.Date)]
         public DateTime ScheduleDate { get; set; }
+        
+        [Required]
+        [Display(Name = "Time")]
+        [DataType(DataType.Time)]
         public TimeSpan ScheduleTime { get; set; }
-        public string RecurrenceType { get; set; }
-        public DateTime? RecurrenceEndDate { get; set; }
-        public List<string> SelectedDaysOfWeek { get; set; }
+        
+        [Display(Name = "Recurrence Type")]
+        public string RecurrenceType { get; set; } = "none";
+        
+        [Display(Name = "Days of Week")]
+        public List<DayOfWeek> SelectedDaysOfWeek { get; set; }
+        
+        [Display(Name = "Day of Month")]
         public int? RecurrenceDayOfMonth { get; set; }
-        public bool SendReminder { get; set; }
-        public int ReminderHoursBefore { get; set; }
+        
+        [Display(Name = "End Date")]
+        [DataType(DataType.Date)]
+        public DateTime? RecurrenceEndDate { get; set; }
+        
+        [Display(Name = "Send Reminder")]
+        public bool SendReminder { get; set; } = true;
+        
+        [Display(Name = "Reminder Hours Before")]
+        [Range(1, 72)]
+        public int ReminderHoursBefore { get; set; } = 24;
     }
 }

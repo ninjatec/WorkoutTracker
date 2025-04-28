@@ -4,244 +4,253 @@
     ViewData["Title"] = "Schedule Workout";
 }
 
-<div class="container-fluid">
-    <h1>Schedule Workout</h1>
+<div class="container mt-4">
+    <h1>Schedule a Workout</h1>
     
-    <form method="post">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h4>Schedule Workout Session</h4>
-            </div>
-            <div class="card-body">
+    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+    {
+        <div class="alert alert-@(Model.StatusMessageType == "Success" ? "success" : "danger") alert-dismissible fade show mb-3" role="alert">
+            @Model.StatusMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>Schedule Workout from Template</h4>
+        </div>
+        <div class="card-body">
+            <form method="post">
                 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                 
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label>Template/Assignment:</label>
-                            <div class="form-check">
-                                <input type="radio" id="useTemplate" name="templateType" class="form-check-input" 
-                                       checked="@(Model.TemplateId.HasValue)">
-                                <label class="form-check-label" for="useTemplate">Use my template</label>
-                            </div>
-                            <select id="templateSelector" class="form-select mt-2" 
-                                    asp-for="ScheduleData.TemplateId"
-                                    asp-items="@(new SelectList(Model.AvailableTemplates, "WorkoutTemplateId", "Name"))">
-                                <option value="">-- Select Template --</option>
-                            </select>
-                            
-                            <div class="form-check mt-3">
-                                <input type="radio" id="useAssignment" name="templateType" class="form-check-input"
-                                       checked="@(Model.AssignmentId.HasValue)">
-                                <label class="form-check-label" for="useAssignment">Use coach assignment</label>
-                            </div>
-                            <select id="assignmentSelector" class="form-select mt-2"
-                                    asp-for="ScheduleData.AssignmentId"
-                                    asp-items="@(new SelectList(Model.AvailableAssignments, "TemplateAssignmentId", "Name"))">
-                                <option value="">-- Select Assignment --</option>
+                            <label asp-for="ScheduleData.TemplateId" class="form-label">Select Template</label>
+                            <select asp-for="ScheduleData.TemplateId" class="form-select" id="templateSelector">
+                                <option value="">-- Select a template --</option>
+                                @foreach (var template in Model.AvailableTemplates)
+                                {
+                                    <option value="@template.WorkoutTemplateId">@template.Name</option>
+                                }
                             </select>
                         </div>
                     </div>
-                    
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label asp-for="ScheduleData.ScheduleName">Schedule Name:</label>
-                            <input asp-for="ScheduleData.ScheduleName" class="form-control" />
-                            <span asp-validation-for="ScheduleData.ScheduleName" class="text-danger"></span>
-                        </div>
-                        
-                        <div class="form-group mt-3">
-                            <label asp-for="ScheduleData.Description">Description (optional):</label>
-                            <textarea asp-for="ScheduleData.Description" class="form-control" rows="2"></textarea>
+                            <label asp-for="ScheduleData.AssignmentId" class="form-label">Or Select Assigned Template</label>
+                            <select asp-for="ScheduleData.AssignmentId" class="form-select" id="assignmentSelector">
+                                <option value="">-- Select an assigned template --</option>
+                                @foreach (var assignment in Model.AvailableAssignments)
+                                {
+                                    <option value="@assignment.TemplateAssignmentId">@assignment.WorkoutTemplate.Name</option>
+                                }
+                            </select>
                         </div>
                     </div>
                 </div>
                 
-                <hr>
+                <hr class="my-4" />
                 
                 <div class="row mb-3">
                     <div class="col-md-6">
-                        <h5>Schedule Date & Time</h5>
                         <div class="form-group">
-                            <label asp-for="ScheduleData.ScheduleDate">Date:</label>
-                            <input asp-for="ScheduleData.ScheduleDate" type="date" class="form-control" />
+                            <label asp-for="ScheduleData.ScheduleName" class="form-label"></label>
+                            <input asp-for="ScheduleData.ScheduleName" class="form-control" />
+                            <span asp-validation-for="ScheduleData.ScheduleName" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="ScheduleData.Description" class="form-label"></label>
+                            <textarea asp-for="ScheduleData.Description" class="form-control" rows="2"></textarea>
+                            <span asp-validation-for="ScheduleData.Description" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="ScheduleData.ScheduleDate" class="form-label"></label>
+                            <input asp-for="ScheduleData.ScheduleDate" class="form-control" type="date" />
                             <span asp-validation-for="ScheduleData.ScheduleDate" class="text-danger"></span>
                         </div>
-                        
-                        <div class="form-group mt-3">
-                            <label asp-for="ScheduleData.ScheduleTime">Time:</label>
-                            <input asp-for="ScheduleData.ScheduleTime" type="time" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label asp-for="ScheduleData.ScheduleTime" class="form-label"></label>
+                            <input asp-for="ScheduleData.ScheduleTime" class="form-control" type="time" />
                             <span asp-validation-for="ScheduleData.ScheduleTime" class="text-danger"></span>
                         </div>
                     </div>
-                    
-                    <div class="col-md-6">
-                        <h5>Recurrence</h5>
-                        <div class="form-group">
-                            <label>Recurrence Pattern:</label>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="ScheduleData.RecurrenceType" 
-                                       id="recurrenceNone" value="none" checked>
-                                <label class="form-check-label" for="recurrenceNone">
-                                    Once (no recurrence)
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="ScheduleData.RecurrenceType" 
-                                       id="recurrenceDaily" value="daily">
-                                <label class="form-check-label" for="recurrenceDaily">
-                                    Daily
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="ScheduleData.RecurrenceType" 
-                                       id="recurrenceWeekly" value="weekly">
-                                <label class="form-check-label" for="recurrenceWeekly">
-                                    Weekly
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="ScheduleData.RecurrenceType" 
-                                       id="recurrenceBiweekly" value="biweekly">
-                                <label class="form-check-label" for="recurrenceBiweekly">
-                                    Bi-weekly
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="ScheduleData.RecurrenceType" 
-                                       id="recurrenceMonthly" value="monthly">
-                                <label class="form-check-label" for="recurrenceMonthly">
-                                    Monthly
-                                </label>
-                            </div>
-                        </div>
-                        
-                        <div id="weeklyDaysOptions" class="mt-3 d-none">
-                            <label>Day of week:</label>
-                            <div class="d-flex flex-wrap">
-                                @foreach (var day in Enum.GetNames(typeof(DayOfWeek)))
-                                {
-                                    <div class="form-check me-3">
-                                        <input class="form-check-input" type="checkbox" name="ScheduleData.SelectedDaysOfWeek" 
-                                               id="day@(day)" value="@day">
-                                        <label class="form-check-label" for="day@(day)">@day</label>
-                                    </div>
-                                }
-                            </div>
-                        </div>
-                        
-                        <div id="monthlyDayOptions" class="mt-3 d-none">
-                            <label>Day of month:</label>
-                            <select class="form-select" name="ScheduleData.RecurrenceDayOfMonth">
-                                @for (int i = 1; i <= 31; i++)
-                                {
-                                    <option value="@i">@i</option>
-                                }
-                            </select>
-                        </div>
-                        
-                        <div id="recurrenceEndDateContainer" class="mt-3 d-none">
-                            <label asp-for="ScheduleData.RecurrenceEndDate">End date (optional):</label>
-                            <input asp-for="ScheduleData.RecurrenceEndDate" type="date" class="form-control" />
-                        </div>
-                    </div>
                 </div>
                 
-                <hr>
-                
-                <div class="row">
-                    <div class="col-md-6">
-                        <h5>Reminders</h5>
+                <div class="row mb-3">
+                    <div class="col-12">
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" asp-for="ScheduleData.SendReminder" id="sendReminder">
-                            <label class="form-check-label" for="sendReminder">
-                                Send reminder
+                            <input class="form-check-input" type="checkbox" id="scheduleWorkouts" checked="checked">
+                            <label class="form-check-label" for="scheduleWorkouts">
+                                Set up recurring schedule
                             </label>
                         </div>
-                        
-                        <div id="reminderOptions" class="mt-3">
-                            <label>Remind me</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" asp-for="ScheduleData.ReminderHoursBefore" min="1" max="72">
-                                <span class="input-group-text">hours before</span>
+                    </div>
+                </div>
+                
+                <div id="schedulingOptions" class="mb-3">
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Recurrence Pattern</h5>
+                            
+                            <div class="mb-3">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="ScheduleData.RecurrenceType" id="recurrenceNone" value="none" checked>
+                                    <label class="form-check-label" for="recurrenceNone">
+                                        No recurrence (one-time only)
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="ScheduleData.RecurrenceType" id="recurrenceDaily" value="Daily">
+                                    <label class="form-check-label" for="recurrenceDaily">
+                                        Daily
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="ScheduleData.RecurrenceType" id="recurrenceWeekly" value="Weekly">
+                                    <label class="form-check-label" for="recurrenceWeekly">
+                                        Weekly
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="ScheduleData.RecurrenceType" id="recurrenceMonthly" value="Monthly">
+                                    <label class="form-check-label" for="recurrenceMonthly">
+                                        Monthly
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div id="weeklyDaysOptions" class="mb-3 d-none">
+                                <label class="form-label">Select days of week:</label>
+                                <div class="row">
+                                    @foreach (var day in Enum.GetValues(typeof(DayOfWeek)))
+                                    {
+                                        <div class="col-auto">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" 
+                                                       id="day@(day)" 
+                                                       name="ScheduleData.SelectedDaysOfWeek" 
+                                                       value="@day">
+                                                <label class="form-check-label" for="day@(day)">
+                                                    @day
+                                                </label>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                            
+                            <div id="monthlyDayOptions" class="mb-3 d-none">
+                                <label asp-for="ScheduleData.RecurrenceDayOfMonth" class="form-label">Day of month:</label>
+                                <select asp-for="ScheduleData.RecurrenceDayOfMonth" class="form-select w-auto">
+                                    @for (int i = 1; i <= 31; i++)
+                                    {
+                                        <option value="@i">@i</option>
+                                    }
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label asp-for="ScheduleData.RecurrenceEndDate" class="form-label">End Date:</label>
+                                <input asp-for="ScheduleData.RecurrenceEndDate" class="form-control" type="date" />
+                                <span asp-validation-for="ScheduleData.RecurrenceEndDate" class="text-danger"></span>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <div class="card-footer">
-                <button type="submit" class="btn btn-primary">Schedule Workout</button>
-                <a href="/WorkoutTemplates" class="btn btn-secondary">Cancel</a>
-            </div>
+                
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input asp-for="ScheduleData.SendReminder" class="form-check-input" id="sendReminder" />
+                            <label asp-for="ScheduleData.SendReminder" class="form-check-label"></label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="reminderOptions" class="mb-3">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label asp-for="ScheduleData.ReminderHoursBefore" class="form-label"></label>
+                                <input asp-for="ScheduleData.ReminderHoursBefore" class="form-control" type="number" min="1" max="72" />
+                                <span asp-validation-for="ScheduleData.ReminderHoursBefore" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">Schedule Workout</button>
+                        <a asp-page="/Workouts/Index" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </div>
+            </form>
         </div>
-    </form>
+    </div>
 </div>
 
 @section Scripts {
+    <partial name="_ValidationScriptsPartial" />
     <script>
         $(document).ready(function() {
-            // Handle template/assignment selection
-            $('#useTemplate, #useAssignment').on('change', function() {
-                if ($('#useTemplate').is(':checked')) {
-                    $('#templateSelector').prop('disabled', false);
-                    $('#assignmentSelector').prop('disabled', true).val('');
-                } else {
-                    $('#templateSelector').prop('disabled', true).val('');
-                    $('#assignmentSelector').prop('disabled', false);
+            // Template and assignment selectors are mutually exclusive
+            $('#templateSelector').on('change', function() {
+                if ($(this).val()) {
+                    $('#assignmentSelector').val('');
                 }
             });
             
-            // Trigger initial state
-            if ($('#ScheduleData_TemplateId').val()) {
-                $('#useTemplate').prop('checked', true);
-                $('#assignmentSelector').prop('disabled', true).val('');
-            } else if ($('#ScheduleData_AssignmentId').val()) {
-                $('#useAssignment').prop('checked', true);
-                $('#templateSelector').prop('disabled', true).val('');
-            } else {
-                $('#useTemplate').prop('checked', true);
-                $('#assignmentSelector').prop('disabled', true);
-            }
+            $('#assignmentSelector').on('change', function() {
+                if ($(this).val()) {
+                    $('#templateSelector').val('');
+                }
+            });
             
-            // Handle recurrence pattern selection
+            // Toggle scheduling options
+            $('#scheduleWorkouts').on('change', function() {
+                if ($(this).prop('checked')) {
+                    $('#schedulingOptions').removeClass('d-none');
+                } else {
+                    $('#schedulingOptions').addClass('d-none');
+                    $('#recurrenceNone').prop('checked', true);
+                }
+            });
+            
+            // Toggle recurrence pattern options
             $('input[name="ScheduleData.RecurrenceType"]').on('change', function() {
                 var pattern = $('input[name="ScheduleData.RecurrenceType"]:checked').val();
                 
-                if (pattern === 'none') {
-                    $('#recurrenceEndDateContainer').addClass('d-none');
+                if (pattern === 'Weekly') {
+                    $('#weeklyDaysOptions').removeClass('d-none');
+                    $('#monthlyDayOptions').addClass('d-none');
+                } else if (pattern === 'Monthly') {
+                    $('#weeklyDaysOptions').addClass('d-none');
+                    $('#monthlyDayOptions').removeClass('d-none');
+                } else {
                     $('#weeklyDaysOptions').addClass('d-none');
                     $('#monthlyDayOptions').addClass('d-none');
-                } else {
-                    $('#recurrenceEndDateContainer').removeClass('d-none');
-                    
-                    if (pattern === 'weekly' || pattern === 'biweekly') {
-                        $('#weeklyDaysOptions').removeClass('d-none');
-                        $('#monthlyDayOptions').addClass('d-none');
-                    } else if (pattern === 'monthly') {
-                        $('#monthlyDayOptions').removeClass('d-none');
-                        $('#weeklyDaysOptions').addClass('d-none');
-                    } else {
-                        $('#weeklyDaysOptions').addClass('d-none');
-                        $('#monthlyDayOptions').addClass('d-none');
-                    }
                 }
             });
             
-            // Handle reminder toggle
+            // Toggle reminder options
             $('#sendReminder').on('change', function() {
-                if ($(this).is(':checked')) {
+                if ($(this).prop('checked')) {
                     $('#reminderOptions').removeClass('d-none');
                 } else {
                     $('#reminderOptions').addClass('d-none');
                 }
             });
-            
-            // Set initial state for reminders
-            if (!$('#sendReminder').is(':checked')) {
-                $('#reminderOptions').addClass('d-none');
-            }
         });
     </script>
-    
-    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
 }

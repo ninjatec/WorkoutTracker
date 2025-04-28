@@ -1,0 +1,244 @@
+@page
+@model WorkoutTrackerWeb.Pages.TemplatesModel
+@{
+    ViewData["Title"] = "Workout Templates";
+}
+
+<div class="container mt-4">
+    <h1>Workout Templates</h1>
+    
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="input-group">
+                <input type="text" id="searchInput" class="form-control" placeholder="Search templates..." 
+                       value="@Model.SearchTerm">
+                <button class="btn btn-outline-primary" type="button" id="searchButton">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <select id="categoryFilter" class="form-select">
+                <option value="">All Categories</option>
+                @foreach (var category in Model.Categories)
+                {
+                    <option value="@category" selected="@(category == Model.Category)">@category</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="includePublicTemplates" 
+                       @(Model.IncludePublic ? "checked" : "")>
+                <label class="form-check-label" for="includePublicTemplates">Include public templates</label>
+            </div>
+        </div>
+        <div class="col-md-2 text-end">
+            <a href="/Templates/Create" class="btn btn-success">
+                <i class="fas fa-plus"></i> New Template
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <ul class="nav nav-tabs card-header-tabs" id="templateTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active text-dark" id="my-templates-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#my-templates" type="button" role="tab" 
+                                    aria-controls="my-templates" aria-selected="true">
+                                My Templates
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link text-dark" id="assigned-templates-tab" data-bs-toggle="tab" 
+                                    data-bs-target="#assigned-templates" type="button" role="tab" 
+                                    aria-controls="assigned-templates" aria-selected="false">
+                                Assigned Templates <span class="badge bg-info">@Model.AssignedTemplates.Count</span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="templateTabsContent">
+                        <!-- My Templates Tab -->
+                        <div class="tab-pane fade show active" id="my-templates" role="tabpanel" 
+                             aria-labelledby="my-templates-tab">
+                            @if (Model.Templates.Any())
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover" id="templatesTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Description</th>
+                                                <th>Category</th>
+                                                <th>Visibility</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var template in Model.Templates)
+                                            {
+                                                <tr data-category="@template.Category" data-public="@template.IsPublic">
+                                                    <td>@template.Name</td>
+                                                    <td>@template.Description</td>
+                                                    <td>@template.Category</td>
+                                                    <td>
+                                                        @if (template.IsPublic)
+                                                        {
+                                                            <span class="badge bg-info">Public</span>
+                                                        }
+                                                        else if (template.UserId.ToString() == User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)
+                                                        {
+                                                            <span class="badge bg-primary">Private</span>
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        <div class="btn-group" role="group">
+                                                            <a href="/Templates/Details?id=@template.WorkoutTemplateId" 
+                                                               class="btn btn-sm btn-primary">
+                                                                <i class="fas fa-eye"></i>
+                                                            </a>
+                                                            @if (template.UserId.ToString() == User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)
+                                                            {
+                                                                <a href="/Templates/Edit?id=@template.WorkoutTemplateId" 
+                                                                   class="btn btn-sm btn-secondary">
+                                                                    <i class="fas fa-edit"></i>
+                                                                </a>
+                                                            }
+                                                            <a href="/WorkoutSchedule?templateId=@template.WorkoutTemplateId&templateName=@template.Name" 
+                                                               class="btn btn-sm btn-success">
+                                                                <i class="fas fa-calendar-plus"></i> Schedule
+                                                            </a>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-info">
+                                    No templates found. <a href="/Templates/Create">Create a new template</a> to get started.
+                                </div>
+                            }
+                        </div>
+                        
+                        <!-- Assigned Templates Tab -->
+                        <div class="tab-pane fade" id="assigned-templates" role="tabpanel" 
+                             aria-labelledby="assigned-templates-tab">
+                            @if (Model.AssignedTemplates.Any())
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-hover" id="assignedTemplatesTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Description</th>
+                                                <th>Category</th>
+                                                <th>Assigned By</th>
+                                                <th>Assigned Date</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var assignment in Model.AssignedTemplates)
+                                            {
+                                                <tr>
+                                                    <td>@assignment.WorkoutTemplate.Name</td>
+                                                    <td>@assignment.WorkoutTemplate.Description</td>
+                                                    <td>@assignment.WorkoutTemplate.Category</td>
+                                                    <td>@(assignment.Coach?.Name ?? "Coach")</td>
+                                                    <td>@assignment.AssignedDate.ToString("MMM d, yyyy")</td>
+                                                    <td>
+                                                        <div class="btn-group" role="group">
+                                                            <a href="/Templates/Details?id=@assignment.WorkoutTemplateId" 
+                                                               class="btn btn-sm btn-primary">
+                                                                <i class="fas fa-eye"></i>
+                                                            </a>
+                                                            <a href="/WorkoutSchedule?assignmentId=@assignment.TemplateAssignmentId" 
+                                                               class="btn btn-sm btn-success">
+                                                                <i class="fas fa-calendar-plus"></i> Schedule
+                                                            </a>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-info">
+                                    No templates have been assigned to you by a coach yet.
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Initialize DataTables
+            const templatesTable = $('#templatesTable').DataTable({
+                responsive: true,
+                "dom": '<"top"f>rt<"bottom"lip><"clear">',
+                "language": {
+                    "search": "Filter results:",
+                    "searchPlaceholder": "Type to filter..."
+                }
+            });
+            
+            const assignedTemplatesTable = $('#assignedTemplatesTable').DataTable({
+                responsive: true,
+                "dom": '<"top"f>rt<"bottom"lip><"clear">',
+                "language": {
+                    "search": "Filter results:",
+                    "searchPlaceholder": "Type to filter..."
+                }
+            });
+            
+            // Handle search button click
+            $('#searchButton').on('click', function() {
+                applyFilters();
+            });
+            
+            // Handle pressing Enter in search input
+            $('#searchInput').on('keypress', function(e) {
+                if (e.which === 13) {
+                    applyFilters();
+                }
+            });
+            
+            // Handle category filter change
+            $('#categoryFilter').on('change', function() {
+                applyFilters();
+            });
+            
+            // Handle public templates toggle
+            $('#includePublicTemplates').on('change', function() {
+                applyFilters();
+            });
+            
+            function applyFilters() {
+                const searchTerm = $('#searchInput').val();
+                const category = $('#categoryFilter').val();
+                const includePublic = $('#includePublicTemplates').is(':checked');
+                
+                // Redirect with filter parameters
+                window.location.href = `/Templates?SearchTerm=${encodeURIComponent(searchTerm)}&Category=${encodeURIComponent(category)}&IncludePublic=${includePublic}`;
+            }
+        });
+    </script>
+}
