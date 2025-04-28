@@ -9,7 +9,7 @@
     <div class="col-md-12">
         <div class="d-flex justify-content-between align-items-center">
             <h4><i class="bi bi-people-fill me-2"></i>My Clients</h4>
-            <a href="./Invite" class="btn btn-primary">
+            <a href="/Coach/Clients/Invite" class="btn btn-primary">
                 <i class="bi bi-person-plus-fill me-2"></i>Invite New Client
             </a>
         </div>
@@ -387,11 +387,11 @@
 @section Scripts {
     <script>
         $(document).ready(function() {
-            // Open invite accordion if showInvite parameter is true
+            // Redirect to the dedicated Invite page when showInvite=true
             @if (Model.ShowInvite)
             {
                 <text>
-                    $("#inviteClientAccordion").collapse("show");
+                    window.location.href = "@Url.Page("./Invite")";
                 </text>
             }
             
