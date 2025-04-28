@@ -79,7 +79,7 @@ namespace WorkoutTrackerWeb.Pages.TemplateAssignments
                     .Join(_context.User,
                         r => r.ClientId,
                         u => u.UserId.ToString(),
-                        (r, u) => new { r.Id, u.UserId, Name = u.Name })
+                        (r, u) => new { UserId = u.UserId, Name = u.Name })
                     .OrderBy(c => c.Name)
                     .ToListAsync();
 
@@ -252,7 +252,7 @@ namespace WorkoutTrackerWeb.Pages.TemplateAssignments
                     .Join(_context.User,
                         r => r.ClientId,
                         u => u.UserId.ToString(),
-                        (r, u) => new { r.Id, u.UserId, Name = u.Name })
+                        (r, u) => new { UserId = u.UserId, Name = u.Name })
                     .OrderBy(c => c.Name)
                     .ToListAsync();
 

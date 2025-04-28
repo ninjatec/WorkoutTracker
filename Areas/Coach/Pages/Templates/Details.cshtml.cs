@@ -21,7 +21,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
 {
     [Area("Coach")]
     [CoachAuthorize]
-    [OutputCache(Duration = 300, VaryByQueryKeys = new[] { "id" })]
+    [OutputCache(Duration = 60, VaryByQueryKeys = new[] { "id" })]
     public class DetailsModel : PageModel
     {
         private readonly WorkoutTrackerWebContext _context;
@@ -50,6 +50,15 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
 
         public async Task<IActionResult> OnGetAsync(int id)
         {
+            var coachId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(coachId))
+            {
+                return Forbid();
+            }
+            
+            // Add a cache vary header based on the coach ID to ensure each coach gets a unique cache entry
+            Response.Headers.Add("Cache-Vary-By-User", coachId);
+
             var workoutTemplate = await _context.WorkoutTemplate
                 .Include(t => t.TemplateExercises.OrderBy(e => e.SequenceNum))
                 .ThenInclude(e => e.ExerciseType)
@@ -63,12 +72,6 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
             if (workoutTemplate == null)
             {
                 return NotFound();
-            }
-
-            var coachId = _userManager.GetUserId(User);
-            if (string.IsNullOrEmpty(coachId))
-            {
-                return Forbid();
             }
 
             // Check if the template belongs to this coach or is public

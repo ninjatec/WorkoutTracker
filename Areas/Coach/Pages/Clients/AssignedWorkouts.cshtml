@@ -12,7 +12,7 @@
             <a asp-page="./AssignWorkout" asp-route-clientId="@Model.ClientId" class="btn btn-primary">
                 <i class="fas fa-plus"></i> Assign Workout
             </a>
-            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#scheduleWorkoutModal">
+            <button type="button" class="btn btn-success" data-bs-toggle="collapse" data-bs-target="#scheduleWorkoutAccordion" aria-expanded="false" aria-controls="scheduleWorkoutAccordion">
                 <i class="fas fa-calendar-plus"></i> Schedule Workout
             </button>
         </div>
@@ -33,6 +33,144 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     }
+
+    <!-- Schedule Workout Accordion -->
+    <div class="collapse mb-4" id="scheduleWorkoutAccordion">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Schedule Workout</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" asp-page-handler="ScheduleWorkout" id="scheduleWorkoutForm">
+                    <input type="hidden" id="clientIdInput" name="clientId" value="@Model.ClientId" />
+                    <input type="hidden" id="templateIdInput" name="templateId" value="" />
+                    <input type="hidden" id="assignmentIdInput" name="assignmentId" value="" />
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="scheduleName" class="form-label">Schedule Name</label>
+                                <input type="text" class="form-control" id="scheduleName" name="name" required />
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="scheduleDescription" class="form-label">Description</label>
+                                <textarea class="form-control" id="scheduleDescription" name="description" rows="2"></textarea>
+                            </div>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="scheduleDate" class="form-label">Date</label>
+                                    <input type="date" class="form-control" id="scheduleDate" name="scheduleDate" required />
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="scheduleTime" class="form-label">Time</label>
+                                    <input type="time" class="form-control" id="scheduleTime" name="scheduleTime" value="17:00" required />
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="endDate" class="form-label">End Date (optional for recurring)</label>
+                                <input type="date" class="form-control" id="endDate" name="endDate" />
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Recurrence</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="recurrencePattern" value="Once" id="recurrenceOnce" checked 
+                                           onchange="toggleRecurrenceOptions()" />
+                                    <label class="form-check-label" for="recurrenceOnce">
+                                        One-time workout
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="recurrencePattern" value="Daily" id="recurrenceDaily" 
+                                           onchange="toggleRecurrenceOptions()" />
+                                    <label class="form-check-label" for="recurrenceDaily">
+                                        Daily
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="recurrencePattern" value="Weekly" id="recurrenceWeekly" 
+                                           onchange="toggleRecurrenceOptions()" />
+                                    <label class="form-check-label" for="recurrenceWeekly">
+                                        Weekly
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="recurrencePattern" value="BiWeekly" id="recurrenceBiWeekly" 
+                                           onchange="toggleRecurrenceOptions()" />
+                                    <label class="form-check-label" for="recurrenceBiWeekly">
+                                        Bi-Weekly
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="recurrencePattern" value="Monthly" id="recurrenceMonthly" 
+                                           onchange="toggleRecurrenceOptions()" />
+                                    <label class="form-check-label" for="recurrenceMonthly">
+                                        Monthly
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div id="weeklyOptions" class="mb-3" style="display: none;">
+                                <label for="dayOfWeek" class="form-label">Day of Week</label>
+                                <select id="dayOfWeek" name="dayOfWeek" class="form-select">
+                                    <option value="0">Sunday</option>
+                                    <option value="1">Monday</option>
+                                    <option value="2">Tuesday</option>
+                                    <option value="3">Wednesday</option>
+                                    <option value="4">Thursday</option>
+                                    <option value="5">Friday</option>
+                                    <option value="6">Saturday</option>
+                                </select>
+                            </div>
+                            
+                            <div id="monthlyOptions" class="mb-3" style="display: none;">
+                                <label for="dayOfMonth" class="form-label">Day of Month</label>
+                                <select id="dayOfMonth" name="dayOfMonth" class="form-select">
+                                    @for (int i = 1; i <= 31; i++)
+                                    {
+                                        <option value="@i">@i</option>
+                                    }
+                                </select>
+                            </div>
+                            
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="sendReminder" name="sendReminder" value="true" checked 
+                                       onchange="toggleReminderOptions()" />
+                                <label class="form-check-label" for="sendReminder">
+                                    Send workout reminders
+                                </label>
+                            </div>
+                            
+                            <div id="reminderOptions" class="mb-3">
+                                <label for="reminderHoursBefore" class="form-label">Hours Before Workout</label>
+                                <select id="reminderHoursBefore" name="reminderHoursBefore" class="form-select">
+                                    <option value="1">1 hour</option>
+                                    <option value="2">2 hours</option>
+                                    <option value="3" selected>3 hours</option>
+                                    <option value="6">6 hours</option>
+                                    <option value="12">12 hours</option>
+                                    <option value="24">24 hours</option>
+                                    <option value="48">48 hours</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-end">
+                        <button type="button" class="btn btn-secondary me-2" data-bs-toggle="collapse" data-bs-target="#scheduleWorkoutAccordion">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-success">Schedule Workout</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <div class="row mb-4">
         <div class="col-12">
@@ -148,7 +286,7 @@
                     {
                         <div class="alert alert-info">
                             <p class="mb-0">No workouts scheduled for this client yet.</p>
-                            <button type="button" class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#scheduleWorkoutModal">
+                            <button type="button" class="btn btn-primary mt-2" data-bs-toggle="collapse" data-bs-target="#scheduleWorkoutAccordion">
                                 <i class="fas fa-calendar-plus"></i> Schedule a Workout
                             </button>
                         </div>
@@ -216,11 +354,7 @@
                                                         </button>
                                                     </form>
                                                     <button type="button" class="btn btn-sm btn-outline-success" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#scheduleWorkoutModal"
-                                                            data-template-id="@assignment.WorkoutTemplateId"
-                                                            data-template-name="@assignment.TemplateName"
-                                                            data-assignment-id="@assignment.TemplateAssignmentId">
+                                                            onclick="populateScheduleForm('@assignment.WorkoutTemplateId', '@assignment.TemplateName', '@assignment.TemplateAssignmentId')">
                                                         <i class="fas fa-calendar-plus"></i>
                                                     </button>
                                                 </div>
@@ -242,138 +376,6 @@
                     }
                 </div>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- Schedule Workout Modal -->
-<div class="modal fade" id="scheduleWorkoutModal" tabindex="-1" aria-labelledby="scheduleWorkoutModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <form method="post" asp-page-handler="ScheduleWorkout">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="scheduleWorkoutModalLabel">Schedule Workout</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" id="clientIdInput" name="clientId" value="@Model.ClientId" />
-                    <input type="hidden" id="templateIdInput" name="templateId" value="" />
-                    <input type="hidden" id="assignmentIdInput" name="assignmentId" value="" />
-                    
-                    <div class="mb-3">
-                        <label for="scheduleName" class="form-label">Schedule Name</label>
-                        <input type="text" class="form-control" id="scheduleName" name="name" required />
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="scheduleDescription" class="form-label">Description</label>
-                        <textarea class="form-control" id="scheduleDescription" name="description" rows="2"></textarea>
-                    </div>
-                    
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="scheduleDate" class="form-label">Date</label>
-                            <input type="date" class="form-control" id="scheduleDate" name="scheduleDate" required />
-                        </div>
-                        <div class="col-md-6">
-                            <label for="scheduleTime" class="form-label">Time</label>
-                            <input type="time" class="form-control" id="scheduleTime" name="scheduleTime" value="17:00" required />
-                        </div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Recurrence</label>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="recurrencePattern" value="Once" id="recurrenceOnce" checked 
-                                   onchange="toggleRecurrenceOptions()" />
-                            <label class="form-check-label" for="recurrenceOnce">
-                                One-time workout
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="recurrencePattern" value="Daily" id="recurrenceDaily" 
-                                   onchange="toggleRecurrenceOptions()" />
-                            <label class="form-check-label" for="recurrenceDaily">
-                                Daily
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="recurrencePattern" value="Weekly" id="recurrenceWeekly" 
-                                   onchange="toggleRecurrenceOptions()" />
-                            <label class="form-check-label" for="recurrenceWeekly">
-                                Weekly
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="recurrencePattern" value="BiWeekly" id="recurrenceBiWeekly" 
-                                   onchange="toggleRecurrenceOptions()" />
-                            <label class="form-check-label" for="recurrenceBiWeekly">
-                                Bi-Weekly
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="radio" name="recurrencePattern" value="Monthly" id="recurrenceMonthly" 
-                                   onchange="toggleRecurrenceOptions()" />
-                            <label class="form-check-label" for="recurrenceMonthly">
-                                Monthly
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div id="weeklyOptions" class="mb-3" style="display: none;">
-                        <label for="dayOfWeek" class="form-label">Day of Week</label>
-                        <select id="dayOfWeek" name="dayOfWeek" class="form-select">
-                            <option value="0">Sunday</option>
-                            <option value="1">Monday</option>
-                            <option value="2">Tuesday</option>
-                            <option value="3">Wednesday</option>
-                            <option value="4">Thursday</option>
-                            <option value="5">Friday</option>
-                            <option value="6">Saturday</option>
-                        </select>
-                    </div>
-                    
-                    <div id="monthlyOptions" class="mb-3" style="display: none;">
-                        <label for="dayOfMonth" class="form-label">Day of Month</label>
-                        <select id="dayOfMonth" name="dayOfMonth" class="form-select">
-                            @for (int i = 1; i <= 31; i++)
-                            {
-                                <option value="@i">@i</option>
-                            }
-                        </select>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="endDate" class="form-label">End Date (optional for recurring)</label>
-                        <input type="date" class="form-control" id="endDate" name="endDate" />
-                    </div>
-                    
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="sendReminder" name="sendReminder" value="true" checked 
-                               onchange="toggleReminderOptions()" />
-                        <label class="form-check-label" for="sendReminder">
-                            Send workout reminders
-                        </label>
-                    </div>
-                    
-                    <div id="reminderOptions" class="mb-3">
-                        <label for="reminderHoursBefore" class="form-label">Hours Before Workout</label>
-                        <select id="reminderHoursBefore" name="reminderHoursBefore" class="form-select">
-                            <option value="1">1 hour</option>
-                            <option value="2">2 hours</option>
-                            <option value="3" selected>3 hours</option>
-                            <option value="6">6 hours</option>
-                            <option value="12">12 hours</option>
-                            <option value="24">24 hours</option>
-                            <option value="48">48 hours</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Schedule Workout</button>
-                </div>
-            </form>
         </div>
     </div>
 </div>
@@ -427,33 +429,24 @@
         reminderOptions.style.display = sendReminder ? 'block' : 'none';
     }
     
-    // Handle template selection from assigned workouts
-    const scheduleModal = document.getElementById('scheduleWorkoutModal');
-    if (scheduleModal) {
-        scheduleModal.addEventListener('show.bs.modal', function (event) {
-            // Button that triggered the modal
-            const button = event.relatedTarget;
-            
-            // Extract info from data attributes
-            const templateId = button.getAttribute('data-template-id');
-            const templateName = button.getAttribute('data-template-name');
-            const assignmentId = button.getAttribute('data-assignment-id');
-            
-            // Update the modal's content
-            if (templateId) {
-                document.getElementById('templateIdInput').value = templateId;
-            }
-            
-            if (assignmentId) {
-                document.getElementById('assignmentIdInput').value = assignmentId;
-            }
-            
-            if (templateName) {
-                const today = new Date();
-                const formattedDate = today.toLocaleDateString();
-                document.getElementById('scheduleName').value = `${templateName} - ${formattedDate}`;
-            }
-        });
+    // Function to populate schedule form and show accordion
+    function populateScheduleForm(templateId, templateName, assignmentId) {
+        // Populate form fields
+        document.getElementById('templateIdInput').value = templateId || '';
+        document.getElementById('assignmentIdInput').value = assignmentId || '';
+        
+        if (templateName) {
+            const today = new Date();
+            const formattedDate = today.toLocaleDateString();
+            document.getElementById('scheduleName').value = `${templateName} - ${formattedDate}`;
+        }
+        
+        // Show the accordion
+        const scheduleAccordion = document.getElementById('scheduleWorkoutAccordion');
+        const bsCollapse = new bootstrap.Collapse(scheduleAccordion, { toggle: true });
+        
+        // Scroll to accordion
+        scheduleAccordion.scrollIntoView({ behavior: 'smooth' });
     }
     
     // Initialize on page load
