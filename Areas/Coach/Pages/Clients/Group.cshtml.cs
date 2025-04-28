@@ -46,6 +46,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         public int GroupId { get; set; }
         public string GroupName { get; set; }
         public string GroupDescription { get; set; }
+        public string ColorCode { get; set; }
         public DateTime? CreatedDate { get; set; }
         public int MemberCount { get; set; }
         
@@ -80,6 +81,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             GroupId = group.Id;
             GroupName = group.Name;
             GroupDescription = group.Description;
+            ColorCode = group.ColorCode ?? "#0d6efd"; // Default to blue if not set
             CreatedDate = group.CreatedDate;
 
             // Get group members
@@ -109,6 +111,9 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 }
             }
 
+            // Sort members by name initially
+            Members = Members.OrderBy(m => m.Name).ToList();
+
             // Get available clients (active clients not in this group)
             var activeRelationships = await _context.CoachClientRelationships
                 .Where(r => r.CoachId == coachId && r.Status == RelationshipStatus.Active)
@@ -133,6 +138,9 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 }
             }
 
+            // Sort available clients by name
+            AvailableClients = AvailableClients.OrderBy(c => c.Name).ToList();
+
             // Get available templates
             var templates = await _context.WorkoutTemplate
                 .Where(t => t.UserId == int.Parse(coachId) || t.IsPublic)
@@ -152,7 +160,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             return Page();
         }
 
-        public async Task<IActionResult> OnPostUpdateGroupAsync(int groupId, string groupName, string groupDescription)
+        public async Task<IActionResult> OnPostUpdateGroupAsync(int groupId, string groupName, string groupDescription, string colorCode)
         {
             if (!ModelState.IsValid)
             {
@@ -173,6 +181,20 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             if (string.IsNullOrEmpty(groupName))
             {
                 StatusMessage = "Error: Group name is required.";
+                StatusMessageType = "Error";
+                return RedirectToPage(new { id = groupId });
+            }
+
+            if (groupName.Length > 100)
+            {
+                StatusMessage = "Error: Group name cannot exceed 100 characters.";
+                StatusMessageType = "Error";
+                return RedirectToPage(new { id = groupId });
+            }
+
+            if (groupDescription?.Length > 500)
+            {
+                StatusMessage = "Error: Group description cannot exceed 500 characters.";
                 StatusMessageType = "Error";
                 return RedirectToPage(new { id = groupId });
             }
@@ -206,6 +228,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 // Update group details
                 group.Name = groupName;
                 group.Description = groupDescription;
+                group.ColorCode = colorCode;
                 group.LastModifiedDate = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();

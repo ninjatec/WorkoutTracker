@@ -23,7 +23,7 @@
 
 @if (!string.IsNullOrEmpty(Model.StatusMessage))
 {
-    var statusClass = Model.StatusMessageType == "Success" ? "success" : "danger";
+    var statusClass = Model.StatusMessageType == "Success" ? "success" : Model.StatusMessageType == "Info" ? "info" : "danger";
     <div class="alert alert-@statusClass alert-dismissible fade show" role="alert">
         @Model.StatusMessage
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -33,7 +33,7 @@
 <div class="row">
     <div class="col-md-4">
         <div class="card mb-4">
-            <div class="card-header">
+            <div class="card-header bg-light">
                 <h5 class="mb-0">Group Details</h5>
             </div>
             <div class="card-body">
@@ -54,7 +54,7 @@
         </div>
         
         <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Group Actions</h5>
             </div>
             <div class="card-body">
@@ -78,7 +78,7 @@
     
     <div class="col-md-8">
         <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Group Members</h5>
                 <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addMembersModal">
                     <i class="bi bi-person-plus me-1"></i>Add Members
@@ -87,8 +87,27 @@
             <div class="card-body">
                 @if (Model.Members.Any())
                 {
+                    <div class="mb-3 d-flex justify-content-between align-items-center">
+                        <div class="input-group w-50">
+                            <input type="text" id="memberSearch" class="form-control" placeholder="Search members..." aria-label="Search members">
+                            <button class="btn btn-outline-secondary" type="button" id="clearSearch">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-sort-alpha-down me-1"></i>Sort by
+                            </button>
+                            <ul class="dropdown-menu" aria-labelledby="sortDropdown">
+                                <li><a class="dropdown-item sort-option" href="#" data-sort="name-asc">Name (A-Z)</a></li>
+                                <li><a class="dropdown-item sort-option" href="#" data-sort="name-desc">Name (Z-A)</a></li>
+                                <li><a class="dropdown-item sort-option" href="#" data-sort="date-asc">Date Added (Oldest)</a></li>
+                                <li><a class="dropdown-item sort-option" href="#" data-sort="date-desc">Date Added (Newest)</a></li>
+                            </ul>
+                        </div>
+                    </div>
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover" id="membersTable">
                             <thead>
                                 <tr>
                                     <th>Name</th>
@@ -100,25 +119,33 @@
                             <tbody>
                                 @foreach (var member in Model.Members)
                                 {
-                                    <tr>
+                                    <tr class="member-row" data-name="@member.Name.ToLower()" data-email="@member.Email.ToLower()" data-date="@(member.AddedDate?.ToString("yyyy-MM-dd") ?? "")">
                                         <td>
                                             <a asp-page="./Details" asp-route-id="@member.ClientRelationshipId">@member.Name</a>
                                         </td>
                                         <td>@member.Email</td>
                                         <td>@member.AddedDate?.ToString("MMM d, yyyy")</td>
                                         <td>
-                                            <form method="post" asp-page-handler="RemoveMember" class="d-inline">
-                                                <input type="hidden" name="relationshipId" value="@member.ClientRelationshipId" />
-                                                <input type="hidden" name="groupId" value="@Model.GroupId" />
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove from group">
-                                                    <i class="bi bi-person-dash"></i>
-                                                </button>
-                                            </form>
+                                            <div class="btn-group">
+                                                <a asp-page="./Details" asp-route-id="@member.ClientRelationshipId" class="btn btn-sm btn-outline-primary" title="View client details">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <form method="post" asp-page-handler="RemoveMember" class="d-inline">
+                                                    <input type="hidden" name="relationshipId" value="@member.ClientRelationshipId" />
+                                                    <input type="hidden" name="groupId" value="@Model.GroupId" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove from group">
+                                                        <i class="bi bi-person-dash"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
                                         </td>
                                     </tr>
                                 }
                             </tbody>
                         </table>
+                    </div>
+                    <div id="noMatchesMessage" class="alert alert-info mt-3 d-none">
+                        No members match your search criteria.
                     </div>
                 }
                 else
@@ -147,12 +174,31 @@
                     
                     <div class="mb-3">
                         <label for="groupName" class="form-label">Group Name</label>
-                        <input type="text" class="form-control" id="groupName" name="groupName" value="@Model.GroupName" required>
+                        <input type="text" class="form-control" id="groupName" name="groupName" value="@Model.GroupName" required maxlength="100">
+                        <div class="invalid-feedback">
+                            Group name is required and must be less than 100 characters.
+                        </div>
                     </div>
                     
                     <div class="mb-3">
                         <label for="groupDescription" class="form-label">Description</label>
-                        <textarea class="form-control" id="groupDescription" name="groupDescription" rows="3">@Model.GroupDescription</textarea>
+                        <textarea class="form-control" id="groupDescription" name="groupDescription" rows="3" maxlength="500">@Model.GroupDescription</textarea>
+                        <div class="form-text">Maximum 500 characters.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="colorCode" class="form-label">Group Color</label>
+                        <select class="form-select" id="colorCode" name="colorCode">
+                            <option value="#0d6efd" @(Model.ColorCode == "#0d6efd" ? "selected" : "")>Blue</option>
+                            <option value="#198754" @(Model.ColorCode == "#198754" ? "selected" : "")>Green</option>
+                            <option value="#dc3545" @(Model.ColorCode == "#dc3545" ? "selected" : "")>Red</option>
+                            <option value="#ffc107" @(Model.ColorCode == "#ffc107" ? "selected" : "")>Yellow</option>
+                            <option value="#6610f2" @(Model.ColorCode == "#6610f2" ? "selected" : "")>Purple</option>
+                            <option value="#fd7e14" @(Model.ColorCode == "#fd7e14" ? "selected" : "")>Orange</option>
+                            <option value="#20c997" @(Model.ColorCode == "#20c997" ? "selected" : "")>Teal</option>
+                            <option value="#6c757d" @(Model.ColorCode == "#6c757d" ? "selected" : "")>Gray</option>
+                        </select>
+                        <div class="form-text">This color will be used to identify the group in the client list.</div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -168,7 +214,7 @@
 <div class="modal fade" id="addMembersModal" tabindex="-1" aria-labelledby="addMembersModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="post" asp-page-handler="AddMembers">
+            <form method="post" asp-page-handler="AddMembers" id="addMembersForm">
                 <div class="modal-header">
                     <h5 class="modal-title" id="addMembersModalLabel">Add Members to Group</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -177,19 +223,32 @@
                     <input type="hidden" name="groupId" value="@Model.GroupId" />
                     
                     <div class="mb-3">
+                        <div class="input-group mb-3">
+                            <input type="text" id="clientSearch" class="form-control" placeholder="Search clients..." aria-label="Search clients">
+                            <button class="btn btn-outline-secondary" type="button" id="clearClientSearch">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </div>
                         <label class="form-label">Select Clients to Add</label>
-                        <div class="form-check client-list">
+                        <div class="form-check client-list" style="max-height: 300px; overflow-y: auto;">
                             @if (Model.AvailableClients.Any())
                             {
+                                <div class="d-flex justify-content-end mb-2">
+                                    <button type="button" class="btn btn-sm btn-link" id="selectAllClients">Select All</button>
+                                    <button type="button" class="btn btn-sm btn-link ms-2" id="deselectAllClients">Deselect All</button>
+                                </div>
                                 @foreach (var client in Model.AvailableClients)
                                 {
-                                    <div class="form-check mb-2">
-                                        <input class="form-check-input" type="checkbox" id="client@(client.RelationshipId)" name="selectedClients" value="@client.RelationshipId">
+                                    <div class="form-check mb-2 client-item" data-name="@client.Name.ToLower()" data-email="@client.Email.ToLower()">
+                                        <input class="form-check-input client-checkbox" type="checkbox" id="client@(client.RelationshipId)" name="selectedClients" value="@client.RelationshipId">
                                         <label class="form-check-label" for="client@(client.RelationshipId)">
                                             @client.Name (@client.Email)
                                         </label>
                                     </div>
                                 }
+                                <div id="noClientsMessage" class="alert alert-info mt-3 d-none">
+                                    No clients match your search criteria.
+                                </div>
                             }
                             else
                             {
@@ -202,7 +261,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success" @(Model.AvailableClients.Any() ? "" : "disabled")>Add to Group</button>
+                    <button type="submit" class="btn btn-success" id="addMembersButton" @(Model.AvailableClients.Any() ? "" : "disabled")>Add to Group</button>
                 </div>
             </form>
         </div>
@@ -213,7 +272,7 @@
 <div class="modal fade" id="assignWorkoutModal" tabindex="-1" aria-labelledby="assignWorkoutModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="post" asp-page-handler="AssignTemplate">
+            <form method="post" asp-page-handler="AssignTemplate" id="assignTemplateForm">
                 <div class="modal-header">
                     <h5 class="modal-title" id="assignWorkoutModalLabel">Assign Template to Group</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -227,20 +286,27 @@
                             <option value="">-- Select Template --</option>
                             @foreach (var template in Model.AvailableTemplates)
                             {
-                                <option value="@template.TemplateId">@template.Name</option>
+                                <option value="@template.TemplateId">@template.Name @(template.IsOwner ? "" : "(Public)")</option>
                             }
                         </select>
+                        <div class="invalid-feedback">
+                            Please select a template.
+                        </div>
                     </div>
                     
                     <div class="mb-3">
                         <label for="assignmentName" class="form-label">Assignment Name</label>
-                        <input type="text" class="form-control" id="assignmentName" name="assignmentName" required>
+                        <input type="text" class="form-control" id="assignmentName" name="assignmentName" required maxlength="100">
                         <small class="text-muted">A descriptive name for this assignment (e.g. "Summer Strength Program")</small>
+                        <div class="invalid-feedback">
+                            Assignment name is required.
+                        </div>
                     </div>
                     
                     <div class="mb-3">
                         <label for="notes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" maxlength="500"></textarea>
+                        <div class="form-text">Maximum 500 characters.</div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -255,7 +321,131 @@
 @section Scripts {
     <script>
         $(document).ready(function() {
-            // Initialize any client-side functionality specific to group management here
+            // Client-side validation
+            function validateForm(formId) {
+                const form = document.getElementById(formId);
+                if (!form.checkValidity()) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }
+            
+            $('#assignTemplateForm').on('submit', function(event) {
+                validateForm('assignTemplateForm');
+            });
+            
+            $('#addMembersForm').on('submit', function(event) {
+                if ($('.client-checkbox:checked').length === 0) {
+                    event.preventDefault();
+                    alert('Please select at least one client to add to the group.');
+                }
+            });
+            
+            // Search functionality for members table
+            $('#memberSearch').on('input', function() {
+                const searchTerm = $(this).val().toLowerCase();
+                let hasMatches = false;
+                
+                $('.member-row').each(function() {
+                    const name = $(this).data('name');
+                    const email = $(this).data('email');
+                    
+                    if (name.includes(searchTerm) || email.includes(searchTerm)) {
+                        $(this).removeClass('d-none');
+                        hasMatches = true;
+                    } else {
+                        $(this).addClass('d-none');
+                    }
+                });
+                
+                if (hasMatches) {
+                    $('#noMatchesMessage').addClass('d-none');
+                } else {
+                    $('#noMatchesMessage').removeClass('d-none');
+                }
+            });
+            
+            $('#clearSearch').on('click', function() {
+                $('#memberSearch').val('');
+                $('.member-row').removeClass('d-none');
+                $('#noMatchesMessage').addClass('d-none');
+            });
+            
+            // Sorting functionality
+            $('.sort-option').on('click', function(e) {
+                e.preventDefault();
+                const sortBy = $(this).data('sort');
+                const rows = $('#membersTable tbody tr').get();
+                
+                rows.sort(function(a, b) {
+                    let keyA, keyB;
+                    
+                    if (sortBy === 'name-asc' || sortBy === 'name-desc') {
+                        keyA = $(a).data('name');
+                        keyB = $(b).data('name');
+                    } else if (sortBy === 'date-asc' || sortBy === 'date-desc') {
+                        keyA = $(a).data('date') || '';
+                        keyB = $(b).data('date') || '';
+                    }
+                    
+                    if (sortBy === 'name-asc' || sortBy === 'date-asc') {
+                        return keyA.localeCompare(keyB);
+                    } else {
+                        return keyB.localeCompare(keyA);
+                    }
+                });
+                
+                $.each(rows, function(index, row) {
+                    $('#membersTable tbody').append(row);
+                });
+            });
+            
+            // Client search in add members modal
+            $('#clientSearch').on('input', function() {
+                const searchTerm = $(this).val().toLowerCase();
+                let hasMatches = false;
+                
+                $('.client-item').each(function() {
+                    const name = $(this).data('name');
+                    const email = $(this).data('email');
+                    
+                    if (name.includes(searchTerm) || email.includes(searchTerm)) {
+                        $(this).removeClass('d-none');
+                        hasMatches = true;
+                    } else {
+                        $(this).addClass('d-none');
+                    }
+                });
+                
+                if (hasMatches) {
+                    $('#noClientsMessage').addClass('d-none');
+                } else {
+                    $('#noClientsMessage').removeClass('d-none');
+                }
+            });
+            
+            $('#clearClientSearch').on('click', function() {
+                $('#clientSearch').val('');
+                $('.client-item').removeClass('d-none');
+                $('#noClientsMessage').addClass('d-none');
+            });
+            
+            // Select/Deselect all clients
+            $('#selectAllClients').on('click', function() {
+                $('.client-item:not(.d-none) .client-checkbox').prop('checked', true);
+            });
+            
+            $('#deselectAllClients').on('click', function() {
+                $('.client-checkbox').prop('checked', false);
+            });
+            
+            // Initialize form validation
+            $('#groupName, #assignmentName').on('input', function() {
+                if ($(this).val().trim() !== '') {
+                    $(this).removeClass('is-invalid');
+                }
+            });
         });
     </script>
 }

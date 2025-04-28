@@ -126,6 +126,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                     Id = group.Id,
                     Name = group.Name,
                     Description = group.Description,
+                    ColorCode = group.ColorCode,
                     MemberCount = memberCount,
                     MemberNames = memberNames
                 });
@@ -426,6 +427,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             public int Id { get; set; }
             public string Name { get; set; }
             public string Description { get; set; }
+            public string ColorCode { get; set; }
             public int MemberCount { get; set; }
             public List<string> MemberNames { get; set; } = new List<string>();
             public List<string> Members { get; set; } = new List<string>();
