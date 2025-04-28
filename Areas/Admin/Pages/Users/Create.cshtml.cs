@@ -62,7 +62,9 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Users
                 UserName = UserCreate.Email,
                 Email = UserCreate.Email,
                 PhoneNumber = UserCreate.PhoneNumber,
-                EmailConfirmed = UserCreate.EmailConfirmed
+                EmailConfirmed = UserCreate.EmailConfirmed,
+                CreatedDate = DateTime.UtcNow,
+                LastModifiedDate = DateTime.UtcNow
             };
 
             var result = await _userManager.CreateAsync(user, UserCreate.Password);

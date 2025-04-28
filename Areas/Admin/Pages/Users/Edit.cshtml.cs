@@ -113,6 +113,7 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Users
             user.EmailConfirmed = UserEdit.EmailConfirmed;
             user.TwoFactorEnabled = UserEdit.TwoFactorEnabled;
             user.LockoutEnabled = UserEdit.LockoutEnabled;
+            user.LastModifiedDate = DateTime.UtcNow;  // Update the LastModifiedDate
 
             // Save user changes
             var result = await _userManager.UpdateAsync(user);

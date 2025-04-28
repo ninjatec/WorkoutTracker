@@ -245,9 +245,14 @@
                             @(Model.LastActive?.ToString("dd/MM/yyyy HH:mm") ?? "Never")
                         </dd>
 
-                        <dt class="col-sm-5">Joined</dt>
+                        <dt class="col-sm-5">Created Date</dt>
                         <dd class="col-sm-7">
-                            @(Model.User.CreatedDate?.ToString("dd/MM/yyyy") ?? "Unknown")
+                            @Model.User.CreatedDate.ToString("dd/MM/yyyy HH:mm")
+                        </dd>
+                        
+                        <dt class="col-sm-5">Last Modified</dt>
+                        <dd class="col-sm-7">
+                            @Model.User.LastModifiedDate.ToString("dd/MM/yyyy HH:mm")
                         </dd>
                     </dl>
                 </div>

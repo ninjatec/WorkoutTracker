@@ -305,6 +305,8 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Users
                 LockoutEnabled = user.LockoutEnabled,
                 LockoutEnd = user.LockoutEnd,
                 AccessFailedCount = user.AccessFailedCount,
+                CreatedDate = user.CreatedDate,
+                LastModifiedDate = user.LastModifiedDate,
                 Roles = roles.ToList()
             };
 
