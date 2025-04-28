@@ -4,9 +4,9 @@
  */
 
 // Cache names with versioning
-const STATIC_CACHE_VERSION = 'workouttracker-static-v1.6';
-const DYNAMIC_CACHE_VERSION = 'workouttracker-dynamic-v1.4';
-const ASSET_CACHE_VERSION = 'workouttracker-assets-v1.3';
+const STATIC_CACHE_VERSION = 'workouttracker-static-v1.7';
+const DYNAMIC_CACHE_VERSION = 'workouttracker-dynamic-v1.5';
+const ASSET_CACHE_VERSION = 'workouttracker-assets-v1.4';
 
 // Static resources to cache on install
 const STATIC_RESOURCES = [
@@ -129,7 +129,7 @@ self.addEventListener('fetch', event => {
         event.respondWith(
             fetch(event.request)
                 .then(response => {
-                    // Cache a copy of the response
+                    // Clone the response BEFORE using it
                     const responseClone = response.clone();
                     caches.open(DYNAMIC_CACHE_VERSION)
                         .then(cache => {
@@ -160,16 +160,20 @@ self.addEventListener('fetch', event => {
                     // Return cached version immediately if available
                     const fetchPromise = fetch(event.request)
                         .then(networkResponse => {
-                            // Update cache with new version
+                            // Clone the response BEFORE using it
+                            const responseToCache = networkResponse.clone();
                             caches.open(ASSET_CACHE_VERSION)
                                 .then(cache => {
-                                    cache.put(event.request, networkResponse.clone());
+                                    cache.put(event.request, responseToCache);
                                 });
                             return networkResponse;
                         })
                         .catch(error => {
                             console.warn(`[Service Worker] Failed to fetch: ${event.request.url} - ${error.message}`);
-                            return cachedResponse || new Response(null, { status: 404 });
+                            if (cachedResponse) {
+                                return cachedResponse;
+                            }
+                            return new Response(null, { status: 404 });
                         });
                     return cachedResponse || fetchPromise;
                 })
@@ -186,11 +190,11 @@ self.addEventListener('fetch', event => {
                     throw Error(response.statusText);
                 }
                 
-                // Cache a copy of successful responses
-                const responseClone = response.clone();
+                // Clone the response BEFORE using it
+                const responseToCache = response.clone();
                 caches.open(DYNAMIC_CACHE_VERSION)
                     .then(cache => {
-                        cache.put(event.request, responseClone);
+                        cache.put(event.request, responseToCache);
                     });
                 return response;
             })

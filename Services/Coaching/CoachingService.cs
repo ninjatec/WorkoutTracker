@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models.Coaching;
 using WorkoutTrackerWeb.Models.Identity;
@@ -16,12 +17,13 @@ namespace WorkoutTrackerWeb.Services.Coaching
         Task<bool> PromoteUserToCoachAsync(string userId);
         Task<bool> DemoteCoachToUserAsync(string userId);
         Task<bool> IsCoachAsync(string userId);
-        Task<CoachClientRelationship> CreateCoachClientRelationshipAsync(string coachId, string clientId);
+        Task<CoachClientRelationship> CreateCoachClientRelationshipAsync(string coachId, string clientId, int expiryDays = 0);
         Task<CoachClientRelationship> GetCoachClientRelationshipAsync(string coachId, string clientId);
         Task<IEnumerable<CoachClientRelationship>> GetCoachRelationshipsAsync(string coachId);
         Task<IEnumerable<CoachClientRelationship>> GetClientRelationshipsAsync(string clientId);
         Task<bool> UpdateCoachPermissionsAsync(int relationshipId, CoachClientPermission permissions);
         Task<bool> UpdateRelationshipStatusAsync(int relationshipId, RelationshipStatus status);
+        Task<(bool exists, int count)> VerifyRelationshipExistsAsync(string coachId, string clientId);
     }
 
     public class CoachingService : ICoachingService
@@ -29,15 +31,31 @@ namespace WorkoutTrackerWeb.Services.Coaching
         private readonly UserManager<AppUser> _userManager;
         private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger<CoachingService> _logger;
+        private readonly IConfiguration _configuration;
 
         public CoachingService(
             UserManager<AppUser> userManager,
             WorkoutTrackerWebContext context,
-            ILogger<CoachingService> logger)
+            ILogger<CoachingService> logger,
+            IConfiguration configuration)
         {
             _userManager = userManager;
             _context = context;
             _logger = logger;
+            _configuration = configuration;
+            
+            // Log connection string (masked for security)
+            var connString = _configuration.GetConnectionString("DefaultConnection") ?? "";
+            if (!string.IsNullOrEmpty(connString))
+            {
+                var maskedConnString = "Server=" + connString.Split(';')
+                    .FirstOrDefault(s => s.StartsWith("Server=", StringComparison.OrdinalIgnoreCase))?.Substring(7) ?? "[not found]";
+                _logger.LogInformation("CoachingService initialized with connection string to server: {Server}", maskedConnString);
+            }
+            else
+            {
+                _logger.LogWarning("CoachingService initialized with null or empty connection string");
+            }
         }
 
         /// <summary>
@@ -183,8 +201,9 @@ namespace WorkoutTrackerWeb.Services.Coaching
         /// </summary>
         /// <param name="coachId">The coach's Identity ID</param>
         /// <param name="clientId">The client's Identity ID</param>
+        /// <param name="expiryDays">Optional number of days until the invitation expires</param>
         /// <returns>The created relationship or null if failed</returns>
-        public async Task<CoachClientRelationship> CreateCoachClientRelationshipAsync(string coachId, string clientId)
+        public async Task<CoachClientRelationship> CreateCoachClientRelationshipAsync(string coachId, string clientId, int expiryDays = 0)
         {
             try
             {
@@ -194,80 +213,179 @@ namespace WorkoutTrackerWeb.Services.Coaching
                     _logger.LogWarning("Attempted to create relationship with non-coach user {CoachId}", coachId);
                     return null;
                 }
+                
+                _logger.LogInformation("Verified coach role for user {CoachId}", coachId);
 
-                // Check if relationship already exists
-                var existingRelationship = await _context.CoachClientRelationships
-                    .Include(r => r.Notes)
-                    .FirstOrDefaultAsync(r => r.CoachId == coachId && r.ClientId == clientId);
-
-                if (existingRelationship != null)
+                // Use a transaction to ensure all operations are atomic
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
                 {
-                    // If relationship exists but ended, reactivate it
-                    if (existingRelationship.Status == RelationshipStatus.Ended)
+                    // Log current relationship count for debugging
+                    var beforeCount = await _context.CoachClientRelationships.CountAsync();
+                    _logger.LogInformation("Current relationship count before creation: {Count}", beforeCount);
+                    
+                    // Check if relationship already exists using direct SQL to bypass any potential query filters
+                    var verification = await VerifyRelationshipExistsAsync(coachId, clientId);
+                    _logger.LogInformation("Pre-verification: Coach {CoachId} has {Count} relationships and {SpecificCount} with client {ClientId}",
+                        coachId, verification.count, verification.exists ? 1 : 0, clientId);
+
+                    if (verification.exists)
                     {
-                        existingRelationship.Status = RelationshipStatus.Pending;
-                        existingRelationship.LastModifiedDate = DateTime.UtcNow;
-
-                        existingRelationship.Notes.Add(new CoachNote
+                        // Retrieve the existing relationship with tracking enabled
+                        var existingRelationship = await _context.CoachClientRelationships
+                            .Include(r => r.Notes)
+                            .Include(r => r.Permissions)
+                            .IgnoreQueryFilters() // Bypass any query filters
+                            .FirstOrDefaultAsync(r => r.CoachId == coachId && r.ClientId == clientId);
+                        
+                        if (existingRelationship != null)
                         {
-                            Content = $"Relationship reactivated on {DateTime.UtcNow:g}.",
-                            CreatedDate = DateTime.UtcNow,
-                            IsVisibleToClient = false
-                        });
+                            _logger.LogInformation("Found existing relationship with ID {Id} and status {Status}", 
+                                existingRelationship.Id, existingRelationship.Status);
+                            
+                            // If relationship exists but ended, reactivate it
+                            if (existingRelationship.Status == RelationshipStatus.Ended)
+                            {
+                                existingRelationship.Status = RelationshipStatus.Pending;
+                                existingRelationship.LastModifiedDate = DateTime.UtcNow;
+                                
+                                // Set expiry if specified
+                                if (expiryDays > 0)
+                                {
+                                    existingRelationship.InvitationExpiryDate = DateTime.UtcNow.AddDays(expiryDays);
+                                }
 
-                        await _context.SaveChangesAsync();
-                        return existingRelationship;
-                    }
+                                // Generate a new invitation token
+                                existingRelationship.InvitationToken = Guid.NewGuid().ToString("N");
 
-                    _logger.LogInformation("Coach-client relationship between {CoachId} and {ClientId} already exists", coachId, clientId);
-                    return existingRelationship;
-                }
+                                if (existingRelationship.Notes == null)
+                                {
+                                    existingRelationship.Notes = new List<CoachNote>();
+                                }
 
-                // Create a new relationship with default permissions
-                var relationship = new CoachClientRelationship
-                {
-                    CoachId = coachId,
-                    ClientId = clientId,
-                    Status = RelationshipStatus.Pending,
-                    CreatedDate = DateTime.UtcNow,
-                    LastModifiedDate = DateTime.UtcNow,
-                    Notes = new List<CoachNote>
-                    {
-                        new CoachNote
-                        {
-                            Content = $"Relationship created on {DateTime.UtcNow:g}.",
-                            CreatedDate = DateTime.UtcNow,
-                            IsVisibleToClient = false
+                                existingRelationship.Notes.Add(new CoachNote
+                                {
+                                    Content = $"Relationship reactivated on {DateTime.UtcNow:g}.",
+                                    CreatedDate = DateTime.UtcNow,
+                                    IsVisibleToClient = false,
+                                    CoachClientRelationshipId = existingRelationship.Id
+                                });
+
+                                _context.Update(existingRelationship);
+                                await _context.SaveChangesAsync();
+                                await transaction.CommitAsync();
+                                
+                                _logger.LogInformation("Reactivated coach-client relationship with ID {Id} between {CoachId} and {ClientId}", 
+                                    existingRelationship.Id, coachId, clientId);
+                                
+                                return existingRelationship;
+                            }
+
+                            _logger.LogInformation("Coach-client relationship between {CoachId} and {ClientId} already exists with status {Status}",
+                                coachId, clientId, existingRelationship.Status);
+                            
+                            await transaction.CommitAsync();
+                            return existingRelationship;
                         }
                     }
-                };
 
-                // Create default permissions
-                var permissions = new CoachClientPermission
+                    // Create a new relationship with default permissions
+                    var relationship = new CoachClientRelationship
+                    {
+                        CoachId = coachId,
+                        ClientId = clientId,
+                        Status = RelationshipStatus.Pending,
+                        CreatedDate = DateTime.UtcNow,
+                        LastModifiedDate = DateTime.UtcNow,
+                        InvitationToken = Guid.NewGuid().ToString("N")
+                    };
+                    
+                    // Set expiry if specified
+                    if (expiryDays > 0)
+                    {
+                        relationship.InvitationExpiryDate = DateTime.UtcNow.AddDays(expiryDays);
+                    }
+
+                    // Add relationship explicitly
+                    _context.CoachClientRelationships.Add(relationship);
+                    
+                    // Save to get the relationship ID
+                    await _context.SaveChangesAsync();
+                    
+                    _logger.LogInformation("Created new relationship with ID {Id}", relationship.Id);
+
+                    // Create a note for relationship creation
+                    var note = new CoachNote
+                    {
+                        CoachClientRelationshipId = relationship.Id,
+                        Content = $"Relationship created on {DateTime.UtcNow:g}.",
+                        CreatedDate = DateTime.UtcNow,
+                        IsVisibleToClient = false
+                    };
+                    
+                    _context.CoachNotes.Add(note);
+                    
+                    // Create default permissions
+                    var permissions = new CoachClientPermission
+                    {
+                        CoachClientRelationshipId = relationship.Id,
+                        CanViewWorkouts = true,
+                        CanCreateWorkouts = false,
+                        CanEditWorkouts = false,
+                        CanDeleteWorkouts = false,
+                        CanViewReports = true,
+                        CanCreateTemplates = true,
+                        CanAssignTemplates = true,
+                        CanViewPersonalInfo = false,
+                        CanCreateGoals = true,
+                        LastModifiedDate = DateTime.UtcNow
+                    };
+
+                    // Add permissions to context
+                    _context.CoachClientPermissions.Add(permissions);
+                    
+                    // Save changes for notes and permissions
+                    await _context.SaveChangesAsync();
+                    
+                    // Retrieve the relationship with all navigational properties loaded for return
+                    var completeRelationship = await _context.CoachClientRelationships
+                        .Include(r => r.Permissions)
+                        .Include(r => r.Notes)
+                        .FirstOrDefaultAsync(r => r.Id == relationship.Id);
+                        
+                    if (completeRelationship == null)
+                    {
+                        _logger.LogError("Failed to retrieve newly created relationship with ID {Id}", relationship.Id);
+                        await transaction.RollbackAsync();
+                        return null;
+                    }
+                    
+                    // Verify relationship was created using direct SQL
+                    var postVerification = await VerifyRelationshipExistsAsync(coachId, clientId);
+                    _logger.LogInformation("Post-verification: Coach {CoachId} has {Count} relationships and {SpecificCount} with client {ClientId}",
+                        coachId, postVerification.count, postVerification.exists ? 1 : 0, clientId);
+                        
+                    if (!postVerification.exists)
+                    {
+                        _logger.LogError("Verification failed - relationship doesn't exist in database despite successful creation");
+                        await transaction.RollbackAsync();
+                        return null;
+                    }
+
+                    // Commit the transaction
+                    await transaction.CommitAsync();
+                    _logger.LogInformation("Successfully created and persisted coach-client relationship between {CoachId} and {ClientId}", 
+                        coachId, clientId);
+                        
+                    return completeRelationship;
+                }
+                catch (Exception ex)
                 {
-                    CanViewWorkouts = true,
-                    CanCreateWorkouts = false,
-                    CanEditWorkouts = false,
-                    CanDeleteWorkouts = false,
-                    CanViewReports = true,
-                    CanCreateTemplates = true,
-                    CanAssignTemplates = true,
-                    CanViewPersonalInfo = false,
-                    CanCreateGoals = true,
-                    LastModifiedDate = DateTime.UtcNow
-                };
-
-                // Add the relationship to the context
-                _context.CoachClientRelationships.Add(relationship);
-                await _context.SaveChangesAsync();
-
-                // Set the relationship ID on the permissions and add to context
-                permissions.CoachClientRelationshipId = relationship.Id;
-                relationship.Permissions = permissions;
-                await _context.SaveChangesAsync();
-
-                _logger.LogInformation("Created coach-client relationship between {CoachId} and {ClientId}", coachId, clientId);
-                return relationship;
+                    _logger.LogError(ex, "Error during transaction for coach-client relationship between {CoachId} and {ClientId}", 
+                        coachId, clientId);
+                    await transaction.RollbackAsync();
+                    return null;
+                }
             }
             catch (Exception ex)
             {
@@ -467,6 +585,74 @@ namespace WorkoutTrackerWeb.Services.Coaching
             {
                 _logger.LogError(ex, "Error updating status for relationship {RelationshipId}", relationshipId);
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Directly confirms whether a relationship was persisted via SQL query
+        /// </summary>
+        /// <param name="coachId">The coach's Identity ID</param>
+        /// <param name="clientId">The client's Identity ID</param>
+        /// <returns>A tuple with existence status and record count</returns>
+        public async Task<(bool exists, int count)> VerifyRelationshipExistsAsync(string coachId, string clientId)
+        {
+            try
+            {
+                // Use raw SQL to bypass EF Core filters and check if relationships exist
+                var connection = _context.Database.GetDbConnection();
+                
+                if (connection.State != System.Data.ConnectionState.Open)
+                {
+                    await connection.OpenAsync();
+                }
+
+                using var command = connection.CreateCommand();
+                
+                // Get the schema information from Entity Framework
+                var tableMapping = _context.Model.FindEntityType(typeof(CoachClientRelationship));
+                var schema = tableMapping.GetSchema();
+                var tableName = tableMapping.GetTableName();
+                
+                var fullTableName = string.IsNullOrEmpty(schema) ? tableName : $"{schema}.{tableName}";
+                
+                _logger.LogInformation("Using table name {TableName} for SQL verification", fullTableName);
+                
+                // Direct SQL to count relationships
+                command.CommandText = $@"
+                    SELECT COUNT(*) 
+                    FROM {fullTableName} 
+                    WHERE CoachId = @coachId";
+                    
+                var coachIdParam = command.CreateParameter();
+                coachIdParam.ParameterName = "@coachId";
+                coachIdParam.Value = coachId;
+                command.Parameters.Add(coachIdParam);
+                
+                var count = Convert.ToInt32(await command.ExecuteScalarAsync());
+                
+                // Check for specific relationship
+                command.CommandText = $@"
+                    SELECT COUNT(*) 
+                    FROM {fullTableName} 
+                    WHERE CoachId = @coachId 
+                    AND ClientId = @clientId";
+                    
+                var clientIdParam = command.CreateParameter();
+                clientIdParam.ParameterName = "@clientId";
+                clientIdParam.Value = clientId;
+                command.Parameters.Add(clientIdParam);
+                
+                var specificCount = Convert.ToInt32(await command.ExecuteScalarAsync());
+                
+                _logger.LogInformation("Direct SQL verification: Coach {CoachId} has {Count} total relationships and {SpecificCount} with client {ClientId}",
+                    coachId, count, specificCount, clientId);
+                    
+                return (specificCount > 0, count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error directly verifying relationship between {CoachId} and {ClientId}", coachId, clientId);
+                return (false, 0);
             }
         }
     }

@@ -323,20 +323,20 @@ namespace WorkoutTrackerWeb.Data
                 
             // Configure CoachClientRelationship query filter
             modelBuilder.Entity<CoachClientRelationship>()
-                .HasQueryFilter(r => _currentUserId == null);
+                .HasQueryFilter(r => _currentUserId == null || r.CoachId == _currentUserId || r.ClientId == _currentUserId);
                                     
             // Configure query filters for other coaching models
             modelBuilder.Entity<ClientGroup>()
-                .HasQueryFilter(g => _currentUserId == null);
+                .HasQueryFilter(g => _currentUserId == null || g.CoachId == _currentUserId);
                 
             modelBuilder.Entity<CoachNote>()
-                .HasQueryFilter(n => _currentUserId == null);
+                .HasQueryFilter(n => _currentUserId == null || n.Relationship.CoachId == _currentUserId || n.Relationship.ClientId == _currentUserId);
                                    
             modelBuilder.Entity<ClientGoal>()
-                .HasQueryFilter(g => _currentUserId == null);
+                .HasQueryFilter(g => _currentUserId == null || g.Relationship.CoachId == _currentUserId || g.Relationship.ClientId == _currentUserId);
                                    
             modelBuilder.Entity<CoachClientMessage>()
-                .HasQueryFilter(m => _currentUserId == null);
+                .HasQueryFilter(m => _currentUserId == null || m.Relationship.CoachId == _currentUserId || m.Relationship.ClientId == _currentUserId);
                                     
             // Configure indexes for coaching models
             modelBuilder.Entity<CoachClientRelationship>()
@@ -412,28 +412,34 @@ namespace WorkoutTrackerWeb.Data
                 .HasForeignKey(ws => ws.CoachUserId)
                 .OnDelete(DeleteBehavior.Restrict);
                 
-            // Configure temporary basic query filters for workout programming models to get a clean build
-            // These will filter based on direct ID values rather than navigation properties
+            // Configure query filters for workout programming models
             modelBuilder.Entity<TemplateAssignment>()
-                .HasQueryFilter(ta => _currentUserId == null);
+                .HasQueryFilter(ta => _currentUserId == null || 
+                                  ta.Coach.IdentityUserId == _currentUserId || 
+                                  ta.Client.IdentityUserId == _currentUserId);
                                      
             modelBuilder.Entity<WorkoutSchedule>()
-                .HasQueryFilter(ws => _currentUserId == null);
+                .HasQueryFilter(ws => _currentUserId == null || 
+                                 ws.Coach.IdentityUserId == _currentUserId || 
+                                 ws.Client.IdentityUserId == _currentUserId);
                 
             modelBuilder.Entity<WorkoutFeedback>()
-                .HasQueryFilter(wf => _currentUserId == null);
+                .HasQueryFilter(wf => _currentUserId == null || 
+                                 wf.Client.IdentityUserId == _currentUserId);
                 
             modelBuilder.Entity<ProgressionRule>()
-                .HasQueryFilter(pr => _currentUserId == null);
-                
-            modelBuilder.Entity<ExerciseSubstitution>()
-                .HasQueryFilter(es => _currentUserId == null || es.IsGlobal);
+                .HasQueryFilter(pr => _currentUserId == null || 
+                                 pr.Coach.IdentityUserId == _currentUserId || 
+                                 (pr.Client != null && pr.Client.IdentityUserId == _currentUserId));
                 
             modelBuilder.Entity<ClientExerciseExclusion>()
-                .HasQueryFilter(cee => _currentUserId == null);
+                .HasQueryFilter(cee => _currentUserId == null || 
+                                  cee.Client.IdentityUserId == _currentUserId || 
+                                  (cee.CreatedByCoach != null && cee.CreatedByCoach.IdentityUserId == _currentUserId));
                 
             modelBuilder.Entity<ClientEquipment>()
-                .HasQueryFilter(ce => _currentUserId == null);
+                .HasQueryFilter(ce => _currentUserId == null || 
+                                ce.Client.IdentityUserId == _currentUserId);
                                                                      
             // Add indexes for workout programming models
             modelBuilder.Entity<TemplateAssignment>()
