@@ -6,8 +6,8 @@
 
 <div class="container-fluid">
     <div class="mb-3">
-        <a asp-page="Details" asp-route-id="@Model.WorkoutTemplate.WorkoutTemplateId" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left"></i> Back to Template
+        <a asp-page="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Templates
         </a>
     </div>
 
@@ -22,24 +22,25 @@
                         <input type="hidden" asp-for="WorkoutTemplate.WorkoutTemplateId" />
                         <input type="hidden" asp-for="WorkoutTemplate.UserId" />
                         <input type="hidden" asp-for="WorkoutTemplate.CreatedDate" />
+                        <input type="hidden" asp-for="WorkoutTemplate.LastModifiedDate" />
                         
                         <div asp-validation-summary="ModelOnly" class="text-danger"></div>
                         
                         <div class="mb-3">
                             <label asp-for="WorkoutTemplate.Name" class="form-label"></label>
-                            <input asp-for="WorkoutTemplate.Name" class="form-control" />
+                            <input asp-for="WorkoutTemplate.Name" class="form-control" value="@Model.WorkoutTemplate.Name" />
                             <span asp-validation-for="WorkoutTemplate.Name" class="text-danger"></span>
                         </div>
                         
                         <div class="mb-3">
                             <label asp-for="WorkoutTemplate.Description" class="form-label"></label>
-                            <textarea asp-for="WorkoutTemplate.Description" class="form-control" rows="3"></textarea>
+                            <textarea asp-for="WorkoutTemplate.Description" class="form-control" rows="3">@Model.WorkoutTemplate.Description</textarea>
                             <span asp-validation-for="WorkoutTemplate.Description" class="text-danger"></span>
                         </div>
                         
                         <div class="mb-3">
                             <label asp-for="WorkoutTemplate.Category" class="form-label"></label>
-                            <input asp-for="WorkoutTemplate.Category" class="form-control" list="categoryOptions" />
+                            <input asp-for="WorkoutTemplate.Category" class="form-control" list="categoryOptions" value="@Model.WorkoutTemplate.Category" />
                             <datalist id="categoryOptions">
                                 @foreach (var category in Model.Categories)
                                 {
@@ -51,13 +52,13 @@
                         
                         <div class="mb-3">
                             <label asp-for="WorkoutTemplate.Tags" class="form-label"></label>
-                            <input asp-for="WorkoutTemplate.Tags" class="form-control" />
+                            <input asp-for="WorkoutTemplate.Tags" class="form-control" value="@Model.WorkoutTemplate.Tags" />
                             <span asp-validation-for="WorkoutTemplate.Tags" class="text-danger"></span>
                             <div class="form-text">Comma-separated tags</div>
                         </div>
                         
                         <div class="form-check mb-3">
-                            <input asp-for="WorkoutTemplate.IsPublic" class="form-check-input" />
+                            <input asp-for="WorkoutTemplate.IsPublic" class="form-check-input" checked="@Model.WorkoutTemplate.IsPublic" />
                             <label asp-for="WorkoutTemplate.IsPublic" class="form-check-label"></label>
                             <span asp-validation-for="WorkoutTemplate.IsPublic" class="text-danger"></span>
                         </div>
