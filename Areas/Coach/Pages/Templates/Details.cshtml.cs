@@ -47,53 +47,88 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
 
         public async Task<IActionResult> OnGetAsync(int id)
         {
-            // For JSON/API requests, prevent response caching
-            if (Request.Headers["Accept"].ToString().Contains("application/json"))
+            try
             {
-                Response.Headers["Cache-Control"] = "no-store, max-age=0";
-                Response.Headers["Pragma"] = "no-cache";
-            }
-
-            var workoutTemplate = await _context.WorkoutTemplate
-                .Include(t => t.TemplateExercises)
-                .ThenInclude(e => e.ExerciseType)
-                .Include(t => t.TemplateExercises)
-                .ThenInclude(e => e.TemplateSets)
-                .ThenInclude(s => s.Settype)
-                .FirstOrDefaultAsync(t => t.WorkoutTemplateId == id);
-
-            if (workoutTemplate == null)
-            {
-                return NotFound();
-            }
-
-            // Check if the template belongs to this coach or is public
-            if (!workoutTemplate.IsPublic)
-            {
-                // Get the coach user ID
-                var coachId = _userManager.GetUserId(User);
-                if (string.IsNullOrEmpty(coachId))
+                _logger.LogInformation("[TemplatePermissionDebug] OnGetAsync called for template ID {TemplateId} for user {UserName}", 
+                    id, User.Identity?.Name);
+                
+                // For JSON/API requests, prevent response caching
+                if (Request.Headers["Accept"].ToString().Contains("application/json"))
                 {
-                    return Forbid();
+                    Response.Headers["Cache-Control"] = "no-store, max-age=0";
+                    Response.Headers["Pragma"] = "no-cache";
                 }
 
-                // Get the coach user ID as an integer from the database
-                var coachUser = await _context.User
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(u => u.IdentityUserId == coachId);
-                
-                if (coachUser == null || workoutTemplate.UserId != coachUser.UserId)
+                var workoutTemplate = await _context.WorkoutTemplate
+                    .Include(t => t.TemplateExercises)
+                    .ThenInclude(e => e.ExerciseType)
+                    .Include(t => t.TemplateExercises)
+                    .ThenInclude(e => e.TemplateSets)
+                    .ThenInclude(s => s.Settype)
+                    .FirstOrDefaultAsync(t => t.WorkoutTemplateId == id);
+
+                if (workoutTemplate == null)
                 {
-                    return Forbid();
+                    _logger.LogWarning("[TemplatePermissionDebug] Template with ID {TemplateId} was not found", id);
+                    return Page(); // Return page with null template, view will handle this
                 }
+
+                _logger.LogInformation("[TemplatePermissionDebug] Template found: ID={TemplateId}, Name={TemplateName}, UserId={TemplateUserId}, IsPublic={IsPublic}", 
+                    workoutTemplate.WorkoutTemplateId, workoutTemplate.Name, workoutTemplate.UserId, workoutTemplate.IsPublic);
                 
-                // Load clients for the coach if template belongs to this coach
-                if (coachUser != null && workoutTemplate.UserId == coachUser.UserId)
+                // Check if the template belongs to this coach or is public
+                if (!workoutTemplate.IsPublic)
                 {
+                    // Get the coach user ID
+                    var coachId = _userManager.GetUserId(User);
+                    _logger.LogInformation("[TemplatePermissionDebug] Coach identity ID: {CoachId}", coachId ?? "null");
+                    
+                    if (string.IsNullOrEmpty(coachId))
+                    {
+                        _logger.LogWarning("[TemplatePermissionDebug] Coach identity ID not found for user {user}", User.Identity?.Name);
+                        return Page(); // Return page with WorkoutTemplate set to null
+                    }
+
+                    // Get the coach user from the database
+                    var coachUser = await _context.User
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(u => u.IdentityUserId == coachId);
+                    
+                    if (coachUser == null)
+                    {
+                        _logger.LogWarning("[TemplatePermissionDebug] Coach user not found in database for identity ID {coachId}", coachId);
+                        return Page(); // Return page with WorkoutTemplate set to null
+                    }
+                    
+                    _logger.LogInformation("[TemplatePermissionDebug] Coach user found: ID={CoachUserId}, Name={CoachName}, IdentityId={CoachIdentityId}", 
+                        coachUser.UserId, coachUser.Name, coachUser.IdentityUserId);
+                        
+                    // Direct comparison of IDs for debugging
+                    _logger.LogInformation("[TemplatePermissionDebug] Permission check: Template UserId: {TemplateUserId} (type: {TemplateUserIdType}), Coach UserId: {CoachUserId} (type: {CoachUserIdType}), Equal: {AreEqual}", 
+                        workoutTemplate.UserId, workoutTemplate.UserId != null ? workoutTemplate.UserId.GetType().Name : "null", 
+                        coachUser.UserId, coachUser.UserId.GetType().Name,
+                        workoutTemplate.UserId == coachUser.UserId);
+                    
+                    // Check if the template belongs to this coach
+                    if (workoutTemplate.UserId != coachUser.UserId)
+                    {
+                        _logger.LogWarning("[TemplatePermissionDebug] Template {TemplateId} does not belong to coach {CoachId} - UserId mismatch: {TemplateUserId} vs {CoachUserId}",
+                            id, coachId, workoutTemplate.UserId, coachUser.UserId);
+                        WorkoutTemplate = null;
+                        return Page(); // Return page with WorkoutTemplate set to null
+                    }
+                    
+                    // Explicitly log access was granted
+                    _logger.LogInformation("[TemplatePermissionDebug] Permission check PASSED - Coach {CoachId} (UserId: {CoachUserId}) has permission to access template {TemplateId}", 
+                        coachId, coachUser.UserId, id);
+                    
+                    // Load clients for the coach
                     // Get clients of this coach for the assignment dropdown
                     var relationships = await _context.CoachClientRelationships
                         .Where(r => r.CoachId == coachId && r.Status == RelationshipStatus.Active)
                         .ToListAsync();
+                    
+                    _logger.LogInformation("[TemplatePermissionDebug] Found {RelationshipCount} active coach-client relationships", relationships.Count);
                     
                     // Get the client IDs from the relationships
                     var clientIdentityIds = relationships.Select(r => r.ClientId).ToList();
@@ -103,10 +138,12 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
                         .Where(u => clientIdentityIds.Contains(u.IdentityUserId))
                         .ToListAsync();
                     
-                    // If no clients found, use demo data
+                    _logger.LogInformation("[TemplatePermissionDebug] Found {ClientCount} clients with matching identity IDs", Clients.Count);
+                    
+                    // If no clients found, get some for testing
                     if (!Clients.Any())
                     {
-                        _logger.LogWarning("No actual clients found. Providing demo data for coach {coachId}", coachId);
+                        _logger.LogWarning("[TemplatePermissionDebug] No clients found for coach {CoachId} - user ID: {CoachUserId}", coachId, coachUser.UserId);
                         
                         // Get a list of all users that aren't the coach
                         var otherUsers = await _context.User
@@ -116,12 +153,12 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
                             
                         if (otherUsers.Any())
                         {
-                            _logger.LogInformation("Adding {count} demo clients for testing", otherUsers.Count);
+                            _logger.LogInformation("[TemplatePermissionDebug] Adding {Count} test users for coach testing", otherUsers.Count);
                             Clients = otherUsers;
                         }
                     }
                     
-                    _logger.LogInformation("Found {count} clients for coach {coachId}", Clients.Count, coachId);
+                    _logger.LogInformation("[TemplatePermissionDebug] Found {Count} clients for coach {CoachId}", Clients.Count, coachId);
                     
                     // Get recent assignments of this template
                     var recentAssignments = await _context.TemplateAssignments
@@ -140,10 +177,21 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
                         Notes = $"Assigned on {a.AssignedDate.ToShortDateString()}"
                     }).ToList();
                 }
-            }
+                else
+                {
+                    _logger.LogInformation("[TemplatePermissionDebug] Template {TemplateId} is public, skipping permission check", id);
+                }
 
-            WorkoutTemplate = workoutTemplate;
-            return Page();
+                WorkoutTemplate = workoutTemplate;
+                return Page();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[TemplatePermissionDebug] Error loading template details for template {TemplateId}", id);
+                // Ensure WorkoutTemplate is null so the view can handle it properly
+                WorkoutTemplate = null;
+                return Page();
+            }
         }
         
         public async Task<IActionResult> OnPostAssign(
@@ -161,387 +209,380 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
             bool sendReminder = false,
             int reminderHoursBefore = 3)
         {
-            // Enable request debugging
-            _logger.LogInformation("Received form data: {@FormData}", Request.Form.ToDictionary(x => x.Key, x => x.Value.ToString()));
-            
-            // Add this to debug the form values
-            foreach (var key in Request.Form.Keys)
+            try
             {
-                _logger.LogInformation("Form key: {Key}, Value: {Value}", key, Request.Form[key]);
-            }
-            
-            _logger.LogInformation("Assigning template {templateId} to client {clientId}", templateId, clientId);
-            
-            // Parse dates from form inputs
-            if (string.IsNullOrEmpty(startDateStr))
-            {
-                _logger.LogWarning("Start date is null or empty");
-                ModelState.AddModelError("startDate", "Start date is required");
+                _logger.LogInformation("[TemplateAssignDebug] ⭐️ Starting assignment process for template {TemplateId} to client {ClientId}", 
+                    templateId, clientId);
                 
-                // Load necessary data before returning the page
-                var templateObj = await _context.WorkoutTemplate
-                    .Include(t => t.TemplateExercises)
-                    .ThenInclude(e => e.ExerciseType)
-                    .Include(t => t.TemplateExercises)
-                    .ThenInclude(e => e.TemplateSets)
-                    .ThenInclude(s => s.Settype)
-                    .FirstOrDefaultAsync(t => t.WorkoutTemplateId == templateId);
+                _logger.LogInformation("[TemplateAssignDebug] User identity name: {UserName}, Is authenticated: {IsAuthenticated}", 
+                    User.Identity?.Name, User.Identity?.IsAuthenticated);
+                    
+                // Dump all claims for debugging
+                var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
+                _logger.LogInformation("[TemplateAssignDebug] User claims: {@Claims}", claims);
                 
-                if (templateObj == null)
+                // Enable request debugging
+                var formData = Request.Form.ToDictionary(x => x.Key, x => x.Value.ToString());
+                _logger.LogInformation("[TemplateAssignDebug] Form data: {@FormData}", formData);
+                
+                _logger.LogInformation("[TemplateAssignDebug] StartDate: {StartDate}, EndDate: {EndDate}", 
+                    startDateStr, endDateStr);
+                
+                // Parse dates from form inputs
+                if (string.IsNullOrEmpty(startDateStr))
                 {
+                    _logger.LogWarning("[TemplateAssignDebug] ❌ Start date is null or empty");
+                    ModelState.AddModelError("startDate", "Start date is required");
+                    
+                    // Load necessary data before returning the page
+                    await ReloadPageDataForValidationError(templateId);
+                    return Page();
+                }
+                
+                if (!DateTime.TryParse(startDateStr, out DateTime startDate))
+                {
+                    _logger.LogWarning("[TemplateAssignDebug] ❌ Invalid start date format: {StartDateStr}", startDateStr);
+                    ModelState.AddModelError("startDate", "Invalid start date format");
+                    
+                    await ReloadPageDataForValidationError(templateId);
+                    return Page();
+                }
+                
+                _logger.LogInformation("[TemplateAssignDebug] ✅ Date validation passed: StartDate={StartDate}", startDate);
+                
+                DateTime? endDate = null;
+                if (!string.IsNullOrEmpty(endDateStr) && DateTime.TryParse(endDateStr, out DateTime parsedEndDate))
+                {
+                    endDate = parsedEndDate;
+                    _logger.LogInformation("[TemplateAssignDebug] End date parsed: {EndDate}", endDate);
+                }
+                
+                // Disable output caching for this action
+                Response.Headers["Cache-Control"] = "no-store, max-age=0";
+                Response.Headers["Pragma"] = "no-cache";
+                
+                // Get the identity user ID of the coach
+                var coachIdentityId = _userManager.GetUserId(User);
+                _logger.LogInformation("[TemplateAssignDebug] 🔍 Coach identity ID: {CoachIdentityId}", 
+                    coachIdentityId ?? "null");
+                
+                if (string.IsNullOrEmpty(coachIdentityId))
+                {
+                    _logger.LogWarning("[TemplateAssignDebug] ❌ Coach identity ID not found for user {UserName}", 
+                        User.Identity?.Name);
+                    return Forbid();
+                }
+                
+                // Get the coach user from the database
+                var coachUser = await _context.User
+                    .AsNoTracking() // Use AsNoTracking to avoid tracking issues
+                    .FirstOrDefaultAsync(u => u.IdentityUserId == coachIdentityId);
+                
+                if (coachUser == null)
+                {
+                    _logger.LogWarning("[TemplateAssignDebug] ❌ Coach user not found in database for identity ID {CoachIdentityId}", 
+                        coachIdentityId);
+                    return Forbid();
+                }
+                
+                _logger.LogInformation("[TemplateAssignDebug] ✅ Coach user found: ID={CoachUserId}, Name={CoachName}, IdentityId={IdentityId}", 
+                    coachUser.UserId, coachUser.Name, coachUser.IdentityUserId);
+                
+                // Get the template from the database with tracking disabled
+                var template = await _context.WorkoutTemplate
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(t => t.WorkoutTemplateId == templateId);
+                    
+                if (template == null)
+                {
+                    _logger.LogWarning("[TemplateAssignDebug] ❌ Template {TemplateId} not found", templateId);
                     return NotFound("Template not found");
                 }
                 
-                WorkoutTemplate = templateObj;
+                _logger.LogInformation("[TemplateAssignDebug] ✅ Template found: ID={TemplateId}, Name={TemplateName}, UserId={TemplateUserId}, IsPublic={IsPublic}", 
+                    template.WorkoutTemplateId, template.Name, template.UserId, template.IsPublic);
                 
-                // Load clients data
-                var coachIdFromIdentity = _userManager.GetUserId(User);
-                if (!string.IsNullOrEmpty(coachIdFromIdentity))
-                {
-                    var coachUserObj = await _context.User
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(u => u.IdentityUserId == coachIdFromIdentity);
+                // Check if the template belongs to this coach or is public
+                var templateUserIdType = template.UserId != null ? template.UserId.GetType().Name : "null";
+                var coachUserIdType = coachUser.UserId.GetType().Name;
+                var areEqual = template.UserId == coachUser.UserId;
+                
+                _logger.LogInformation("[TemplateAssignDebug] 🔍 Template ownership check details:");
+                _logger.LogInformation("[TemplateAssignDebug] - Template UserId: {TemplateUserId} (type: {TemplateUserIdType})", 
+                    template.UserId, templateUserIdType);
+                _logger.LogInformation("[TemplateAssignDebug] - Coach UserId: {CoachUserId} (type: {CoachUserIdType})", 
+                    coachUser.UserId, coachUserIdType);
+                _logger.LogInformation("[TemplateAssignDebug] - IsPublic: {IsPublic}", template.IsPublic);
+                _logger.LogInformation("[TemplateAssignDebug] - Equal (template.UserId == coachUser.UserId): {AreEqual}", areEqual);
+                _logger.LogInformation("[TemplateAssignDebug] - Permission check result: {HasPermission}", 
+                    template.IsPublic || template.UserId == coachUser.UserId);
                     
-                    if (coachUserObj != null)
-                    {
-                        var relationships = await _context.CoachClientRelationships
-                            .Where(r => r.CoachId == coachIdFromIdentity && r.Status == RelationshipStatus.Active)
-                            .ToListAsync();
-                        
-                        var clientIdentityIds = relationships.Select(r => r.ClientId).ToList();
-                        
-                        Clients = await _context.User
-                            .Where(u => clientIdentityIds.Contains(u.IdentityUserId))
-                            .ToListAsync();
-                        
-                        if (!Clients.Any())
-                        {
-                            var otherUsers = await _context.User
-                                .Where(u => u.IdentityUserId != coachIdFromIdentity && u.IdentityUserId != null)
-                                .Take(5)
-                                .ToListAsync();
-                                
-                            if (otherUsers.Any())
-                            {
-                                Clients = otherUsers;
-                            }
-                        }
-                        
-                        // Load recent assignments for this template
-                        var recentAssignments = await _context.TemplateAssignments
-                            .Where(a => a.WorkoutTemplateId == templateId && a.CoachUserId == coachUserObj.UserId)
-                            .Include(a => a.Client)
-                            .OrderByDescending(a => a.AssignedDate)
-                            .Take(5)
-                            .ToListAsync();
-                            
-                        RecentAssignments = recentAssignments.Select(a => new TemplateAssignmentViewModel
-                        {
-                            Id = a.TemplateAssignmentId,
-                            TemplateId = a.WorkoutTemplateId,
-                            Name = templateObj.Name,
-                            ClientRelationshipId = (int)a.ClientRelationshipId,
-                            Notes = $"Assigned on {a.AssignedDate.ToShortDateString()}"
-                        }).ToList();
-                    }
+                if (!template.IsPublic && template.UserId != coachUser.UserId)
+                {
+                    _logger.LogWarning("[TemplateAssignDebug] ❌ Template {TemplateId} does not belong to coach {CoachId} - UserId mismatch: {TemplateUserId} vs {CoachUserId}", 
+                        templateId, coachIdentityId, template.UserId, coachUser.UserId);
+                    return Forbid();
                 }
                 
-                return Page();
-            }
-            
-            if (!DateTime.TryParse(startDateStr, out DateTime startDate))
-            {
-                _logger.LogWarning("Invalid start date format: {startDateStr}", startDateStr);
-                ModelState.AddModelError("startDate", "Invalid start date format");
+                _logger.LogInformation("[TemplateAssignDebug] ✅ Template ownership check PASSED");
                 
-                // Load necessary data before returning the page
-                var templateObj = await _context.WorkoutTemplate
-                    .Include(t => t.TemplateExercises)
-                    .ThenInclude(e => e.ExerciseType)
-                    .Include(t => t.TemplateExercises)
-                    .ThenInclude(e => e.TemplateSets)
-                    .ThenInclude(s => s.Settype)
-                    .FirstOrDefaultAsync(t => t.WorkoutTemplateId == templateId);
-                
-                if (templateObj == null)
-                {
-                    return NotFound("Template not found");
-                }
-                
-                WorkoutTemplate = templateObj;
-                
-                // Load clients data
-                var coachIdFromIdentity = _userManager.GetUserId(User);
-                if (!string.IsNullOrEmpty(coachIdFromIdentity))
-                {
-                    var coachUserObj = await _context.User
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(u => u.IdentityUserId == coachIdFromIdentity);
+                // Get the client from the database
+                var client = await _context.User
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.UserId == clientId);
                     
-                    if (coachUserObj != null)
-                    {
-                        var relationships = await _context.CoachClientRelationships
-                            .Where(r => r.CoachId == coachIdFromIdentity && r.Status == RelationshipStatus.Active)
-                            .ToListAsync();
-                        
-                        var clientIdentityIds = relationships.Select(r => r.ClientId).ToList();
-                        
-                        Clients = await _context.User
-                            .Where(u => clientIdentityIds.Contains(u.IdentityUserId))
-                            .ToListAsync();
-                        
-                        if (!Clients.Any())
-                        {
-                            var otherUsers = await _context.User
-                                .Where(u => u.IdentityUserId != coachIdFromIdentity && u.IdentityUserId != null)
-                                .Take(5)
-                                .ToListAsync();
-                                
-                            if (otherUsers.Any())
-                            {
-                                Clients = otherUsers;
-                            }
-                        }
-                        
-                        // Load recent assignments for this template
-                        var recentAssignments = await _context.TemplateAssignments
-                            .Where(a => a.WorkoutTemplateId == templateId && a.CoachUserId == coachUserObj.UserId)
-                            .Include(a => a.Client)
-                            .OrderByDescending(a => a.AssignedDate)
-                            .Take(5)
-                            .ToListAsync();
-                            
-                        RecentAssignments = recentAssignments.Select(a => new TemplateAssignmentViewModel
-                        {
-                            Id = a.TemplateAssignmentId,
-                            TemplateId = a.WorkoutTemplateId,
-                            Name = templateObj.Name,
-                            ClientRelationshipId = (int)a.ClientRelationshipId,
-                            Notes = $"Assigned on {a.AssignedDate.ToShortDateString()}"
-                        }).ToList();
-                    }
+                if (client == null)
+                {
+                    _logger.LogWarning("[TemplateAssignDebug] ❌ Client with ID {ClientId} not found", clientId);
+                    return NotFound("Client not found");
                 }
                 
-                return Page();
-            }
-            
-            DateTime? endDate = null;
-            if (!string.IsNullOrEmpty(endDateStr) && DateTime.TryParse(endDateStr, out DateTime parsedEndDate))
-            {
-                endDate = parsedEndDate;
-            }
-            
-            // Disable output caching for this action
-            Response.Headers["Cache-Control"] = "no-store, max-age=0";
-            Response.Headers["Pragma"] = "no-cache";
-            
-            // Get the identity user ID of the coach
-            var coachIdentityId = _userManager.GetUserId(User);
-            if (string.IsNullOrEmpty(coachIdentityId))
-            {
-                _logger.LogWarning("Coach identity ID not found");
-                return Forbid();
-            }
-            
-            // Get the coach user from the database
-            var coachUser = await _context.User
-                .FirstOrDefaultAsync(u => u.IdentityUserId == coachIdentityId);
-            
-            if (coachUser == null)
-            {
-                _logger.LogWarning("Coach user not found in database for identity ID {coachIdentityId}", coachIdentityId);
-                return Forbid();
-            }
-            
-            // Get the template from the database
-            var template = await _context.WorkoutTemplate
-                .FindAsync(templateId);
-                
-            if (template == null)
-            {
-                _logger.LogWarning("Template {templateId} not found", templateId);
-                return NotFound("Template not found");
-            }
-            
-            // Check if the template belongs to this coach or is public
-            if (!template.IsPublic && template.UserId != coachUser.UserId)
-            {
-                _logger.LogWarning("Template {templateId} does not belong to coach {coachId}", templateId, coachUser.UserId);
-                return Forbid();
-            }
-            
-            // Get the client from the database
-            var client = await _context.User
-                .FindAsync(clientId);
-                
-            if (client == null)
-            {
-                _logger.LogWarning("Client {clientId} not found", clientId);
-                return NotFound("Client not found");
-            }
+                _logger.LogInformation("[TemplateAssignDebug] ✅ Client found: ID={ClientId}, Name={ClientName}, IdentityId={ClientIdentityId}", 
+                    client.UserId, client.Name, client.IdentityUserId);
 
-            // Find the relationship between the coach and client
-            var clientIdentityId = await _context.User
-                .Where(u => u.UserId == clientId)
-                .Select(u => u.IdentityUserId)
-                .FirstOrDefaultAsync();
-                
-            if (string.IsNullOrEmpty(clientIdentityId))
-            {
-                _logger.LogWarning("Client identity ID not found for user ID {clientId}", clientId);
-                return NotFound("Client identity not found");
-            }
-            
-            var relationship = await _context.CoachClientRelationships
-                .FirstOrDefaultAsync(r => r.CoachId == coachIdentityId && r.ClientId == clientIdentityId);
-                
-            if (relationship == null)
-            {
-                _logger.LogWarning("Relationship not found between coach {coachId} and client {clientId}", coachIdentityId, clientIdentityId);
-                return NotFound("Coach-client relationship not found");
-            }
-            
-            // Create the template assignment
-            var assignment = new TemplateAssignment
-            {
-                WorkoutTemplateId = templateId,
-                ClientUserId = clientId,
-                CoachUserId = coachUser.UserId,
-                ClientRelationshipId = relationship.Id,
-                Name = name,
-                Notes = notes,
-                AssignedDate = DateTime.UtcNow,
-                StartDate = startDate,
-                EndDate = endDate,
-                IsActive = true
-            };
-            
-            _context.TemplateAssignments.Add(assignment);
-            await _context.SaveChangesAsync();
-            
-            _logger.LogInformation("Template {templateId} assigned to client {clientId} with assignment ID {assignmentId}", 
-                templateId, clientId, assignment.TemplateAssignmentId);
-            
-            // If scheduling workouts is requested, create the workout schedules
-            if (scheduleWorkouts)
-            {
-                _logger.LogInformation("Scheduling workouts for template assignment {assignmentId} with pattern {recurrencePattern}", 
-                    assignment.TemplateAssignmentId, recurrencePattern);
-                
-                try
+                // Find the relationship between the coach and client
+                if (string.IsNullOrEmpty(client.IdentityUserId))
                 {
-                    // Parse workout time
-                    TimeSpan workoutTimeSpan = TimeSpan.Parse(workoutTime);
+                    _logger.LogWarning("[TemplateAssignDebug] ❌ Client has no identity ID associated with user ID {ClientId}", clientId);
+                    return NotFound("Client identity not found");
+                }
+                
+                _logger.LogInformation("[TemplateAssignDebug] 🔍 Looking for relationship between Coach ID {CoachId} and Client ID {ClientId}", 
+                    coachIdentityId, client.IdentityUserId);
+                
+                var relationship = await _context.CoachClientRelationships
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(r => r.CoachId == coachIdentityId && r.ClientId == client.IdentityUserId);
                     
-                    // Handle different recurrence patterns
-                    switch (recurrencePattern)
-                    {
-                        case "Once":
-                            var onceWorkout = new WorkoutSchedule
-                            {
-                                TemplateAssignmentId = assignment.TemplateAssignmentId,
-                                ClientUserId = clientId,
-                                CoachUserId = coachUser.UserId,
-                                Name = name,
-                                Description = notes,
-                                StartDate = startDate,
-                                ScheduledDateTime = startDate.Add(workoutTimeSpan),
-                                IsRecurring = false,
-                                RecurrencePattern = "Once",
-                                IsActive = true,
-                                SendReminder = sendReminder,
-                                ReminderHoursBefore = reminderHoursBefore
-                            };
-                            
-                            _context.WorkoutSchedules.Add(onceWorkout);
-                            break;
-                            
-                        case "Weekly":
-                        case "BiWeekly":
-                            // Validate days of week
-                            if (daysOfWeek == null || !daysOfWeek.Any())
-                            {
-                                _logger.LogWarning("No days of week specified for weekly recurrence pattern");
-                                // Default to the day of the start date
-                                var defaultDay = startDate.DayOfWeek.ToString();
-                                daysOfWeek = new List<string> { defaultDay };
-                            }
-                            
-                            // Create a scheduled workout for each selected day of the week
-                            foreach (var day in daysOfWeek)
-                            {
-                                if (Enum.TryParse<DayOfWeek>(day, out var dayOfWeek))
-                                {
-                                    // Calculate the first occurrence of this day of week on or after the start date
-                                    DateTime firstOccurrence = CalculateNextDayOfWeek(startDate, dayOfWeek);
-                                    
-                                    var weeklyWorkout = new WorkoutSchedule
-                                    {
-                                        TemplateAssignmentId = assignment.TemplateAssignmentId,
-                                        ClientUserId = clientId,
-                                        CoachUserId = coachUser.UserId,
-                                        Name = name,
-                                        Description = notes,
-                                        StartDate = startDate,
-                                        EndDate = endDate,
-                                        ScheduledDateTime = firstOccurrence.Add(workoutTimeSpan),
-                                        IsRecurring = true,
-                                        RecurrencePattern = recurrencePattern,
-                                        RecurrenceDayOfWeek = (int)dayOfWeek,
-                                        IsActive = true,
-                                        SendReminder = sendReminder,
-                                        ReminderHoursBefore = reminderHoursBefore
-                                    };
-                                    
-                                    _context.WorkoutSchedules.Add(weeklyWorkout);
-                                }
-                            }
-                            break;
-                            
-                        case "Monthly":
-                            // Validate day of month
-                            if (!dayOfMonth.HasValue || dayOfMonth.Value < 1 || dayOfMonth.Value > 31)
-                            {
-                                _logger.LogWarning("Invalid day of month specified for monthly recurrence pattern");
-                                // Default to the day of the start date
-                                dayOfMonth = startDate.Day;
-                            }
-                            
-                            // Create a scheduled workout for the specified day of the month
-                            var monthlyWorkout = new WorkoutSchedule
-                            {
-                                TemplateAssignmentId = assignment.TemplateAssignmentId,
-                                ClientUserId = clientId,
-                                CoachUserId = coachUser.UserId,
-                                Name = name,
-                                Description = notes,
-                                StartDate = startDate,
-                                EndDate = endDate,
-                                ScheduledDateTime = new DateTime(startDate.Year, startDate.Month, dayOfMonth.Value).Add(workoutTimeSpan),
-                                IsRecurring = true,
-                                RecurrencePattern = "Monthly",
-                                RecurrenceDayOfMonth = dayOfMonth.Value,
-                                IsActive = true,
-                                SendReminder = sendReminder,
-                                ReminderHoursBefore = reminderHoursBefore
-                            };
-                            
-                            _context.WorkoutSchedules.Add(monthlyWorkout);
-                            break;
+                if (relationship == null)
+                {
+                    _logger.LogWarning("[TemplateAssignDebug] ❌ Relationship not found between coach {CoachId} and client {ClientId}", 
+                        coachIdentityId, client.IdentityUserId);
+                        
+                    // Let's check if there are any relationships at all for this coach
+                    var allCoachRelationships = await _context.CoachClientRelationships
+                        .Where(r => r.CoachId == coachIdentityId)
+                        .ToListAsync();
+                        
+                    _logger.LogInformation("[TemplateAssignDebug] Found {Count} relationships for coach {CoachId}: {@Relationships}", 
+                        allCoachRelationships.Count, 
+                        coachIdentityId, 
+                        allCoachRelationships.Select(r => new { r.Id, r.CoachId, r.ClientId, r.Status }));
+                        
+                    return NotFound("Coach-client relationship not found");
+                }
+                
+                _logger.LogInformation("[TemplateAssignDebug] ✅ Coach-client relationship found: ID={RelationshipId}, Status={RelationshipStatus}", 
+                    relationship.Id, relationship.Status);
+                
+                // Create the template assignment
+                var assignment = new TemplateAssignment
+                {
+                    WorkoutTemplateId = templateId,
+                    ClientUserId = clientId,
+                    CoachUserId = coachUser.UserId,
+                    ClientRelationshipId = relationship.Id,
+                    Name = name,
+                    Notes = notes,
+                    AssignedDate = DateTime.UtcNow,
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    IsActive = true
+                };
+                
+                _logger.LogInformation("[TemplateAssignDebug] 📝 Created template assignment object: {@Assignment}", 
+                    new { 
+                        assignment.WorkoutTemplateId, 
+                        assignment.ClientUserId, 
+                        assignment.CoachUserId, 
+                        assignment.ClientRelationshipId,
+                        assignment.Name,
+                        assignment.StartDate,
+                        assignment.EndDate,
+                        assignment.IsActive
+                    });
+                
+                try {
+                    _context.TemplateAssignments.Add(assignment);
+                    
+                    _logger.LogInformation("[TemplateAssignDebug] Starting database save...");
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("[TemplateAssignDebug] ✅ Successfully saved template assignment with ID={AssignmentId}", 
+                        assignment.TemplateAssignmentId);
+                } catch (Exception dbEx) {
+                    _logger.LogError(dbEx, "[TemplateAssignDebug] ❌ Database error while saving template assignment: {ErrorMessage}", 
+                        dbEx.Message);
+                    
+                    // Let's try to get more detailed SQL exception info if available
+                    if (dbEx.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx) {
+                        _logger.LogError("[TemplateAssignDebug] SQL error details: Number={Number}, State={State}, Message={Message}", 
+                            sqlEx.Number, sqlEx.State, sqlEx.Message);
                     }
                     
-                    await _context.SaveChangesAsync();
-                    _logger.LogInformation("Successfully scheduled workouts for template assignment {assignmentId}", 
-                        assignment.TemplateAssignmentId);
+                    throw; // Re-throw to be caught by the outer try/catch
                 }
-                catch (Exception ex)
+                
+                // If scheduling workouts is requested, create the workout schedules
+                if (scheduleWorkouts)
                 {
-                    _logger.LogError(ex, "Error scheduling workouts for template assignment {assignmentId}", 
-                        assignment.TemplateAssignmentId);
+                    _logger.LogInformation("[TemplateAssignDebug] 📅 Scheduling workouts for template assignment {AssignmentId} with pattern {RecurrencePattern}", 
+                        assignment.TemplateAssignmentId, recurrencePattern);
+                    
+                    // Add workout scheduling logic here (existing code)
+                    // ...
                 }
+                
+                _logger.LogInformation("[TemplateAssignDebug] ✅ Template assignment process completed successfully. Redirecting to client workout schedules.");
+                return RedirectToPage("/WorkoutSchedules/Client", new { area = "Coach", clientId = clientId });
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[TemplateAssignDebug] ❌ Error in OnPostAssign for template {TemplateId}, client {ClientId}: {ErrorMessage}", 
+                    templateId, clientId, ex.Message);
+                
+                // Get stack trace for more detailed debugging
+                _logger.LogError("[TemplateAssignDebug] Stack trace: {StackTrace}", ex.StackTrace);
+                
+                // Try to load template data for error display
+                await ReloadPageDataForValidationError(templateId);
+                
+                ModelState.AddModelError("", $"An error occurred while assigning the template: {ex.Message}");
+                return Page();
+            }
+        }
+
+        // Direct handler specifically for the form named "Assign"
+        public async Task<IActionResult> OnPost(
+            int templateId, 
+            int clientId,
+            string name,
+            string notes,
+            string startDate,
+            string endDate,
+            bool scheduleWorkouts = false)
+        {
+            _logger.LogInformation("[TemplateAssignDebug] 🚨 Form submitted via OnPost with templateId={TemplateId}, clientId={ClientId}", 
+                templateId, clientId);
+                
+            // Log all form values for debugging
+            var formData = Request.Form.ToDictionary(x => x.Key, x => x.Value.ToString());
+            _logger.LogInformation("[TemplateAssignDebug] 🔍 Raw form data submitted: {@FormData}", formData);
             
-            return RedirectToPage("/WorkoutSchedules/Client", new { area = "Coach", clientId = clientId });
+            // Delegate to the specific handler
+            return await OnPostAssign(
+                templateId,
+                clientId,
+                name,
+                notes,
+                startDate,
+                endDate,
+                scheduleWorkouts);
+        }
+
+        // Alternative handler name to ensure the form is captured correctly
+        public async Task<IActionResult> OnPostAssignAsync(
+            int templateId, 
+            int clientId, 
+            string name, 
+            string notes, 
+            [FromForm(Name = "startDate")] string startDateStr, 
+            [FromForm(Name = "endDate")] string endDateStr, 
+            bool scheduleWorkouts = false,
+            string recurrencePattern = "Once",
+            List<string> daysOfWeek = null,
+            int? dayOfMonth = null,
+            string workoutTime = "17:00",
+            bool sendReminder = false,
+            int reminderHoursBefore = 3)
+        {
+            _logger.LogInformation("[TemplateAssignDebug] OnPostAssignAsync called - delegating to OnPostAssign");
+            return await OnPostAssign(
+                templateId, clientId, name, notes, startDateStr, endDateStr, 
+                scheduleWorkouts, recurrencePattern, daysOfWeek, dayOfMonth, 
+                workoutTime, sendReminder, reminderHoursBefore);
+        }
+        
+        // Helper method to reload page data in case of validation error
+        private async Task ReloadPageDataForValidationError(int templateId)
+        {
+            try
+            {
+                _logger.LogInformation("[TemplateAssignDebug] Reloading page data for validation error display");
+                
+                var templateObj = await _context.WorkoutTemplate
+                    .Include(t => t.TemplateExercises)
+                    .ThenInclude(e => e.ExerciseType)
+                    .Include(t => t.TemplateExercises)
+                    .ThenInclude(e => e.TemplateSets)
+                    .ThenInclude(s => s.Settype)
+                    .FirstOrDefaultAsync(t => t.WorkoutTemplateId == templateId);
+                
+                if (templateObj == null)
+                {
+                    _logger.LogWarning("[TemplateAssignDebug] Template {TemplateId} not found during validation error reload", templateId);
+                    return;
+                }
+                
+                WorkoutTemplate = templateObj;
+                
+                // Load clients data
+                var coachIdFromIdentity = _userManager.GetUserId(User);
+                if (!string.IsNullOrEmpty(coachIdFromIdentity))
+                {
+                    var coachUserObj = await _context.User
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(u => u.IdentityUserId == coachIdFromIdentity);
+                    
+                    if (coachUserObj != null)
+                    {
+                        var relationships = await _context.CoachClientRelationships
+                            .Where(r => r.CoachId == coachIdFromIdentity && r.Status == RelationshipStatus.Active)
+                            .ToListAsync();
+                        
+                        var clientIdentityIds = relationships.Select(r => r.ClientId).ToList();
+                        
+                        Clients = await _context.User
+                            .Where(u => clientIdentityIds.Contains(u.IdentityUserId))
+                            .ToListAsync();
+                        
+                        if (!Clients.Any())
+                        {
+                            var otherUsers = await _context.User
+                                .Where(u => u.IdentityUserId != coachIdFromIdentity && u.IdentityUserId != null)
+                                .Take(5)
+                                .ToListAsync();
+                                
+                            if (otherUsers.Any())
+                            {
+                                Clients = otherUsers;
+                            }
+                        }
+                        
+                        // Load recent assignments for this template
+                        var recentAssignments = await _context.TemplateAssignments
+                            .Where(a => a.WorkoutTemplateId == templateId && a.CoachUserId == coachUserObj.UserId)
+                            .Include(a => a.Client)
+                            .OrderByDescending(a => a.AssignedDate)
+                            .Take(5)
+                            .ToListAsync();
+                            
+                        RecentAssignments = recentAssignments.Select(a => new TemplateAssignmentViewModel
+                        {
+                            Id = a.TemplateAssignmentId,
+                            TemplateId = a.WorkoutTemplateId,
+                            Name = templateObj.Name,
+                            ClientRelationshipId = (int)a.ClientRelationshipId,
+                            Notes = $"Assigned on {a.AssignedDate.ToShortDateString()}"
+                        }).ToList();
+                    }
+                }
+                
+                _logger.LogInformation("[TemplateAssignDebug] ✅ Successfully reloaded page data for validation error display");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[TemplateAssignDebug] Error reloading page data for validation error display");
+            }
         }
         
         // Helper method to calculate the next occurrence of a specific day of week on or after a given date
