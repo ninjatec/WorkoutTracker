@@ -274,6 +274,15 @@ namespace WorkoutTrackerWeb.Controllers
                 {
                     workoutSchedule.RecurrenceDayOfMonth = scheduleDate.Day;
                 }
+                
+                // Force consistency by calling this helper method before saving
+                workoutSchedule.EnsureConsistentRecurringState();
+            }
+            else
+            {
+                // Explicitly set for non-recurring workouts to ensure DB state is correct
+                workoutSchedule.IsRecurring = false;
+                workoutSchedule.RecurrencePattern = "Once";
             }
         }
 

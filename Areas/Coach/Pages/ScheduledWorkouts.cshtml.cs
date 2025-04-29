@@ -424,6 +424,15 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
                         workoutSchedule.RecurrenceDayOfMonth = startDate.Day;
                     }
                 }
+                else
+                {
+                    // Explicitly set for non-recurring workouts to ensure DB state is correct
+                    workoutSchedule.IsRecurring = false;
+                    workoutSchedule.RecurrencePattern = "Once";
+                }
+                
+                // Force consistency before saving to ensure database state is correct
+                workoutSchedule.EnsureConsistentRecurringState();
 
                 _context.WorkoutSchedules.Add(workoutSchedule);
                 await _context.SaveChangesAsync();

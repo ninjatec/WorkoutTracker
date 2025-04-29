@@ -110,9 +110,15 @@ namespace WorkoutTrackerWeb.Models.Coaching
         /// </summary>
         public void EnsureConsistentRecurringState()
         {
+            // If RecurrencePattern is not "Once" and not empty, ensure IsRecurring is true in the database
             if (!string.IsNullOrEmpty(RecurrencePattern) && RecurrencePattern != "Once")
             {
                 _isRecurring = true;
+            }
+            else
+            {
+                // Otherwise, make sure it's set to false
+                _isRecurring = false;
             }
         }
     }
