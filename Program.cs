@@ -537,7 +537,18 @@ try
     });
 
     // Add Output Cache with Redis as the backing store if Redis is configured
-    if (builder.Services.Any(s => s.ServiceType == typeof(IConnectionMultiplexer)))
+    if (builder.Environment.IsDevelopment())
+    {
+        // Disable output cache in development to ensure it's not impacting testing
+        builder.Services.AddOutputCache(options =>
+        {
+            options.DefaultExpirationTimeSpan = TimeSpan.Zero;
+            options.MaximumBodySize = 0;
+            options.SizeLimit = 0;
+        });
+        Log.Information("Disabled OutputCache in development environment for testing");
+    }
+    else if (builder.Services.Any(s => s.ServiceType == typeof(IConnectionMultiplexer)))
     {
         // Use Redis as distributed cache for OutputCache in production
         builder.Services.AddStackExchangeRedisOutputCache(options =>
@@ -551,7 +562,7 @@ try
     }
     else 
     {
-        // Use memory cache in development
+        // Use memory cache in other environments
         builder.Services.AddOutputCache();
         Log.Information("Configured OutputCache with memory backend");
     }
