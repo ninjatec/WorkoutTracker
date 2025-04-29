@@ -144,5 +144,256 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
             WorkoutTemplate = workoutTemplate;
             return Page();
         }
+        
+        public async Task<IActionResult> OnPostAssign(
+            int templateId, 
+            int clientId, 
+            string name, 
+            string notes, 
+            [FromForm(Name = "startDate")] string startDateStr, 
+            [FromForm(Name = "endDate")] string endDateStr, 
+            bool scheduleWorkouts = false,
+            string recurrencePattern = "Once",
+            List<string> daysOfWeek = null,
+            int? dayOfMonth = null,
+            string workoutTime = "17:00",
+            bool sendReminder = false,
+            int reminderHoursBefore = 3)
+        {
+            _logger.LogInformation("Assigning template {templateId} to client {clientId}", templateId, clientId);
+            
+            // Parse dates from form inputs
+            if (!DateTime.TryParse(startDateStr, out DateTime startDate))
+            {
+                _logger.LogWarning("Invalid start date format: {startDateStr}", startDateStr);
+                ModelState.AddModelError("startDate", "Invalid start date format");
+                return BadRequest(ModelState);
+            }
+            
+            DateTime? endDate = null;
+            if (!string.IsNullOrEmpty(endDateStr) && DateTime.TryParse(endDateStr, out DateTime parsedEndDate))
+            {
+                endDate = parsedEndDate;
+            }
+            
+            // Disable output caching for this action
+            Response.Headers["Cache-Control"] = "no-store, max-age=0";
+            Response.Headers["Pragma"] = "no-cache";
+            
+            // Get the identity user ID of the coach
+            var coachIdentityId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(coachIdentityId))
+            {
+                _logger.LogWarning("Coach identity ID not found");
+                return Forbid();
+            }
+            
+            // Get the coach user from the database
+            var coachUser = await _context.User
+                .FirstOrDefaultAsync(u => u.IdentityUserId == coachIdentityId);
+            
+            if (coachUser == null)
+            {
+                _logger.LogWarning("Coach user not found in database for identity ID {coachIdentityId}", coachIdentityId);
+                return Forbid();
+            }
+            
+            // Get the template from the database
+            var template = await _context.WorkoutTemplate
+                .FindAsync(templateId);
+                
+            if (template == null)
+            {
+                _logger.LogWarning("Template {templateId} not found", templateId);
+                return NotFound("Template not found");
+            }
+            
+            // Check if the template belongs to this coach or is public
+            if (!template.IsPublic && template.UserId != coachUser.UserId)
+            {
+                _logger.LogWarning("Template {templateId} does not belong to coach {coachId}", templateId, coachUser.UserId);
+                return Forbid();
+            }
+            
+            // Get the client from the database
+            var client = await _context.User
+                .FindAsync(clientId);
+                
+            if (client == null)
+            {
+                _logger.LogWarning("Client {clientId} not found", clientId);
+                return NotFound("Client not found");
+            }
+
+            // Find the relationship between the coach and client
+            var clientIdentityId = await _context.User
+                .Where(u => u.UserId == clientId)
+                .Select(u => u.IdentityUserId)
+                .FirstOrDefaultAsync();
+                
+            if (string.IsNullOrEmpty(clientIdentityId))
+            {
+                _logger.LogWarning("Client identity ID not found for user ID {clientId}", clientId);
+                return NotFound("Client identity not found");
+            }
+            
+            var relationship = await _context.CoachClientRelationships
+                .FirstOrDefaultAsync(r => r.CoachId == coachIdentityId && r.ClientId == clientIdentityId);
+                
+            if (relationship == null)
+            {
+                _logger.LogWarning("Relationship not found between coach {coachId} and client {clientId}", coachIdentityId, clientIdentityId);
+                return NotFound("Coach-client relationship not found");
+            }
+            
+            // Create the template assignment
+            var assignment = new TemplateAssignment
+            {
+                WorkoutTemplateId = templateId,
+                ClientUserId = clientId,
+                CoachUserId = coachUser.UserId,
+                ClientRelationshipId = relationship.Id,
+                Name = name,
+                Notes = notes,
+                AssignedDate = DateTime.UtcNow,
+                StartDate = startDate,
+                EndDate = endDate,
+                IsActive = true
+            };
+            
+            _context.TemplateAssignments.Add(assignment);
+            await _context.SaveChangesAsync();
+            
+            _logger.LogInformation("Template {templateId} assigned to client {clientId} with assignment ID {assignmentId}", 
+                templateId, clientId, assignment.TemplateAssignmentId);
+            
+            // If scheduling workouts is requested, create the workout schedules
+            if (scheduleWorkouts)
+            {
+                _logger.LogInformation("Scheduling workouts for template assignment {assignmentId} with pattern {recurrencePattern}", 
+                    assignment.TemplateAssignmentId, recurrencePattern);
+                
+                try
+                {
+                    // Parse workout time
+                    TimeSpan workoutTimeSpan = TimeSpan.Parse(workoutTime);
+                    
+                    // Handle different recurrence patterns
+                    switch (recurrencePattern)
+                    {
+                        case "Once":
+                            var onceWorkout = new WorkoutSchedule
+                            {
+                                TemplateAssignmentId = assignment.TemplateAssignmentId,
+                                ClientUserId = clientId,
+                                CoachUserId = coachUser.UserId,
+                                Name = name,
+                                Description = notes,
+                                StartDate = startDate,
+                                ScheduledDateTime = startDate.Add(workoutTimeSpan),
+                                IsRecurring = false,
+                                RecurrencePattern = "Once",
+                                IsActive = true,
+                                SendReminder = sendReminder,
+                                ReminderHoursBefore = reminderHoursBefore
+                            };
+                            
+                            _context.WorkoutSchedules.Add(onceWorkout);
+                            break;
+                            
+                        case "Weekly":
+                        case "BiWeekly":
+                            // Validate days of week
+                            if (daysOfWeek == null || !daysOfWeek.Any())
+                            {
+                                _logger.LogWarning("No days of week specified for weekly recurrence pattern");
+                                // Default to the day of the start date
+                                var defaultDay = startDate.DayOfWeek.ToString();
+                                daysOfWeek = new List<string> { defaultDay };
+                            }
+                            
+                            // Create a scheduled workout for each selected day of the week
+                            foreach (var day in daysOfWeek)
+                            {
+                                if (Enum.TryParse<DayOfWeek>(day, out var dayOfWeek))
+                                {
+                                    // Calculate the first occurrence of this day of week on or after the start date
+                                    DateTime firstOccurrence = CalculateNextDayOfWeek(startDate, dayOfWeek);
+                                    
+                                    var weeklyWorkout = new WorkoutSchedule
+                                    {
+                                        TemplateAssignmentId = assignment.TemplateAssignmentId,
+                                        ClientUserId = clientId,
+                                        CoachUserId = coachUser.UserId,
+                                        Name = name,
+                                        Description = notes,
+                                        StartDate = startDate,
+                                        EndDate = endDate,
+                                        ScheduledDateTime = firstOccurrence.Add(workoutTimeSpan),
+                                        IsRecurring = true,
+                                        RecurrencePattern = recurrencePattern,
+                                        RecurrenceDayOfWeek = (int)dayOfWeek,
+                                        IsActive = true,
+                                        SendReminder = sendReminder,
+                                        ReminderHoursBefore = reminderHoursBefore
+                                    };
+                                    
+                                    _context.WorkoutSchedules.Add(weeklyWorkout);
+                                }
+                            }
+                            break;
+                            
+                        case "Monthly":
+                            // Validate day of month
+                            if (!dayOfMonth.HasValue || dayOfMonth.Value < 1 || dayOfMonth.Value > 31)
+                            {
+                                _logger.LogWarning("Invalid day of month specified for monthly recurrence pattern");
+                                // Default to the day of the start date
+                                dayOfMonth = startDate.Day;
+                            }
+                            
+                            // Create a scheduled workout for the specified day of the month
+                            var monthlyWorkout = new WorkoutSchedule
+                            {
+                                TemplateAssignmentId = assignment.TemplateAssignmentId,
+                                ClientUserId = clientId,
+                                CoachUserId = coachUser.UserId,
+                                Name = name,
+                                Description = notes,
+                                StartDate = startDate,
+                                EndDate = endDate,
+                                ScheduledDateTime = new DateTime(startDate.Year, startDate.Month, dayOfMonth.Value).Add(workoutTimeSpan),
+                                IsRecurring = true,
+                                RecurrencePattern = "Monthly",
+                                RecurrenceDayOfMonth = dayOfMonth.Value,
+                                IsActive = true,
+                                SendReminder = sendReminder,
+                                ReminderHoursBefore = reminderHoursBefore
+                            };
+                            
+                            _context.WorkoutSchedules.Add(monthlyWorkout);
+                            break;
+                    }
+                    
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("Successfully scheduled workouts for template assignment {assignmentId}", 
+                        assignment.TemplateAssignmentId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error scheduling workouts for template assignment {assignmentId}", 
+                        assignment.TemplateAssignmentId);
+                }
+            }
+            
+            return RedirectToPage("/WorkoutSchedules/Client", new { area = "Coach", clientId = clientId });
+        }
+        
+        // Helper method to calculate the next occurrence of a specific day of week on or after a given date
+        private DateTime CalculateNextDayOfWeek(DateTime startDate, DayOfWeek targetDayOfWeek)
+        {
+            int daysToAdd = ((int)targetDayOfWeek - (int)startDate.DayOfWeek + 7) % 7;
+            return startDate.AddDays(daysToAdd);
+        }
     }
 }

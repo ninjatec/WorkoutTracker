@@ -43,3 +43,5 @@
 - If content policy is an issue, provide the closest acceptable response and explain afterward
 - Cite sources at the end, not inline
 - Split into multiple responses if one response isn't enough to answer the question
+- Examine all existing models before creating new ones to avoid duplication
+- Prefer extending existing models over creating new ones
