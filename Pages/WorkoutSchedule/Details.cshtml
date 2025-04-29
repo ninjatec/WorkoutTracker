@@ -1,0 +1,332 @@
+@page "{id:int}"
+@model WorkoutTrackerWeb.Pages.WorkoutSchedule.DetailsModel
+@{
+    ViewData["Title"] = "Workout Schedule Details";
+}
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+                    <li class="breadcrumb-item"><a asp-page="/Workouts/ScheduledWorkouts">Scheduled Workouts</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Schedule Details</li>
+                </ol>
+            </nav>
+            
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h1 class="h3 mb-0 text-gray-800">Workout Schedule Details</h1>
+                <div>
+                    <a asp-page="/Workouts/ScheduledWorkouts" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i> Back to Schedules
+                    </a>
+                    <a asp-page="/Workouts/EditWorkoutSchedule" asp-route-scheduleId="@Model.WorkoutSchedule?.WorkoutScheduleId" class="btn btn-primary ms-2">
+                        <i class="bi bi-pencil me-1"></i> Edit Schedule
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> @Model.ErrorMessage
+        </div>
+    }
+    else if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    else if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    @if (Model.WorkoutSchedule != null)
+    {
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                        <h6 class="m-0 font-weight-bold text-primary">@Model.WorkoutSchedule.Name</h6>
+                        <div>
+                            <span class="badge @(Model.WorkoutSchedule.IsActive ? "bg-success" : "bg-secondary")">
+                                @(Model.WorkoutSchedule.IsActive ? "Active" : "Inactive")
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6 class="font-weight-bold">Basic Information</h6>
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-4">Name</dt>
+                                    <dd class="col-sm-8">@Model.WorkoutSchedule.Name</dd>
+
+                                    <dt class="col-sm-4">Description</dt>
+                                    <dd class="col-sm-8">
+                                        @if (string.IsNullOrEmpty(Model.WorkoutSchedule.Description))
+                                        {
+                                            <span class="text-muted">No description provided</span>
+                                        }
+                                        else
+                                        {
+                                            @Model.WorkoutSchedule.Description
+                                        }
+                                    </dd>
+
+                                    <dt class="col-sm-4">Template</dt>
+                                    <dd class="col-sm-8">
+                                        @if (Model.WorkoutSchedule.Template != null)
+                                        {
+                                            @Model.WorkoutSchedule.Template.Name
+                                        }
+                                        else if (Model.WorkoutSchedule.TemplateAssignment?.WorkoutTemplate != null)
+                                        {
+                                            @Model.WorkoutSchedule.TemplateAssignment.WorkoutTemplate.Name <span class="badge bg-info ms-1">Assigned</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No template</span>
+                                        }
+                                    </dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="font-weight-bold">People</h6>
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-4">Client</dt>
+                                    <dd class="col-sm-8">@Model.WorkoutSchedule.Client?.Name</dd>
+
+                                    <dt class="col-sm-4">Coach</dt>
+                                    <dd class="col-sm-8">
+                                        @if (Model.WorkoutSchedule.CoachUserId == Model.WorkoutSchedule.ClientUserId)
+                                        {
+                                            <span>Self-coached</span>
+                                        }
+                                        else
+                                        {
+                                            @Model.WorkoutSchedule.Coach?.Name
+                                        }
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h6 class="font-weight-bold">Schedule Details</h6>
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-4">Start Date</dt>
+                                    <dd class="col-sm-8">@Model.WorkoutSchedule.StartDate.ToString("MMMM d, yyyy")</dd>
+
+                                    <dt class="col-sm-4">Scheduled For</dt>
+                                    <dd class="col-sm-8">
+                                        @if (Model.WorkoutSchedule.ScheduledDateTime.HasValue)
+                                        {
+                                            <div>@Model.WorkoutSchedule.ScheduledDateTime.Value.ToString("dddd, MMMM d, yyyy")</div>
+                                            <div>@Model.WorkoutSchedule.ScheduledDateTime.Value.ToString("h:mm tt")</div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">Not scheduled</span>
+                                        }
+                                    </dd>
+
+                                    <dt class="col-sm-4">End Date</dt>
+                                    <dd class="col-sm-8">
+                                        @if (Model.WorkoutSchedule.EndDate.HasValue)
+                                        {
+                                            @Model.WorkoutSchedule.EndDate.Value.ToString("MMMM d, yyyy")
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No end date</span>
+                                        }
+                                    </dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="font-weight-bold">Recurrence</h6>
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-4">Recurring</dt>
+                                    <dd class="col-sm-8">
+                                        @if (Model.WorkoutSchedule.IsRecurring)
+                                        {
+                                            <span class="badge bg-primary">Yes</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">No</span> <span class="text-muted">(One-time)</span>
+                                        }
+                                    </dd>
+
+                                    @if (Model.WorkoutSchedule.IsRecurring)
+                                    {
+                                        <dt class="col-sm-4">Pattern</dt>
+                                        <dd class="col-sm-8">
+                                            @if (Model.WorkoutSchedule.RecurrencePattern == "Weekly" && Model.WorkoutSchedule.RecurrenceDayOfWeek.HasValue)
+                                            {
+                                                <span>Every @((DayOfWeek)Model.WorkoutSchedule.RecurrenceDayOfWeek.Value)</span>
+                                            }
+                                            else if (Model.WorkoutSchedule.RecurrencePattern == "BiWeekly" && Model.WorkoutSchedule.RecurrenceDayOfWeek.HasValue)
+                                            {
+                                                <span>Bi-weekly on @((DayOfWeek)Model.WorkoutSchedule.RecurrenceDayOfWeek.Value)s</span>
+                                            }
+                                            else if (Model.WorkoutSchedule.RecurrencePattern == "Monthly" && Model.WorkoutSchedule.RecurrenceDayOfMonth.HasValue)
+                                            {
+                                                <span>Monthly on day @Model.WorkoutSchedule.RecurrenceDayOfMonth</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@Model.WorkoutSchedule.RecurrencePattern</span>
+                                            }
+                                        </dd>
+                                    }
+                                </dl>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="font-weight-bold">Reminders</h6>
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-4">Send Reminder</dt>
+                                    <dd class="col-sm-8">
+                                        @if (Model.WorkoutSchedule.SendReminder)
+                                        {
+                                            <span class="badge bg-primary">Yes</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">No</span>
+                                        }
+                                    </dd>
+
+                                    @if (Model.WorkoutSchedule.SendReminder)
+                                    {
+                                        <dt class="col-sm-4">Hours Before</dt>
+                                        <dd class="col-sm-8">@Model.WorkoutSchedule.ReminderHoursBefore hours</dd>
+
+                                        <dt class="col-sm-4">Last Sent</dt>
+                                        <dd class="col-sm-8">
+                                            @if (Model.WorkoutSchedule.LastReminderSent.HasValue)
+                                            {
+                                                @Model.WorkoutSchedule.LastReminderSent.Value.ToString("MMMM d, yyyy h:mm tt")
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">Not sent yet</span>
+                                            }
+                                        </dd>
+                                    }
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Actions</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a asp-page="/Workouts/EditWorkoutSchedule" asp-route-scheduleId="@Model.WorkoutSchedule.WorkoutScheduleId" class="btn btn-primary">
+                                <i class="bi bi-pencil me-2"></i> Edit Schedule
+                            </a>
+                            
+                            <form method="post" asp-page-handler="ToggleActive" class="d-grid">
+                                <input type="hidden" name="id" value="@Model.WorkoutSchedule.WorkoutScheduleId" />
+                                <input type="hidden" name="isActive" value="@(!Model.WorkoutSchedule.IsActive)" />
+                                <button type="submit" class="btn @(Model.WorkoutSchedule.IsActive ? "btn-warning" : "btn-success")">
+                                    <i class="bi @(Model.WorkoutSchedule.IsActive ? "bi-pause" : "bi-play") me-2"></i>
+                                    @(Model.WorkoutSchedule.IsActive ? "Pause Schedule" : "Activate Schedule")
+                                </button>
+                            </form>
+                            
+                            <form method="post" asp-page-handler="DeleteSchedule" onsubmit="return confirm('Are you sure you want to delete this schedule?');" class="d-grid">
+                                <input type="hidden" name="id" value="@Model.WorkoutSchedule.WorkoutScheduleId" />
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="bi bi-trash me-2"></i> Delete Schedule
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                @if (Model.WorkoutSchedule.Template != null || 
+                   (Model.WorkoutSchedule.TemplateAssignment?.WorkoutTemplate != null))
+                {
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold text-primary">Template</h6>
+                        </div>
+                        <div class="card-body">
+                            @{
+                                var template = Model.WorkoutSchedule.Template ?? Model.WorkoutSchedule.TemplateAssignment?.WorkoutTemplate;
+                            }
+                            
+                            @if (template != null)
+                            {
+                                <h5>@template.Name</h5>
+                                <p class="text-muted mb-3">@(string.IsNullOrEmpty(template.Description) ? "No description provided" : template.Description)</p>
+                                
+                                @if (!string.IsNullOrEmpty(template.Category))
+                                {
+                                    <div class="mb-2">
+                                        <strong>Category:</strong> @template.Category
+                                    </div>
+                                }
+                                
+                                @if (!string.IsNullOrEmpty(template.Tags))
+                                {
+                                    <div class="mb-3">
+                                        <strong>Tags:</strong>
+                                        @foreach (var tag in template.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                                        {
+                                            <span class="badge bg-info me-1">@tag.Trim()</span>
+                                        }
+                                    </div>
+                                }
+                                
+                                @if (Model.WorkoutSchedule.TemplateAssignmentId.HasValue && 
+                                    Model.WorkoutSchedule.TemplateAssignment != null)
+                                {
+                                    <div class="alert alert-info mb-3">
+                                        <small>
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            This workout was assigned by your coach.
+                                        </small>
+                                    </div>
+                                }
+                                
+                                <a href="/Templates/Details/@template.WorkoutTemplateId" class="btn btn-outline-primary">
+                                    <i class="bi bi-file-text me-1"></i> View Template
+                                </a>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Initialize any interactive elements if needed
+        });
+    </script>
+}

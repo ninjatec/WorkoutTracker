@@ -173,7 +173,7 @@ namespace WorkoutTrackerWeb.Pages
                 var scheduleDateTime = ScheduleData.ScheduleDate.Date.Add(ScheduleData.ScheduleTime);
 
                 // Create the workout schedule
-                var workoutSchedule = new WorkoutSchedule
+                var workoutSchedule = new Models.Coaching.WorkoutSchedule
                 {
                     ClientUserId = int.Parse(userId),
                     // Make sure CoachUserId is not assigned null

@@ -27,11 +27,11 @@ namespace WorkoutTrackerWeb.Pages.Workouts
         }
 
         [BindProperty]
-        public WorkoutSchedule WorkoutSchedule { get; set; }
+        public Models.Coaching.WorkoutSchedule WorkoutSchedule { get; set; }
 
         public string ErrorMessage { get; set; }
 
-        public async Task<IActionResult> OnGetAsync(int scheduleId)
+        public async Task<IActionResult> OnGetAsync(int? scheduleId)
         {
             var userId = User.GetUserId();
             if (userId == null)
@@ -39,11 +39,17 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                 return RedirectToPage("/Account/Login");
             }
 
+            // If scheduleId is not provided or invalid, return Not Found
+            if (!scheduleId.HasValue || scheduleId.Value <= 0)
+            {
+                return NotFound();
+            }
+
             WorkoutSchedule = await _context.WorkoutSchedules
                 .Include(w => w.Template)
                 .Include(w => w.TemplateAssignment)
                     .ThenInclude(ta => ta != null ? ta.WorkoutTemplate : null)
-                .FirstOrDefaultAsync(w => w.WorkoutScheduleId == scheduleId && w.ClientUserId.ToString() == userId);
+                .FirstOrDefaultAsync(w => w.WorkoutScheduleId == scheduleId.Value && w.ClientUserId.ToString() == userId);
 
             if (WorkoutSchedule == null)
             {

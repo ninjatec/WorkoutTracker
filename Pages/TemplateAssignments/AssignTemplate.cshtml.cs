@@ -176,7 +176,7 @@ namespace WorkoutTrackerWeb.Pages.TemplateAssignments
                     TimeSpan workoutTimeOfDay = TimeSpan.Parse(workoutTime);
 
                     // Create workout schedule
-                    var schedule = new WorkoutSchedule
+                    var schedule = new Models.Coaching.WorkoutSchedule
                     {
                         TemplateAssignmentId = assignment.TemplateAssignmentId,
                         ClientUserId = clientId,

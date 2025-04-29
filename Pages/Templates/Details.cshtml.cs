@@ -109,7 +109,7 @@ namespace WorkoutTrackerWeb.Pages.Templates
                 var scheduledDateTime = startDate.Date.Add(workoutTimeOfDay);
 
                 // Create the workout schedule
-                var workoutSchedule = new WorkoutSchedule
+                var workoutSchedule = new Models.Coaching.WorkoutSchedule
                 {
                     TemplateId = templateId,
                     ClientUserId = appUser.UserId,
