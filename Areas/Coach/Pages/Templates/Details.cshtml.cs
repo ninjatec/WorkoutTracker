@@ -211,6 +211,24 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
         {
             try
             {
+                // Log all parameters at the beginning of the method
+                _logger.LogInformation("[FormSubmissionDetails] ⭐️ Form submitted with templateId={TemplateId}, clientId={ClientId}, scheduleWorkouts={ScheduleWorkouts}, recurrencePattern={RecurrencePattern}", 
+                    templateId, clientId, scheduleWorkouts, recurrencePattern);
+                
+                // Log days of week and other scheduling details if present
+                if (daysOfWeek != null && daysOfWeek.Any())
+                {
+                    _logger.LogInformation("[FormSubmissionDetails] 📅 Days of week selected: {@DaysOfWeek}", daysOfWeek);
+                }
+                
+                if (dayOfMonth.HasValue)
+                {
+                    _logger.LogInformation("[FormSubmissionDetails] 📅 Day of month selected: {DayOfMonth}", dayOfMonth.Value);
+                }
+                
+                _logger.LogInformation("[FormSubmissionDetails] ⏰ Workout time: {WorkoutTime}, SendReminder: {SendReminder}, ReminderHoursBefore: {ReminderHoursBefore}", 
+                    workoutTime, sendReminder, reminderHoursBefore);
+                
                 _logger.LogInformation("[TemplateAssignDebug] ⭐️ Starting assignment process for template {TemplateId} to client {ClientId}", 
                     templateId, clientId);
                 
@@ -448,13 +466,23 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
                             IsActive = true
                         };
                         
-                        // Always explicitly set IsRecurring based on recurrence pattern
-                        schedule.IsRecurring = recurrencePattern != "Once";
-                        schedule.RecurrencePattern = recurrencePattern;
+                        // Always explicitly set IsRecurring based on recurrence pattern and day selections
+                        // If days of week are selected, it should be a weekly recurring workout regardless of pattern
+                        if (daysOfWeek != null && daysOfWeek.Any())
+                        {
+                            schedule.IsRecurring = true;
+                            schedule.RecurrencePattern = "Weekly"; // Override to Weekly if days are selected
+                            _logger.LogInformation("[ScheduleDebug] Days of week selected, overriding recurrence pattern to Weekly and IsRecurring to true");
+                        }
+                        else
+                        {
+                            schedule.IsRecurring = recurrencePattern != "Once";
+                            schedule.RecurrencePattern = recurrencePattern;
+                        }
                         
                         _logger.LogInformation("[ScheduleDebug] Creating workout schedule with recurrence settings: {@RecurrenceDetails}", 
                             new { 
-                                RecurrencePattern = recurrencePattern,
+                                RecurrencePattern = schedule.RecurrencePattern,
                                 IsRecurring = schedule.IsRecurring,
                                 DaysOfWeek = daysOfWeek,
                                 DayOfMonth = dayOfMonth,
@@ -462,10 +490,10 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
                             });
                         
                         _logger.LogInformation("[ScheduleDebug] Setting IsRecurring={IsRecurring} for recurrence pattern {RecurrencePattern}",
-                            schedule.IsRecurring, recurrencePattern);
+                            schedule.IsRecurring, schedule.RecurrencePattern);
                         
                         // Set recurrence specifics
-                        if ((recurrencePattern == "Weekly" || recurrencePattern == "BiWeekly") && daysOfWeek != null && daysOfWeek.Any())
+                        if ((schedule.RecurrencePattern == "Weekly" || schedule.RecurrencePattern == "BiWeekly") && daysOfWeek != null && daysOfWeek.Any())
                         {
                             // Parse the day of week string to the enum and then to int
                             DayOfWeek dayOfWeek = Enum.Parse<DayOfWeek>(daysOfWeek.First());
@@ -551,14 +579,35 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
             string notes,
             string startDate,
             string endDate,
-            bool scheduleWorkouts = false)
+            bool scheduleWorkouts = false,
+            string recurrencePattern = "Once",
+            List<string> daysOfWeek = null,
+            int? dayOfMonth = null,
+            string workoutTime = "17:00",
+            bool sendReminder = false,
+            int reminderHoursBefore = 3)
         {
-            _logger.LogInformation("[TemplateAssignDebug] 🚨 Form submitted via OnPost with templateId={TemplateId}, clientId={ClientId}", 
-                templateId, clientId);
+            _logger.LogInformation("[TemplateAssignDebug] 🚨 Form submitted via OnPost with templateId={TemplateId}, clientId={ClientId}, recurrencePattern={RecurrencePattern}", 
+                templateId, clientId, recurrencePattern);
                 
             // Log all form values for debugging
             var formData = Request.Form.ToDictionary(x => x.Key, x => x.Value.ToString());
             _logger.LogInformation("[TemplateAssignDebug] 🔍 Raw form data submitted: {@FormData}", formData);
+            
+            // Ensure we're capturing the recurrence pattern from the form
+            if (formData.TryGetValue("recurrencePattern", out var formRecurrencePattern))
+            {
+                recurrencePattern = formRecurrencePattern;
+                _logger.LogInformation("[TemplateAssignDebug] ✅ Using recurrence pattern from form: {RecurrencePattern}", recurrencePattern);
+            }
+            
+            // Extract days of week from form if they exist
+            List<string> formDaysOfWeek = null;
+            if (Request.Form.TryGetValue("daysOfWeek", out var daysOfWeekValues) && daysOfWeekValues.Count > 0)
+            {
+                formDaysOfWeek = daysOfWeekValues.ToList();
+                _logger.LogInformation("[TemplateAssignDebug] ✅ Found days of week in form: {@DaysOfWeek}", formDaysOfWeek);
+            }
             
             // Delegate to the specific handler
             return await OnPostAssign(
@@ -568,7 +617,13 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
                 notes,
                 startDate,
                 endDate,
-                scheduleWorkouts);
+                scheduleWorkouts,
+                recurrencePattern,
+                formDaysOfWeek ?? daysOfWeek,
+                dayOfMonth,
+                workoutTime,
+                sendReminder,
+                reminderHoursBefore);
         }
 
         // Alternative handler name to ensure the form is captured correctly
