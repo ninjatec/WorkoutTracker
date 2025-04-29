@@ -42,13 +42,32 @@ namespace WorkoutTrackerWeb.Models.Coaching
         [Display(Name = "Scheduled Date")]
         public DateTime? ScheduledDateTime { get; set; }
         
+        private bool _isRecurring;
+        
         // For recurring workouts
         [Display(Name = "Is Recurring")]
-        public bool IsRecurring { get; set; } = false;
+        public bool IsRecurring 
+        { 
+            get => _isRecurring || (!string.IsNullOrEmpty(RecurrencePattern) && RecurrencePattern != "Once");
+            set => _isRecurring = value; 
+        }
+        
+        private string _recurrencePattern;
         
         [StringLength(50)]
         [Display(Name = "Recurrence Pattern")]
-        public string RecurrencePattern { get; set; } // Daily, Weekly, BiWeekly, Monthly
+        public string RecurrencePattern 
+        { 
+            get => _recurrencePattern; 
+            set 
+            { 
+                _recurrencePattern = value;
+                if (!string.IsNullOrEmpty(value) && value != "Once")
+                {
+                    _isRecurring = true;
+                }
+            } 
+        }
         
         [Display(Name = "Recurrence Day Of Week")]
         public int? RecurrenceDayOfWeek { get; set; } // Store as int (0 = Sunday, 1 = Monday, etc.)
@@ -85,5 +104,16 @@ namespace WorkoutTrackerWeb.Models.Coaching
         
         [ForeignKey("CoachUserId")]
         public User Coach { get; set; }
+        
+        /// <summary>
+        /// Ensures that IsRecurring is always consistent with the RecurrencePattern
+        /// </summary>
+        public void EnsureConsistentRecurringState()
+        {
+            if (!string.IsNullOrEmpty(RecurrencePattern) && RecurrencePattern != "Once")
+            {
+                _isRecurring = true;
+            }
+        }
     }
 }

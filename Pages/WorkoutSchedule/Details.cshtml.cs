@@ -71,6 +71,21 @@ namespace WorkoutTrackerWeb.Pages.WorkoutSchedule
                     return Page();
                 }
 
+                // Fix for recurring workouts display: Ensure IsRecurring is set correctly based on recurrence pattern
+                if (!string.IsNullOrEmpty(WorkoutSchedule.RecurrencePattern) && WorkoutSchedule.RecurrencePattern != "Once")
+                {
+                    // If the workout has a recurrence pattern that's not "Once", it should be recurring
+                    if (!WorkoutSchedule.IsRecurring)
+                    {
+                        _logger.LogWarning("Found workout schedule {ScheduleId} with recurrence pattern {Pattern} but IsRecurring=false. Setting IsRecurring to true.",
+                            WorkoutSchedule.WorkoutScheduleId, WorkoutSchedule.RecurrencePattern);
+                        
+                        WorkoutSchedule.IsRecurring = true;
+                        _context.Entry(WorkoutSchedule).State = EntityState.Modified;
+                        await _context.SaveChangesAsync();
+                    }
+                }
+
                 // Check if the user is a coach for this schedule
                 IsCoach = WorkoutSchedule.CoachUserId == appUser.UserId;
 

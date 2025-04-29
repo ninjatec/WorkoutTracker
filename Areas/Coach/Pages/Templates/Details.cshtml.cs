@@ -450,6 +450,9 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
                             IsActive = true
                         };
                         
+                        _logger.LogInformation("[TemplateAssignDebug] Setting IsRecurring={IsRecurring} for recurrence pattern {RecurrencePattern}",
+                            schedule.IsRecurring, recurrencePattern);
+                        
                         // Set recurrence specifics
                         if ((recurrencePattern == "Weekly" || recurrencePattern == "BiWeekly") && daysOfWeek != null && daysOfWeek.Any())
                         {
