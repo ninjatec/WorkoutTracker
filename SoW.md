@@ -166,7 +166,10 @@
      - [ ] Implement goal data export functionality for reporting
 
  - [ ] Recent Client Activity should show real data.
-
+ - [ ] Fix user Schedules page
+ - [ ] Create logic and background job that converts scheduled workouts into workouts
+ - [ ] Create logic and background job for sending notifications
+ 
  - [ ] Dashboard and Analytics Enhancement
    - [ ] Implement proper data loading and caching for dashboard
    - [ ] Create analytics pages for tracking client progress

@@ -1,0 +1,576 @@
+@page
+@model WorkoutTrackerWeb.Areas.Coach.Pages.Goals.IndexModel
+@{
+    ViewData["Title"] = "Client Goals";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Client Goals</h1>
+        <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createGoalModal">
+            <i class="bi bi-plus-circle"></i> Create New Goal
+        </a>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+    {
+        var statusClass = Model.StatusMessageType == "Error" ? "danger" : "success";
+        <div class="alert alert-@statusClass alert-dismissible fade show" role="alert">
+            @Model.StatusMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Filter Goals</h6>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="ClientId" class="form-label">Client</label>
+                    <select id="ClientId" name="ClientId" class="form-select" asp-items="Model.ClientSelectList"></select>
+                </div>
+                <div class="col-md-3">
+                    <label for="CategoryFilter" class="form-label">Category</label>
+                    <select id="CategoryFilter" name="CategoryFilter" class="form-select" asp-items="Model.CategorySelectList"></select>
+                </div>
+                <div class="col-md-3">
+                    <label for="StatusFilter" class="form-label">Status</label>
+                    <select id="StatusFilter" name="StatusFilter" class="form-select" asp-items="Model.StatusSelectList"></select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Client Goals</h6>
+        </div>
+        <div class="card-body">
+            @if (Model.Goals.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="goalsTable" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>Client</th>
+                                <th>Description</th>
+                                <th>Category</th>
+                                <th>Target Date</th>
+                                <th>Progress</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var goal in Model.Goals)
+                            {
+                                <tr class="@(goal.IsCompleted ? "table-success" : "")">
+                                    <td>@goal.ClientName</td>
+                                    <td>@goal.Description</td>
+                                    <td><span class="badge bg-secondary">@goal.Category</span></td>
+                                    <td>@goal.TargetDate.ToShortDateString()</td>
+                                    <td>
+                                        <div class="progress">
+                                            <div class="progress-bar @(goal.Progress >= 80 ? "bg-success" : goal.Progress >= 40 ? "bg-info" : "bg-warning")" 
+                                                 role="progressbar" style="width: @goal.Progress%;" 
+                                                 aria-valuenow="@goal.Progress" aria-valuemin="0" aria-valuemax="100">
+                                                @goal.Progress%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if (goal.IsCompleted)
+                                        {
+                                            <span class="badge bg-success">Completed</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-primary">Active</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-primary" 
+                                                    data-bs-toggle="modal" data-bs-target="#viewGoalModal"
+                                                    data-id="@goal.Id"
+                                                    data-client="@goal.ClientName"
+                                                    data-description="@goal.Description"
+                                                    data-category="@goal.Category"
+                                                    data-targetdate="@goal.TargetDate.ToShortDateString()"
+                                                    data-measurement="@goal.MeasurementType"
+                                                    data-startvalue="@goal.StartValue"
+                                                    data-currentvalue="@goal.CurrentValue"
+                                                    data-targetvalue="@goal.TargetValue"
+                                                    data-unit="@goal.MeasurementUnit"
+                                                    data-progress="@goal.Progress"
+                                                    data-completed="@goal.IsCompleted">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-info" 
+                                                    data-bs-toggle="modal" data-bs-target="#updateProgressModal"
+                                                    data-id="@goal.Id"
+                                                    data-client="@goal.ClientName"
+                                                    data-description="@goal.Description"
+                                                    data-currentvalue="@goal.CurrentValue"
+                                                    data-targetvalue="@goal.TargetValue"
+                                                    data-unit="@goal.MeasurementUnit">
+                                                <i class="bi bi-arrow-up-circle"></i>
+                                            </button>
+                                            @if (!goal.IsCompleted)
+                                            {
+                                                <form method="post" asp-page-handler="CompleteGoal" class="d-inline">
+                                                    <input type="hidden" name="goalId" value="@goal.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-success" 
+                                                            onclick="return confirm('Are you sure you want to mark this goal as completed?')">
+                                                        <i class="bi bi-check-circle"></i>
+                                                    </button>
+                                                </form>
+                                            }
+                                            <button type="button" class="btn btn-sm btn-warning" 
+                                                    data-bs-toggle="modal" data-bs-target="#editGoalModal"
+                                                    data-id="@goal.Id"
+                                                    data-description="@goal.Description"
+                                                    data-category="@goal.Category"
+                                                    data-targetdate="@goal.TargetDate.ToString("yyyy-MM-dd")"
+                                                    data-measurement="@goal.MeasurementType"
+                                                    data-startvalue="@goal.StartValue"
+                                                    data-targetvalue="@goal.TargetValue"
+                                                    data-unit="@goal.MeasurementUnit">
+                                                <i class="bi bi-pencil"></i>
+                                            </button>
+                                            <form method="post" asp-page-handler="DeleteGoal" class="d-inline">
+                                                <input type="hidden" name="goalId" value="@goal.Id" />
+                                                <button type="submit" class="btn btn-sm btn-danger" 
+                                                        onclick="return confirm('Are you sure you want to delete this goal? This action cannot be undone.')">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    No goals found. Use the button above to create a new goal or adjust your filters.
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Create Goal Modal -->
+<div class="modal fade" id="createGoalModal" tabindex="-1" aria-labelledby="createGoalModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createGoalModalLabel">Create New Goal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" asp-page="./Create">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="clientSelect" class="form-label">Client</label>
+                        <select id="clientSelect" name="ClientId" class="form-select" required asp-items="Model.ClientSelectList"></select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Goal Description</label>
+                        <input type="text" class="form-control" id="description" name="Description" required maxlength="255">
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="category" class="form-label">Category</label>
+                            <select id="category" name="Category" class="form-select" required>
+                                @foreach (GoalCategory category in Enum.GetValues(typeof(GoalCategory)))
+                                {
+                                    <option value="@((int)category)">@category.ToString()</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="targetDate" class="form-label">Target Date</label>
+                            <input type="date" class="form-control" id="targetDate" name="TargetDate" required
+                                   value="@DateTime.Now.AddDays(30).ToString("yyyy-MM-dd")">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="measurementType" class="form-label">Measurement Type</label>
+                            <select id="measurementType" name="MeasurementType" class="form-select">
+                                <option value="">None (Time-based progress)</option>
+                                <option value="Weight">Weight</option>
+                                <option value="Reps">Repetitions</option>
+                                <option value="Distance">Distance</option>
+                                <option value="Time">Time</option>
+                                <option value="Count">Count</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 d-none" id="unitField">
+                            <label for="measurementUnit" class="form-label">Unit</label>
+                            <select id="measurementUnit" name="MeasurementUnit" class="form-select">
+                                <option value="kg">kg</option>
+                                <option value="lbs">lbs</option>
+                                <option value="reps">reps</option>
+                                <option value="km">km</option>
+                                <option value="mi">mi</option>
+                                <option value="min">min</option>
+                                <option value="sec">sec</option>
+                                <option value="count">count</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3 d-none" id="valueFields">
+                        <div class="col-md-4">
+                            <label for="startValue" class="form-label">Start Value</label>
+                            <input type="number" step="0.01" class="form-control" id="startValue" name="StartValue">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="currentValue" class="form-label">Current Value</label>
+                            <input type="number" step="0.01" class="form-control" id="currentValue" name="CurrentValue">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="targetValue" class="form-label">Target Value</label>
+                            <input type="number" step="0.01" class="form-control" id="targetValue" name="TargetValue">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="Notes" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Goal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- View Goal Modal -->
+<div class="modal fade" id="viewGoalModal" tabindex="-1" aria-labelledby="viewGoalModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewGoalModalLabel">Goal Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="fw-bold">Client:</label>
+                    <p id="viewClient"></p>
+                </div>
+                <div class="mb-3">
+                    <label class="fw-bold">Description:</label>
+                    <p id="viewDescription"></p>
+                </div>
+                <div class="mb-3">
+                    <label class="fw-bold">Category:</label>
+                    <p><span class="badge bg-secondary" id="viewCategory"></span></p>
+                </div>
+                <div class="mb-3">
+                    <label class="fw-bold">Target Date:</label>
+                    <p id="viewTargetDate"></p>
+                </div>
+                <div class="mb-3" id="viewMeasurement-container">
+                    <label class="fw-bold">Measurement:</label>
+                    <p id="viewMeasurement"></p>
+                </div>
+                <div class="mb-3" id="viewProgress-container">
+                    <label class="fw-bold">Progress:</label>
+                    <div class="progress">
+                        <div id="viewProgressBar" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+                <div class="mb-3" id="viewStatus-container">
+                    <label class="fw-bold">Status:</label>
+                    <p id="viewStatus"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Update Progress Modal -->
+<div class="modal fade" id="updateProgressModal" tabindex="-1" aria-labelledby="updateProgressModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="updateProgressModalLabel">Update Goal Progress</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" asp-page="./UpdateProgress">
+                <div class="modal-body">
+                    <input type="hidden" id="updateGoalId" name="GoalId">
+                    <div class="mb-3">
+                        <label class="fw-bold">Client:</label>
+                        <p id="updateClient"></p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="fw-bold">Goal:</label>
+                        <p id="updateDescription"></p>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newValue" class="form-label">Current Value</label>
+                        <div class="input-group">
+                            <input type="number" step="0.01" class="form-control" id="newValue" name="NewValue" required>
+                            <span class="input-group-text" id="updateUnit"></span>
+                        </div>
+                        <div class="form-text">
+                            Target value: <span id="updateTargetValue"></span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="progressNotes" class="form-label">Progress Notes</label>
+                        <textarea class="form-control" id="progressNotes" name="ProgressNotes" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Progress</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Goal Modal -->
+<div class="modal fade" id="editGoalModal" tabindex="-1" aria-labelledby="editGoalModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editGoalModalLabel">Edit Goal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" asp-page="./Edit">
+                <div class="modal-body">
+                    <input type="hidden" id="editGoalId" name="GoalId">
+                    <div class="mb-3">
+                        <label for="editDescription" class="form-label">Goal Description</label>
+                        <input type="text" class="form-control" id="editDescription" name="Description" required maxlength="255">
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="editCategory" class="form-label">Category</label>
+                            <select id="editCategory" name="Category" class="form-select" required>
+                                @foreach (GoalCategory category in Enum.GetValues(typeof(GoalCategory)))
+                                {
+                                    <option value="@((int)category)">@category.ToString()</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="editTargetDate" class="form-label">Target Date</label>
+                            <input type="date" class="form-control" id="editTargetDate" name="TargetDate" required>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="editMeasurementType" class="form-label">Measurement Type</label>
+                            <select id="editMeasurementType" name="MeasurementType" class="form-select">
+                                <option value="">None (Time-based progress)</option>
+                                <option value="Weight">Weight</option>
+                                <option value="Reps">Repetitions</option>
+                                <option value="Distance">Distance</option>
+                                <option value="Time">Time</option>
+                                <option value="Count">Count</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6" id="editUnitField">
+                            <label for="editMeasurementUnit" class="form-label">Unit</label>
+                            <select id="editMeasurementUnit" name="MeasurementUnit" class="form-select">
+                                <option value="kg">kg</option>
+                                <option value="lbs">lbs</option>
+                                <option value="reps">reps</option>
+                                <option value="km">km</option>
+                                <option value="mi">mi</option>
+                                <option value="min">min</option>
+                                <option value="sec">sec</option>
+                                <option value="count">count</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3" id="editValueFields">
+                        <div class="col-md-6">
+                            <label for="editStartValue" class="form-label">Start Value</label>
+                            <input type="number" step="0.01" class="form-control" id="editStartValue" name="StartValue">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="editTargetValue" class="form-label">Target Value</label>
+                            <input type="number" step="0.01" class="form-control" id="editTargetValue" name="TargetValue">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Initialize DataTable
+            $('#goalsTable').DataTable({
+                "order": [[3, "asc"]]
+            });
+            
+            // Show/hide measurement fields based on measurement type selection
+            $('#measurementType').on('change', function() {
+                if ($(this).val() === '') {
+                    $('#unitField').addClass('d-none');
+                    $('#valueFields').addClass('d-none');
+                } else {
+                    $('#unitField').removeClass('d-none');
+                    $('#valueFields').removeClass('d-none');
+                    
+                    // Set default unit based on measurement type
+                    var measurementType = $(this).val();
+                    var defaultUnit = getDefaultUnit(measurementType);
+                    $('#measurementUnit').val(defaultUnit);
+                }
+            });
+            
+            // Edit modal
+            $('#editMeasurementType').on('change', function() {
+                if ($(this).val() === '') {
+                    $('#editUnitField').addClass('d-none');
+                    $('#editValueFields').addClass('d-none');
+                } else {
+                    $('#editUnitField').removeClass('d-none');
+                    $('#editValueFields').removeClass('d-none');
+                    
+                    // Set default unit based on measurement type
+                    var measurementType = $(this).val();
+                    var defaultUnit = getDefaultUnit(measurementType);
+                    $('#editMeasurementUnit').val(defaultUnit);
+                }
+            });
+            
+            // Populate view goal modal
+            $('#viewGoalModal').on('show.bs.modal', function (event) {
+                var button = $(event.relatedTarget);
+                var modal = $(this);
+                
+                modal.find('#viewClient').text(button.data('client'));
+                modal.find('#viewDescription').text(button.data('description'));
+                modal.find('#viewCategory').text(button.data('category'));
+                modal.find('#viewTargetDate').text(button.data('targetdate'));
+                
+                var measurement = button.data('measurement');
+                if (measurement) {
+                    var startValue = button.data('startvalue');
+                    var currentValue = button.data('currentvalue');
+                    var targetValue = button.data('targetvalue');
+                    var unit = button.data('unit');
+                    
+                    modal.find('#viewMeasurement').text(
+                        measurement + ': ' + 
+                        startValue + ' → ' + 
+                        currentValue + ' / ' + 
+                        targetValue + ' ' + unit
+                    );
+                    modal.find('#viewMeasurement-container').show();
+                } else {
+                    modal.find('#viewMeasurement-container').hide();
+                }
+                
+                var progress = button.data('progress');
+                modal.find('#viewProgressBar')
+                    .css('width', progress + '%')
+                    .text(progress + '%')
+                    .attr('aria-valuenow', progress)
+                    .removeClass('bg-success bg-info bg-warning')
+                    .addClass(progress >= 80 ? 'bg-success' : progress >= 40 ? 'bg-info' : 'bg-warning');
+                
+                var completed = button.data('completed');
+                modal.find('#viewStatus').text(completed ? 'Completed' : 'Active')
+                    .removeClass('badge bg-success bg-primary')
+                    .addClass(completed ? 'badge bg-success' : 'badge bg-primary');
+            });
+            
+            // Populate update progress modal
+            $('#updateProgressModal').on('show.bs.modal', function (event) {
+                var button = $(event.relatedTarget);
+                var modal = $(this);
+                
+                modal.find('#updateGoalId').val(button.data('id'));
+                modal.find('#updateClient').text(button.data('client'));
+                modal.find('#updateDescription').text(button.data('description'));
+                
+                var currentValue = button.data('currentvalue');
+                var targetValue = button.data('targetvalue');
+                var unit = button.data('unit');
+                
+                modal.find('#newValue').val(currentValue);
+                modal.find('#updateUnit').text(unit);
+                modal.find('#updateTargetValue').text(targetValue + ' ' + unit);
+            });
+            
+            // Populate edit goal modal
+            $('#editGoalModal').on('show.bs.modal', function (event) {
+                var button = $(event.relatedTarget);
+                var modal = $(this);
+                
+                modal.find('#editGoalId').val(button.data('id'));
+                modal.find('#editDescription').val(button.data('description'));
+                
+                var category = button.data('category');
+                var categoryIndex = Object.keys(GoalCategory).indexOf(category);
+                modal.find('#editCategory').val(categoryIndex);
+                
+                modal.find('#editTargetDate').val(button.data('targetdate'));
+                
+                var measurement = button.data('measurement');
+                modal.find('#editMeasurementType').val(measurement).trigger('change');
+                
+                if (measurement) {
+                    modal.find('#editMeasurementUnit').val(button.data('unit'));
+                    modal.find('#editStartValue').val(button.data('startvalue'));
+                    modal.find('#editTargetValue').val(button.data('targetvalue'));
+                }
+            });
+            
+            // Helper function to get default unit
+            function getDefaultUnit(measurementType) {
+                switch (measurementType) {
+                    case 'Weight': return 'kg';
+                    case 'Reps': return 'reps';
+                    case 'Distance': return 'km';
+                    case 'Time': return 'sec';
+                    case 'Count': return 'count';
+                    default: return '';
+                }
+            }
+            
+            // Add GoalCategory object for JavaScript use
+            window.GoalCategory = {
+                "Strength": 0,
+                "Cardio": 1,
+                "Hypertrophy": 2,
+                "Weight": 3,
+                "Technique": 4,
+                "Mobility": 5,
+                "Endurance": 6,
+                "Performance": 7,
+                "Wellness": 8,
+                "Other": 9
+            };
+        });
+    </script>
+}
