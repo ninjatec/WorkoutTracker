@@ -70,6 +70,24 @@ namespace WorkoutTrackerWeb.Pages.WorkoutSchedule
                     ErrorMessage = "Scheduled workout not found or you don't have permission to view it.";
                     return Page();
                 }
+                
+                _logger.LogInformation("[ScheduleDebug] Retrieved WorkoutSchedule {ScheduleId} for user {UserId}: {@ScheduleDetails}",
+                    id, appUser.UserId, new {
+                        WorkoutSchedule.WorkoutScheduleId,
+                        WorkoutSchedule.Name,
+                        WorkoutSchedule.RecurrencePattern,
+                        WorkoutSchedule.IsRecurring,
+                        WorkoutSchedule.RecurrenceDayOfWeek,
+                        WorkoutSchedule.RecurrenceDayOfMonth,
+                        WorkoutSchedule.MultipleDaysOfWeek,
+                        TemplateAssignmentId = WorkoutSchedule.TemplateAssignmentId,
+                        ClientUserId = WorkoutSchedule.ClientUserId,
+                        CoachUserId = WorkoutSchedule.CoachUserId,
+                        DatabaseEntry = new {
+                            RawIsRecurring = _context.Entry(WorkoutSchedule).Property("IsRecurring").CurrentValue,
+                            RawRecurrencePattern = _context.Entry(WorkoutSchedule).Property("RecurrencePattern").CurrentValue
+                        }
+                    });
 
                 // Fix for recurring workouts display: Ensure IsRecurring is set correctly based on recurrence pattern
                 if (!string.IsNullOrEmpty(WorkoutSchedule.RecurrencePattern) && WorkoutSchedule.RecurrencePattern != "Once")

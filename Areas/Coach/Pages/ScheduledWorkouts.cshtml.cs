@@ -395,6 +395,9 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
                     workoutSchedule.IsRecurring = true;
                     workoutSchedule.RecurrencePattern = recurrencePattern;
                     
+                    _logger.LogInformation("[ScheduleDebug] Creating recurring workout schedule with pattern {RecurrencePattern}, IsRecurring={IsRecurring}", 
+                        recurrencePattern, workoutSchedule.IsRecurring);
+                    
                     // For weekly or bi-weekly recurrence, set the day of week
                     if ((recurrencePattern == "Weekly" || recurrencePattern == "BiWeekly") && daysOfWeek != null && daysOfWeek.Any())
                     {
@@ -402,10 +405,15 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
                         DayOfWeek firstDay = Enum.Parse<DayOfWeek>(daysOfWeek.First());
                         workoutSchedule.RecurrenceDayOfWeek = (int)firstDay;
                         
+                        _logger.LogInformation("[ScheduleDebug] Setting weekly/biweekly first day: {FirstDayName} ({FirstDayValue})", 
+                            firstDay.ToString(), (int)firstDay);
+                        
                         // Store all days in the MultipleDaysOfWeek property
                         if (daysOfWeek.Count > 1)
                         {
                             workoutSchedule.MultipleDaysOfWeek = string.Join(",", daysOfWeek.Select(d => (int)Enum.Parse<DayOfWeek>(d)));
+                            _logger.LogInformation("[ScheduleDebug] Multiple days selected: {DayCount}. Setting MultipleDaysOfWeek={MultipleDaysValue}", 
+                                daysOfWeek.Count, workoutSchedule.MultipleDaysOfWeek);
                         }
                     }
                     else if (recurrencePattern == "Weekly" || recurrencePattern == "BiWeekly")

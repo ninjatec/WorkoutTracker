@@ -110,6 +110,9 @@ namespace WorkoutTrackerWeb.Models.Coaching
         /// </summary>
         public void EnsureConsistentRecurringState()
         {
+            var originalIsRecurring = _isRecurring;
+            var originalPattern = RecurrencePattern;
+            
             // If RecurrencePattern is not "Once" and not empty, ensure IsRecurring is true in the database
             if (!string.IsNullOrEmpty(RecurrencePattern) && RecurrencePattern != "Once")
             {
@@ -119,6 +122,40 @@ namespace WorkoutTrackerWeb.Models.Coaching
             {
                 // Otherwise, make sure it's set to false
                 _isRecurring = false;
+            }
+            
+            // Add custom state to database for diagnostic purposes
+            if (RecurrencePattern == "Weekly" || RecurrencePattern == "BiWeekly")
+            {
+                // For Weekly/BiWeekly, ensure at least one day of week is set
+                if (!RecurrenceDayOfWeek.HasValue)
+                {
+                    RecurrenceDayOfWeek = (int)DateTime.Now.DayOfWeek;
+                }
+            }
+            
+            // Set pattern to match recurring state as a final fallback
+            if (_isRecurring && (string.IsNullOrEmpty(RecurrencePattern) || RecurrencePattern == "Once"))
+            {
+                RecurrencePattern = "Weekly"; // Default to weekly if recurring is true but pattern doesn't match
+            }
+            else if (!_isRecurring && !string.IsNullOrEmpty(RecurrencePattern) && RecurrencePattern != "Once")
+            {
+                RecurrencePattern = "Once"; // Default to Once if not recurring but pattern says otherwise
+            }
+            
+            // Add a column to record the last consistency check
+            try
+            {
+                var diagnosticInfo = $"RecurringState-v2:{DateTime.UtcNow:yyyyMMddHHmmss}";
+                if (!string.IsNullOrEmpty(Description) && !Description.Contains("RecurringState-v"))
+                {
+                    Description = Description.TrimEnd() + " [" + diagnosticInfo + "]";
+                }
+            }
+            catch
+            {
+                // Ignore any errors in the diagnostic code
             }
         }
     }

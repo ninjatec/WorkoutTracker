@@ -452,7 +452,16 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
                         schedule.IsRecurring = recurrencePattern != "Once";
                         schedule.RecurrencePattern = recurrencePattern;
                         
-                        _logger.LogInformation("[TemplateAssignDebug] Setting IsRecurring={IsRecurring} for recurrence pattern {RecurrencePattern}",
+                        _logger.LogInformation("[ScheduleDebug] Creating workout schedule with recurrence settings: {@RecurrenceDetails}", 
+                            new { 
+                                RecurrencePattern = recurrencePattern,
+                                IsRecurring = schedule.IsRecurring,
+                                DaysOfWeek = daysOfWeek,
+                                DayOfMonth = dayOfMonth,
+                                WorkoutTime = workoutTime 
+                            });
+                        
+                        _logger.LogInformation("[ScheduleDebug] Setting IsRecurring={IsRecurring} for recurrence pattern {RecurrencePattern}",
                             schedule.IsRecurring, recurrencePattern);
                         
                         // Set recurrence specifics
@@ -462,10 +471,15 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
                             DayOfWeek dayOfWeek = Enum.Parse<DayOfWeek>(daysOfWeek.First());
                             schedule.RecurrenceDayOfWeek = (int)dayOfWeek;
                             
+                            _logger.LogInformation("[ScheduleDebug] Setting RecurrenceDayOfWeek={DayOfWeek} ({DayOfWeekInt}) for first selected day", 
+                                dayOfWeek.ToString(), (int)dayOfWeek);
+                            
                             // Store all days in the MultipleDaysOfWeek property if multiple days are selected
                             if (daysOfWeek.Count > 1)
                             {
                                 schedule.MultipleDaysOfWeek = string.Join(",", daysOfWeek.Select(d => (int)Enum.Parse<DayOfWeek>(d)));
+                                _logger.LogInformation("[ScheduleDebug] Multiple days selected: {DaysCount}. Setting MultipleDaysOfWeek={MultipleDays}", 
+                                    daysOfWeek.Count, schedule.MultipleDaysOfWeek);
                             }
                         }
                         else if ((recurrencePattern == "Weekly" || recurrencePattern == "BiWeekly"))
