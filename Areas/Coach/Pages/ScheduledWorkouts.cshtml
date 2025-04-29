@@ -89,13 +89,22 @@
                                             <td>
                                                 @if (schedule.IsRecurring)
                                                 {
-                                                    @if (schedule.RecurrencePattern == "Weekly" && schedule.RecurrenceDayOfWeek.HasValue)
+                                                    @if (schedule.RecurrencePattern == "Weekly" || schedule.RecurrencePattern == "BiWeekly")
                                                     {
-                                                        <div>Every @((DayOfWeek)schedule.RecurrenceDayOfWeek.Value)</div>
-                                                    }
-                                                    else if (schedule.RecurrencePattern == "BiWeekly" && schedule.RecurrenceDayOfWeek.HasValue)
-                                                    {
-                                                        <div>Bi-weekly on @((DayOfWeek)schedule.RecurrenceDayOfWeek.Value)</div>
+                                                        var allDays = schedule.GetAllDaysOfWeek();
+                                                        if (allDays.Count > 0)
+                                                        {
+                                                            <div>
+                                                                @(schedule.RecurrencePattern == "Weekly" ? "Weekly" : "Bi-weekly") on:
+                                                                @string.Join(", ", allDays.Select(d => d.ToString()))
+                                                            </div>
+                                                        }
+                                                        else if (schedule.RecurrenceDayOfWeek.HasValue)
+                                                        {
+                                                            <div>
+                                                                @(schedule.RecurrencePattern == "Weekly" ? "Every" : "Bi-weekly on") @((DayOfWeek)schedule.RecurrenceDayOfWeek.Value)
+                                                            </div>
+                                                        }
                                                     }
                                                     else if (schedule.RecurrencePattern == "Monthly" && schedule.RecurrenceDayOfMonth.HasValue)
                                                     {

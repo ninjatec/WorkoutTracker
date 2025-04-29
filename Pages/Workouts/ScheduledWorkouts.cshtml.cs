@@ -296,9 +296,15 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                     // For weekly or bi-weekly recurrence, set the day of week
                     if ((recurrencePattern == "Weekly" || recurrencePattern == "BiWeekly") && daysOfWeek != null && daysOfWeek.Any())
                     {
-                        // Use the first selected day
-                        DayOfWeek day = Enum.Parse<DayOfWeek>(daysOfWeek.First());
-                        workoutSchedule.RecurrenceDayOfWeek = (int)day;
+                        // Store the first day in the RecurrenceDayOfWeek property for backward compatibility
+                        DayOfWeek firstDay = Enum.Parse<DayOfWeek>(daysOfWeek.First());
+                        workoutSchedule.RecurrenceDayOfWeek = (int)firstDay;
+                        
+                        // Store all days in the MultipleDaysOfWeek property
+                        if (daysOfWeek.Count > 1)
+                        {
+                            workoutSchedule.MultipleDaysOfWeek = string.Join(",", daysOfWeek.Select(d => (int)Enum.Parse<DayOfWeek>(d)));
+                        }
                     }
                     else if (recurrencePattern == "Weekly" || recurrencePattern == "BiWeekly")
                     {
@@ -348,6 +354,7 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                 RecurrencePattern = schedule.RecurrencePattern,
                 RecurrenceDayOfWeek = schedule.RecurrenceDayOfWeek,
                 RecurrenceDayOfMonth = schedule.RecurrenceDayOfMonth,
+                MultipleDaysOfWeek = schedule.MultipleDaysOfWeek,
                 SendReminder = schedule.SendReminder,
                 ReminderHoursBefore = schedule.ReminderHoursBefore,
                 IsActive = schedule.IsActive
@@ -368,9 +375,37 @@ namespace WorkoutTrackerWeb.Pages.Workouts
             public string RecurrencePattern { get; set; }
             public int? RecurrenceDayOfWeek { get; set; }
             public int? RecurrenceDayOfMonth { get; set; }
+            public string MultipleDaysOfWeek { get; set; }
             public bool SendReminder { get; set; }
             public int ReminderHoursBefore { get; set; }
             public bool IsActive { get; set; }
+            
+            // Helper method to get all days of week as a list of DayOfWeek enums
+            public List<DayOfWeek> GetAllDaysOfWeek()
+            {
+                var result = new List<DayOfWeek>();
+                
+                // Add the primary day of week if present
+                if (RecurrenceDayOfWeek.HasValue)
+                {
+                    result.Add((DayOfWeek)RecurrenceDayOfWeek.Value);
+                }
+                
+                // Add additional days if any
+                if (!string.IsNullOrEmpty(MultipleDaysOfWeek))
+                {
+                    // Parse comma-separated values and add any days not already in the list
+                    foreach (var dayValue in MultipleDaysOfWeek.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        if (int.TryParse(dayValue, out int dayInt) && !result.Contains((DayOfWeek)dayInt))
+                        {
+                            result.Add((DayOfWeek)dayInt);
+                        }
+                    }
+                }
+                
+                return result;
+            }
         }
     }
 }

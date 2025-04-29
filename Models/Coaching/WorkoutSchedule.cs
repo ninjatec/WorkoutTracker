@@ -53,6 +53,10 @@ namespace WorkoutTrackerWeb.Models.Coaching
         [Display(Name = "Recurrence Day Of Week")]
         public int? RecurrenceDayOfWeek { get; set; } // Store as int (0 = Sunday, 1 = Monday, etc.)
         
+        [StringLength(100)]
+        [Display(Name = "Multiple Days Of Week")]
+        public string MultipleDaysOfWeek { get; set; } // Store as comma-separated integers
+        
         [Display(Name = "Recurrence Day Of Month")]
         public int? RecurrenceDayOfMonth { get; set; }
         

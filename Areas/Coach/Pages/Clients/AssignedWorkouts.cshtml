@@ -116,16 +116,16 @@
                             </div>
                             
                             <div id="weeklyOptions" class="mb-3" style="display: none;">
-                                <label for="dayOfWeek" class="form-label">Day of Week</label>
-                                <select id="dayOfWeek" name="dayOfWeek" class="form-select">
-                                    <option value="0">Sunday</option>
-                                    <option value="1">Monday</option>
-                                    <option value="2">Tuesday</option>
-                                    <option value="3">Wednesday</option>
-                                    <option value="4">Thursday</option>
-                                    <option value="5">Friday</option>
-                                    <option value="6">Saturday</option>
-                                </select>
+                                <label class="form-label">Days of Week</label>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var day in Enum.GetValues(typeof(DayOfWeek)))
+                                    {
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="checkbox" name="daysOfWeek" id="day@(day)" value="@day" />
+                                            <label class="form-check-label" for="day@(day)">@day</label>
+                                        </div>
+                                    }
+                                </div>
                             </div>
                             
                             <div id="monthlyOptions" class="mb-3" style="display: none;">
@@ -212,13 +212,23 @@
                                             <td>
                                                 @if (schedule.IsRecurring)
                                                 {
-                                                    @if (schedule.RecurrencePattern == "Weekly" && schedule.RecurrenceDayOfWeekInt.HasValue)
+                                                    @if (schedule.RecurrencePattern == "Weekly" || schedule.RecurrencePattern == "BiWeekly")
                                                     {
-                                                        <div>Every @((DayOfWeek)schedule.RecurrenceDayOfWeekInt.Value)</div>
-                                                    }
-                                                    else if (schedule.RecurrencePattern == "BiWeekly" && schedule.RecurrenceDayOfWeekInt.HasValue)
-                                                    {
-                                                        <div>Bi-weekly on @((DayOfWeek)schedule.RecurrenceDayOfWeekInt.Value)</div>
+                                                        var allDays = schedule.GetAllDaysOfWeek();
+                                                        if (allDays.Count > 0)
+                                                        {
+                                                            <div>
+                                                                @(schedule.RecurrencePattern == "Weekly" ? "Weekly" : "Bi-weekly") on:
+                                                                @string.Join(", ", allDays.Select(d => d.ToString()))
+                                                            </div>
+                                                        }
+                                                        else if (schedule.RecurrenceDayOfWeekInt.HasValue)
+                                                        {
+                                                            <div>
+                                                                @(schedule.RecurrencePattern == "Weekly" ? "Every" : "Bi-weekly on") 
+                                                                @((DayOfWeek)schedule.RecurrenceDayOfWeekInt.Value)
+                                                            </div>
+                                                        }
                                                     }
                                                     else if (schedule.RecurrencePattern == "Monthly" && schedule.RecurrenceDayOfMonth.HasValue)
                                                     {
@@ -388,8 +398,12 @@
         const formattedDate = today.toISOString().split('T')[0];
         document.getElementById('scheduleDate').value = formattedDate;
         
-        // Set default day of week to current day
-        document.getElementById('dayOfWeek').value = today.getDay();
+        // Set default day of week checkbox to current day
+        const currentDayOfWeek = today.getDay();
+        const currentDayCheckbox = document.getElementById(`day${currentDayOfWeek}`);
+        if (currentDayCheckbox) {
+            currentDayCheckbox.checked = true;
+        }
         
         // Set default day of month to current day
         document.getElementById('dayOfMonth').value = today.getDate();

@@ -116,6 +116,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                             RecurrencePattern = s.RecurrencePattern,
                             RecurrenceDayOfWeekInt = s.RecurrenceDayOfWeek,
                             RecurrenceDayOfMonth = s.RecurrenceDayOfMonth,
+                            MultipleDaysOfWeek = s.MultipleDaysOfWeek,
                             SendReminder = s.SendReminder,
                             ReminderHoursBefore = s.ReminderHoursBefore,
                             IsActive = s.IsActive
@@ -477,9 +478,15 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                     // Set recurrence specifics
                     if (recurrencePattern == "Weekly" && daysOfWeek != null && daysOfWeek.Any())
                     {
-                        // Parse the day of week string to the enum and then to int
-                        DayOfWeek dayOfWeek = Enum.Parse<DayOfWeek>(daysOfWeek.First());
-                        schedule.RecurrenceDayOfWeek = (int)dayOfWeek;
+                        // Store the first day in the RecurrenceDayOfWeek property for backward compatibility
+                        DayOfWeek firstDay = Enum.Parse<DayOfWeek>(daysOfWeek.First());
+                        schedule.RecurrenceDayOfWeek = (int)firstDay;
+                        
+                        // Store all days in the MultipleDaysOfWeek property
+                        if (daysOfWeek.Count > 1)
+                        {
+                            schedule.MultipleDaysOfWeek = string.Join(",", daysOfWeek.Select(d => (int)Enum.Parse<DayOfWeek>(d)));
+                        }
                     }
                     else if (recurrencePattern == "Monthly" && dayOfMonth.HasValue)
                     {
@@ -557,11 +564,17 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 };
 
                 // Set recurrence specifics
-                if (recurrencePattern == "Weekly" && daysOfWeek != null && daysOfWeek.Any())
+                if ((recurrencePattern == "Weekly" || recurrencePattern == "BiWeekly") && daysOfWeek != null && daysOfWeek.Any())
                 {
-                    // Parse the day of week string to the enum and then to int
-                    DayOfWeek dayOfWeek = Enum.Parse<DayOfWeek>(daysOfWeek.First());
-                    schedule.RecurrenceDayOfWeek = (int)dayOfWeek;
+                    // Store the first day in the RecurrenceDayOfWeek property for backward compatibility
+                    DayOfWeek firstDay = Enum.Parse<DayOfWeek>(daysOfWeek.First());
+                    schedule.RecurrenceDayOfWeek = (int)firstDay;
+                    
+                    // Store all days in the MultipleDaysOfWeek property
+                    if (daysOfWeek.Count > 1)
+                    {
+                        schedule.MultipleDaysOfWeek = string.Join(",", daysOfWeek.Select(d => (int)Enum.Parse<DayOfWeek>(d)));
+                    }
                 }
                 else if (recurrencePattern == "Monthly" && dayOfMonth.HasValue)
                 {
@@ -584,12 +597,12 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
         }
 
         public async Task<IActionResult> OnPostScheduleWorkoutAsync(int clientId, int? templateId, int? assignmentId,
-                                                      string name, string description,
-                                                      DateTime scheduleDate, string scheduleTime,
-                                                      string recurrencePattern = "Once",
-                                                      int? dayOfWeek = null, int? dayOfMonth = null,
-                                                      DateTime? endDate = null, bool sendReminder = false,
-                                                      int reminderHoursBefore = 3)
+                                                  string name, string description,
+                                                  DateTime scheduleDate, string scheduleTime,
+                                                  string recurrencePattern = "Once",
+                                                  List<string> daysOfWeek = null, int? dayOfMonth = null,
+                                                  DateTime? endDate = null, bool sendReminder = false,
+                                                  int reminderHoursBefore = 3)
         {
             // Get the current user (coach)
             var user = await _context.GetCurrentUserAsync();
@@ -633,9 +646,17 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 };
 
                 // Set recurrence specifics based on recurrence pattern
-                if ((recurrencePattern == "Weekly" || recurrencePattern == "BiWeekly") && dayOfWeek.HasValue)
+                if ((recurrencePattern == "Weekly" || recurrencePattern == "BiWeekly") && daysOfWeek != null && daysOfWeek.Any())
                 {
-                    schedule.RecurrenceDayOfWeek = dayOfWeek.Value;
+                    // Store the first day in the RecurrenceDayOfWeek property for backward compatibility
+                    DayOfWeek firstDay = Enum.Parse<DayOfWeek>(daysOfWeek.First());
+                    schedule.RecurrenceDayOfWeek = (int)firstDay;
+                    
+                    // Store all days in the MultipleDaysOfWeek property
+                    if (daysOfWeek.Count > 1)
+                    {
+                        schedule.MultipleDaysOfWeek = string.Join(",", daysOfWeek.Select(d => (int)Enum.Parse<DayOfWeek>(d)));
+                    }
                 }
                 else if (recurrencePattern == "Monthly" && dayOfMonth.HasValue)
                 {
@@ -861,6 +882,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             public string RecurrencePattern { get; set; }
             public int? RecurrenceDayOfWeekInt { get; set; }
             public int? RecurrenceDayOfMonth { get; set; }
+            public string MultipleDaysOfWeek { get; set; }
             public bool SendReminder { get; set; }
             public int ReminderHoursBefore { get; set; }
             public bool IsActive { get; set; }
@@ -874,6 +896,33 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                     return (DayOfWeek)RecurrenceDayOfWeekInt.Value;
                 }
                 return null;
+            }
+            
+            // Helper method to get all days of week as a list of DayOfWeek enums
+            public List<DayOfWeek> GetAllDaysOfWeek()
+            {
+                var result = new List<DayOfWeek>();
+                
+                // Add the primary day of week if present
+                if (RecurrenceDayOfWeekInt.HasValue)
+                {
+                    result.Add((DayOfWeek)RecurrenceDayOfWeekInt.Value);
+                }
+                
+                // Add additional days if any
+                if (!string.IsNullOrEmpty(MultipleDaysOfWeek))
+                {
+                    // Parse comma-separated values and add any days not already in the list
+                    foreach (var dayValue in MultipleDaysOfWeek.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        if (int.TryParse(dayValue, out int dayInt) && !result.Contains((DayOfWeek)dayInt))
+                        {
+                            result.Add((DayOfWeek)dayInt);
+                        }
+                    }
+                }
+                
+                return result;
             }
         }
 
