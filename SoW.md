@@ -120,13 +120,13 @@
      - [x] Ensure database query filters properly handle goal visibility between users and coaches
      - [x] Implement goal categories (strength, cardio, weight loss, etc.)
 
-   - [ ] Coach Goal Management Interface
-     - [ ] Create Goals/Index.cshtml page for coaches to view all client goals
-     - [ ] Implement goal creation interface for coaches to assign goals to clients
-     - [ ] Add CRUD operations for coaches to manage client goals
-     - [ ] Develop goal progress tracking interface for coaches
-     - [ ] Add goal visualization components (progress bars, charts)
-     - [ ] Create filtering options for viewing goals by client, status, and category
+   - [x] Coach Goal Management Interface
+     - [x] Create Goals/Index.cshtml page for coaches to view all client goals
+     - [x] Implement goal creation interface for coaches to assign goals to clients
+     - [x] Add CRUD operations for coaches to manage client goals
+     - [x] Develop goal progress tracking interface for coaches
+     - [x] Add goal visualization components (progress bars, charts)
+     - [x] Create filtering options for viewing goals by client, status, and category
 
    - [ ] User Goal Management Interface
      - [ ] Create personal goal management page for regular users
