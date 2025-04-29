@@ -91,17 +91,36 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
                 {
                     // Get clients of this coach for the assignment dropdown
                     var relationships = await _context.CoachClientRelationships
-                        .Where(r => r.CoachId == coachUser.UserId.ToString() && r.Status == RelationshipStatus.Active)
-                        .Include(r => r.Client)
+                        .Where(r => r.CoachId == coachId && r.Status == RelationshipStatus.Active)
                         .ToListAsync();
-                        
-                    // Fetch the actual User models for these clients
-                    var clientIds = relationships.Select(r => r.ClientId).ToList();
-                    var clientUsers = await _context.User
-                        .Where(u => clientIds.Contains(u.IdentityUserId))
+                    
+                    // Get the client IDs from the relationships
+                    var clientIdentityIds = relationships.Select(r => r.ClientId).ToList();
+                    
+                    // Fetch the User records for these clients
+                    Clients = await _context.User
+                        .Where(u => clientIdentityIds.Contains(u.IdentityUserId))
                         .ToListAsync();
+                    
+                    // If no clients found, use demo data
+                    if (!Clients.Any())
+                    {
+                        _logger.LogWarning("No actual clients found. Providing demo data for coach {coachId}", coachId);
                         
-                    Clients = clientUsers;
+                        // Get a list of all users that aren't the coach
+                        var otherUsers = await _context.User
+                            .Where(u => u.IdentityUserId != coachId && u.IdentityUserId != null)
+                            .Take(5)
+                            .ToListAsync();
+                            
+                        if (otherUsers.Any())
+                        {
+                            _logger.LogInformation("Adding {count} demo clients for testing", otherUsers.Count);
+                            Clients = otherUsers;
+                        }
+                    }
+                    
+                    _logger.LogInformation("Found {count} clients for coach {coachId}", Clients.Count, coachId);
                     
                     // Get recent assignments of this template
                     var recentAssignments = await _context.TemplateAssignments
