@@ -428,8 +428,75 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
                     _logger.LogInformation("[TemplateAssignDebug] 📅 Scheduling workouts for template assignment {AssignmentId} with pattern {RecurrencePattern}", 
                         assignment.TemplateAssignmentId, recurrencePattern);
                     
-                    // Add workout scheduling logic here (existing code)
-                    // ...
+                    try {
+                        // Parse workout time
+                        TimeSpan workoutTimeOfDay = TimeSpan.Parse(workoutTime ?? "17:00");
+                        
+                        // Create the workout schedule
+                        var schedule = new WorkoutSchedule
+                        {
+                            TemplateAssignmentId = assignment.TemplateAssignmentId,
+                            ClientUserId = clientId,
+                            CoachUserId = coachUser.UserId,
+                            Name = name,
+                            Description = notes,
+                            StartDate = startDate,
+                            EndDate = endDate,
+                            ScheduledDateTime = startDate.Date.Add(workoutTimeOfDay),
+                            IsRecurring = recurrencePattern != "Once",
+                            RecurrencePattern = recurrencePattern,
+                            SendReminder = sendReminder,
+                            ReminderHoursBefore = reminderHoursBefore,
+                            IsActive = true
+                        };
+                        
+                        // Set recurrence specifics
+                        if ((recurrencePattern == "Weekly" || recurrencePattern == "BiWeekly") && daysOfWeek != null && daysOfWeek.Any())
+                        {
+                            // Parse the day of week string to the enum and then to int
+                            DayOfWeek dayOfWeek = Enum.Parse<DayOfWeek>(daysOfWeek.First());
+                            schedule.RecurrenceDayOfWeek = (int)dayOfWeek;
+                        }
+                        else if ((recurrencePattern == "Weekly" || recurrencePattern == "BiWeekly"))
+                        {
+                            // Default to the day of the start date
+                            schedule.RecurrenceDayOfWeek = (int)startDate.DayOfWeek;
+                        }
+                        // For monthly recurrence, set the day of month
+                        else if (recurrencePattern == "Monthly" && dayOfMonth.HasValue)
+                        {
+                            schedule.RecurrenceDayOfMonth = dayOfMonth.Value;
+                        }
+                        else if (recurrencePattern == "Monthly")
+                        {
+                            // Default to the day of the month from the start date
+                            schedule.RecurrenceDayOfMonth = startDate.Day;
+                        }
+                        
+                        _context.WorkoutSchedules.Add(schedule);
+                        _logger.LogInformation("[TemplateAssignDebug] Adding workout schedule: {@Schedule}", 
+                            new { 
+                                schedule.TemplateAssignmentId,
+                                schedule.ClientUserId,
+                                schedule.Name,
+                                schedule.StartDate,
+                                schedule.ScheduledDateTime,
+                                schedule.IsRecurring,
+                                schedule.RecurrencePattern
+                            });
+                        
+                        await _context.SaveChangesAsync();
+                        _logger.LogInformation("[TemplateAssignDebug] ✅ Successfully saved workout schedule with ID={ScheduleId}", 
+                            schedule.WorkoutScheduleId);
+                    }
+                    catch (Exception scheduleEx)
+                    {
+                        _logger.LogError(scheduleEx, "[TemplateAssignDebug] ❌ Error creating workout schedule: {ErrorMessage}", 
+                            scheduleEx.Message);
+                        
+                        // We don't want to fail the entire assignment if scheduling fails
+                        // Just log the error and continue
+                    }
                 }
                 
                 _logger.LogInformation("[TemplateAssignDebug] ✅ Template assignment process completed successfully. Redirecting to client workout schedules.");

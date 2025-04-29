@@ -17,7 +17,9 @@
 - AVOID repeating work already complete
 - Use the existing output cache for new pages
 - Make NO assumptions - always check the code
-- Leave NO TODOs, placeholders, or missing pieces
+- Leave NO TODOs 
+- Leae NO placeholders
+- Leave NO Missing pieces
 - Focus on readability over performance
 - Fully implement all requested functionality
 
