@@ -16,6 +16,7 @@ using WorkoutTrackerWeb.Extensions;
 namespace WorkoutTrackerWeb.Areas.Coach.Pages
 {
     [CoachAuthorize]
+    [IgnoreAntiforgeryToken(Order = 1000)]
     public class ScheduledWorkoutsModel : PageModel
     {
         private readonly WorkoutTrackerWebContext _context;
@@ -173,8 +174,10 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
             }
         }
 
-        public async Task<IActionResult> OnPostToggleScheduleAsync(int scheduleId, bool isActive)
+        public async Task<IActionResult> OnPostToggleSchedule(int scheduleId, bool isActive)
         {
+            _logger.LogInformation("Attempting to toggle schedule with ID: {ScheduleId} to {IsActive}", scheduleId, isActive);
+            
             var user = await _context.GetCurrentUserAsync();
             if (user == null)
             {
@@ -198,36 +201,63 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
             return RedirectToPage(new { ClientId });
         }
 
-        public async Task<IActionResult> OnPostDeleteScheduleAsync(int scheduleId)
+        /// <summary>
+        /// Handles the deletion of a workout schedule
+        /// </summary>
+        /// <param name="scheduleId">The ID of the schedule to delete</param>
+        /// <returns>A redirect to the ScheduledWorkouts page</returns>
+        public async Task<IActionResult> OnPostDeleteSchedule(int scheduleId)
         {
-            var user = await _context.GetCurrentUserAsync();
-            if (user == null)
+            try
             {
-                return Unauthorized();
-            }
+                _logger.LogWarning("Attempting to delete schedule with ID: {ScheduleId}", scheduleId);
+                
+                var user = await _context.GetCurrentUserAsync();
+                if (user == null)
+                {
+                    _logger.LogWarning("User not authenticated while trying to delete schedule {ScheduleId}", scheduleId);
+                    return Unauthorized();
+                }
 
-            var schedule = await _context.WorkoutSchedules
-                .FirstOrDefaultAsync(s => s.WorkoutScheduleId == scheduleId && 
-                                         s.CoachUserId == user.UserId);
+                _logger.LogWarning("User {UserId} is attempting to delete schedule {ScheduleId}", user.UserId, scheduleId);
 
-            if (schedule == null)
-            {
-                TempData["ErrorMessage"] = "Schedule not found.";
+                var schedule = await _context.WorkoutSchedules
+                    .FirstOrDefaultAsync(s => s.WorkoutScheduleId == scheduleId && 
+                                             s.CoachUserId == user.UserId);
+
+                if (schedule == null)
+                {
+                    _logger.LogWarning("Schedule {ScheduleId} not found for user {UserId}", scheduleId, user.UserId);
+                    TempData["ErrorMessage"] = "Schedule not found.";
+                    return RedirectToPage(new { ClientId });
+                }
+
+                _logger.LogWarning("Found schedule {ScheduleId} with name {Name} for deletion", schedule.WorkoutScheduleId, schedule.Name);
+                
+                // Remove the schedule
+                _context.WorkoutSchedules.Remove(schedule);
+                await _context.SaveChangesAsync();
+
+                _logger.LogWarning("Successfully deleted schedule {ScheduleId}", scheduleId);
+                
+                TempData["SuccessMessage"] = "Workout schedule deleted successfully.";
                 return RedirectToPage(new { ClientId });
             }
-
-            _context.WorkoutSchedules.Remove(schedule);
-            await _context.SaveChangesAsync();
-
-            TempData["SuccessMessage"] = "Workout schedule deleted successfully.";
-            return RedirectToPage(new { ClientId });
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting workout schedule {ScheduleId}", scheduleId);
+                TempData["ErrorMessage"] = $"An error occurred: {ex.Message}";
+                return RedirectToPage(new { ClientId });
+            }
         }
 
-        public async Task<IActionResult> OnPostEditScheduleAsync(int scheduleId, string name, string description,
+        public async Task<IActionResult> OnPostEditSchedule(int scheduleId, string name, string description,
                                                       string scheduleDate, string scheduleTime, 
                                                       DateTime? endDate, bool sendReminder = true,
                                                       int reminderHoursBefore = 3)
         {
+            _logger.LogInformation("Attempting to edit schedule with ID: {ScheduleId}", scheduleId);
+            
             var user = await _context.GetCurrentUserAsync();
             if (user == null)
             {
@@ -273,7 +303,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
             }
         }
 
-        public async Task<IActionResult> OnPostScheduleWorkoutAsync(int clientId, int? templateId, int? assignmentId,
+        public async Task<IActionResult> OnPostScheduleWorkout(int clientId, int? templateId, int? assignmentId,
                                                          string name, string description, 
                                                          DateTime startDate, string workoutTime, 
                                                          string recurrencePattern = "Once",
@@ -281,6 +311,8 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
                                                          DateTime? endDate = null, bool sendReminder = true,
                                                          int reminderHoursBefore = 3)
         {
+            _logger.LogInformation("Attempting to schedule workout for client ID: {ClientId}", clientId);
+            
             var user = await _context.GetCurrentUserAsync();
             if (user == null)
             {

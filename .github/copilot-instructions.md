@@ -22,6 +22,7 @@
 - Leave NO Missing pieces
 - Focus on readability over performance
 - Fully implement all requested functionality
+- Use the logs directory files to help with debug
 
 ## Architecture Guidelines
 - Design for multi-pod Kubernetes deployments

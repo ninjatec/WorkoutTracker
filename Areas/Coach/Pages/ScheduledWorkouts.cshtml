@@ -156,9 +156,10 @@
                                                             <i class="bi @(schedule.IsActive ? "bi-pause-fill" : "bi-play-fill")"></i>
                                                         </button>
                                                     </form>
-                                                    <form method="post" asp-page-handler="DeleteSchedule" class="d-inline">
+                                                    <form method="post">
                                                         <input type="hidden" name="scheduleId" value="@schedule.WorkoutScheduleId" />
                                                         <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                                formaction="/Coach/ScheduledWorkouts?handler=DeleteSchedule"
                                                                 onclick="return confirm('Are you sure you want to delete this scheduled workout?');">
                                                             <i class="bi bi-trash"></i>
                                                         </button>
@@ -242,9 +243,10 @@
                                                 <small>@schedule.ScheduledDateTime?.ToString("h:mm tt")</small>
                                             </td>
                                             <td>
-                                                <form method="post" asp-page-handler="DeleteSchedule" class="d-inline">
+                                                <form method="post">
                                                     <input type="hidden" name="scheduleId" value="@schedule.WorkoutScheduleId" />
                                                     <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                            formaction="/Coach/ScheduledWorkouts?handler=DeleteSchedule"
                                                             onclick="return confirm('Are you sure you want to delete this scheduled workout record?');">
                                                         <i class="bi bi-trash"></i>
                                                     </button>

@@ -456,6 +456,12 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
                             // Parse the day of week string to the enum and then to int
                             DayOfWeek dayOfWeek = Enum.Parse<DayOfWeek>(daysOfWeek.First());
                             schedule.RecurrenceDayOfWeek = (int)dayOfWeek;
+                            
+                            // Store all days in the MultipleDaysOfWeek property if multiple days are selected
+                            if (daysOfWeek.Count > 1)
+                            {
+                                schedule.MultipleDaysOfWeek = string.Join(",", daysOfWeek.Select(d => (int)Enum.Parse<DayOfWeek>(d)));
+                            }
                         }
                         else if ((recurrencePattern == "Weekly" || recurrencePattern == "BiWeekly"))
                         {
