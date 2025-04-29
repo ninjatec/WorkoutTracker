@@ -364,6 +364,14 @@
 @section Scripts {
     <script>
         $(document).ready(function() {
+            // Check for openAssign query parameter and expand the accordion if true
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('openAssign') === 'true') {
+                $('#assignTemplateCollapse').collapse('show');
+                // Scroll to the assignment form
+                document.getElementById('assignTemplateCollapse').scrollIntoView({ behavior: 'smooth' });
+            }
+            
             // Toggle scheduling options
             $('#scheduleWorkouts').on('change', function() {
                 if ($(this).prop('checked')) {

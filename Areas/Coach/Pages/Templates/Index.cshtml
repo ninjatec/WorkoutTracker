@@ -67,12 +67,9 @@
                                                 data-template-name="@template.Name">
                                             <i class="bi bi-files"></i>
                                         </button>
-                                        <button type="button" class="btn btn-sm btn-outline-success assign-template-btn" 
-                                                data-bs-toggle="modal" data-bs-target="#assignTemplateModal"
-                                                data-template-id="@template.WorkoutTemplateId" 
-                                                data-template-name="@template.Name">
+                                        <a href="/Coach/Templates/Details/@template.WorkoutTemplateId?openAssign=true" class="btn btn-sm btn-outline-success assign-template-btn">
                                             <i class="bi bi-person-plus"></i>
-                                        </button>
+                                        </a>
                                         <a asp-page="./Delete" asp-route-id="@template.WorkoutTemplateId" 
                                            class="btn btn-sm btn-outline-danger"
                                            onclick="return confirm('Are you sure you want to delete this template?');">
