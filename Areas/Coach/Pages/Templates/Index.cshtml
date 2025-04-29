@@ -11,7 +11,7 @@
             <p class="lead">Manage your workout templates and assign them to clients</p>
         </div>
         <div>
-            <a asp-page="Create" class="btn btn-primary">
+            <a asp-page="./Create" class="btn btn-primary create-template-btn">
                 <i class="bi bi-plus-lg"></i> Create New Template
             </a>
         </div>
@@ -55,10 +55,10 @@
                                 </td>
                                 <td>
                                     <div class="btn-group">
-                                        <a asp-area="" asp-page="/Templates/Edit" asp-route-id="@template.WorkoutTemplateId" class="btn btn-sm btn-outline-primary">
+                                        <a asp-page="./Edit" asp-route-id="@template.WorkoutTemplateId" class="btn btn-sm btn-outline-primary edit-template-btn" data-template-id="@template.WorkoutTemplateId">
                                             <i class="bi bi-pencil"></i>
                                         </a>
-                                        <a asp-area="" asp-page="/Templates/Details" asp-route-id="@template.WorkoutTemplateId" class="btn btn-sm btn-outline-info">
+                                        <a asp-page="./Details" asp-route-id="@template.WorkoutTemplateId" class="btn btn-sm btn-outline-info view-template-btn" data-template-id="@template.WorkoutTemplateId">
                                             <i class="bi bi-info-circle"></i>
                                         </a>
                                         <button type="button" class="btn btn-sm btn-outline-secondary clone-template-btn"
@@ -344,6 +344,26 @@
                 
                 $('#cloneTemplateId').val(templateId);
                 $('#originalTemplateName').val(templateName);
+            });
+            
+            // Handle edit template button click
+            $(document).on('click', '.edit-template-btn', function(e) {
+                e.preventDefault();
+                var templateId = $(this).data('template-id');
+                window.location.href = '/Coach/Templates/Edit/' + templateId;
+            });
+            
+            // Handle view template button click
+            $(document).on('click', '.view-template-btn', function(e) {
+                e.preventDefault();
+                var templateId = $(this).data('template-id');
+                window.location.href = '/Coach/Templates/Details/' + templateId;
+            });
+            
+            // Handle create new template button click
+            $(document).on('click', '.create-template-btn', function(e) {
+                e.preventDefault();
+                window.location.href = '/Coach/Templates/Create';
             });
         });
     </script>

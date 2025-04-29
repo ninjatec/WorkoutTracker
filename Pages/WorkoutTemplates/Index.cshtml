@@ -79,14 +79,14 @@
             $(document).on('click', '.view-template-btn', function(e) {
                 e.preventDefault();
                 var templateId = $(this).data('template-id');
-                window.location.href = '/Templates/Details?id=' + templateId;
+                window.location.href = '/Templates/Details/' + templateId;
             });
             
             // Handle edit template button click
             $(document).on('click', '.edit-template-btn', function(e) {
                 e.preventDefault();
                 var templateId = $(this).data('template-id');
-                window.location.href = '/Templates/Edit?id=' + templateId;
+                window.location.href = '/Templates/Edit/' + templateId;
             });
             
             // Handle schedule workout button click
@@ -95,7 +95,6 @@
                 var templateId = $(this).data('template-id');
                 var templateName = $(this).data('template-name');
                 
-                // Redirect to schedule page with template ID
                 window.location.href = '/WorkoutSchedule?templateId=' + templateId + '&templateName=' + encodeURIComponent(templateName);
             });
         });
