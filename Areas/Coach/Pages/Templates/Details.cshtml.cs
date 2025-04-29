@@ -443,12 +443,14 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
                             StartDate = startDate,
                             EndDate = endDate,
                             ScheduledDateTime = startDate.Date.Add(workoutTimeOfDay),
-                            IsRecurring = recurrencePattern != "Once",
-                            RecurrencePattern = recurrencePattern,
                             SendReminder = sendReminder,
                             ReminderHoursBefore = reminderHoursBefore,
                             IsActive = true
                         };
+                        
+                        // Always explicitly set IsRecurring based on recurrence pattern
+                        schedule.IsRecurring = recurrencePattern != "Once";
+                        schedule.RecurrencePattern = recurrencePattern;
                         
                         _logger.LogInformation("[TemplateAssignDebug] Setting IsRecurring={IsRecurring} for recurrence pattern {RecurrencePattern}",
                             schedule.IsRecurring, recurrencePattern);

@@ -290,6 +290,7 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                 // Handle recurrence pattern
                 if (recurrencePattern != "Once")
                 {
+                    // Always explicitly set both properties in the correct order to ensure IsRecurring is properly saved
                     workoutSchedule.IsRecurring = true;
                     workoutSchedule.RecurrencePattern = recurrencePattern;
                     

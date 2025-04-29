@@ -184,9 +184,8 @@ namespace WorkoutTrackerWeb.Pages
                     Name = ScheduleData.ScheduleName,
                     Description = ScheduleData.Description,
                     StartDate = scheduleDateTime,
-                    IsRecurring = ScheduleData.RecurrenceType != "none",
                     RecurrencePattern = ScheduleData.RecurrenceType,
-                    RecurrenceDayOfWeek = ScheduleData.SelectedDaysOfWeek?.FirstOrDefault() != null ? 
+                    RecurrenceDayOfWeek = ScheduleData.RecurrenceType == "Weekly" ?
                         (int?)ScheduleData.SelectedDaysOfWeek.FirstOrDefault() : null,
                     RecurrenceDayOfMonth = ScheduleData.RecurrenceDayOfMonth,
                     EndDate = ScheduleData.RecurrenceEndDate,
@@ -195,6 +194,9 @@ namespace WorkoutTrackerWeb.Pages
                     IsActive = true,
                     ScheduledDateTime = scheduleDateTime
                 };
+
+                // Explicitly set IsRecurring before saving to ensure it's set correctly
+                workoutSchedule.IsRecurring = ScheduleData.RecurrenceType != "none";
 
                 _context.WorkoutSchedules.Add(workoutSchedule);
                 await _context.SaveChangesAsync();

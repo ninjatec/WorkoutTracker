@@ -254,6 +254,7 @@ namespace WorkoutTrackerWeb.Controllers
         {
             if (!string.IsNullOrEmpty(request.RecurrenceType) && request.RecurrenceType != "none")
             {
+                // Always explicitly set IsRecurring before setting RecurrencePattern
                 workoutSchedule.IsRecurring = true;
                 workoutSchedule.RecurrencePattern = request.RecurrenceType;
                 

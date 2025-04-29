@@ -400,8 +400,42 @@ else
             $('#scheduleWorkouts').on('change', function() {
                 if ($(this).prop('checked')) {
                     $('#schedulingOptions').removeClass('d-none');
+                    // When scheduling is enabled, ensure the recurrence pattern is included in form submit
+                    // This fixes the issue where recurrence pattern wasn't being passed to the server
+                    if (!$('input[name="recurrencePattern"]:checked').length) {
+                        $('#recurrenceOnce').prop('checked', true);
+                    }
                 } else {
                     $('#schedulingOptions').addClass('d-none');
+                }
+            });
+            
+            // Form submission handling
+            $('form').on('submit', function(e) {
+                if ($('#scheduleWorkouts').prop('checked')) {
+                    // Make sure a recurrence pattern is selected before submission
+                    if (!$('input[name="recurrencePattern"]:checked').length) {
+                        e.preventDefault();
+                        alert('Please select a recurrence pattern');
+                        return false;
+                    }
+                    
+                    // Ensure Monthly selection has a day selected
+                    if ($('#recurrenceMonthly').prop('checked') && !$('#dayOfMonth').val()) {
+                        e.preventDefault();
+                        alert('Please select a day of month for monthly recurrence');
+                        return false;
+                    }
+                    
+                    // Ensure Weekly/BiWeekly selection has at least one day selected
+                    if (($('#recurrenceWeekly').prop('checked') || $('#recurrenceBiWeekly').prop('checked')) && 
+                        !$('input[name="daysOfWeek"]:checked').length) {
+                        // Auto-select current day if none selected
+                        var date = new Date($('#startDate').val() || new Date());
+                        var dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                        var selectedDay = dayNames[date.getDay()];
+                        $('input[name="daysOfWeek"][value="' + selectedDay + '"]').prop('checked', true);
+                    }
                 }
             });
             

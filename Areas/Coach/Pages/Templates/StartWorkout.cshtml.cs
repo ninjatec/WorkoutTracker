@@ -256,6 +256,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
                 // Handle recurrence pattern
                 if (recurrencePattern != "Once")
                 {
+                    // Always explicitly set both properties in the correct order
                     workoutSchedule.IsRecurring = true;
                     workoutSchedule.RecurrencePattern = recurrencePattern;
                     
