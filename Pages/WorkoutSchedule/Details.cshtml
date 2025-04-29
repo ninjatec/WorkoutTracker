@@ -10,7 +10,7 @@
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
                     <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
-                    <li class="breadcrumb-item"><a asp-page="/Workouts/ScheduledWorkouts">Scheduled Workouts</a></li>
+                    <li class="breadcrumb-item"><a asp-area="Coach" asp-page="/ScheduledWorkouts">Scheduled Workouts</a></li>
                     <li class="breadcrumb-item active" aria-current="page">Schedule Details</li>
                 </ol>
             </nav>
@@ -18,7 +18,7 @@
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h1 class="h3 mb-0 text-gray-800">Workout Schedule Details</h1>
                 <div>
-                    <a asp-page="/Workouts/ScheduledWorkouts" class="btn btn-outline-secondary">
+                    <a asp-area="Coach" asp-page="/ScheduledWorkouts" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left me-1"></i> Back to Schedules
                     </a>
                     <a asp-page="/Workouts/EditWorkoutSchedule" asp-route-scheduleId="@Model.WorkoutSchedule?.WorkoutScheduleId" class="btn btn-primary ms-2">
