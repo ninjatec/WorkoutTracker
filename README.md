@@ -80,6 +80,10 @@ Production Site running on wot.ninjatec.co.uk
   - **Support for one-time and recurring workout schedules**
   - **Multiple recurrence patterns (daily, weekly, bi-weekly, monthly)**
   - **Reminder settings for upcoming workouts**
+  - **Enhanced goal management with user and coach-created goals**
+  - **Standardized goal categories (strength, cardio, weight, etc.)**
+  - **Advanced goal progress tracking with automated calculations**
+  - **Goal visibility controls between coaches and clients**
 
 - **User Authentication**: Secure login and registration using ASP.NET Core Identity with email confirmation
 - **Admin Dashboard**: Comprehensive admin dashboard with system metrics, user statistics, and quick actions

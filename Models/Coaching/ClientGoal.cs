@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace WorkoutTrackerWeb.Models.Coaching
 {
     /// <summary>
-    /// Represents a goal set for a client by a coach
+    /// Represents a goal set for a client by a coach or created by the user themselves
     /// </summary>
     public class ClientGoal
     {
@@ -16,15 +16,25 @@ namespace WorkoutTrackerWeb.Models.Coaching
         public int Id { get; set; }
 
         /// <summary>
-        /// Gets or sets the ID of the coach-client relationship
+        /// Gets or sets the ID of the coach-client relationship (can be null for user-created goals)
         /// </summary>
-        public int CoachClientRelationshipId { get; set; }
+        public int? CoachClientRelationshipId { get; set; }
 
         /// <summary>
-        /// Gets or sets the coach-client relationship
+        /// Gets or sets the coach-client relationship (can be null for user-created goals)
         /// </summary>
         [ForeignKey("CoachClientRelationshipId")]
         public CoachClientRelationship Relationship { get; set; }
+
+        /// <summary>
+        /// Gets or sets the ID of the user who created/owns this goal
+        /// </summary>
+        public string UserId { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether this goal was created by a coach (false for user-created goals)
+        /// </summary>
+        public bool IsCoachCreated { get; set; } = false;
 
         /// <summary>
         /// Gets or sets the description of the goal
@@ -34,10 +44,15 @@ namespace WorkoutTrackerWeb.Models.Coaching
         public string Description { get; set; }
 
         /// <summary>
-        /// Gets or sets the category of the goal (e.g., Strength, Weight, Cardio)
+        /// Gets or sets the category of the goal
+        /// </summary>
+        public GoalCategory Category { get; set; } = GoalCategory.Other;
+
+        /// <summary>
+        /// Gets or sets a custom category name if Category is set to Other
         /// </summary>
         [MaxLength(50)]
-        public string Category { get; set; }
+        public string CustomCategory { get; set; }
 
         /// <summary>
         /// Gets or sets the date when the goal was created
@@ -76,6 +91,12 @@ namespace WorkoutTrackerWeb.Models.Coaching
         public decimal? TargetValue { get; set; }
 
         /// <summary>
+        /// Gets or sets the unit of measurement (e.g., kg, lbs, seconds)
+        /// </summary>
+        [MaxLength(20)]
+        public string MeasurementUnit { get; set; }
+
+        /// <summary>
         /// Gets or sets the notes associated with the goal
         /// </summary>
         public string Notes { get; set; }
@@ -89,6 +110,28 @@ namespace WorkoutTrackerWeb.Models.Coaching
         /// Gets or sets whether the goal is completed
         /// </summary>
         public bool IsCompleted { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether the goal is visible to the coach
+        /// </summary>
+        public bool IsVisibleToCoach { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets the frequency of automated progress tracking (Daily, Weekly, Monthly)
+        /// </summary>
+        [MaxLength(20)]
+        public string TrackingFrequency { get; set; }
+
+        /// <summary>
+        /// Gets or sets the last date when progress was updated
+        /// </summary>
+        public DateTime? LastProgressUpdate { get; set; }
+
+        /// <summary>
+        /// Gets or sets the completion criteria type (e.g., ReachValue, CompleteBefore)
+        /// </summary>
+        [MaxLength(30)]
+        public string CompletionCriteria { get; set; }
 
         /// <summary>
         /// Gets the progress of the goal as a percentage

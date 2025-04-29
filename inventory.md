@@ -80,6 +80,8 @@ This document maintains an up-to-date inventory of all features, components, and
 - WorkoutSchedule
 - ClientGroup
 - CoachClientRelationship
+- ClientGoal
+- GoalCategory
 
 #### User
 - Primary entity representing application users
@@ -373,3 +375,45 @@ This document maintains an up-to-date inventory of all features, components, and
   - Time-bound coaching relationships
   - Invitation expiration for security
   - Group-based organization
+
+#### ClientGoal
+- Represents fitness goals for users, can be created by coaches or users themselves
+- Properties:
+  - Id, Description, UserId, CoachClientRelationshipId (optional)
+  - Category (enum): Uses GoalCategory enum (Strength, Cardio, Weight, etc.)
+  - CustomCategory (for user-defined categories)
+  - CreatedDate, TargetDate, CompletedDate
+  - IsCoachCreated, IsVisibleToCoach
+  - MeasurementType, MeasurementUnit
+  - StartValue, CurrentValue, TargetValue
+  - Notes, IsActive, IsCompleted
+  - TrackingFrequency, LastProgressUpdate, CompletionCriteria
+- Relationships:
+  - Many-to-one with User (goal owner)
+  - Many-to-one with CoachClientRelationship (optional, for coach-assigned goals)
+- Features:
+  - Support for both coach-assigned and user-created goals
+  - Standardized goal categories with custom category option
+  - Automated progress tracking based on measurements or time
+  - Goal visibility controls between coaches and users
+  - Tracking mechanisms for various goal types (weight, reps, duration)
+  - Customizable completion criteria
+  - Progress calculation as percentage towards target
+
+#### GoalCategory
+- Enum defining standard categories for fitness goals
+- Values:
+  - Strength: Goals focused on increasing strength (e.g., increase max squat weight)
+  - Cardio: Goals focused on cardiovascular fitness (e.g., complete 5K run)
+  - Hypertrophy: Goals focused on muscle building and size
+  - Weight: Goals focused on weight management (lose/gain weight)
+  - Technique: Goals focused on exercise technique improvement
+  - Mobility: Goals focused on flexibility and joint mobility
+  - Endurance: Goals focused on stamina and endurance
+  - Performance: Goals focused on athletic performance metrics
+  - Wellness: Goals focused on overall health and wellbeing
+  - Other: Custom goals that don't fit standard categories
+- Features:
+  - Display name attributes for UI presentation
+  - Standardized categorization for consistent reporting
+  - Support for filtering and grouping goals by category

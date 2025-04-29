@@ -113,12 +113,12 @@
    - [ ] Create unified template management experience
   
  - [ ] Complete unified functionality for Goals for coaches and normal users this should integrate with the coaching dashboard
-   - [ ] Goal Model and Database Enhancements
-     - [ ] Extend ClientGoal model to support user-created goals (not just coach-assigned)
-     - [ ] Add fields for tracking completion criteria and automated progress
-     - [ ] Create migration for updated goal models and relationships
-     - [ ] Ensure database query filters properly handle goal visibility between users and coaches
-     - [ ] Implement goal categories (strength, cardio, weight loss, etc.)
+   - [x] Goal Model and Database Enhancements
+     - [x] Extend ClientGoal model to support user-created goals (not just coach-assigned)
+     - [x] Add fields for tracking completion criteria and automated progress
+     - [x] Create migration for updated goal models and relationships
+     - [x] Ensure database query filters properly handle goal visibility between users and coaches
+     - [x] Implement goal categories (strength, cardio, weight loss, etc.)
 
    - [ ] Coach Goal Management Interface
      - [ ] Create Goals/Index.cshtml page for coaches to view all client goals
