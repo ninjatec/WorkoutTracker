@@ -111,8 +111,59 @@
    - [x] Implement the scheduling system for coaches similar to that used by normal users /Workouts/ScheduledWorkouts
    - [x] Implement a template system for coaches similar to a normal users system, integrating with schedules as with normal users
    - [ ] Create unified template management experience
-   - [ ] Complete functionality for Goals for coaching 
-   - [ ] Complete functionality for Goals for normal users
+  
+ - [ ] Complete unified functionality for Goals for coaches and normal users this should integrate with the coaching dashboard
+   - [ ] Goal Model and Database Enhancements
+     - [ ] Extend ClientGoal model to support user-created goals (not just coach-assigned)
+     - [ ] Add fields for tracking completion criteria and automated progress
+     - [ ] Create migration for updated goal models and relationships
+     - [ ] Ensure database query filters properly handle goal visibility between users and coaches
+     - [ ] Implement goal categories (strength, cardio, weight loss, etc.)
+
+   - [ ] Coach Goal Management Interface
+     - [ ] Create Goals/Index.cshtml page for coaches to view all client goals
+     - [ ] Implement goal creation interface for coaches to assign goals to clients
+     - [ ] Add CRUD operations for coaches to manage client goals
+     - [ ] Develop goal progress tracking interface for coaches
+     - [ ] Add goal visualization components (progress bars, charts)
+     - [ ] Create filtering options for viewing goals by client, status, and category
+
+   - [ ] User Goal Management Interface
+     - [ ] Create personal goal management page for regular users
+     - [ ] Implement UI for users to create, update and track personal goals
+     - [ ] Add unified view for both coach-assigned and personal goals
+     - [ ] Create progress update functionality for users to record milestones
+     - [ ] Implement goal suggestions based on workout history
+     - [ ] Add celebration/achievement notifications when goals are completed
+
+   - [ ] Goal Progress Tracking System
+     - [ ] Create automated progress calculation based on workout data
+     - [ ] Implement tracking mechanisms specific to goal types (weight, reps, duration)
+     - [ ] Add manual progress update capabilities for non-trackable goals
+     - [ ] Create goal history and progress timeline views
+     - [ ] Implement comparison tools for goal progress over time
+     - [ ] Add milestone tracking for long-term goals
+
+   - [ ] Coach Dashboard Integration
+     - [ ] Enhance coach dashboard to show client goal summaries
+     - [ ] Add goal analytics to provide insights on client progress
+     - [ ] Create notifications for coaches when clients update goal progress
+     - [ ] Implement goal status indicators in client lists
+     - [ ] Add quick actions for coaches to provide feedback on goal progress
+
+   - [ ] User Dashboard Integration
+     - [ ] Add goal widgets to user dashboard
+     - [ ] Create goal reminders and notifications
+     - [ ] Implement integration with workout planning to align with goals
+     - [ ] Add motivation features like streak counting and milestone celebration
+     - [ ] Create social sharing options for completed goals
+
+   - [ ] Data Integration and APIs
+     - [ ] Create shared services for goal operations between coach and user interfaces
+     - [ ] Implement proper permission checking for goal CRUD operations
+     - [ ] Optimize goal-related queries for performance
+     - [ ] Add API endpoints for goal tracking mobile integration
+     - [ ] Implement goal data export functionality for reporting
 
  - [ ] Recent Client Activity should show real data.
 
