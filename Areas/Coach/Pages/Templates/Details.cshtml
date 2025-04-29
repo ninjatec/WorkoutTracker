@@ -314,7 +314,7 @@
                 </div>
                 <div class="card-body">
                     <div class="d-grid gap-2">
-                        <a asp-page="Edit" asp-route-id="@Model.WorkoutTemplate.WorkoutTemplateId" class="btn btn-outline-primary">
+                        <a asp-area="" asp-page="/Templates/Edit" asp-route-id="@Model.WorkoutTemplate.WorkoutTemplateId" class="btn btn-outline-primary">
                             <i class="bi bi-pencil"></i> Edit Template
                         </a>
                         <a asp-page="StartWorkout" asp-route-id="@Model.WorkoutTemplate.WorkoutTemplateId" class="btn btn-success">

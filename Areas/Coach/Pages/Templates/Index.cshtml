@@ -55,12 +55,18 @@
                                 </td>
                                 <td>
                                     <div class="btn-group">
-                                        <a asp-page="./Edit" asp-route-id="@template.WorkoutTemplateId" class="btn btn-sm btn-outline-primary">
+                                        <a asp-area="" asp-page="/Templates/Edit" asp-route-id="@template.WorkoutTemplateId" class="btn btn-sm btn-outline-primary">
                                             <i class="bi bi-pencil"></i>
                                         </a>
-                                        <a asp-page="./Details" asp-route-id="@template.WorkoutTemplateId" class="btn btn-sm btn-outline-info">
+                                        <a asp-area="" asp-page="/Templates/Details" asp-route-id="@template.WorkoutTemplateId" class="btn btn-sm btn-outline-info">
                                             <i class="bi bi-info-circle"></i>
                                         </a>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary clone-template-btn"
+                                                data-bs-toggle="modal" data-bs-target="#cloneTemplateModal"
+                                                data-template-id="@template.WorkoutTemplateId" 
+                                                data-template-name="@template.Name">
+                                            <i class="bi bi-files"></i>
+                                        </button>
                                         <button type="button" class="btn btn-sm btn-outline-success assign-template-btn" 
                                                 data-bs-toggle="modal" data-bs-target="#assignTemplateModal"
                                                 data-template-id="@template.WorkoutTemplateId" 
@@ -231,6 +237,44 @@
     </div>
 </div>
 
+<!-- Clone Template Modal -->
+<div class="modal fade" id="cloneTemplateModal" tabindex="-1" aria-labelledby="cloneTemplateModalLabel">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="Clone">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cloneTemplateModalLabel">Clone Template</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="cloneTemplateId" name="templateId" />
+                    
+                    <div class="mb-3">
+                        <label for="originalTemplateName" class="form-label">Original Template</label>
+                        <input type="text" class="form-control" id="originalTemplateName" readonly />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="cloneName" class="form-label">New Template Name</label>
+                        <input type="text" class="form-control" id="cloneName" name="name" required />
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="makePublic" name="makePublic" value="true" />
+                        <label class="form-check-label" for="makePublic">
+                            Make this template public
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Clone Template</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
         $(document).ready(function() {
@@ -246,6 +290,18 @@
             });
             // Set initial state to inert
             assignTemplateModal.setAttribute('inert', '');
+            
+            const cloneTemplateModal = document.getElementById('cloneTemplateModal');
+            cloneTemplateModal.addEventListener('hidden.bs.modal', function () {
+                // When hidden, add inert to avoid focus issues
+                cloneTemplateModal.setAttribute('inert', '');
+            });
+            cloneTemplateModal.addEventListener('show.bs.modal', function () {
+                // When shown, remove inert to allow focus
+                cloneTemplateModal.removeAttribute('inert');
+            });
+            // Set initial state to inert
+            cloneTemplateModal.setAttribute('inert', '');
             
             // Toggle scheduling options on checkbox change
             $('#scheduleWorkouts').on('change', function() {
@@ -280,6 +336,14 @@
                 $('#templateId').val(templateId);
                 $('#selectedTemplate').val(templateName);
                 $('#name').val(templateName);
+            });
+            
+            $('.clone-template-btn').on('click', function() {
+                var templateId = $(this).data('template-id');
+                var templateName = $(this).data('template-name');
+                
+                $('#cloneTemplateId').val(templateId);
+                $('#originalTemplateName').val(templateName);
             });
         });
     </script>

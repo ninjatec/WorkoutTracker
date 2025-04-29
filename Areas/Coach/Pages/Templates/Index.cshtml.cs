@@ -233,6 +233,104 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
             }
         }
 
+        public async Task<IActionResult> OnPostCloneAsync(int templateId, string name, bool makePublic = false)
+        {
+            // Get the current user
+            var user = await _context.GetCurrentUserAsync();
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            // Validate input
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                TempData["ErrorMessage"] = "A name is required for the cloned template.";
+                return RedirectToPage();
+            }
+
+            // Verify the template exists
+            var sourceTemplate = await _context.WorkoutTemplate
+                .Include(t => t.TemplateExercises)
+                .ThenInclude(e => e.TemplateSets)
+                .FirstOrDefaultAsync(t => t.WorkoutTemplateId == templateId && 
+                                         (t.UserId == user.UserId || t.IsPublic));
+                
+            if (sourceTemplate == null)
+            {
+                TempData["ErrorMessage"] = "Template not found or you don't have access to it.";
+                return RedirectToPage();
+            }
+
+            // Begin transaction for cloning
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                // Clone the template
+                var clonedTemplate = new WorkoutTemplate
+                {
+                    Name = name,
+                    Description = sourceTemplate.Description,
+                    Category = sourceTemplate.Category,
+                    Tags = sourceTemplate.Tags,
+                    IsPublic = makePublic,
+                    UserId = user.UserId,
+                    CreatedDate = DateTime.Now,
+                    LastModifiedDate = DateTime.Now
+                };
+
+                _context.WorkoutTemplate.Add(clonedTemplate);
+                await _context.SaveChangesAsync();
+
+                // Clone exercises
+                foreach (var sourceExercise in sourceTemplate.TemplateExercises.OrderBy(e => e.SequenceNum))
+                {
+                    var clonedExercise = new WorkoutTemplateExercise
+                    {
+                        WorkoutTemplateId = clonedTemplate.WorkoutTemplateId,
+                        ExerciseTypeId = sourceExercise.ExerciseTypeId,
+                        SequenceNum = sourceExercise.SequenceNum,
+                        Notes = sourceExercise.Notes
+                    };
+
+                    _context.WorkoutTemplateExercise.Add(clonedExercise);
+                    await _context.SaveChangesAsync();
+
+                    // Clone sets for this exercise
+                    foreach (var sourceSet in sourceExercise.TemplateSets.OrderBy(s => s.SequenceNum))
+                    {
+                        var clonedSet = new WorkoutTemplateSet
+                        {
+                            WorkoutTemplateExerciseId = clonedExercise.WorkoutTemplateExerciseId,
+                            SettypeId = sourceSet.SettypeId,
+                            DefaultReps = sourceSet.DefaultReps,
+                            DefaultWeight = sourceSet.DefaultWeight,
+                            SequenceNum = sourceSet.SequenceNum,
+                            Description = sourceSet.Description,
+                            Notes = sourceSet.Notes
+                        };
+
+                        _context.WorkoutTemplateSet.Add(clonedSet);
+                    }
+                    await _context.SaveChangesAsync();
+                }
+
+                // Commit the transaction
+                await transaction.CommitAsync();
+                
+                TempData["SuccessMessage"] = $"Template '{sourceTemplate.Name}' successfully cloned as '{name}'.";
+                return RedirectToPage();
+            }
+            catch (Exception ex)
+            {
+                // Roll back the transaction on error
+                await transaction.RollbackAsync();
+                TempData["ErrorMessage"] = $"An error occurred while cloning the template: {ex.Message}";
+                return RedirectToPage();
+            }
+        }
+
         // View models for the page
         public class WorkoutTemplateViewModel
         {
