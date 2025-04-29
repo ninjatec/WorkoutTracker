@@ -23,6 +23,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
     [Area("Coach")]
     [CoachAuthorize]
     [OutputCache(PolicyName = "StaticContentWithId")]
+    [IgnoreAntiforgeryToken(Order = 1001)]
     public class DetailsModel : PageModel
     {
         private readonly WorkoutTrackerWebContext _context;
@@ -160,14 +161,168 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
             bool sendReminder = false,
             int reminderHoursBefore = 3)
         {
+            // Enable request debugging
+            _logger.LogInformation("Received form data: {@FormData}", Request.Form.ToDictionary(x => x.Key, x => x.Value.ToString()));
+            
+            // Add this to debug the form values
+            foreach (var key in Request.Form.Keys)
+            {
+                _logger.LogInformation("Form key: {Key}, Value: {Value}", key, Request.Form[key]);
+            }
+            
             _logger.LogInformation("Assigning template {templateId} to client {clientId}", templateId, clientId);
             
             // Parse dates from form inputs
+            if (string.IsNullOrEmpty(startDateStr))
+            {
+                _logger.LogWarning("Start date is null or empty");
+                ModelState.AddModelError("startDate", "Start date is required");
+                
+                // Load necessary data before returning the page
+                var templateObj = await _context.WorkoutTemplate
+                    .Include(t => t.TemplateExercises)
+                    .ThenInclude(e => e.ExerciseType)
+                    .Include(t => t.TemplateExercises)
+                    .ThenInclude(e => e.TemplateSets)
+                    .ThenInclude(s => s.Settype)
+                    .FirstOrDefaultAsync(t => t.WorkoutTemplateId == templateId);
+                
+                if (templateObj == null)
+                {
+                    return NotFound("Template not found");
+                }
+                
+                WorkoutTemplate = templateObj;
+                
+                // Load clients data
+                var coachIdFromIdentity = _userManager.GetUserId(User);
+                if (!string.IsNullOrEmpty(coachIdFromIdentity))
+                {
+                    var coachUserObj = await _context.User
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(u => u.IdentityUserId == coachIdFromIdentity);
+                    
+                    if (coachUserObj != null)
+                    {
+                        var relationships = await _context.CoachClientRelationships
+                            .Where(r => r.CoachId == coachIdFromIdentity && r.Status == RelationshipStatus.Active)
+                            .ToListAsync();
+                        
+                        var clientIdentityIds = relationships.Select(r => r.ClientId).ToList();
+                        
+                        Clients = await _context.User
+                            .Where(u => clientIdentityIds.Contains(u.IdentityUserId))
+                            .ToListAsync();
+                        
+                        if (!Clients.Any())
+                        {
+                            var otherUsers = await _context.User
+                                .Where(u => u.IdentityUserId != coachIdFromIdentity && u.IdentityUserId != null)
+                                .Take(5)
+                                .ToListAsync();
+                                
+                            if (otherUsers.Any())
+                            {
+                                Clients = otherUsers;
+                            }
+                        }
+                        
+                        // Load recent assignments for this template
+                        var recentAssignments = await _context.TemplateAssignments
+                            .Where(a => a.WorkoutTemplateId == templateId && a.CoachUserId == coachUserObj.UserId)
+                            .Include(a => a.Client)
+                            .OrderByDescending(a => a.AssignedDate)
+                            .Take(5)
+                            .ToListAsync();
+                            
+                        RecentAssignments = recentAssignments.Select(a => new TemplateAssignmentViewModel
+                        {
+                            Id = a.TemplateAssignmentId,
+                            TemplateId = a.WorkoutTemplateId,
+                            Name = templateObj.Name,
+                            ClientRelationshipId = (int)a.ClientRelationshipId,
+                            Notes = $"Assigned on {a.AssignedDate.ToShortDateString()}"
+                        }).ToList();
+                    }
+                }
+                
+                return Page();
+            }
+            
             if (!DateTime.TryParse(startDateStr, out DateTime startDate))
             {
                 _logger.LogWarning("Invalid start date format: {startDateStr}", startDateStr);
                 ModelState.AddModelError("startDate", "Invalid start date format");
-                return BadRequest(ModelState);
+                
+                // Load necessary data before returning the page
+                var templateObj = await _context.WorkoutTemplate
+                    .Include(t => t.TemplateExercises)
+                    .ThenInclude(e => e.ExerciseType)
+                    .Include(t => t.TemplateExercises)
+                    .ThenInclude(e => e.TemplateSets)
+                    .ThenInclude(s => s.Settype)
+                    .FirstOrDefaultAsync(t => t.WorkoutTemplateId == templateId);
+                
+                if (templateObj == null)
+                {
+                    return NotFound("Template not found");
+                }
+                
+                WorkoutTemplate = templateObj;
+                
+                // Load clients data
+                var coachIdFromIdentity = _userManager.GetUserId(User);
+                if (!string.IsNullOrEmpty(coachIdFromIdentity))
+                {
+                    var coachUserObj = await _context.User
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(u => u.IdentityUserId == coachIdFromIdentity);
+                    
+                    if (coachUserObj != null)
+                    {
+                        var relationships = await _context.CoachClientRelationships
+                            .Where(r => r.CoachId == coachIdFromIdentity && r.Status == RelationshipStatus.Active)
+                            .ToListAsync();
+                        
+                        var clientIdentityIds = relationships.Select(r => r.ClientId).ToList();
+                        
+                        Clients = await _context.User
+                            .Where(u => clientIdentityIds.Contains(u.IdentityUserId))
+                            .ToListAsync();
+                        
+                        if (!Clients.Any())
+                        {
+                            var otherUsers = await _context.User
+                                .Where(u => u.IdentityUserId != coachIdFromIdentity && u.IdentityUserId != null)
+                                .Take(5)
+                                .ToListAsync();
+                                
+                            if (otherUsers.Any())
+                            {
+                                Clients = otherUsers;
+                            }
+                        }
+                        
+                        // Load recent assignments for this template
+                        var recentAssignments = await _context.TemplateAssignments
+                            .Where(a => a.WorkoutTemplateId == templateId && a.CoachUserId == coachUserObj.UserId)
+                            .Include(a => a.Client)
+                            .OrderByDescending(a => a.AssignedDate)
+                            .Take(5)
+                            .ToListAsync();
+                            
+                        RecentAssignments = recentAssignments.Select(a => new TemplateAssignmentViewModel
+                        {
+                            Id = a.TemplateAssignmentId,
+                            TemplateId = a.WorkoutTemplateId,
+                            Name = templateObj.Name,
+                            ClientRelationshipId = (int)a.ClientRelationshipId,
+                            Notes = $"Assigned on {a.AssignedDate.ToShortDateString()}"
+                        }).ToList();
+                    }
+                }
+                
+                return Page();
             }
             
             DateTime? endDate = null;

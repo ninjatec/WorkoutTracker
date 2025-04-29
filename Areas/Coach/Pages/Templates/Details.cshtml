@@ -36,6 +36,9 @@
                 <form method="post" asp-page-handler="Assign">
                     <input type="hidden" name="templateId" value="@Model.WorkoutTemplate.WorkoutTemplateId" />
                     
+                    <!-- Add antiforgery token -->
+                    @Html.AntiForgeryToken()
+                    
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
