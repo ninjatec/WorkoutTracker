@@ -7,9 +7,9 @@
 <div class="container-fluid">
     <div class="mb-4 d-flex justify-content-between align-items-center">
         <h1 class="h3">Scheduled Workouts</h1>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#scheduleWorkoutModal">
+        <a asp-area="Coach" asp-page="/Templates/Index" class="btn btn-primary">
             <i class="bi bi-plus me-1"></i> Schedule New Workout
-        </button>
+        </a>
     </div>
 
     @if (TempData["SuccessMessage"] != null)
@@ -33,9 +33,9 @@
             <div class="card shadow-sm">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Upcoming Workouts</h5>
-                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#scheduleWorkoutModal">
+                    <a asp-area="Coach" asp-page="/Templates/Index" class="btn btn-sm btn-primary">
                         <i class="bi bi-plus me-1"></i> Schedule New Workout
-                    </button>
+                    </a>
                 </div>
                 <div class="card-body">
                     @if (Model.UpcomingSchedules.Any())
@@ -155,9 +155,9 @@
                     {
                         <div class="alert alert-info">
                             <p class="mb-0">You don't have any scheduled workouts yet.</p>
-                            <button type="button" class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#scheduleWorkoutModal">
+                            <a asp-area="Coach" asp-page="/Templates/Index" class="btn btn-primary mt-2">
                                 <i class="bi bi-plus"></i> Schedule a Workout
-                            </button>
+                            </a>
                         </div>
                     }
                 </div>
