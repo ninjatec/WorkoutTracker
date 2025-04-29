@@ -78,6 +78,8 @@ This document maintains an up-to-date inventory of all features, components, and
 - WorkoutTemplateSet
 - CoachNote
 - WorkoutSchedule
+- ClientGroup
+- CoachClientRelationship
 
 #### User
 - Primary entity representing application users
@@ -187,13 +189,24 @@ This document maintains an up-to-date inventory of all features, components, and
 
 #### AppVersion
 - Tracks application version information
-- Properties: VersionId, Major, Minor, Patch, BuildNumber, ReleaseDate, Description, GitCommitHash, IsCurrent, ReleaseNotes
+- Properties: 
+  - VersionId, Major, Minor, Patch, BuildNumber
+  - ReleaseDate, Description, GitCommitHash, IsCurrent
+  - ReleaseNotes (detailed changelog information)
 - Used for: 
-  - Version tracking in logs
-  - Displaying current version information
-  - Maintaining version history
-  - Docker image tagging
-  - Kubernetes deployment management
+  - Version tracking in application logs with Serilog enrichment
+  - Displaying current version information in UI footer
+  - Maintaining complete version history with visual timeline
+  - Docker image tagging for Kubernetes deployments
+  - Automated version capture during deployment process
+  - Release notes documentation for each version
+  - Rollback capability to previous versions
+- Features:
+  - Admin interface for version management
+  - Current version indicator in application interface
+  - Timeline visualization of version history
+  - Git commit tracking with hash references
+  - Detailed release notes with formatting support
 
 #### Alert
 - Represents system-generated alerts for various conditions
@@ -292,16 +305,18 @@ This document maintains an up-to-date inventory of all features, components, and
 #### CoachNote
 - Represents coaching notes attached to workouts for feedback and observations
 - Properties:
-  - Id, noteText, createdDate, workoutId
-  - CoachId, IsPrivate
+  - Id, Content (renamed from noteText), CreatedDate (renamed from date)
+  - CoachClientRelationshipId, IsVisibleToClient, Category
+  - UpdatedDate (new field for tracking modifications)
 - Relationships:
-  - Many-to-one with User (coach)
-  - Many-to-one with WorkoutSession (workout)
+  - Many-to-one with CoachClientRelationship
 - Features:
-  - Coaching feedback mechanism
+  - Coaching feedback mechanism with categorization
   - Date tracking for chronological organization
-  - Privacy control for notes (visible to athlete vs. coach-only)
-  - Association with specific workout sessions
+  - Privacy control with visibility settings for clients
+  - Association with specific coach-client relationships
+  - Category-based organization for different note types
+  - Modification tracking with update timestamps
 
 #### WorkoutSchedule
 - Represents scheduled workouts for clients with support for recurring patterns
@@ -323,3 +338,38 @@ This document maintains an up-to-date inventory of all features, components, and
   - Customizable reminder settings
   - Calendar-based interface for visualization
   - Active status tracking
+
+#### ClientGroup
+- Organizes coach clients into logical groups
+- Properties:
+  - Id, Name, Description, CoachId
+  - CreatedDate, LastModifiedDate, ColorCode
+- Relationships:
+  - Many-to-one with User (coach)
+  - One-to-many with CoachClientRelationship
+- Features:
+  - Visual organization with custom color codes
+  - Grouping by training type, goals, or other criteria
+  - Improved client management efficiency
+  - Batch operations on grouped clients
+
+#### CoachClientRelationship
+- Manages the coaching relationship between users
+- Properties:
+  - Id, CoachId, ClientId, ClientGroupId (optional)
+  - Status (enum): Pending, Active, Inactive, Declined, Terminated
+  - CreatedDate, LastModifiedDate
+  - StartDate, EndDate (optional for time-bound relationships)
+  - InvitationToken, InvitationExpiryDate
+- Relationships:
+  - Many-to-one with User (coach)
+  - Many-to-one with User (client)
+  - Many-to-one with ClientGroup (optional)
+  - One-to-one with CoachClientPermission
+  - One-to-many with CoachNote
+- Features:
+  - Invitation workflow with secure tokens
+  - Relationship lifecycle management
+  - Time-bound coaching relationships
+  - Invitation expiration for security
+  - Group-based organization
