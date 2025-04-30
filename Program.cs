@@ -144,7 +144,7 @@ try
             DisableGlobalLocks = false, // Enable global locks for distributed environment
             SchemaName = "HangFire",
             PrepareSchemaIfNecessary = true // Enable auto schema creation
-        }));
+        })); // Removed .UseConsole() which was causing build errors
 
     // Get Hangfire configuration to determine if we should register this instance as a server
     using (var scope = builder.Services.BuildServiceProvider().CreateScope())

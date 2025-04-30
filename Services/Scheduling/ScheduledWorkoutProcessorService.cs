@@ -89,6 +89,61 @@ namespace WorkoutTrackerWeb.Services.Scheduling
         }
 
         /// <summary>
+        /// Cleans up expired scheduled workouts that are no longer needed
+        /// </summary>
+        /// <returns>Number of workouts cleaned up</returns>
+        public async Task<int> CleanupExpiredWorkoutsAsync()
+        {
+            var cleanedUpCount = 0;
+            var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, _timeZone);
+            
+            _logger.LogInformation("Starting expired workout cleanup at {Now}", now);
+            
+            try
+            {
+                // Find completed one-time workouts (not recurring and in the past)
+                var expiredOneTimeWorkouts = await _context.WorkoutSchedules
+                    .Where(s => 
+                        (!s.IsRecurring || s.RecurrencePattern == "Once") && 
+                        s.ScheduledDateTime < now.AddDays(-1) && // At least 1 day old
+                        s.IsActive) // Still marked as active
+                    .ToListAsync();
+                    
+                // Find recurring workouts that have passed their end date
+                var expiredRecurringWorkouts = await _context.WorkoutSchedules
+                    .Where(s => 
+                        s.IsRecurring && 
+                        s.RecurrencePattern != "Once" && 
+                        s.EndDate.HasValue && 
+                        s.EndDate.Value < now.Date.AddDays(-1) && // End date at least 1 day in the past
+                        s.IsActive) // Still marked as active
+                    .ToListAsync();
+                    
+                _logger.LogInformation("Found {OneTimeCount} expired one-time workouts and {RecurringCount} expired recurring workouts",
+                    expiredOneTimeWorkouts.Count, expiredRecurringWorkouts.Count);
+                    
+                // Mark all expired workouts as inactive
+                foreach (var workout in expiredOneTimeWorkouts.Concat(expiredRecurringWorkouts))
+                {
+                    workout.IsActive = false;
+                    _logger.LogDebug("Marking workout {Id} '{Name}' as inactive", workout.WorkoutScheduleId, workout.Name);
+                    cleanedUpCount++;
+                }
+                
+                await _context.SaveChangesAsync();
+                
+                _logger.LogInformation("Successfully marked {Count} expired workouts as inactive", cleanedUpCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error cleaning up expired workouts");
+                throw; // Rethrow to let Hangfire know this job failed
+            }
+            
+            return cleanedUpCount;
+        }
+
+        /// <summary>
         /// Gets all scheduled workouts that are due for conversion to actual workout sessions
         /// </summary>
         private async Task<List<WorkoutSchedule>> GetDueWorkoutsAsync(DateTime now)
