@@ -187,11 +187,11 @@
      - [x] Implement error handling and retry mechanisms
      - [x] Add logging for conversion events and failures
    
-   - [ ] Implement recurrence pattern logic
-     - [ ] Build next occurrence calculation system for each pattern type
-     - [ ] Handle special cases like month end dates and leap years
-     - [ ] Ensure proper handling of recurring workouts with end dates
-     - [ ] Implement logic for multiple days of the week (stored in MultipleDaysOfWeek)
+   - [x] Implement recurrence pattern logic
+     - [x] Build next occurrence calculation system for each pattern type
+     - [x] Handle special cases like month end dates and leap years
+     - [x] Ensure proper handling of recurring workouts with end dates
+     - [x] Implement logic for multiple days of the week (stored in MultipleDaysOfWeek)
    
    - [ ] Add status tracking for scheduled workouts
      - [ ] Create model property to track last generated workout

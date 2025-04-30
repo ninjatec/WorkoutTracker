@@ -252,38 +252,60 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                 return null;
             }
             
-            // Find the next occurrence by checking each day of the week
+            // Sort by day of week to ensure we find the earliest next occurrence
+            var orderedDaysOfWeek = daysOfWeek.OrderBy(d => (((int)d - (int)referenceDate.DayOfWeek) + 7) % 7).ToList();
+            
+            // Find the next occurrence by checking days in order starting from today
             var date = referenceDate.Date;
-            for (int i = 0; i < 7; i++) // Check for the next 7 days
+            DateTime? result = null;
+            
+            // First pass: check the next 7 days
+            for (int i = 0; i < 7; i++) 
             {
                 var dayOfWeek = date.DayOfWeek;
                 if (daysOfWeek.Contains(dayOfWeek))
                 {
-                    // Check if this occurrence is today but still in the future
+                    // For today, check if the time is in the future
                     if (date == referenceDate.Date)
                     {
-                        // If today's occurrence is in the past, skip to next week
-                        if (timeOfDay <= referenceDate.TimeOfDay)
+                        if (timeOfDay > referenceDate.TimeOfDay)
                         {
-                            date = date.AddDays(7);
-                            continue;
+                            // Today's occurrence is still in the future
+                            result = date.Add(timeOfDay);
+                            break;
                         }
                     }
-                    
-                    return date.Add(timeOfDay);
+                    else
+                    {
+                        // Future date, so we can use it
+                        result = date.Add(timeOfDay);
+                        break;
+                    }
                 }
                 
                 date = date.AddDays(1);
             }
             
-            // If we've checked all days and none match, use the first day next week
-            date = referenceDate.Date.AddDays(1);
-            while (date.DayOfWeek != daysOfWeek.First())
+            // If we didn't find a date, use the first configured day of next week
+            if (result == null)
             {
-                date = date.AddDays(1);
+                date = referenceDate.Date.AddDays(1);
+                while (!daysOfWeek.Contains(date.DayOfWeek))
+                {
+                    date = date.AddDays(1);
+                }
+                result = date.Add(timeOfDay);
             }
             
-            return date.Add(timeOfDay);
+            // Final check: make sure we respect end date
+            if (workout.EndDate.HasValue && result.Value.Date > workout.EndDate.Value.Date)
+            {
+                _logger.LogInformation("Weekly workout {Id} next occurrence would be {Date}, but that's after end date {EndDate}", 
+                    workout.WorkoutScheduleId, result.Value, workout.EndDate.Value);
+                return null;
+            }
+            
+            return result;
         }
 
         /// <summary>
@@ -303,47 +325,55 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             // Get the start date as the reference for the bi-weekly pattern
             var startDate = workout.StartDate;
             
-            // Find the next occurrence
-            // First, find the next matching day of week
-            var date = referenceDate.Date;
-            DateTime? nextDate = null;
+            // Sort days by closest upcoming day of week
+            var orderedDaysOfWeek = daysOfWeek.OrderBy(d => (((int)d - (int)referenceDate.DayOfWeek) + 7) % 7).ToList();
             
-            for (int i = 0; i < 14; i++) // Look ahead two weeks
+            // Find the next occurrence by checking days within a two-week period
+            var date = referenceDate.Date;
+            DateTime? result = null;
+            
+            // Look ahead for the next two weeks (14 days)
+            for (int i = 0; i < 14; i++)
             {
                 var dayOfWeek = date.DayOfWeek;
                 if (daysOfWeek.Contains(dayOfWeek))
                 {
-                    // Calculate weeks since the start date
+                    // Calculate weeks since the start date to determine if this is a bi-weekly occurrence
                     var weeksSinceStart = (int)Math.Round((date - startDate.Date).TotalDays / 7.0);
                     
                     // Check if this is a bi-weekly occurrence (every two weeks)
                     if (weeksSinceStart % 2 == 0)
                     {
-                        // Check if this occurrence is today but still in the future
+                        // For today, we need to check if the time is still in the future
                         if (date == referenceDate.Date)
                         {
-                            // If today's occurrence is in the past, continue checking
-                            if (timeOfDay <= referenceDate.TimeOfDay)
+                            if (timeOfDay > referenceDate.TimeOfDay)
                             {
-                                date = date.AddDays(1);
-                                continue;
+                                // Today's occurrence is still in the future
+                                result = date.Add(timeOfDay);
+                                break;
                             }
                         }
-                        
-                        nextDate = date.Add(timeOfDay);
-                        break;
+                        else
+                        {
+                            // Future date, so we can use it
+                            result = date.Add(timeOfDay);
+                            break;
+                        }
                     }
                 }
                 
                 date = date.AddDays(1);
             }
             
-            // If no date found, calculate the next bi-weekly occurrence
-            if (!nextDate.HasValue)
+            // If no date found in the next two weeks, calculate the next bi-weekly occurrence
+            if (result == null)
             {
                 // Find the first day of the next bi-weekly cycle
                 var currentWeeksSinceStart = (int)Math.Floor((referenceDate.Date - startDate.Date).TotalDays / 7.0);
-                var nextCycleStart = startDate.Date.AddDays((currentWeeksSinceStart + (currentWeeksSinceStart % 2 == 0 ? 2 : 1)) * 7);
+                // Ensure we get the next even-number of weeks from the start date
+                var weeksToAdd = currentWeeksSinceStart % 2 == 0 ? 2 : 1;
+                var nextCycleStart = startDate.Date.AddDays((currentWeeksSinceStart + weeksToAdd) * 7);
                 
                 // Find the first matching day of week in the next cycle
                 date = nextCycleStart;
@@ -351,14 +381,22 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                 {
                     if (daysOfWeek.Contains(date.DayOfWeek))
                     {
-                        nextDate = date.Add(timeOfDay);
+                        result = date.Add(timeOfDay);
                         break;
                     }
                     date = date.AddDays(1);
                 }
             }
             
-            return nextDate;
+            // Final check: make sure we respect end date
+            if (result.HasValue && workout.EndDate.HasValue && result.Value.Date > workout.EndDate.Value.Date)
+            {
+                _logger.LogInformation("BiWeekly workout {Id} next occurrence would be {Date}, but that's after end date {EndDate}", 
+                    workout.WorkoutScheduleId, result.Value, workout.EndDate.Value);
+                return null;
+            }
+            
+            return result;
         }
 
         /// <summary>
@@ -369,22 +407,64 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             // Get the day of month for the workout
             int dayOfMonth = workout.RecurrenceDayOfMonth ?? workout.StartDate.Day;
             
-            // Start with the current month
-            var date = new DateTime(referenceDate.Year, referenceDate.Month, 1);
+            // Start with the current month's first day
+            var currentMonth = new DateTime(referenceDate.Year, referenceDate.Month, 1);
+            DateTime result;
             
-            // If we're past the day this month, move to next month
-            if (referenceDate.Day > dayOfMonth || (referenceDate.Day == dayOfMonth && referenceDate.TimeOfDay >= timeOfDay))
+            // Check if we can use the current month (day hasn't passed yet)
+            if (referenceDate.Day < dayOfMonth || (referenceDate.Day == dayOfMonth && referenceDate.TimeOfDay < timeOfDay))
             {
-                date = date.AddMonths(1);
+                // Day hasn't occurred yet this month
+                try
+                {
+                    // Handle special cases like February 29th in non-leap years
+                    var daysInMonth = DateTime.DaysInMonth(currentMonth.Year, currentMonth.Month);
+                    int actualDay = Math.Min(dayOfMonth, daysInMonth);
+                    result = new DateTime(currentMonth.Year, currentMonth.Month, actualDay, 
+                        timeOfDay.Hours, timeOfDay.Minutes, timeOfDay.Seconds);
+                }
+                catch (ArgumentOutOfRangeException)
+                {
+                    // Handle any remaining edge cases by taking the last day of the month
+                    var lastDayOfMonth = DateTime.DaysInMonth(currentMonth.Year, currentMonth.Month);
+                    result = new DateTime(currentMonth.Year, currentMonth.Month, lastDayOfMonth,
+                        timeOfDay.Hours, timeOfDay.Minutes, timeOfDay.Seconds);
+                    _logger.LogWarning("Monthly workout {Id} requested invalid day {RequestedDay}, using last day of month ({ActualDay})", 
+                        workout.WorkoutScheduleId, dayOfMonth, lastDayOfMonth);
+                }
+            }
+            else
+            {
+                // Move to next month
+                var nextMonth = currentMonth.AddMonths(1);
+                try
+                {
+                    // Handle special cases like February 29th in non-leap years
+                    var daysInMonth = DateTime.DaysInMonth(nextMonth.Year, nextMonth.Month);
+                    int actualDay = Math.Min(dayOfMonth, daysInMonth);
+                    result = new DateTime(nextMonth.Year, nextMonth.Month, actualDay,
+                        timeOfDay.Hours, timeOfDay.Minutes, timeOfDay.Seconds);
+                }
+                catch (ArgumentOutOfRangeException)
+                {
+                    // Handle any remaining edge cases by taking the last day of the month
+                    var lastDayOfMonth = DateTime.DaysInMonth(nextMonth.Year, nextMonth.Month);
+                    result = new DateTime(nextMonth.Year, nextMonth.Month, lastDayOfMonth,
+                        timeOfDay.Hours, timeOfDay.Minutes, timeOfDay.Seconds);
+                    _logger.LogWarning("Monthly workout {Id} requested invalid day {RequestedDay}, using last day of month ({ActualDay})", 
+                        workout.WorkoutScheduleId, dayOfMonth, lastDayOfMonth);
+                }
             }
             
-            // Adjust for months with fewer days
-            var daysInMonth = DateTime.DaysInMonth(date.Year, date.Month);
-            var actualDay = Math.Min(dayOfMonth, daysInMonth);
+            // Final check: make sure we respect end date
+            if (workout.EndDate.HasValue && result.Date > workout.EndDate.Value.Date)
+            {
+                _logger.LogInformation("Monthly workout {Id} next occurrence would be {Date}, but that's after end date {EndDate}", 
+                    workout.WorkoutScheduleId, result, workout.EndDate.Value);
+                return null;
+            }
             
-            // Create the final date
-            return new DateTime(date.Year, date.Month, actualDay, 
-                timeOfDay.Hours, timeOfDay.Minutes, timeOfDay.Seconds);
+            return result;
         }
 
         /// <summary>
@@ -397,7 +477,16 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             // Add the primary day of week if present
             if (workout.RecurrenceDayOfWeek.HasValue)
             {
-                result.Add((DayOfWeek)workout.RecurrenceDayOfWeek.Value);
+                // Validate the primary day value is within range
+                if (Enum.IsDefined(typeof(DayOfWeek), workout.RecurrenceDayOfWeek.Value))
+                {
+                    result.Add((DayOfWeek)workout.RecurrenceDayOfWeek.Value);
+                }
+                else
+                {
+                    _logger.LogWarning("Workout {Id} has invalid RecurrenceDayOfWeek value: {Value}", 
+                        workout.WorkoutScheduleId, workout.RecurrenceDayOfWeek.Value);
+                }
             }
             
             // Add additional days if any
@@ -405,11 +494,38 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             {
                 foreach (var dayValue in workout.MultipleDaysOfWeek.Split(',', StringSplitOptions.RemoveEmptyEntries))
                 {
-                    if (int.TryParse(dayValue, out int dayInt) && !result.Contains((DayOfWeek)dayInt))
+                    if (int.TryParse(dayValue, out int dayInt))
                     {
-                        result.Add((DayOfWeek)dayInt);
+                        // Validate the day value is within range
+                        if (Enum.IsDefined(typeof(DayOfWeek), dayInt))
+                        {
+                            var dayOfWeek = (DayOfWeek)dayInt;
+                            if (!result.Contains(dayOfWeek))
+                            {
+                                result.Add(dayOfWeek);
+                            }
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Workout {Id} has invalid day of week value in MultipleDaysOfWeek: {Value}", 
+                                workout.WorkoutScheduleId, dayInt);
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Workout {Id} has non-integer value in MultipleDaysOfWeek: {Value}", 
+                            workout.WorkoutScheduleId, dayValue);
                     }
                 }
+            }
+            
+            // If no valid days found but it's a weekly or bi-weekly pattern, use the start date's day of week as fallback
+            if (!result.Any() && (workout.RecurrencePattern == "Weekly" || workout.RecurrencePattern == "BiWeekly"))
+            {
+                var startDateDayOfWeek = workout.StartDate.DayOfWeek;
+                result.Add(startDateDayOfWeek);
+                _logger.LogInformation("Workout {Id} had no valid days of week, using start date's day of week ({DayOfWeek}) as fallback", 
+                    workout.WorkoutScheduleId, startDateDayOfWeek);
             }
             
             return result;
