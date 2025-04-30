@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 using WorkoutTrackerWeb.Models.Alerting;
 using WorkoutTrackerWeb.Models.Coaching;
+using WorkoutTrackerWeb.Models.Identity;
 
 namespace WorkoutTrackerWeb.Data
 {
@@ -94,6 +95,67 @@ namespace WorkoutTrackerWeb.Data
 
             // No global query filters on User table - we need to see all users for admin purposes
             // But we'll add filters to child entities
+
+            // Configure AppUser relationships
+            modelBuilder.Entity<AppUser>()
+                .HasMany(u => u.CoachRelationships)
+                .WithOne(r => r.Coach)
+                .HasForeignKey(r => r.CoachId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<AppUser>()
+                .HasMany(u => u.ClientRelationships)
+                .WithOne(r => r.Client)
+                .HasForeignKey(r => r.ClientId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // Configure CoachClientRelationship relationships
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasOne(r => r.ClientGroup)
+                .WithMany(g => g.ClientRelationships)
+                .HasForeignKey(r => r.ClientGroupId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasOne(r => r.Permissions)
+                .WithOne(p => p.Relationship)
+                .HasForeignKey<CoachClientPermission>(p => p.CoachClientRelationshipId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure unique index on coach-client pairs
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasIndex(r => new { r.CoachId, r.ClientId })
+                .IsUnique()
+                .HasFilter("[ClientId] IS NOT NULL");
+
+            // Configure ClientGoal relationships
+            modelBuilder.Entity<ClientGoal>()
+                .HasOne(g => g.Relationship)
+                .WithMany()
+                .HasForeignKey(g => g.CoachClientRelationshipId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired(false);
+
+            // Configure ClientGroup relationships
+            modelBuilder.Entity<ClientGroup>()
+                .HasOne(g => g.Coach)
+                .WithMany()
+                .HasForeignKey(g => g.CoachId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+
+            // Configure ClientGroupMember relationships
+            modelBuilder.Entity<ClientGroupMember>()
+                .HasOne(m => m.ClientGroup)
+                .WithMany()
+                .HasForeignKey(m => m.ClientGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ClientGroupMember>()
+                .HasOne(m => m.Relationship)
+                .WithMany()
+                .HasForeignKey(m => m.CoachClientRelationshipId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Sessions are filtered by the current user
             modelBuilder.Entity<Session>()

@@ -46,24 +46,30 @@ public class ApplicationDbContext : IdentityDbContext<AppUser>
         builder.Entity<WhitelistedIp>()
             .HasIndex(w => w.IpAddress)
             .IsUnique();
-            
-        // Configure Coach/Client relationships
+
+        // Configure CoachClientRelationship relationships
         builder.Entity<CoachClientRelationship>()
             .HasOne(r => r.Coach)
             .WithMany(u => u.CoachRelationships)
             .HasForeignKey(r => r.CoachId)
-            .OnDelete(DeleteBehavior.Restrict);
-            
+            .OnDelete(DeleteBehavior.NoAction);
+
         builder.Entity<CoachClientRelationship>()
             .HasOne(r => r.Client)
             .WithMany(u => u.ClientRelationships)
             .HasForeignKey(r => r.ClientId)
-            .OnDelete(DeleteBehavior.Restrict);
-            
-        // Configure CoachClientPermission relationship
-        builder.Entity<CoachClientPermission>()
-            .HasOne(p => p.Relationship)
-            .WithOne(r => r.Permissions)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        // Configure unique constraint on CoachId and ClientId combination
+        builder.Entity<CoachClientRelationship>()
+            .HasIndex(r => new { r.CoachId, r.ClientId })
+            .IsUnique()
+            .HasFilter("[ClientId] IS NOT NULL");
+
+        // Configure CoachClientPermission one-to-one relationship
+        builder.Entity<CoachClientRelationship>()
+            .HasOne(r => r.Permissions)
+            .WithOne(p => p.Relationship)
             .HasForeignKey<CoachClientPermission>(p => p.CoachClientRelationshipId)
             .OnDelete(DeleteBehavior.Cascade);
     }

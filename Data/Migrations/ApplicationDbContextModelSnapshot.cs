@@ -200,7 +200,7 @@ namespace WorkoutTrackerWeb.Data.Migrations
 
                     b.HasKey("VersionId");
 
-                    b.ToTable("Versions");
+                    b.ToTable("Versions", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientGroup", b =>
@@ -238,7 +238,7 @@ namespace WorkoutTrackerWeb.Data.Migrations
 
                     b.HasIndex("CoachId");
 
-                    b.ToTable("ClientGroup");
+                    b.ToTable("ClientGroup", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientPermission", b =>
@@ -293,7 +293,7 @@ namespace WorkoutTrackerWeb.Data.Migrations
                     b.HasIndex("CoachClientRelationshipId")
                         .IsUnique();
 
-                    b.ToTable("CoachClientPermissions");
+                    b.ToTable("CoachClientPermissions", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship", b =>
@@ -345,9 +345,11 @@ namespace WorkoutTrackerWeb.Data.Migrations
 
                     b.HasIndex("ClientId");
 
-                    b.HasIndex("CoachId");
+                    b.HasIndex("CoachId", "ClientId")
+                        .IsUnique()
+                        .HasFilter("[ClientId] IS NOT NULL");
 
-                    b.ToTable("CoachClientRelationships");
+                    b.ToTable("CoachClientRelationships", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachNote", b =>
@@ -382,7 +384,7 @@ namespace WorkoutTrackerWeb.Data.Migrations
 
                     b.HasIndex("CoachClientRelationshipId");
 
-                    b.ToTable("CoachNote");
+                    b.ToTable("CoachNote", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Identity.AppUser", b =>
@@ -483,7 +485,7 @@ namespace WorkoutTrackerWeb.Data.Migrations
 
                     b.HasIndex("LogLevelSettingsId");
 
-                    b.ToTable("LogLevelOverrides");
+                    b.ToTable("LogLevelOverrides", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Logging.LogLevelSettings", b =>
@@ -507,7 +509,7 @@ namespace WorkoutTrackerWeb.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("LogLevelSettings");
+                    b.ToTable("LogLevelSettings", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WhitelistedIp", b =>
@@ -539,7 +541,7 @@ namespace WorkoutTrackerWeb.Data.Migrations
                     b.HasIndex("IpAddress")
                         .IsUnique();
 
-                    b.ToTable("WhitelistedIps");
+                    b.ToTable("WhitelistedIps", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -624,12 +626,12 @@ namespace WorkoutTrackerWeb.Data.Migrations
                     b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", "Client")
                         .WithMany("ClientRelationships")
                         .HasForeignKey("ClientId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", "Coach")
                         .WithMany("CoachRelationships")
                         .HasForeignKey("CoachId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Client");

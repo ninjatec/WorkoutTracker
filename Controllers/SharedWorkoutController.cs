@@ -21,15 +21,18 @@ namespace WorkoutTrackerWeb.Controllers
         private readonly WorkoutTrackerWebContext _context;
         private readonly IDistributedCache _cache;
         private readonly IShareTokenService _shareTokenService;
+        private readonly QuickWorkoutService _quickWorkoutService;
 
         public SharedWorkoutController(
             WorkoutTrackerWebContext context,
             IDistributedCache cache,
-            IShareTokenService shareTokenService)
+            IShareTokenService shareTokenService,
+            QuickWorkoutService quickWorkoutService)
         {
             _context = context;
             _cache = cache;
             _shareTokenService = shareTokenService;
+            _quickWorkoutService = quickWorkoutService;
         }
 
         [HttpGet("sessions")]
@@ -239,6 +242,28 @@ namespace WorkoutTrackerWeb.Controllers
                 FailedReps = failedReps,
                 ExerciseUsage = exerciseUsage
             });
+        }
+
+        [HttpGet("sessions/{id}/has-completed-sets")]
+        [ShareTokenAuthorize("SessionAccess")]
+        public async Task<ActionResult<bool>> HasCompletedSets(int id)
+        {
+            // Get the validated token
+            var tokenData = HttpContext.Items["ShareTokenData"] as ShareToken;
+            if (tokenData == null)
+            {
+                return Unauthorized();
+            }
+
+            // If token is session-specific, verify it's for this session
+            if (tokenData.SessionId.HasValue && tokenData.SessionId.Value != id)
+            {
+                return Forbid();
+            }
+
+            // Use the service to check if the session has completed sets
+            var result = await _quickWorkoutService.HasCompletedSetsAsync(id);
+            return Ok(result);
         }
     }
 }

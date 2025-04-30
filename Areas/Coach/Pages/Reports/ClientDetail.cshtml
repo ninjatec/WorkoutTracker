@@ -1,0 +1,205 @@
+@page "{id}"
+@model WorkoutTrackerWeb.Areas.Coach.Pages.Reports.ClientDetailModel
+@{
+    ViewData["Title"] = $"Client Report - {Model.ClientName}";
+}
+
+<div class="row mb-4">
+    <div class="col-12">
+        <h1>Client Report</h1>
+        <p class="lead">Detailed analytics for @Model.ClientName</p>
+    </div>
+</div>
+
+<!-- Key Metrics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <h3 class="card-title">Sessions</h3>
+                <div class="display-4">@Model.TotalSessions</div>
+                <small class="text-muted">Last 30 days</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <h3 class="card-title">Goals</h3>
+                <div class="display-4">@Model.ActiveGoals</div>
+                <small class="text-muted">Active goals</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <h3 class="card-title">Consistency</h3>
+                <div class="display-4">@Model.ConsistencyRate%</div>
+                <small class="text-muted">Attendance rate</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <h3 class="card-title">Progress</h3>
+                <div class="display-4">@Model.AverageGoalProgress%</div>
+                <small class="text-muted">Average goal progress</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Workout History -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Workout History</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="workoutHistoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Goals Progress -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Active Goals Progress</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Goal</th>
+                                <th>Category</th>
+                                <th>Target Date</th>
+                                <th>Progress</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var goal in Model.Goals)
+                            {
+                                <tr>
+                                    <td>@goal.Description</td>
+                                    <td>@goal.Category</td>
+                                    <td>@goal.TargetDate.ToShortDateString()</td>
+                                    <td>
+                                        <div class="progress" style="height: 5px;">
+                                            <div class="progress-bar @(goal.Progress >= 70 ? "bg-success" : goal.Progress >= 50 ? "bg-warning" : "bg-danger")" 
+                                                 role="progressbar" 
+                                                 style="width: @(goal.Progress)%" 
+                                                 aria-valuenow="@goal.Progress" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                        <small class="d-block text-center">@goal.Progress%</small>
+                                    </td>
+                                    <td>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-primary"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#goalFeedbackModal"
+                                                data-goal-id="@goal.Id">
+                                            Add Feedback
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Goal Categories</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="goalCategoriesChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Performance Metrics -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Strength Progress</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="strengthProgressChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Workout Volume</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="workoutVolumeChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Goal Feedback Modal -->
+<div class="modal fade" id="goalFeedbackModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Goal Feedback</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" asp-page-handler="SendGoalFeedback">
+                <div class="modal-body">
+                    <input type="hidden" name="goalId" id="goalIdInput" />
+                    <div class="mb-3">
+                        <label class="form-label">Feedback Type</label>
+                        <select name="feedbackType" class="form-select" required>
+                            <option value="Encouragement">Encouragement</option>
+                            <option value="Suggestion">Suggestion</option>
+                            <option value="Concern">Concern</option>
+                            <option value="Milestone">Milestone Achievement</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Message</label>
+                        <textarea name="feedbackMessage" class="form-control" rows="3" required></textarea>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="sendNotification" value="true" checked>
+                        <label class="form-check-label">Send email notification to client</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Send Feedback</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/coach-client-reports.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeClientCharts(@Json.Serialize(Model.ChartData));
+            initializeGoalFeedbackModal();
+        });
+    </script>
+}

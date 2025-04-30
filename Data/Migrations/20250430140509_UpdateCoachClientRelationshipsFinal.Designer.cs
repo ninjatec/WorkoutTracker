@@ -12,8 +12,8 @@ using WorkoutTrackerWeb.Data;
 namespace WorkoutTrackerWeb.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250428151351_AddUserNameUniqueConstraint")]
-    partial class AddUserNameUniqueConstraint
+    [Migration("20250430140509_UpdateCoachClientRelationshipsFinal")]
+    partial class UpdateCoachClientRelationshipsFinal
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -348,7 +348,9 @@ namespace WorkoutTrackerWeb.Data.Migrations
 
                     b.HasIndex("ClientId");
 
-                    b.HasIndex("CoachId");
+                    b.HasIndex("CoachId", "ClientId")
+                        .IsUnique()
+                        .HasFilter("[ClientId] IS NOT NULL");
 
                     b.ToTable("CoachClientRelationships");
                 });
@@ -627,12 +629,12 @@ namespace WorkoutTrackerWeb.Data.Migrations
                     b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", "Client")
                         .WithMany("ClientRelationships")
                         .HasForeignKey("ClientId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", "Coach")
                         .WithMany("CoachRelationships")
                         .HasForeignKey("CoachId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Client");

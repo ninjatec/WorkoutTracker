@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,15 +22,18 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
     [CoachAuthorize]
     public class IndexModel : PageModel
     {
+        private readonly ILogger<IndexModel> _logger;
         private readonly ICoachingService _coachingService;
         private readonly WorkoutTrackerWebContext _context;
         private readonly UserManager<AppUser> _userManager;
 
         public IndexModel(
+            ILogger<IndexModel> logger,
             ICoachingService coachingService,
             WorkoutTrackerWebContext context,
             UserManager<AppUser> userManager)
         {
+            _logger = logger;
             _coachingService = coachingService;
             _context = context;
             _userManager = userManager;
@@ -129,7 +133,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
                 var goals = await _context.ClientGoals
                     .Where(g => (g.CoachClientRelationshipId.HasValue && activeRelationshipIds.Contains(g.CoachClientRelationshipId.Value)) ||
                                (clientIds.Contains(g.UserId) && g.IsVisibleToCoach))
-                    .Where(g => !g.IsCompleted && g.IsActive) // Only active, incomplete goals
+                    .Where(g => !g.IsCompleted && g.IsActive)
                     .OrderBy(g => g.TargetDate)
                     .Take(5) // Limit to 5 for the dashboard
                     .ToListAsync();
@@ -145,7 +149,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
                         var relationship = relationships.FirstOrDefault(r => r.Id == goal.CoachClientRelationshipId.Value);
                         if (relationship?.Client != null)
                         {
-                            clientName = relationship.Client.UserName.Split('@')[0];
+                            clientName = relationship.Client.UserName?.Split('@')[0] ?? "Unknown";
                         }
                     }
                     else if (!string.IsNullOrEmpty(goal.UserId))
@@ -153,7 +157,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
                         var client = relationships.FirstOrDefault(r => r.ClientId == goal.UserId)?.Client;
                         if (client != null)
                         {
-                            clientName = client.UserName.Split('@')[0];
+                            clientName = client.UserName?.Split('@')[0] ?? "Unknown";
                         }
                     }
 
@@ -168,16 +172,16 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
                         IsCompleted = goal.IsCompleted,
                         MeasurementType = goal.MeasurementType,
                         MeasurementUnit = goal.MeasurementUnit,
+                        StartValue = goal.StartValue,
                         CurrentValue = goal.CurrentValue,
                         TargetValue = goal.TargetValue,
-                        RelationshipId = goal.CoachClientRelationshipId
+                        RelationshipId = goal.CoachClientRelationshipId ?? 0
                     });
                 }
             }
             catch (Exception ex)
             {
-                // Log the exception but don't crash
-                Console.WriteLine($"Error fetching goals: {ex.Message}");
+                _logger.LogError(ex, "Error fetching client goals");
                 // Leave the goals list empty
             }
         }
@@ -369,6 +373,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
             public bool IsCompleted { get; set; }
             public string MeasurementType { get; set; }
             public string MeasurementUnit { get; set; }
+            public decimal? StartValue { get; set; }
             public decimal? CurrentValue { get; set; }
             public decimal? TargetValue { get; set; }
             public int? RelationshipId { get; set; }

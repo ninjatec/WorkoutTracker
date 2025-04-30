@@ -295,5 +295,34 @@ namespace WorkoutTrackerWeb.Services
             
             return session;
         }
+
+        /// <summary>
+        /// Checks if a session has any completed sets
+        /// </summary>
+        /// <param name="sessionId">The ID of the session to check</param>
+        /// <returns>True if the session has sets with reps, false otherwise</returns>
+        public async Task<bool> HasCompletedSetsAsync(int sessionId)
+        {
+            // Validate the session belongs to the current user
+            var userId = await _userService.GetCurrentUserIdAsync();
+            if (userId == null)
+            {
+                return false;
+            }
+
+            var session = await _context.Session
+                .FirstOrDefaultAsync(s => s.SessionId == sessionId && s.UserId == userId);
+
+            if (session == null)
+            {
+                return false;
+            }
+
+            // Check if the session has any sets with reps
+            return await _context.Set
+                .Include(s => s.Reps)
+                .Where(s => s.SessionId == sessionId)
+                .AnyAsync(s => s.Reps != null && s.Reps.Any());
+        }
     }
 }
