@@ -291,32 +291,32 @@ This document maintains an up-to-date inventory of all features, components, and
   - Default preferences with user overrides
 
 #### WorkoutTemplate
-- Template for creating reusable workout plans
+- Template for creating reusable workout plans.
 - Properties:
-  - WorkoutTemplateId, Name, Description, CreatedDate, LastModifiedDate
-  - IsPublic, Category, Tags, UserId
+  - WorkoutTemplateId, Name, Description, CreatedDate, LastModifiedDate.
+  - IsPublic, Category, Tags, UserId.
 - Relationships:
-  - Many-to-one with User (creator)
-  - One-to-many with WorkoutTemplateExercise
+  - Many-to-one with User (creator).
+  - One-to-many with WorkoutTemplateExercise.
 
 #### WorkoutTemplateExercise
-- Represents an exercise within a workout template
+- Represents an exercise within a workout template.
 - Properties:
-  - WorkoutTemplateExerciseId, WorkoutTemplateId, ExerciseTypeId
-  - SequenceNum, Notes
+  - WorkoutTemplateExerciseId, WorkoutTemplateId, ExerciseTypeId.
+  - SequenceNum, Notes.
 - Relationships:
-  - Many-to-one with WorkoutTemplate
-  - Many-to-one with ExerciseType
-  - One-to-many with WorkoutTemplateSet
+  - Many-to-one with WorkoutTemplate.
+  - Many-to-one with ExerciseType.
+  - One-to-many with WorkoutTemplateSet.
 
 #### WorkoutTemplateSet
-- Represents default set values for a template exercise
+- Represents default set values for a template exercise.
 - Properties:
-  - WorkoutTemplateSetId, WorkoutTemplateExerciseId, SettypeId
-  - DefaultReps, DefaultWeight, SequenceNum, Notes, Description
+  - WorkoutTemplateSetId, WorkoutTemplateExerciseId, SettypeId.
+  - DefaultReps, DefaultWeight, SequenceNum, Notes, Description.
 - Relationships:
-  - Many-to-one with WorkoutTemplateExercise
-  - Many-to-one with SetType
+  - Many-to-one with WorkoutTemplateExercise.
+  - Many-to-one with SetType.
 
 #### CoachNote
 - Represents coaching notes attached to workouts for feedback and observations
