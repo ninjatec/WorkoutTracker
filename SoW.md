@@ -139,6 +139,6 @@
 ---
 
 
-[ ] Update help system with new functionality
+[x] Update help pages with new functionality
 [x] Update readme and inventory with new functionality
 [ ] Ensure mobile view lines up with online version

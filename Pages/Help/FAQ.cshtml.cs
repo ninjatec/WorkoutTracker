@@ -134,6 +134,32 @@ namespace WorkoutTrackerWeb.Pages.Help
                     ("How do I request a new feature?", 
                      "Feature requests can also be submitted through the <strong>Feedback</strong> page. " +
                      "Select 'Feature Request' as the feedback type and describe the feature you'd like to see added.")
+                },
+
+                ["Coaching"] = new List<(string question, string answer)>
+                {
+                    ("How do I become a coach?", 
+                     "To become a coach, you need to have an active account. Go to your profile settings and look for the " +
+                     "'Become a Coach' option. Once approved, you'll have access to the coaching dashboard and features."),
+                    
+                    ("How do I find and connect with a coach?", 
+                     "You can find coaches through the 'Find a Coach' section. Browse available coaches, view their profiles, " +
+                     "and send a connection request. Once a coach accepts your request, they can start programming workouts for you."),
+                    
+                    ("As a coach, how do I manage my clients?", 
+                     "Coaches can manage their clients through the coach dashboard. Here you can view your client roster, " +
+                     "create workout templates, assign workouts, and track client progress. Use the client management tools " +
+                     "to group clients and manage their training programs."),
+                    
+                    ("How do workout templates work for coaches?", 
+                     "Coaches can create workout templates and assign them to individual clients or groups. Templates can be " +
+                     "scheduled as one-time or recurring workouts. Clients will see their assigned workouts in their dashboard " +
+                     "and receive notifications for upcoming sessions."),
+                    
+                    ("Can I share my workout data with others?", 
+                     "Yes, you can share your workout data using the sharing feature. Go to your workout history and click " +
+                     "the 'Share' button to generate a secure sharing link. You can set an expiration date and control what " +
+                     "data is visible to others.")
                 }
             };
         }
