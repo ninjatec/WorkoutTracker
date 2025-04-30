@@ -68,9 +68,9 @@ namespace WorkoutTrackerWeb.Services
         }
 
         /// <summary>
-        /// Creates a new quick workout session
+        /// Creates a new quick workout session with a specified start time
         /// </summary>
-        public async Task<WorkoutTrackerWeb.Models.Session> CreateQuickWorkoutSessionAsync(string name = null)
+        public async Task<WorkoutTrackerWeb.Models.Session> CreateQuickWorkoutSessionAsync(string name = null, DateTime? startTime = null)
         {
             var userId = await _userService.GetCurrentUserIdAsync();
             if (userId == null)
@@ -99,11 +99,15 @@ namespace WorkoutTrackerWeb.Services
                 name = $"{dayOfWeek} - {timeOfDay} Workout";
             }
 
-            // Create a new session with the current date/time
+            // Use the provided start time or current time
+            var sessionStartTime = startTime ?? DateTime.Now;
+
+            // Create a new session with the specified start date/time
             var session = new WorkoutTrackerWeb.Models.Session
             {
                 Name = name,
-                datetime = DateTime.Now,
+                datetime = sessionStartTime,
+                StartDateTime = sessionStartTime,
                 UserId = userId.Value,
                 Notes = "Created using Quick Workout mode"
             };
@@ -111,8 +115,8 @@ namespace WorkoutTrackerWeb.Services
             _context.Session.Add(session);
             await _context.SaveChangesAsync();
             
-            _logger.LogInformation("Created quick workout session {SessionId} for user {UserId}", 
-                session.SessionId, userId.Value);
+            _logger.LogInformation("Created quick workout session {SessionId} for user {UserId} starting at {StartTime}", 
+                session.SessionId, userId.Value, session.StartDateTime);
             
             return session;
         }
@@ -263,9 +267,9 @@ namespace WorkoutTrackerWeb.Services
         }
 
         /// <summary>
-        /// Marks a quick workout session as finished by updating the notes
+        /// Marks a quick workout session as finished by updating the notes and setting the end time
         /// </summary>
-        public async Task<WorkoutTrackerWeb.Models.Session> FinishQuickWorkoutSessionAsync(int sessionId)
+        public async Task<WorkoutTrackerWeb.Models.Session> FinishQuickWorkoutSessionAsync(int sessionId, DateTime? endTime = null)
         {
             // Validate the session belongs to the current user
             var userId = await _userService.GetCurrentUserIdAsync();
@@ -277,8 +281,11 @@ namespace WorkoutTrackerWeb.Services
                 throw new InvalidOperationException("Session not found or doesn't belong to current user");
             }
             
+            // Set the end time (use provided value or current time)
+            session.endtime = endTime ?? DateTime.Now;
+            
             // Update the notes to indicate the session is completed
-            session.Notes = $"{session.Notes} - Completed at {DateTime.Now:yyyy-MM-dd HH:mm}";
+            session.Notes = $"{session.Notes} - Completed at {session.endtime:yyyy-MM-dd HH:mm}";
             
             _context.Update(session);
             await _context.SaveChangesAsync();
@@ -287,6 +294,35 @@ namespace WorkoutTrackerWeb.Services
                 session.SessionId, userId);
             
             return session;
+        }
+
+        /// <summary>
+        /// Checks if a session has any completed sets
+        /// </summary>
+        /// <param name="sessionId">The ID of the session to check</param>
+        /// <returns>True if the session has sets with reps, false otherwise</returns>
+        public async Task<bool> HasCompletedSetsAsync(int sessionId)
+        {
+            // Validate the session belongs to the current user
+            var userId = await _userService.GetCurrentUserIdAsync();
+            if (userId == null)
+            {
+                return false;
+            }
+
+            var session = await _context.Session
+                .FirstOrDefaultAsync(s => s.SessionId == sessionId && s.UserId == userId);
+
+            if (session == null)
+            {
+                return false;
+            }
+
+            // Check if the session has any sets with reps
+            return await _context.Set
+                .Include(s => s.Reps)
+                .Where(s => s.SessionId == sessionId)
+                .AnyAsync(s => s.Reps != null && s.Reps.Any());
         }
     }
 }

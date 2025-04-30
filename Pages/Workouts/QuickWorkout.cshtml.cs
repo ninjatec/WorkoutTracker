@@ -85,8 +85,18 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                     sessionName = GenerateDefaultSessionName();
                 }
                 
-                // Create a new quick workout session
-                var session = await _quickWorkoutService.CreateQuickWorkoutSessionAsync(sessionName);
+                // Get the start time from the form if available
+                DateTime? startTime = null;
+                if (Request.Form["QuickWorkout.StartTime"].Count > 0)
+                {
+                    if (DateTime.TryParse(Request.Form["QuickWorkout.StartTime"], out DateTime parsedStartTime))
+                    {
+                        startTime = parsedStartTime;
+                    }
+                }
+                
+                // Create a new quick workout session with the specified start time
+                var session = await _quickWorkoutService.CreateQuickWorkoutSessionAsync(sessionName, startTime);
                 
                 // Set success message
                 StatusMessage = $"Successfully created new quick workout: {session.Name}";
@@ -168,8 +178,18 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                 var sessionName = QuickWorkout.CurrentSession.Name;
                 var sessionId = QuickWorkout.CurrentSession.SessionId;
                 
-                // Finish the current workout session
-                await _quickWorkoutService.FinishQuickWorkoutSessionAsync(sessionId);
+                // Use the provided end time from the form if available, otherwise use current time
+                DateTime endTime = DateTime.Now;
+                if (Request.Form["QuickWorkout.EndTime"].Count > 0)
+                {
+                    if (DateTime.TryParse(Request.Form["QuickWorkout.EndTime"], out DateTime parsedEndTime))
+                    {
+                        endTime = parsedEndTime;
+                    }
+                }
+                
+                // Finish the current workout session with the end time
+                await _quickWorkoutService.FinishQuickWorkoutSessionAsync(sessionId, endTime);
                 
                 // Force clearing of the current session
                 QuickWorkout.HasActiveSession = false;

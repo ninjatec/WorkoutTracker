@@ -17,7 +17,24 @@ namespace WorkoutTrackerWeb.Middleware
         // Known IPs that should be whitelisted when they hit rate limits
         private readonly string[] _trustedIpsToAutoWhitelist = new[]
         {
-            "81.101.135.243" // Your IP from the logs
+            "81.101.135.243", // Your IP from the logs
+            "127.0.0.1",      // Localhost for development
+            "::1"             // IPv6 localhost
+        };
+        
+        // Pages that might trigger auto-whitelisting when accessed frequently
+        private readonly string[] _sensitivePages = new[]
+        {
+            "/",
+            "/Index",
+            "/Home",
+            "/Home/Index",
+            "/Account/Login",
+            "/Account/Register",
+            "/Sessions",
+            "/Sessions/Details",
+            "/Reports",
+            "/api/"
         };
 
         public RateLimitBypassMiddleware(
@@ -34,38 +51,79 @@ namespace WorkoutTrackerWeb.Middleware
         {
             string clientIp = GetClientIpAddress(context);
 
-            // Only process for homepage or known problem pages
-            bool isHomepage = context.Request.Path.Value == "/" || 
-                              context.Request.Path.Value == "/Index" ||
-                              context.Request.Path.Value == "/Home" ||
-                              context.Request.Path.Value == "/Home/Index";
-
-            if (isHomepage && IsValidIpAddress(clientIp) && ShouldAutoWhitelist(clientIp))
+            // Always check for trusted IPs regardless of the page being accessed
+            if (IsValidIpAddress(clientIp))
             {
-                // Check if this IP is already whitelisted
-                if (!_rateLimiter.IsIpWhitelisted(clientIp))
+                // Auto-whitelist trusted IPs on any page
+                if (ShouldAutoWhitelist(clientIp) && !_rateLimiter.IsIpWhitelisted(clientIp))
                 {
                     try
                     {
-                        _logger.LogInformation("Auto-whitelisting IP {IP} due to homepage access", clientIp);
+                        _logger.LogInformation("Auto-whitelisting trusted IP {IP} site-wide", clientIp);
                         
-                        // Add IP to whitelist
                         await _rateLimiter.AddIpToWhitelistAsync(
                             clientIp,
-                            $"Auto-whitelisted after potential homepage redirect loop on {DateTime.UtcNow:yyyy-MM-dd}",
+                            $"Auto-whitelisted trusted IP on {DateTime.UtcNow:yyyy-MM-dd}",
                             "System");
                             
-                        // Set a header so the client knows they've been whitelisted
                         context.Response.Headers["X-Rate-Limit-Bypass"] = "Enabled";
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Failed to auto-whitelist IP {IP}", clientIp);
+                        _logger.LogError(ex, "Failed to auto-whitelist trusted IP {IP}", clientIp);
+                    }
+                }
+                
+                // Special handling for rate-limited IPs on sensitive pages
+                // This helps users who aren't in the trusted IPs list but are hitting rate limits on important pages
+                bool isSensitivePage = IsSensitivePage(context.Request.Path.Value);
+                if (isSensitivePage && !_rateLimiter.IsIpWhitelisted(clientIp))
+                {
+                    // Check if we've seen 429 responses for this IP recently
+                    // We'll store this in the current request as a hint for potential future whitelisting
+                    string headerStatus = context.Request.Headers["X-Previous-Status-Code"].ToString();
+                    if (headerStatus == "429")
+                    {
+                        _logger.LogWarning("IP {IP} previously hit rate limit accessing {Path}, considering for whitelist", 
+                            clientIp, context.Request.Path.Value);
+                            
+                        try
+                        {
+                            await _rateLimiter.AddIpToWhitelistAsync(
+                                clientIp,
+                                $"Auto-whitelisted after rate limit on sensitive page {context.Request.Path.Value} on {DateTime.UtcNow:yyyy-MM-dd}",
+                                "System");
+                                
+                            context.Response.Headers["X-Rate-Limit-Bypass"] = "Enabled";
+                            _logger.LogInformation("Added IP {IP} to whitelist after detecting rate limit issues", clientIp);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to whitelist IP {IP} after rate limit issues", clientIp);
+                        }
                     }
                 }
             }
 
             await _next(context);
+            
+            // Check for rate limit response and store for future requests
+            if (context.Response.StatusCode == 429)
+            {
+                _logger.LogWarning("Rate limit (429) triggered for IP {IP} on {Path}", 
+                    clientIp, context.Request.Path.Value);
+                
+                // Add a cookie to track that this IP hit a rate limit
+                // This will be used on the next request to potentially whitelist the IP
+                context.Response.Cookies.Append("X-Previous-Status-Code", "429", new CookieOptions 
+                { 
+                    HttpOnly = true,
+                    SameSite = SameSiteMode.Lax,
+                    MaxAge = TimeSpan.FromMinutes(5),
+                    IsEssential = true,
+                    Path = "/"
+                });
+            }
         }
 
         private string GetClientIpAddress(HttpContext context)
@@ -113,6 +171,19 @@ namespace WorkoutTrackerWeb.Middleware
                 }
             }
             
+            return false;
+        }
+
+        private bool IsSensitivePage(string path)
+        {
+            foreach (var sensitivePage in _sensitivePages)
+            {
+                if (path.StartsWith(sensitivePage, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
             return false;
         }
     }

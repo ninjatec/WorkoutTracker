@@ -35,4 +35,25 @@ namespace WorkoutTrackerWeb.Models
 
         public bool IsRootCategory => ParentCategoryId == null;
     }
+
+    public static class DefaultHelpCategories
+    {
+        public static readonly List<HelpCategory> Categories = new List<HelpCategory>
+        {
+            new HelpCategory
+            {
+                Name = "Coaching",
+                Description = "Learn how to use the coaching features, either as a coach or a client",
+                IconClass = "bi bi-person-lines-fill",
+                DisplayOrder = 6
+            },
+            new HelpCategory
+            {
+                Name = "Sharing",
+                Description = "Share your workout data securely with others",
+                IconClass = "bi bi-share",
+                DisplayOrder = 7
+            }
+        };
+    }
 }

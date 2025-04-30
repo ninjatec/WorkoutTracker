@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services;
+using System;
 
 namespace WorkoutTrackerWeb.ViewModels
 {
@@ -37,6 +38,14 @@ namespace WorkoutTrackerWeb.ViewModels
         [Display(Name = "Session Name")]
         [StringLength(50)]
         public string NewSessionName { get; set; }
+        
+        // For starting a session
+        [Display(Name = "Start Time")]
+        public DateTime StartTime { get; set; } = DateTime.Now;
+        
+        // For finishing a session
+        [Display(Name = "End Time")]
+        public DateTime? EndTime { get; set; } = DateTime.Now;
         
         // For UI display
         public bool HasActiveSession { get; set; }

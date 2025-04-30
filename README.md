@@ -65,6 +65,25 @@ Production Site running on wot.ninjatec.co.uk
   - Comprehensive template management interface
   - Mobile-optimized template browsing and creation
   - Search and filter functionality for large template libraries
+  - **Self-scheduling capability for regular users**
+  - **Calendar interface for planning personal workouts**
+  - **Support for one-time and recurring workout schedules**
+  - **Multiple recurrence patterns (daily, weekly, bi-weekly, monthly)**
+  - **Reminder settings for upcoming workouts**
+
+- **Coaching Features**: Comprehensive tools for fitness coaches to manage clients
+  - Role-based permission system for coaches
+  - Client invitation and management system
+  - Workout template creation and assignment
+  - **Workout scheduling with recurring patterns**
+  - **Calendar interface for scheduling client sessions**
+  - **Support for one-time and recurring workout schedules**
+  - **Multiple recurrence patterns (daily, weekly, bi-weekly, monthly)**
+  - **Reminder settings for upcoming workouts**
+  - **Enhanced goal management with user and coach-created goals**
+  - **Standardized goal categories (strength, cardio, weight, etc.)**
+  - **Advanced goal progress tracking with automated calculations**
+  - **Goal visibility controls between coaches and clients**
 
 - **User Authentication**: Secure login and registration using ASP.NET Core Identity with email confirmation
 - **Admin Dashboard**: Comprehensive admin dashboard with system metrics, user statistics, and quick actions
@@ -418,100 +437,29 @@ The application provides comprehensive data portability features:
 
 ## Recent Updates
 
+- **Implemented Comprehensive Version Management System**:
+  - Added AppVersion model for tracking application version history.
+  - Created version administration interface for managing releases.
+  - Implemented display of current version in UI footer.
+  - Added version history page with detailed release notes.
+  - Enabled setting any historical version as current.
+  - Created version tracking with git commit hash links.
+  - Implemented automatic version capture during deployment.
+  - Added rollback capability with previous version detection.
+  - Created timeline view for visualizing version history.
+
 - **Enhanced Mobile Navigation Experience**:
-  - Implemented mobile-optimized bottom navigation bar for critical actions
-  - Added swipe gestures for common actions like edit and delete
-  - Created pull-to-refresh functionality for data lists and tables
-  - Implemented haptic feedback for interactive elements using Vibration API
-  - Added mobile context navigation as alternative to traditional breadcrumbs
-  - Created session navigation shortcuts with quick access menu
-  - Enhanced mobile menu interface with collapsible panels
-  - Added touch-optimized interactions throughout the application
+  - Implemented mobile-optimized bottom navigation bar for critical actions.
+  - Added swipe gestures for common actions like edit and delete.
+  - Created pull-to-refresh functionality for data lists and tables.
+  - Enhanced mobile menu interface with collapsible panels.
 
 - **Enhanced Mobile-First Responsive Design**:
-  - Implemented mobile-first CSS architecture with progressive enhancement
-  - Created component-based responsive CSS structure for better maintainability
-  - Added touch-friendly optimizations for mobile interfaces
-  - Implemented responsive table transformations for better mobile data display
-  - Added specialized form controls optimized for touch input
-  - Created mobile-specific layouts for complex data pages
-  - Implemented consistent viewport meta tags across all templates
-  - Fixed admin layout CSS syntax issues for better rendering
-  - Added JavaScript utilities for automatically enhancing tables on mobile
-  - Enhanced mobile support for workout tracking and data entry
-  - Optimized forms with larger touch targets and improved mobile spacing
+  - Implemented mobile-first CSS architecture with progressive enhancement.
+  - Added touch-friendly optimizations for mobile interfaces.
+  - Optimized forms with larger touch targets and improved mobile spacing.
 
 - **Implemented Output Caching for Static Content**:
-  - Added Redis-backed output caching for production environments
-  - Configured memory-based output caching for development environments
-  - Created specialized cache policies for different content types:
-    - StaticContent: 12-hour cache for fully static pages
-    - StaticContentWithId: 12-hour cache that varies by route ID
-    - HelpContent: 24-hour cache for help articles with category/ID variation
-    - GlossaryContent: 24-hour cache for glossary pages
-    - ExerciseLibrary: 6-hour cache with query parameter variation
-    - SharedWorkoutReports: 6-hour cache for shared reports with token/period parameters
-    - SharedWorkout: 3-hour cache for shared workout pages with token variation
-  - Applied appropriate caching policies to all static and rarely changing pages
-  - Implemented tag-based cache invalidation for targeted content updates
-  - Configured NoStore option for dynamic search pages to exempt from caching
-
-- **Fixed namespace capitalization inconsistency**:
-  - Corrected lowercase "WorkoutTrackerweb" references to "WorkoutTrackerWeb" with proper capitalization
-  - Fixed build errors related to namespace confusion across the codebase
-  - Ensured namespace consistency across all project files
-
-- **Implemented database connection pooling optimizations**:
-  - Added advanced connection pooling configuration in appsettings.json
-  - Created dedicated DbConnectionResilienceMiddleware to handle transient database errors
-  - Implemented DatabaseResilienceService with circuit breaker pattern for connection resilience
-  - Added connection pooling health check for database connection monitoring
-  - Configured SqlConnectionStringBuilder with optimized connection pooling parameters
-  - Added support for customizable pooling settings through configuration
-
-- Reverted nullable reference types configuration:
-  - Disabled nullable context options to fix SQL errors with null values
-  - Kept XML documentation generation for API documentation
-  - Retained existing nullable annotations for future re-enablement
-
-- Added comprehensive code quality improvements:
-  - Implemented nullable reference types in annotation mode for gradual adoption
-  - Added XML documentation comments to core service APIs
-  - Created .editorconfig file for consistent code style across the project
-  - Updated project configuration to generate XML documentation
-
-- Upgraded from Bootstrap 4 to Bootstrap 5:
-  - Updated DataTables integration with Bootstrap 5 styles and JavaScript
-  - Modernized form components with Bootstrap 5 classes and structure
-  - Updated modal dialog syntax with new data-bs-* attributes
-  - Improved form layouts with spacing utilities instead of form-group
-  - Enhanced dropdowns with form-select for better accessibility
-
-- Migrated from MVC to Razor Pages for improved architecture:
-  - Converted controllers to Razor Page models
-  - Consolidated duplicate views
-  - Improved API endpoints using Razor Pages handler methods
-  - Simplified routing and page organization
-
-- Added distributed caching with Redis for reports pages to improve performance and scalability
-- Added SignalR Redis backplane support for multi-container WebSocket functionality
-- Added comprehensive health checks for Redis monitoring in Kubernetes
-- Added background job monitoring dashboard for tracking, analyzing and managing Hangfire jobs
-- Added background job processing with Hangfire to eliminate Cloudflare 524 timeout errors
-- Added real-time progress updates using SignalR for long-running operations
-- Optimized TrainAI data import with batched processing and improved error handling
-- Enhanced workout data deletion with background processing and progress tracking
-
-- **Added Workout Templates feature**:
-  - Created database models for template storage and management
-  - Implemented template creation with customizable metadata
-  - Added exercise and set management within templates
-  - Implemented template browsing with search and filtering
-  - Created detailed template view with exercise breakdown
-  - Added "Start Workout" functionality to create sessions from templates
-  - Implemented template editing with exercise and set management
-  - Created template deletion with confirmation
-  - Added template visibility controls (public/private)
-  - Integrated with navigation system for easy access
-  - Used transaction support for data consistency
-  - Applied output caching for better performance
+  - Added Redis-backed output caching for production environments.
+  - Configured memory-based output caching for development environments.
+  - Created specialized cache policies for different content types.

@@ -2,6 +2,17 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.OutputCaching;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using WorkoutTrackerWeb.Data;
+using WorkoutTrackerWeb.Models.Coaching;
+using WorkoutTrackerWeb.Models.Identity;
+using WorkoutTrackerWeb.Services.Coaching;
+using WorkoutTrackerWeb.Pages.Goals;
 
 namespace WorkoutTrackerWeb.Pages;
 
@@ -10,30 +21,18 @@ namespace WorkoutTrackerWeb.Pages;
 public class IndexModel : PageModel
 {
     private readonly ILogger<IndexModel> _logger;
+    private readonly UserManager<AppUser> _userManager;
 
-    public IndexModel(ILogger<IndexModel> logger)
+    public IndexModel(
+        ILogger<IndexModel> logger,
+        UserManager<AppUser> userManager)
     {
         _logger = logger;
+        _userManager = userManager;
     }
 
     public IActionResult OnGet()
     {
-        // If user is not authenticated, redirect to login page
-        if (!User.Identity.IsAuthenticated)
-        {
-            // Add cache control headers to prevent caching this redirect
-            Response.Headers.Append("Cache-Control", "no-store, no-cache, must-revalidate");
-            Response.Headers.Append("Pragma", "no-cache");
-            
-            // Log the redirect to help with debugging
-            _logger.LogDebug("Redirecting unauthenticated user from home page to login page");
-            
-            // Include return URL for better user experience
-            return RedirectToPage("/Account/Login", new { area = "Identity", ReturnUrl = "/" });
-        }
-
-        // Mark that this is a successful page load
-        _logger.LogDebug("Home page successfully loaded for authenticated user");
         return Page();
     }
 }

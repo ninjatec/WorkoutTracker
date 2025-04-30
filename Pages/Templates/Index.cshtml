@@ -1,4 +1,4 @@
-@page
+@page "Templates/List"
 @model WorkoutTrackerWeb.Pages.Templates.IndexModel
 @{
     ViewData["Title"] = "My Workout Templates";
@@ -17,6 +17,8 @@
             </a>
         </div>
     </div>
+    
+    @await Component.InvokeAsync("TemplateFilters", Model.Filter)
     
     @if (!Model.Templates.Any())
     {
@@ -72,46 +74,13 @@
                                     <i class="bi bi-pencil"></i> Edit
                                 </a>
                                 <a asp-page="StartWorkout" asp-route-id="@template.WorkoutTemplateId" class="btn btn-success">
-                                    <i class="bi bi-play-circle"></i> Start Workout
+                                    <i class="bi bi-play-circle"></i> Start / Schedule Workout
                                 </a>
                             </div>
                         </div>
                     </div>
                 </div>
             }
-        </div>
-        
-        <div class="mt-4">
-            <form method="get" class="row g-3">
-                <div class="col-md-4">
-                    <label for="searchString" class="form-label">Search</label>
-                    <input type="text" class="form-control" id="searchString" name="searchString" value="@Model.SearchString">
-                </div>
-                <div class="col-md-3">
-                    <label for="category" class="form-label">Category</label>
-                    <select class="form-select" id="category" name="category">
-                        <option value="">All Categories</option>
-                        @foreach (var category in Model.Categories)
-                        {
-                            <option value="@category" selected="@(category == Model.Category)">@category</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label for="isPublic" class="form-label">Visibility</label>
-                    <select class="form-select" id="isPublic" name="isPublic">
-                        <option value="" selected="@(Model.IsPublic == null)">All</option>
-                        <option value="true" selected="@(Model.IsPublic == true)">Public</option>
-                        <option value="false" selected="@(Model.IsPublic == false)">Private</option>
-                    </select>
-                </div>
-                <div class="col-md-auto align-self-end">
-                    <button type="submit" class="btn btn-primary">Filter</button>
-                </div>
-                <div class="col-md-auto align-self-end">
-                    <a asp-page="./Index" class="btn btn-outline-secondary">Clear</a>
-                </div>
-            </form>
         </div>
     }
 </div>

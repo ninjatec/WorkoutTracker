@@ -11,6 +11,7 @@ using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services.Email;
+using WorkoutTrackerWeb.Models.Identity;
 
 namespace WorkoutTrackerWeb.Areas.Admin.Pages.Feedback
 {
@@ -18,13 +19,13 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Feedback
     public class DetailsModel : PageModel
     {
         private readonly WorkoutTrackerWebContext _context;
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<AppUser> _userManager;
         private readonly IEmailService _emailService;
         private readonly ILogger<DetailsModel> _logger;
 
         public DetailsModel(
             WorkoutTrackerWebContext context,
-            UserManager<IdentityUser> userManager,
+            UserManager<AppUser> userManager,
             IEmailService emailService,
             ILogger<DetailsModel> logger)
         {
@@ -37,7 +38,7 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Feedback
         [BindProperty]
         public Models.Feedback Feedback { get; set; }
         
-        public List<IdentityUser> AdminUsers { get; set; }
+        public List<AppUser> AdminUsers { get; set; }
         public string AssignedToAdminName { get; set; }
         
         [TempData]

@@ -40,28 +40,28 @@
                     <a asp-area="Admin" asp-page="/Index" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString() == "/Index" ? "active" : "")">
                         <i class="bi bi-speedometer2 me-2"></i> Dashboard
                     </a>
-                    <a asp-area="Admin" asp-page="/Users/Index" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Users") == true ? "active" : "")">
+                    <a asp-area="Admin" asp-page="/Users/Index" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"] is string page && page.StartsWith("/Users") ? "active" : "")">
                         <i class="bi bi-people me-2"></i> User Management
                     </a>
-                    <a asp-area="Admin" asp-page="/Feedback/Index" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Feedback") == true ? "active" : "")">
+                    <a asp-area="Admin" asp-page="/Feedback/Index" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"] is string page1 && page1.StartsWith("/Feedback") ? "active" : "")">
                         <i class="bi bi-chat-dots me-2"></i> Feedback Management
                     </a>
-                    <a asp-area="Admin" asp-page="/Versions/Index" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Versions") == true ? "active" : "")">
+                    <a asp-area="Admin" asp-page="/Versions/Index" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"] is string page2 && page2.StartsWith("/Versions") ? "active" : "")">
                         <i class="bi bi-tag me-2"></i> Version Management
                     </a>
-                    <a asp-area="Admin" asp-page="/Metrics/Index" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Metrics") == true ? "active" : "")">
+                    <a asp-area="Admin" asp-page="/Metrics/Index" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"] is string page3 && page3.StartsWith("/Metrics") ? "active" : "")">
                         <i class="bi bi-bar-chart-fill me-2"></i> Metrics Dashboard
                     </a>
                     <div class="list-group-item list-group-item-primary">
                         <i class="bi bi-gear me-2"></i> System Settings
                     </div>
-                    <a asp-area="Admin" asp-page="/Alerts/Index" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Alerts") == true ? "active" : "")">
+                    <a asp-area="Admin" asp-page="/Alerts/Index" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"] is string page4 && page4.StartsWith("/Alerts") ? "active" : "")">
                         <i class="bi bi-bell me-2"></i> Alerting System
                     </a>
-                    <a asp-area="Admin" asp-page="/RateLimiting/IpWhitelist" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/RateLimiting") == true ? "active" : "")">
+                    <a asp-area="Admin" asp-page="/RateLimiting/IpWhitelist" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"] is string page5 && page5.StartsWith("/RateLimiting") ? "active" : "")">
                         <i class="bi bi-shield-check me-2"></i> IP Rate Limit Whitelist
                     </a>
-                    <a asp-area="Admin" asp-page="/Logging/Configure" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Logging") == true ? "active" : "")">
+                    <a asp-area="Admin" asp-page="/Logging/Configure" class="list-group-item list-group-item-action @(ViewContext.RouteData.Values["page"] is string page6 && page6.StartsWith("/Logging") ? "active" : "")">
                         <i class="bi bi-sliders me-2"></i> Log Configuration
                     </a>
                     <a href="/health" target="_blank" class="list-group-item list-group-item-action">

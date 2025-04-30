@@ -14,7 +14,15 @@ namespace WorkoutTrackerWeb.Models
         [StringLength(50)]
         [Display(Name = "Name")]
         public string Name { get; set; }
+        
         public DateTime datetime { get; set; }
+        
+        [Display(Name = "Start Date/Time")]
+        public DateTime StartDateTime { get; set; } = DateTime.Now;
+        
+        [Display(Name = "End Date/Time")]
+        public DateTime? endtime { get; set; }
+        
         public int UserId { get; set; }
         public User User { get; set; }
         public ICollection<Set>? Sets { get; set; }
@@ -27,8 +35,12 @@ namespace WorkoutTrackerWeb.Models
         { 
             get 
             {
-                // Calculate workout time based on session duration or sets
-                return datetime.TimeOfDay; // Default implementation
+                if (endtime.HasValue)
+                {
+                    return endtime.Value - datetime;
+                }
+                // Fallback to default implementation if no end time
+                return datetime.TimeOfDay;
             }
         }
         
@@ -41,5 +53,9 @@ namespace WorkoutTrackerWeb.Models
         [NotMapped]
         [Display(Name = "Estimated Calories")]
         public int EstimatedCalories { get; set; }
+        
+        // Status from the related WorkoutSession model (not stored in database)
+        [NotMapped]
+        public string WorkoutSessionStatus { get; set; }
     }
 }

@@ -1,0 +1,217 @@
+@page "{scheduleId?}"
+@model WorkoutTrackerWeb.Pages.Workouts.EditWorkoutScheduleModel
+@{
+    ViewData["Title"] = "Edit Workout Schedule";
+}
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+                    <li class="breadcrumb-item"><a asp-page="/Workouts/ScheduledWorkouts">Scheduled Workouts</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Edit Schedule</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-0 text-gray-800">Edit Workout Schedule</h1>
+        </div>
+    </div>
+    
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> @Model.ErrorMessage
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">@Model.WorkoutSchedule.Name</h6>
+                    <div>
+                        <span class="badge @(Model.WorkoutSchedule.IsActive ? "bg-success" : "bg-secondary")">
+                            @(Model.WorkoutSchedule.IsActive ? "Active" : "Inactive")
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <input type="hidden" asp-for="WorkoutSchedule.WorkoutScheduleId" />
+                        <input type="hidden" asp-for="WorkoutSchedule.ClientUserId" />
+                        <input type="hidden" asp-for="WorkoutSchedule.CoachUserId" />
+                        <input type="hidden" asp-for="WorkoutSchedule.TemplateId" />
+                        <input type="hidden" asp-for="WorkoutSchedule.TemplateAssignmentId" />
+                        <input type="hidden" asp-for="WorkoutSchedule.RecurrencePattern" />
+                        <input type="hidden" asp-for="WorkoutSchedule.RecurrenceDayOfWeek" />
+                        <input type="hidden" asp-for="WorkoutSchedule.RecurrenceDayOfMonth" />
+                        <input type="hidden" asp-for="WorkoutSchedule.IsRecurring" />
+                        <input type="hidden" asp-for="WorkoutSchedule.LastReminderSent" />
+                        <input type="hidden" asp-for="WorkoutSchedule.Client" />
+                        <input type="hidden" asp-for="WorkoutSchedule.Coach" />
+                        <input type="hidden" asp-for="WorkoutSchedule.Template" />
+                        <input type="hidden" asp-for="WorkoutSchedule.TemplateAssignment" />
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="WorkoutSchedule.Name" class="form-label">Name</label>
+                                    <input asp-for="WorkoutSchedule.Name" class="form-control" required />
+                                    <span asp-validation-for="WorkoutSchedule.Name" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Type</label>
+                                    <input class="form-control" disabled value="@(Model.WorkoutSchedule.Template?.Name ?? "Custom Workout")" />
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group mb-3">
+                            <label asp-for="WorkoutSchedule.Description" class="form-label">Description</label>
+                            <textarea asp-for="WorkoutSchedule.Description" class="form-control" rows="3"></textarea>
+                            <span asp-validation-for="WorkoutSchedule.Description" class="text-danger"></span>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Scheduled Date/Time</label>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <input type="date" id="scheduleDate" name="scheduleDate" class="form-control" required 
+                                                   asp-format="{0:yyyy-MM-dd}" value="@Model.WorkoutSchedule.ScheduledDateTime?.ToString("yyyy-MM-dd")" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <input type="time" id="scheduleTime" name="scheduleTime" class="form-control" required 
+                                                   asp-format="{0:HH:mm}" value="@Model.WorkoutSchedule.ScheduledDateTime?.ToString("HH:mm")" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label">Expected Duration (minutes)</label>
+                                    <input class="form-control" type="number" min="30" max="180" value="60" disabled />
+                                    <small class="text-muted">Set by the workout template</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="WorkoutSchedule.EndDate" class="form-label">End Date</label>
+                                    <input asp-for="WorkoutSchedule.EndDate" type="date" class="form-control" 
+                                           disabled="@(!Model.WorkoutSchedule.IsRecurring)" />
+                                    <small class="text-muted">Only relevant for recurring workouts</small>
+                                    <span asp-validation-for="WorkoutSchedule.EndDate" class="text-danger"></span>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <div class="d-flex flex-column h-100">
+                                        <label class="form-label">Status</label>
+                                        <div class="form-check mt-2">
+                                            <input class="form-check-input" type="checkbox" asp-for="WorkoutSchedule.IsActive" />
+                                            <label class="form-check-label" asp-for="WorkoutSchedule.IsActive">Active</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input asp-for="WorkoutSchedule.SendReminder" class="form-check-input" id="sendReminder" />
+                                    <label asp-for="WorkoutSchedule.SendReminder" class="form-check-label">Send Reminder</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="reminderOptions" class="row mb-3" style="@(Model.WorkoutSchedule.SendReminder ? "" : "display: none;")">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="WorkoutSchedule.ReminderHoursBefore" class="form-label">Hours Before</label>
+                                    <select asp-for="WorkoutSchedule.ReminderHoursBefore" class="form-select">
+                                        <option value="1">1 hour</option>
+                                        <option value="2">2 hours</option>
+                                        <option value="3">3 hours</option>
+                                        <option value="6">6 hours</option>
+                                        <option value="12">12 hours</option>
+                                        <option value="24">24 hours</option>
+                                        <option value="48">48 hours</option>
+                                    </select>
+                                    <span asp-validation-for="WorkoutSchedule.ReminderHoursBefore" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col">
+                                <p class="text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    @if (Model.WorkoutSchedule.IsRecurring)
+                                    {
+                                        @if (Model.WorkoutSchedule.RecurrencePattern == "Weekly" && Model.WorkoutSchedule.RecurrenceDayOfWeek.HasValue)
+                                        {
+                                            <span>This workout is scheduled weekly on @((DayOfWeek)Model.WorkoutSchedule.RecurrenceDayOfWeek.Value)s.</span>
+                                        }
+                                        else if (Model.WorkoutSchedule.RecurrencePattern == "BiWeekly" && Model.WorkoutSchedule.RecurrenceDayOfWeek.HasValue)
+                                        {
+                                            <span>This workout is scheduled bi-weekly on @((DayOfWeek)Model.WorkoutSchedule.RecurrenceDayOfWeek.Value)s.</span>
+                                        }
+                                        else if (Model.WorkoutSchedule.RecurrencePattern == "Monthly" && Model.WorkoutSchedule.RecurrenceDayOfMonth.HasValue)
+                                        {
+                                            <span>This workout is scheduled monthly on day @Model.WorkoutSchedule.RecurrenceDayOfMonth.</span>
+                                        }
+                                        else
+                                        {
+                                            <span>This workout is scheduled with a @Model.WorkoutSchedule.RecurrencePattern recurrence pattern.</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span>This is a one-time scheduled workout.</span>
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col d-flex justify-content-between">
+                                <a asp-page="/Workouts/ScheduledWorkouts" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left me-1"></i> Back to Scheduled Workouts
+                                </a>
+                                <div>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-save me-1"></i> Save Changes
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Toggle reminder options
+        document.getElementById('sendReminder').addEventListener('change', function() {
+            var reminderOptions = document.getElementById('reminderOptions');
+            if (this.checked) {
+                reminderOptions.style.display = 'flex';
+            } else {
+                reminderOptions.style.display = 'none';
+            }
+        });
+    </script>
+}

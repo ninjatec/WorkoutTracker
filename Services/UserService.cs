@@ -9,20 +9,21 @@ using System.Security.Claims;
 using Microsoft.Extensions.Caching.Memory;
 using System.Collections.Generic;
 using System.Linq;
+using WorkoutTrackerWeb.Models.Identity;
 
 namespace WorkoutTrackerWeb.Services
 {
     public class UserService
     {
         private readonly WorkoutTrackerWebContext _context;
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<AppUser> _userManager;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IMemoryCache _cache;
         private readonly TimeSpan _cacheExpiry = TimeSpan.FromMinutes(10);
 
         public UserService(
             WorkoutTrackerWebContext context,
-            UserManager<IdentityUser> userManager,
+            UserManager<AppUser> userManager,
             IHttpContextAccessor httpContextAccessor,
             IMemoryCache cache)
         {

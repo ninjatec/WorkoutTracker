@@ -3,11 +3,63 @@
  * Registers the service worker for offline capabilities
  */
 (function() {
+    // Service Worker version tracking for manual updates
+    const CURRENT_SW_VERSION = 'v1.7'; // Match this with service-worker.js version
+    const LAST_SW_VERSION_KEY = 'workout-tracker-sw-version';
+    
     // Only register if service worker is supported
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            registerServiceWorker();
+            // Check if we need to force update the service worker
+            const lastVersion = localStorage.getItem(LAST_SW_VERSION_KEY);
+            if (lastVersion !== CURRENT_SW_VERSION) {
+                console.log(`Service worker version changed: ${lastVersion || 'none'} -> ${CURRENT_SW_VERSION}`);
+                unregisterAndReRegisterServiceWorker();
+                localStorage.setItem(LAST_SW_VERSION_KEY, CURRENT_SW_VERSION);
+            } else {
+                registerServiceWorker();
+            }
+            
             checkForAppUpdate();
+        });
+    }
+    
+    /**
+     * Unregister existing service worker and then register a new one
+     * Used when we've made significant changes to the service worker
+     */
+    function unregisterAndReRegisterServiceWorker() {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+            for (let registration of registrations) {
+                console.log('Unregistering service worker:', registration.scope);
+                registration.unregister().then(success => {
+                    if (success) {
+                        console.log('Successfully unregistered service worker');
+                        // Clear caches
+                        if ('caches' in window) {
+                            caches.keys().then(cacheNames => {
+                                cacheNames.forEach(cacheName => {
+                                    if (cacheName.includes('workouttracker')) {
+                                        console.log('Deleting cache:', cacheName);
+                                        caches.delete(cacheName);
+                                    }
+                                });
+                                // Register new service worker after clearing caches
+                                setTimeout(() => {
+                                    registerServiceWorker();
+                                }, 1000);
+                            });
+                        } else {
+                            // If caches API not available, just register the new worker
+                            registerServiceWorker();
+                        }
+                    } else {
+                        console.warn('Failed to unregister service worker');
+                        // Try to register anyway
+                        registerServiceWorker();
+                    }
+                });
+            }
         });
     }
     

@@ -4,9 +4,9 @@
  */
 
 // Cache names with versioning
-const STATIC_CACHE_VERSION = 'workouttracker-static-v1.5';
-const DYNAMIC_CACHE_VERSION = 'workouttracker-dynamic-v1.3';
-const ASSET_CACHE_VERSION = 'workouttracker-assets-v1.2';
+const STATIC_CACHE_VERSION = 'workouttracker-static-v1.7';
+const DYNAMIC_CACHE_VERSION = 'workouttracker-dynamic-v1.5';
+const ASSET_CACHE_VERSION = 'workouttracker-assets-v1.4';
 
 // Static resources to cache on install
 const STATIC_RESOURCES = [
@@ -38,6 +38,12 @@ const CRITICAL_PAGES = [
     '/',
     '/Index',
     '/offline'
+];
+
+// Patterns for URLs that should ALWAYS use the network and never return the offline page
+const NETWORK_ONLY_PATHS = [
+    /^\/Areas\/Coach\/.*/,   // All Coach area pages
+    /^\/Coach\/.*/           // Coach pages using route prefixes
 ];
 
 // Install event - cache static resources
@@ -110,13 +116,20 @@ self.addEventListener('fetch', event => {
         return;
     }
     
+    // Check if the URL matches a network-only pattern (like Coach area)
+    // These should never show offline page on failure
+    if (isNetworkOnlyRequest(event.request)) {
+        // For network-only requests, just pass through without offline fallback
+        return;
+    }
+    
     // Handle critical pages - use network falling back to cache
     const isCriticalPage = isCriticalRequest(event.request);
     if (isCriticalPage) {
         event.respondWith(
             fetch(event.request)
                 .then(response => {
-                    // Cache a copy of the response
+                    // Clone the response BEFORE using it
                     const responseClone = response.clone();
                     caches.open(DYNAMIC_CACHE_VERSION)
                         .then(cache => {
@@ -147,16 +160,20 @@ self.addEventListener('fetch', event => {
                     // Return cached version immediately if available
                     const fetchPromise = fetch(event.request)
                         .then(networkResponse => {
-                            // Update cache with new version
+                            // Clone the response BEFORE using it
+                            const responseToCache = networkResponse.clone();
                             caches.open(ASSET_CACHE_VERSION)
                                 .then(cache => {
-                                    cache.put(event.request, networkResponse.clone());
+                                    cache.put(event.request, responseToCache);
                                 });
                             return networkResponse;
                         })
                         .catch(error => {
                             console.warn(`[Service Worker] Failed to fetch: ${event.request.url} - ${error.message}`);
-                            return cachedResponse || new Response(null, { status: 404 });
+                            if (cachedResponse) {
+                                return cachedResponse;
+                            }
+                            return new Response(null, { status: 404 });
                         });
                     return cachedResponse || fetchPromise;
                 })
@@ -173,11 +190,11 @@ self.addEventListener('fetch', event => {
                     throw Error(response.statusText);
                 }
                 
-                // Cache a copy of successful responses
-                const responseClone = response.clone();
+                // Clone the response BEFORE using it
+                const responseToCache = response.clone();
                 caches.open(DYNAMIC_CACHE_VERSION)
                     .then(cache => {
-                        cache.put(event.request, responseClone);
+                        cache.put(event.request, responseToCache);
                     });
                 return response;
             })
@@ -217,6 +234,20 @@ function isCriticalRequest(request) {
             return pattern.test(path);
         }
         return false;
+    });
+}
+
+// Check if a request should always use the network (e.g., Coach area pages)
+function isNetworkOnlyRequest(request) {
+    const url = new URL(request.url);
+    const path = url.pathname;
+    
+    // Check if the path matches any network-only patterns
+    return NETWORK_ONLY_PATHS.some(pattern => {
+        if (typeof pattern === 'object' && pattern instanceof RegExp) {
+            return pattern.test(path);
+        }
+        return pattern === path;
     });
 }
 

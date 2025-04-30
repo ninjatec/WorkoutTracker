@@ -1,0 +1,553 @@
+@page "{id:int}"
+@model WorkoutTrackerWeb.Areas.Coach.Pages.Templates.DetailsModel
+@{
+    ViewData["Title"] = "Template Details";
+}
+
+@if (Model.WorkoutTemplate == null)
+{
+    <div class="container-fluid">
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            The requested template could not be found or you don't have permission to view it.
+        </div>
+        <a asp-page="Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Templates
+        </a>
+    </div>
+}
+else
+{
+    <div class="container-fluid">
+        <div class="mb-3">
+            <a asp-page="Index" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Back to Templates
+            </a>
+        </div>
+
+        <div class="alert alert-info d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi bi-info-circle-fill me-2"></i>
+                This template can be used to start or schedule workouts for your clients.
+            </div>
+            <div>
+                <a asp-page="StartWorkout" asp-route-id="@Model.WorkoutTemplate.WorkoutTemplateId" class="btn btn-success me-2">
+                    <i class="bi bi-play-circle"></i> Start Workout
+                </a>
+                <button type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#assignTemplateCollapse" aria-expanded="false" aria-controls="assignTemplateCollapse">
+                    <i class="bi bi-person-add"></i> Assign to Client
+                </button>
+            </div>
+        </div>
+
+        <!-- Assign Template Accordion -->
+        <div class="collapse mb-4" id="assignTemplateCollapse">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Assign Template to Client</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <input type="hidden" name="templateId" value="@Model.WorkoutTemplate.WorkoutTemplateId" />
+                        
+                        <!-- Add antiforgery token -->
+                        @Html.AntiForgeryToken()
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="clientId" class="form-label">Select Client</label>
+                                    <select id="clientId" name="clientId" class="form-select" required>
+                                        <option value="">-- Select Client --</option>
+                                        @foreach (var client in Model.Clients)
+                                        {
+                                            <option value="@client.UserId">@client.Name</option>
+                                        }
+                                    </select>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Assignment Name</label>
+                                    <input type="text" class="form-control" id="name" name="name" 
+                                           value="@Model.WorkoutTemplate.Name" required />
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="notes" class="form-label">Notes for Client</label>
+                                    <textarea id="notes" name="notes" class="form-control" rows="3"></textarea>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="startDate" class="form-label">Start Date</label>
+                                    <input type="date" class="form-control" id="startDate" name="startDate" 
+                                           required value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="endDate" class="form-label">End Date</label>
+                                    <input type="date" class="form-control" id="endDate" name="endDate" />
+                                    <div class="form-text">Optional. Leave blank for an indefinite assignment.</div>
+                                </div>
+                                
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="scheduleWorkouts" name="scheduleWorkouts" value="true" />
+                                    <label class="form-check-label" for="scheduleWorkouts">
+                                        Schedule workouts based on this template
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="schedulingOptions" class="border rounded p-3 mb-3 d-none">
+                            <h6 class="mb-3">Scheduling Options</h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Recurrence Pattern</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="recurrencePattern" 
+                                                   id="recurrenceOnce" value="Once" checked>
+                                            <label class="form-check-label" for="recurrenceOnce">
+                                                One-time workout
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="recurrencePattern" 
+                                                   id="recurrenceWeekly" value="Weekly">
+                                            <label class="form-check-label" for="recurrenceWeekly">
+                                                Weekly
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="recurrencePattern" 
+                                                   id="recurrenceBiWeekly" value="BiWeekly">
+                                            <label class="form-check-label" for="recurrenceBiWeekly">
+                                                Bi-weekly
+                                            </label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="recurrencePattern" 
+                                                   id="recurrenceMonthly" value="Monthly">
+                                            <label class="form-check-label" for="recurrenceMonthly">
+                                                Monthly
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div id="weeklyDaysOptions" class="mb-3 d-none">
+                                        <label class="form-label">Days of Week</label>
+                                        <div class="d-flex flex-wrap">
+                                            @foreach (var day in new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" })
+                                            {
+                                                <div class="form-check me-3">
+                                                    <input class="form-check-input" type="checkbox" 
+                                                           name="daysOfWeek" id="day@(day)" value="@day">
+                                                    <label class="form-check-label" for="day@(day)">
+                                                        @day
+                                                    </label>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                    
+                                    <div id="monthlyDayOptions" class="mb-3 d-none">
+                                        <label for="dayOfMonth" class="form-label">Day of Month</label>
+                                        <select id="dayOfMonth" name="dayOfMonth" class="form-select">
+                                            @for (int i = 1; i <= 31; i++)
+                                            {
+                                                <option value="@i">@i</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="workoutTime" class="form-label">Time of Day</label>
+                                        <input type="time" id="workoutTime" name="workoutTime" class="form-control" value="17:00" required />
+                                    </div>
+                                    
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" id="sendReminder" 
+                                               name="sendReminder" value="true" checked />
+                                        <label class="form-check-label" for="sendReminder">
+                                            Send workout reminders
+                                        </label>
+                                    </div>
+                                    
+                                    <div id="reminderOptions" class="mb-3">
+                                        <label for="reminderHoursBefore" class="form-label">Reminder Hours Before</label>
+                                        <select id="reminderHoursBefore" name="reminderHoursBefore" class="form-select">
+                                            <option value="1">1 hour</option>
+                                            <option value="2">2 hours</option>
+                                            <option value="3" selected>3 hours</option>
+                                            <option value="6">6 hours</option>
+                                            <option value="12">12 hours</option>
+                                            <option value="24">24 hours</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-end">
+                            <button type="button" class="btn btn-secondary me-2" data-bs-toggle="collapse" data-bs-target="#assignTemplateCollapse">
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn btn-primary">Assign Template</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h1 class="h3 mb-0">@Model.WorkoutTemplate.Name</h1>
+                        <span class="badge @(Model.WorkoutTemplate.IsPublic ? "bg-success" : "bg-secondary")">
+                            @(Model.WorkoutTemplate.IsPublic ? "Public" : "Private")
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-3">Category</dt>
+                            <dd class="col-sm-9">@Model.WorkoutTemplate.Category</dd>
+
+                            <dt class="col-sm-3">Description</dt>
+                            <dd class="col-sm-9">@Model.WorkoutTemplate.Description</dd>
+
+                            <dt class="col-sm-3">Tags</dt>
+                            <dd class="col-sm-9">
+                                @if (!string.IsNullOrEmpty(Model.WorkoutTemplate.Tags))
+                                {
+                                    @foreach (var tag in Model.WorkoutTemplate.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                                    {
+                                        <span class="badge bg-info me-1">@tag.Trim()</span>
+                                    }
+                                }
+                            </dd>
+
+                            <dt class="col-sm-3">Created</dt>
+                            <dd class="col-sm-9">@Model.WorkoutTemplate.CreatedDate.ToString("MMM d, yyyy")</dd>
+
+                            <dt class="col-sm-3">Last Modified</dt>
+                            <dd class="col-sm-9">@Model.WorkoutTemplate.LastModifiedDate.ToString("MMM d, yyyy")</dd>
+                        </dl>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Exercises</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Exercise</th>
+                                        <th>Sets</th>
+                                        <th>Notes</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var exercise in Model.WorkoutTemplate.TemplateExercises.OrderBy(e => e.SequenceNum))
+                                    {
+                                        <tr>
+                                            <td>@exercise.SequenceNum</td>
+                                            <td>@exercise.ExerciseType.Name</td>
+                                            <td>@exercise.TemplateSets.Count</td>
+                                            <td>@exercise.Notes</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion mb-4" id="exerciseDetailsAccordion">
+                    @foreach (var exercise in Model.WorkoutTemplate.TemplateExercises.OrderBy(e => e.SequenceNum))
+                    {
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="heading@(exercise.WorkoutTemplateExerciseId)">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
+                                        data-bs-target="#collapse@(exercise.WorkoutTemplateExerciseId)" 
+                                        aria-expanded="false" aria-controls="collapse@(exercise.WorkoutTemplateExerciseId)">
+                                    <span class="me-2">@exercise.SequenceNum.</span> @exercise.ExerciseType.Name
+                                </button>
+                            </h2>
+                            <div id="collapse@(exercise.WorkoutTemplateExerciseId)" class="accordion-collapse collapse" 
+                                 aria-labelledby="heading@(exercise.WorkoutTemplateExerciseId)" data-bs-parent="#exerciseDetailsAccordion">
+                                <div class="accordion-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Set</th>
+                                                    <th>Type</th>
+                                                    <th>Reps</th>
+                                                    <th>Weight</th>
+                                                    <th>Notes</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var set in exercise.TemplateSets.OrderBy(s => s.SequenceNum))
+                                                {
+                                                    <tr>
+                                                        <td>@set.SequenceNum</td>
+                                                        <td>@set.Settype.Name</td>
+                                                        <td>@set.DefaultReps</td>
+                                                        <td>@set.DefaultWeight</td>
+                                                        <td>@set.Description</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(exercise.Notes))
+                                    {
+                                        <div class="mt-2">
+                                            <strong>Notes:</strong> @exercise.Notes
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Template Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <a asp-area="" asp-page="/Templates/Edit" asp-route-id="@Model.WorkoutTemplate.WorkoutTemplateId" class="btn btn-outline-primary">
+                                <i class="bi bi-pencil"></i> Edit Template
+                            </a>
+                            <a asp-page="StartWorkout" asp-route-id="@Model.WorkoutTemplate.WorkoutTemplateId" class="btn btn-success">
+                                <i class="bi bi-play-circle"></i> Start Workout
+                            </a>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#assignTemplateCollapse" aria-expanded="false" aria-controls="assignTemplateCollapse">
+                                <i class="bi bi-person-add"></i> Assign to Client
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Recent Assignments</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (Model.RecentAssignments.Any())
+                        {
+                            <ul class="list-group">
+                                @foreach (var assignment in Model.RecentAssignments)
+                                {
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold">Client #@assignment.ClientRelationshipId</div>
+                                            <small class="text-muted">@assignment.Notes</small>
+                                        </div>
+                                        <a href="/Coach/Templates/Assign/@assignment.Id" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                        else
+                        {
+                            <div class="alert alert-light mb-0">
+                                <i class="bi bi-info-circle me-2"></i> No recent assignments for this template.
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Check for openAssign query parameter and expand the accordion if true
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('openAssign') === 'true') {
+                $('#assignTemplateCollapse').collapse('show');
+                
+                // Safely scroll to the assignment form if it exists
+                setTimeout(function() {
+                    const assignTemplateElement = document.getElementById('assignTemplateCollapse');
+                    if (assignTemplateElement) {
+                        assignTemplateElement.scrollIntoView({ behavior: 'smooth' });
+                    }
+                }, 300); // Short delay to ensure the element is visible
+            }
+            
+            // Toggle scheduling options
+            $('#scheduleWorkouts').on('change', function() {
+                if ($(this).prop('checked')) {
+                    $('#schedulingOptions').removeClass('d-none');
+                    // When scheduling is enabled, ensure the recurrence pattern is included in form submit
+                    // This fixes the issue where recurrence pattern wasn't being passed to the server
+                    if (!$('input[name="recurrencePattern"]:checked').length) {
+                        $('#recurrenceOnce').prop('checked', true);
+                    }
+                } else {
+                    $('#schedulingOptions').addClass('d-none');
+                }
+            });
+            
+            // Log form values before submission
+            $('form').on('submit', function(e) {
+                // Get all form values
+                const formData = $(this).serializeArray();
+                
+                // Log form submission
+                console.log('[FormSubmission] Submitting form with values:', formData);
+                
+                // Prepare form data to send to server for logging
+                const formValues = {};
+                formData.forEach(item => {
+                    formValues[item.name] = item.value;
+                });
+                
+                // Add checked checkboxes for daysOfWeek that don't get included in serializeArray
+                const selectedDays = [];
+                $('input[name="daysOfWeek"]:checked').each(function() {
+                    selectedDays.push($(this).val());
+                });
+                
+                if (selectedDays.length > 0) {
+                    formValues.daysOfWeek = selectedDays;
+                }
+                
+                // Send form values to server for logging
+                $.ajax({
+                    url: '/api/log/formsubmission',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        formType: 'TemplateAssignment',
+                        formValues: formValues
+                    }),
+                    // This is async and we don't need to wait for response
+                    // as we just care about logging, not blocking form submission
+                });
+                
+                if ($('#scheduleWorkouts').prop('checked')) {
+                    // Make sure a recurrence pattern is selected before submission
+                    if (!$('input[name="recurrencePattern"]:checked').length) {
+                        e.preventDefault();
+                        alert('Please select a recurrence pattern');
+                        return false;
+                    }
+                    
+                    // Ensure Monthly selection has a day selected
+                    if ($('#recurrenceMonthly').prop('checked') && !$('#dayOfMonth').val()) {
+                        e.preventDefault();
+                        alert('Please select a day of month for monthly recurrence');
+                        return false;
+                    }
+                    
+                    // Ensure Weekly/BiWeekly selection has at least one day selected
+                    if (($('#recurrenceWeekly').prop('checked') || $('#recurrenceBiWeekly').prop('checked')) && 
+                        !$('input[name="daysOfWeek"]:checked').length) {
+                        // Auto-select current day if none selected
+                        var date = new Date($('#startDate').val() || new Date());
+                        var dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                        var selectedDay = dayNames[date.getDay()];
+                        $('input[name="daysOfWeek"][value="' + selectedDay + '"]').prop('checked', true);
+                    }
+                }
+            });
+            
+            // Toggle recurrence pattern options
+            $('input[name="recurrencePattern"]').on('change', function() {
+                var pattern = $('input[name="recurrencePattern"]:checked').val();
+                
+                if (pattern === 'Weekly' || pattern === 'BiWeekly') {
+                    $('#weeklyDaysOptions').removeClass('d-none');
+                    $('#monthlyDayOptions').addClass('d-none');
+                    
+                    // Auto-select the day of week matching the selected date
+                    var startDateElement = document.getElementById('startDate');
+                    if (startDateElement && startDateElement.value) {
+                        var date = new Date(startDateElement.value);
+                        var dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                        var selectedDay = dayNames[date.getDay()];
+                        
+                        // Check the checkbox matching the selected day
+                        document.querySelectorAll('input[name="daysOfWeek"]').forEach(function(checkbox) {
+                            checkbox.checked = checkbox.value === selectedDay;
+                        });
+                    }
+                    
+                } else if (pattern === 'Monthly') {
+                    $('#weeklyDaysOptions').addClass('d-none');
+                    $('#monthlyDayOptions').removeClass('d-none');
+                    
+                    // Update day of month selection based on selected date
+                    var startDateElement = document.getElementById('startDate');
+                    if (startDateElement && startDateElement.value) {
+                        var date = new Date(startDateElement.value);
+                        var dayOfMonth = date.getDate();
+                        var dayOfMonthElement = document.getElementById('dayOfMonth');
+                        if (dayOfMonthElement) {
+                            dayOfMonthElement.value = dayOfMonth;
+                        }
+                    }
+                } else {
+                    $('#weeklyDaysOptions').addClass('d-none');
+                    $('#monthlyDayOptions').addClass('d-none');
+                }
+            });
+            
+            // Update recurrence options when date changes
+            $('#startDate').on('change', function() {
+                if (!this.value) return; // Skip if no value
+                
+                var pattern = $('input[name="recurrencePattern"]:checked').val();
+                if (pattern === 'Weekly' || pattern === 'BiWeekly') {
+                    // Update day selection based on new date
+                    var date = new Date(this.value);
+                    var dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    var selectedDay = dayNames[date.getDay()];
+                    
+                    document.querySelectorAll('input[name="daysOfWeek"]').forEach(function(checkbox) {
+                        checkbox.checked = checkbox.value === selectedDay;
+                    });
+                } else if (pattern === 'Monthly') {
+                    // Update day of month based on new date
+                    var date = new Date(this.value);
+                    var dayOfMonth = date.getDate();
+                    var dayOfMonthElement = document.getElementById('dayOfMonth');
+                    if (dayOfMonthElement) {
+                        dayOfMonthElement.value = dayOfMonth;
+                    }
+                }
+            });
+            
+            // Toggle reminder options
+            $('#sendReminder').on('change', function() {
+                if ($(this).prop('checked')) {
+                    $('#reminderOptions').removeClass('d-none');
+                } else {
+                    $('#reminderOptions').addClass('d-none');
+                }
+            });
+        });
+    </script>
+}

@@ -176,11 +176,43 @@ namespace WorkoutTrackerWeb.Pages.HangfireDiagnostics
                     }
                     
                     // Check for active servers
-                    using (var command = connection.CreateCommand())
+                    try 
                     {
-                        command.CommandText = "SELECT COUNT(*) FROM [HangFire].[Server] WHERE Heartbeat > DATEADD(MINUTE, -5, GETUTCDATE())";
-                        var activeServers = (int)command.ExecuteScalar();
-                        result["ActiveServers"] = activeServers;
+                        // Check if the Heartbeat column exists
+                        bool heartbeatExists = false;
+                        using (var checkCmd = connection.CreateCommand())
+                        {
+                            checkCmd.CommandText = @"
+                                SELECT COUNT(*)
+                                FROM INFORMATION_SCHEMA.COLUMNS
+                                WHERE TABLE_SCHEMA = 'HangFire'
+                                  AND TABLE_NAME = 'Server'
+                                  AND COLUMN_NAME = 'Heartbeat'";
+                            
+                            heartbeatExists = Convert.ToInt32(checkCmd.ExecuteScalar()) > 0;
+                        }
+                        
+                        // Use appropriate query based on schema version
+                        using (var command = connection.CreateCommand())
+                        {
+                            if (heartbeatExists)
+                            {
+                                command.CommandText = "SELECT COUNT(*) FROM [HangFire].[Server] WHERE Heartbeat > DATEADD(MINUTE, -5, GETUTCDATE())";
+                            }
+                            else
+                            {
+                                // Older Hangfire versions use LastHeartbeat column
+                                command.CommandText = "SELECT COUNT(*) FROM [HangFire].[Server] WHERE LastHeartbeat > DATEADD(MINUTE, -5, GETUTCDATE())";
+                            }
+                            
+                            var activeServers = Convert.ToInt32(command.ExecuteScalar());
+                            result["ActiveServers"] = activeServers;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error checking active servers: {Message}", ex.Message);
+                        result["ActiveServers"] = -1; // Indicate an error occurred
                     }
                 }
             }

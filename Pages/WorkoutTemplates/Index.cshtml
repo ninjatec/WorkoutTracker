@@ -1,0 +1,102 @@
+@page
+@model WorkoutTrackerWeb.Pages.WorkoutTemplates.IndexModel
+@{
+    ViewData["Title"] = "Workout Templates";
+}
+
+<div class="container-fluid">
+    <h1>Workout Templates</h1>
+    
+    @await Component.InvokeAsync("TemplateFilters", Model.Filter)
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="table-responsive">
+                <table class="table table-striped" id="templatesTable">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Category</th>
+                            <th>Exercises</th>
+                            <th>Type</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var template in Model.Templates)
+                        {
+                            <tr>
+                                <td>@template.Name</td>
+                                <td>@template.Description</td>
+                                <td>@template.Category</td>
+                                <td>@template.ExerciseCount</td>
+                                <td>
+                                    @if (template.IsOwner)
+                                    {
+                                        <span class="badge bg-primary">My Template</span>
+                                    }
+                                    else if (template.IsAssigned)
+                                    {
+                                        <span class="badge bg-success">Assigned by @template.AssignedBy</span>
+                                    }
+                                    else if (template.IsPublic)
+                                    {
+                                        <span class="badge bg-info">Public Template</span>
+                                    }
+                                </td>
+                                <td>
+                                    <a href="#" class="btn btn-sm btn-primary view-template-btn" data-template-id="@template.WorkoutTemplateId">View</a>
+                                    @if (template.IsOwner)
+                                    {
+                                        <a href="#" class="btn btn-sm btn-secondary edit-template-btn" data-template-id="@template.WorkoutTemplateId">Edit</a>
+                                    }
+                                    <a href="#" class="btn btn-sm btn-success schedule-workout-btn" data-template-id="@template.WorkoutTemplateId" data-template-name="@template.Name">Schedule</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Initialize DataTable
+            var table = $('#templatesTable').DataTable({
+                responsive: true,
+                paging: true,
+                searching: true,
+                ordering: true,
+                info: true,
+                autoWidth: false
+            });
+
+            // Handle view template button click
+            $(document).on('click', '.view-template-btn', function(e) {
+                e.preventDefault();
+                var templateId = $(this).data('template-id');
+                window.location.href = '/Templates/Details/' + templateId;
+            });
+            
+            // Handle edit template button click
+            $(document).on('click', '.edit-template-btn', function(e) {
+                e.preventDefault();
+                var templateId = $(this).data('template-id');
+                window.location.href = '/Templates/Edit/' + templateId;
+            });
+            
+            // Handle schedule workout button click
+            $(document).on('click', '.schedule-workout-btn', function(e) {
+                e.preventDefault();
+                var templateId = $(this).data('template-id');
+                var templateName = $(this).data('template-name');
+                
+                window.location.href = '/WorkoutSchedule?templateId=' + templateId + '&templateName=' + encodeURIComponent(templateName);
+            });
+        });
+    </script>
+}

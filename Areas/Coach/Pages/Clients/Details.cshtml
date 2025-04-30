@@ -1,0 +1,639 @@
+@page "{id:int}"
+@model WorkoutTrackerWeb.Areas.Coach.Pages.Clients.DetailsModel
+@{
+    ViewData["Title"] = "Client Details";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0">Client: @Model.ClientName</h1>
+        <a asp-page="./Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Clients
+        </a>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+    {
+        <div class="alert alert-@(Model.StatusMessageType == "Success" ? "success" : "danger") alert-dismissible fade show" role="alert">
+            @Model.StatusMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Client Stats Overview -->
+    <div class="row">
+        <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Contact Info</h5>
+                    <hr>
+                    <p class="mb-1"><strong>Email:</strong> @Model.ClientEmail</p>
+                    <p class="mb-1"><strong>Group:</strong> @(string.IsNullOrEmpty(Model.ClientGroup) ? "None" : Model.ClientGroup)</p>
+                    <p class="mb-1"><strong>Start Date:</strong> @Model.StartDate.ToShortDateString()</p>
+                    <p class="mb-1"><strong>Last Active:</strong> @Model.LastActive.ToShortDateString()</p>
+                    
+                    @if (Model.CanViewPersonalInfo)
+                    {
+                        <hr>
+                        <h6>Personal Details</h6>
+                        <p class="mb-1"><strong>Age:</strong> @Model.Age years</p>
+                        <p class="mb-1"><strong>Height:</strong> @Model.Height cm</p>
+                        <p class="mb-1"><strong>Weight:</strong> @Model.Weight kg</p>
+                        <p class="mb-1"><strong>BMI:</strong> @Model.BMI</p>
+                    }
+                </div>
+                <div class="card-footer bg-transparent border-0">
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#assignGroupModal">
+                            <i class="bi bi-tag"></i> Assign to Group
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Workout Activity</h5>
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>Total Workouts</div>
+                        <div class="badge bg-primary rounded-pill">@Model.TotalWorkouts</div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>Workouts this Month</div>
+                        <div class="badge bg-info rounded-pill">@Model.WorkoutsThisMonth</div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>Active Goals</div>
+                        <div class="badge bg-success rounded-pill">@Model.ActiveGoals</div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>Completed Goals</div>
+                        <div class="badge bg-secondary rounded-pill">@Model.CompletedGoals</div>
+                    </div>
+                    <hr>
+                    <h6>Consistency Rate</h6>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar @(Model.Consistency >= 80 ? "bg-success" : Model.Consistency >= 60 ? "bg-info" : "bg-warning")" 
+                             role="progressbar" style="width: @Model.Consistency%;" 
+                             aria-valuenow="@Model.Consistency" aria-valuemin="0" aria-valuemax="100">@Model.Consistency%</div>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0">
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-graph-up"></i> View Detailed Activity
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Volume Progression</h5>
+                    <hr>
+                    <canvas id="volumeChart" width="400" height="220"></canvas>
+                </div>
+                <div class="card-footer bg-transparent border-0">
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-bar-chart"></i> View All Metrics
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Top Exercises</h5>
+                    <hr>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Exercise</th>
+                                    <th>PB</th>
+                                    <th>Last</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var exercise in Model.TopExercises)
+                                {
+                                    <tr>
+                                        <td>@exercise.Name</td>
+                                        <td>@exercise.PersonalBest</td>
+                                        <td title="@exercise.LastPerformed.ToShortDateString()">
+                                            @((DateTime.Now - exercise.LastPerformed).TotalDays < 30 
+                                                ? $"{(int)(DateTime.Now - exercise.LastPerformed).TotalDays}d ago" 
+                                                : exercise.LastPerformed.ToShortDateString())
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-0">
+                    <div class="d-grid gap-2">
+                        <a href="#" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-trophy"></i> View All Records
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabbed Content -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <ul class="nav nav-tabs card-header-tabs" id="clientTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="goals-tab" data-bs-toggle="tab" data-bs-target="#goals" type="button" role="tab" aria-controls="goals" aria-selected="true">Goals</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="workouts-tab" data-bs-toggle="tab" data-bs-target="#workouts" type="button" role="tab" aria-controls="workouts" aria-selected="false">Recent Workouts</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="notes-tab" data-bs-toggle="tab" data-bs-target="#notes" type="button" role="tab" aria-controls="notes" aria-selected="false">Coach Notes</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="messages-tab" data-bs-toggle="tab" data-bs-target="#messages" type="button" role="tab" aria-controls="messages" aria-selected="false">Messages</button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="clientTabContent">
+                        <!-- Goals Tab -->
+                        <div class="tab-pane fade show active" id="goals" role="tabpanel" aria-labelledby="goals-tab">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="mb-0">Client Goals</h5>
+                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addGoalModal">
+                                    <i class="bi bi-plus-circle"></i> Add New Goal
+                                </button>
+                            </div>
+                            
+                            @if (Model.GoalsList.Any())
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Description</th>
+                                                <th>Category</th>
+                                                <th>Target Date</th>
+                                                <th>Progress</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var goal in Model.GoalsList)
+                                            {
+                                                <tr>
+                                                    <td>@goal.Description</td>
+                                                    <td><span class="badge bg-secondary">@goal.Category</span></td>
+                                                    <td>@goal.TargetDate.ToShortDateString()</td>
+                                                    <td>
+                                                        <div class="progress">
+                                                            <div class="progress-bar @(goal.Progress >= 80 ? "bg-success" : goal.Progress >= 40 ? "bg-info" : "bg-warning")" 
+                                                                 role="progressbar" style="width: @goal.Progress%;" 
+                                                                 aria-valuenow="@goal.Progress" aria-valuemin="0" aria-valuemax="100">@goal.Progress%</div>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="btn-group" role="group">
+                                                            <button type="button" class="btn btn-sm btn-outline-primary" title="Update Progress">
+                                                                <i class="bi bi-arrow-up-circle"></i>
+                                                            </button>
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary" title="Edit Goal">
+                                                                <i class="bi bi-pencil"></i>
+                                                            </button>
+                                                            <button type="button" class="btn btn-sm btn-outline-danger" title="Delete Goal">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-info">
+                                    No active goals found. Create a new goal to get started.
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Recent Workouts Tab -->
+                        <div class="tab-pane fade" id="workouts" role="tabpanel" aria-labelledby="workouts-tab">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="mb-0">Recent Workouts</h5>
+                                <button type="button" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-plus-circle"></i> Create Workout
+                                </button>
+                            </div>
+                            
+                            @if (Model.RecentWorkouts.Any())
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Name</th>
+                                                <th>Duration</th>
+                                                <th>Volume</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var workout in Model.RecentWorkouts)
+                                            {
+                                                <tr>
+                                                    <td>@workout.Date.ToShortDateString()</td>
+                                                    <td>@workout.Name</td>
+                                                    <td>@workout.Duration min</td>
+                                                    <td>@workout.Volume kg</td>
+                                                    <td>
+                                                        <div class="btn-group" role="group">
+                                                            <button type="button" class="btn btn-sm btn-outline-primary" title="View Details">
+                                                                <i class="bi bi-eye"></i>
+                                                            </button>
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary" title="Add Comment">
+                                                                <i class="bi bi-chat-dots"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="text-center mt-3">
+                                    <a href="#" class="btn btn-outline-primary btn-sm">View All Workouts</a>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-info">
+                                    No recent workouts found.
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Coach Notes Tab -->
+                        <div class="tab-pane fade" id="notes" role="tabpanel" aria-labelledby="notes-tab">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="mb-0">Coach Notes</h5>
+                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+                                    <i class="bi bi-plus-circle"></i> Add Note
+                                </button>
+                            </div>
+                            
+                            @if (Model.CoachNotes.Any())
+                            {
+                                foreach (var note in Model.CoachNotes)
+                                {
+                                    <div class="card mb-3">
+                                        <div class="card-header bg-white">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span>@note.Date.ToShortDateString()</span>
+                                                <span class="badge @(note.IsVisibleToClient ? "bg-success" : "bg-secondary")">
+                                                    @(note.IsVisibleToClient ? "Visible to Client" : "Private")
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="card-body">
+                                            <p class="card-text">@note.Content</p>
+                                        </div>
+                                        <div class="card-footer bg-white text-end">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" title="Edit Note">
+                                                <i class="bi bi-pencil"></i> Edit
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" title="Delete Note">
+                                                <i class="bi bi-trash"></i> Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="alert alert-info">
+                                    No coach notes found. Add your first note to keep track of client progress.
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Messages Tab -->
+                        <div class="tab-pane fade" id="messages" role="tabpanel" aria-labelledby="messages-tab">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="mb-0">Messages</h5>
+                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#sendMessageModal">
+                                    <i class="bi bi-envelope"></i> New Message
+                                </button>
+                            </div>
+                            
+                            <div class="messages-container">
+                                @if (Model.RecentMessages.Any())
+                                {
+                                    foreach (var message in Model.RecentMessages)
+                                    {
+                                        <div class="message-item @(message.IsFromCoach ? "message-outgoing" : "message-incoming")">
+                                            <div class="message-bubble">
+                                                <div class="message-content">@message.Content</div>
+                                                <div class="message-meta">
+                                                    <small>@message.Date.ToString("MMM d, h:mm tt")</small>
+                                                    @if (message.IsFromCoach && message.IsRead)
+                                                    {
+                                                        <small class="text-success ms-2"><i class="bi bi-check-all"></i> Read</small>
+                                                    }
+                                                    else if (message.IsFromCoach && !message.IsRead)
+                                                    {
+                                                        <small class="text-muted ms-2"><i class="bi bi-check"></i> Sent</small>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                    <div class="text-center mt-3">
+                                        <a href="#" class="btn btn-outline-primary btn-sm">View All Messages</a>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="alert alert-info">
+                                        No messages found. Start the conversation with your client.
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Modal: Assign Client to Group -->
+<div class="modal fade" id="assignGroupModal" tabindex="-1" aria-labelledby="assignGroupModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="assignGroupModalLabel">Assign to Group</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label for="groupSelect" class="form-label">Select Group</label>
+                        <select class="form-select" id="groupSelect">
+                            <option selected>Choose a group...</option>
+                            <option value="Strength Training">Strength Training</option>
+                            <option value="Weight Loss">Weight Loss</option>
+                            <option value="Marathon Prep">Marathon Prep</option>
+                            <option value="Beginners">Beginners</option>
+                            <option value="custom">Create New Group...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 d-none" id="newGroupDiv">
+                        <label for="newGroupName" class="form-label">New Group Name</label>
+                        <input type="text" class="form-control" id="newGroupName">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary">Assign</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Modal: Add Note -->
+<div class="modal fade" id="addNoteModal" tabindex="-1" aria-labelledby="addNoteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addNoteModalLabel">Add Coach Note</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" asp-page-handler="AddNote">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="noteContent" class="form-label">Note Content</label>
+                        <textarea class="form-control" id="noteContent" name="noteContent" rows="4" required></textarea>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="isVisibleToClient" name="isVisibleToClient">
+                        <label class="form-check-label" for="isVisibleToClient">Visible to client</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Note</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Modal: Add Goal -->
+<div class="modal fade" id="addGoalModal" tabindex="-1" aria-labelledby="addGoalModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addGoalModalLabel">Create New Goal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" asp-page-handler="SetGoal">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="goalDescription" class="form-label">Goal Description</label>
+                        <input type="text" class="form-control" id="goalDescription" name="goalDescription" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="goalCategory" class="form-label">Category</label>
+                        <select class="form-select" id="goalCategory" name="goalCategory" required>
+                            <option value="">Choose a category...</option>
+                            <option value="Strength">Strength</option>
+                            <option value="Cardio">Cardio</option>
+                            <option value="Hypertrophy">Hypertrophy</option>
+                            <option value="Weight">Weight</option>
+                            <option value="Technique">Technique</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="targetDate" class="form-label">Target Date</label>
+                            <input type="date" class="form-control" id="targetDate" name="targetDate" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="measurementType" class="form-label">Measurement Type</label>
+                            <select class="form-select" id="measurementType" name="measurementType">
+                                <option value="Weight">Weight (kg)</option>
+                                <option value="Repetitions">Repetitions</option>
+                                <option value="Distance">Distance (km)</option>
+                                <option value="Time">Time (min:sec)</option>
+                                <option value="Percentage">Percentage</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="startValue" class="form-label">Start Value</label>
+                            <input type="number" step="0.1" class="form-control" id="startValue" name="startValue">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="targetValue" class="form-label">Target Value</label>
+                            <input type="number" step="0.1" class="form-control" id="targetValue" name="targetValue">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Goal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Modal: Send Message -->
+<div class="modal fade" id="sendMessageModal" tabindex="-1" aria-labelledby="sendMessageModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="sendMessageModalLabel">Send Message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label for="messageContent" class="form-label">Message</label>
+                        <textarea class="form-control" id="messageContent" rows="4" required></textarea>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="sendNotification" checked>
+                        <label class="form-check-label" for="sendNotification">Send notification email</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary">Send Message</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        .messages-container {
+            display: flex;
+            flex-direction: column;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .message-item {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        
+        .message-outgoing {
+            justify-content: flex-end;
+        }
+        
+        .message-bubble {
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 15px;
+            position: relative;
+        }
+        
+        .message-outgoing .message-bubble {
+            background-color: #e3f2fd;
+            border-bottom-right-radius: 0;
+        }
+        
+        .message-incoming .message-bubble {
+            background-color: #f1f1f1;
+            border-bottom-left-radius: 0;
+        }
+        
+        .message-meta {
+            display: flex;
+            justify-content: flex-end;
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+}
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Initialize volume chart
+        const ctx = document.getElementById('volumeChart').getContext('2d');
+        const volumeChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['6 Weeks Ago', '5 Weeks Ago', '4 Weeks Ago', '3 Weeks Ago', '2 Weeks Ago', 'Last Week'],
+                datasets: [{
+                    label: 'Weekly Volume (kg)',
+                    data: @Html.Raw(Json.Serialize(Model.VolumeData)),
+                    fill: true,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grid: {
+                            display: true,
+                            color: 'rgba(200, 200, 200, 0.2)',
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+        
+        // Show/hide custom group input
+        document.getElementById('groupSelect').addEventListener('change', function() {
+            const newGroupDiv = document.getElementById('newGroupDiv');
+            if (this.value === 'custom') {
+                newGroupDiv.classList.remove('d-none');
+            } else {
+                newGroupDiv.classList.add('d-none');
+            }
+        });
+    </script>
+}

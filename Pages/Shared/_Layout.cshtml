@@ -45,20 +45,26 @@
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-page="/Index">Home</a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-page="/Sessions/Index">Workouts</a>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="trainingDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-activity"></i> Training
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="trainingDropdown">
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Sessions/Index"><i class="bi bi-list-check me-2"></i>Workouts</a></li>
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Templates/Index" asp-route-handler="" asp-page-handler=""><i class="bi bi-card-list me-2"></i>Templates</a></li>
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Workouts/ScheduledWorkouts"><i class="bi bi-calendar-check me-2"></i>Scheduled Workouts</a></li>
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Workouts/QuickWorkout"><i class="bi bi-stopwatch me-2"></i>Quick Workout</a></li>
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Goals/Index"><i class="bi bi-trophy me-2"></i>Goals</a></li>
+                            </ul>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-page="/Templates/Index">Templates</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-page="/Workouts/QuickWorkout">Quick Workout</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-page="/Reports/Index">Reports</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-page="/Calculator/OneRepMax">1RM Calculator</a>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="reportingDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-graph-up"></i> Reporting
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="reportingDropdown">
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Reports/Index"><i class="bi bi-graph-up me-2"></i>Reports</a></li>
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Calculator/OneRepMax"><i class="bi bi-calculator me-2"></i>1RM Calculator</a></li>
+                            </ul>
                         </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="sharingDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -72,7 +78,7 @@
                         </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="dataDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Data
+                                <i class="bi bi-database"></i> Data
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="dataDropdown">
                                 <li><a class="dropdown-item" asp-page="/DataPortability/Export">Export Data</a></li>
@@ -82,6 +88,26 @@
                                 <li><a class="dropdown-item text-danger" asp-page="/Account/DeleteWorkoutData">Delete All Workout Data</a></li>
                             </ul>
                         </li>
+                        @if (User.IsInRole("Coach"))
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="coachDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-person-check"></i> Coach
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="coachDropdown">
+                                    <li><a class="dropdown-item" asp-area="Coach" asp-page="/Index"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
+                                    <li><a class="dropdown-item" asp-area="Coach" asp-page="/Clients/Index"><i class="bi bi-people me-2"></i>My Clients</a></li>
+                                    <li><a class="dropdown-item" asp-area="Coach" asp-page="/ScheduledWorkouts"><i class="bi bi-calendar-check me-2"></i>Scheduled Workouts</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" asp-area="Coach" asp-page="/Templates/Index"><i class="bi bi-card-list me-2"></i>Templates</a></li>
+                                    <li><a class="dropdown-item" asp-area="Coach" asp-page="/Templates/Create"><i class="bi bi-plus-square me-2"></i>Create Template</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" asp-area="Coach" asp-page="/Reports/Index"><i class="bi bi-bar-chart me-2"></i>Reports</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="/Coach/Clients/Invite"><i class="bi bi-envelope-plus me-2"></i>Invite Client</a></li>
+                                </ul>
+                            </li>
+                        }
                         @if (User.IsInRole("Admin"))
                         {
                             <li class="nav-item dropdown">
@@ -127,7 +153,7 @@
             <a href="/Sessions/Create" class="session-shortcut-menu-item">
                 <i class="bi bi-plus-circle"></i> New Session
             </a>
-            <a href="/Templates/Index" class="session-shortcut-menu-item">
+            <a href="/Templates" class="session-shortcut-menu-item">
                 <i class="bi bi-card-list"></i> Templates
             </a>
             <a href="/Workouts/QuickWorkout" class="session-shortcut-menu-item">
@@ -214,7 +240,13 @@
                     </a>
                 </div>
                 <div class="col-4 text-center">
-                    <a href="/Templates/Index" class="d-block p-3 mobile-menu-item">
+                    <a href="/Workouts/ScheduledWorkouts" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-calendar-check fs-4 d-block mb-2"></i>
+                        Scheduled Workouts
+                    </a>
+                </div>
+                <div class="col-4 text-center">
+                    <a href="/Templates" class="d-block p-3 mobile-menu-item">
                         <i class="bi bi-card-list fs-4 d-block mb-2"></i>
                         Templates
                     </a>
@@ -231,6 +263,33 @@
                         Feedback
                     </a>
                 </div>
+                @if (User.IsInRole("Coach"))
+                {
+                    <div class="col-4 text-center">
+                        <a asp-area="Coach" asp-page="/Index" class="d-block p-3 mobile-menu-item">
+                            <i class="bi bi-person-check fs-4 d-block mb-2"></i>
+                            Coach Dashboard
+                        </a>
+                    </div>
+                    <div class="col-4 text-center">
+                        <a asp-area="Coach" asp-page="/Clients/Index" class="d-block p-3 mobile-menu-item">
+                            <i class="bi bi-people fs-4 d-block mb-2"></i>
+                            My Clients
+                        </a>
+                    </div>
+                    <div class="col-4 text-center">
+                        <a asp-area="Coach" asp-page="/Templates/Index" class="d-block p-3 mobile-menu-item">
+                            <i class="bi bi-card-list fs-4 d-block mb-2"></i>
+                            Coach Templates
+                        </a>
+                    </div>
+                    <div class="col-4 text-center">
+                        <a asp-area="Coach" asp-page="/WorkoutSchedule/Index" class="d-block p-3 mobile-menu-item">
+                            <i class="bi bi-calendar-week fs-4 d-block mb-2"></i>
+                            Scheduling
+                        </a>
+                    </div>
+                }
             </div>
         </div>
     </div>

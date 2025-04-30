@@ -27,7 +27,9 @@ namespace WorkoutTrackerWeb.Pages.Help
                 "Workout Sessions",
                 "Exercise Tracking",
                 "Progress Reports",
-                "Account Settings"
+                "Account Settings",
+                "Coaching",
+                "Sharing"
             };
 
             Videos = new List<VideoTutorial>
@@ -111,6 +113,54 @@ namespace WorkoutTrackerWeb.Pages.Help
                     EmbedUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ", // Placeholder URL
                     Duration = "4:00",
                     Category = "Account Settings"
+                },
+                new VideoTutorial
+                {
+                    Title = "Getting Started as a Coach",
+                    Description = "Learn how to set up your coaching profile and start accepting clients.",
+                    EmbedUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ",
+                    Duration = "5:30",
+                    Category = "Coaching"
+                },
+                new VideoTutorial
+                {
+                    Title = "Managing Your Client Roster",
+                    Description = "A comprehensive guide to managing your coaching clients and groups.",
+                    EmbedUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ",
+                    Duration = "6:15",
+                    Category = "Coaching"
+                },
+                new VideoTutorial
+                {
+                    Title = "Creating and Assigning Workout Templates",
+                    Description = "Learn how to create effective workout templates and assign them to clients.",
+                    EmbedUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ",
+                    Duration = "4:45",
+                    Category = "Coaching"
+                },
+                new VideoTutorial
+                {
+                    Title = "Tracking Client Progress",
+                    Description = "How to monitor and analyze your clients' workout progress.",
+                    EmbedUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ",
+                    Duration = "5:00",
+                    Category = "Coaching"
+                },
+                new VideoTutorial
+                {
+                    Title = "Sharing Your Workout Data",
+                    Description = "Learn how to securely share your workout data with others.",
+                    EmbedUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ",
+                    Duration = "3:30",
+                    Category = "Sharing"
+                },
+                new VideoTutorial
+                {
+                    Title = "Managing Shared Access",
+                    Description = "Control who can see your workout data and for how long.",
+                    EmbedUrl = "https://www.youtube.com/embed/dQw4w9WgXcQ",
+                    Duration = "4:00",
+                    Category = "Sharing"
                 }
             };
         }

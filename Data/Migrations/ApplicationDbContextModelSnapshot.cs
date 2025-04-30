@@ -74,71 +74,6 @@ namespace WorkoutTrackerWeb.Data.Migrations
                     b.ToTable("AspNetRoleClaims", (string)null);
                 });
 
-            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUser", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<int>("AccessFailedCount")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ConcurrencyStamp")
-                        .IsConcurrencyToken()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Email")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<bool>("EmailConfirmed")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("LockoutEnabled")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTimeOffset?>("LockoutEnd")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<string>("NormalizedEmail")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<string>("NormalizedUserName")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<string>("PasswordHash")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("PhoneNumber")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("PhoneNumberConfirmed")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("SecurityStamp")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("TwoFactorEnabled")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("UserName")
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("NormalizedEmail")
-                        .HasDatabaseName("EmailIndex");
-
-                    b.HasIndex("NormalizedUserName")
-                        .IsUnique()
-                        .HasDatabaseName("UserNameIndex")
-                        .HasFilter("[NormalizedUserName] IS NOT NULL");
-
-                    b.ToTable("AspNetUsers", (string)null);
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
                     b.Property<int>("Id")
@@ -265,7 +200,266 @@ namespace WorkoutTrackerWeb.Data.Migrations
 
                     b.HasKey("VersionId");
 
-                    b.ToTable("Versions");
+                    b.ToTable("Versions", (string)null);
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CoachId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ColorCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("LastModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CoachId");
+
+                    b.ToTable("ClientGroup", (string)null);
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientPermission", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("CanAssignTemplates")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanCreateGoals")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanCreateTemplates")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanCreateWorkouts")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanDeleteWorkouts")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanEditWorkouts")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanMessage")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanModifyWorkouts")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanViewPersonalInfo")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanViewReports")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanViewWorkouts")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("CoachClientRelationshipId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("LastModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CoachClientRelationshipId")
+                        .IsUnique();
+
+                    b.ToTable("CoachClientPermissions", (string)null);
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ClientGroupId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ClientId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("CoachId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("InvitationExpiryDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("InvitationToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("InvitedEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime>("LastModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientGroupId");
+
+                    b.HasIndex("ClientId");
+
+                    b.HasIndex("CoachId", "ClientId")
+                        .IsUnique()
+                        .HasFilter("[ClientId] IS NOT NULL");
+
+                    b.ToTable("CoachClientRelationships", (string)null);
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachNote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("CoachClientRelationshipId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsVisibleToClient")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CoachClientRelationshipId");
+
+                    b.ToTable("CoachNote", (string)null);
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Identity.AppUser", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("AccessFailedCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("LastModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("LockoutEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("NormalizedEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("NormalizedUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("PhoneNumberConfirmed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SecurityStamp")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("TwoFactorEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedEmail")
+                        .HasDatabaseName("EmailIndex");
+
+                    b.HasIndex("NormalizedUserName")
+                        .IsUnique()
+                        .HasDatabaseName("UserNameIndex")
+                        .HasFilter("[NormalizedUserName] IS NOT NULL");
+
+                    b.HasIndex("UserName")
+                        .IsUnique()
+                        .HasFilter("[UserName] IS NOT NULL");
+
+                    b.ToTable("AspNetUsers", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Logging.LogLevelOverride", b =>
@@ -291,7 +485,7 @@ namespace WorkoutTrackerWeb.Data.Migrations
 
                     b.HasIndex("LogLevelSettingsId");
 
-                    b.ToTable("LogLevelOverrides");
+                    b.ToTable("LogLevelOverrides", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Logging.LogLevelSettings", b =>
@@ -315,7 +509,7 @@ namespace WorkoutTrackerWeb.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("LogLevelSettings");
+                    b.ToTable("LogLevelSettings", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WhitelistedIp", b =>
@@ -347,7 +541,7 @@ namespace WorkoutTrackerWeb.Data.Migrations
                     b.HasIndex("IpAddress")
                         .IsUnique();
 
-                    b.ToTable("WhitelistedIps");
+                    b.ToTable("WhitelistedIps", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -361,7 +555,7 @@ namespace WorkoutTrackerWeb.Data.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                    b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -370,7 +564,7 @@ namespace WorkoutTrackerWeb.Data.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                    b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -385,7 +579,7 @@ namespace WorkoutTrackerWeb.Data.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                    b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -394,11 +588,68 @@ namespace WorkoutTrackerWeb.Data.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
-                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                    b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientGroup", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", "Coach")
+                        .WithMany()
+                        .HasForeignKey("CoachId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Coach");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientPermission", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship", "Relationship")
+                        .WithOne("Permissions")
+                        .HasForeignKey("WorkoutTrackerWeb.Models.Coaching.CoachClientPermission", "CoachClientRelationshipId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Relationship");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.ClientGroup", "ClientGroup")
+                        .WithMany("ClientRelationships")
+                        .HasForeignKey("ClientGroupId");
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", "Client")
+                        .WithMany("ClientRelationships")
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", "Coach")
+                        .WithMany("CoachRelationships")
+                        .HasForeignKey("CoachId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+
+                    b.Navigation("ClientGroup");
+
+                    b.Navigation("Coach");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachNote", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship", "Relationship")
+                        .WithMany("Notes")
+                        .HasForeignKey("CoachClientRelationshipId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Relationship");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Logging.LogLevelOverride", b =>
@@ -410,6 +661,25 @@ namespace WorkoutTrackerWeb.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("LogLevelSettings");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientGroup", b =>
+                {
+                    b.Navigation("ClientRelationships");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship", b =>
+                {
+                    b.Navigation("Notes");
+
+                    b.Navigation("Permissions");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Identity.AppUser", b =>
+                {
+                    b.Navigation("ClientRelationships");
+
+                    b.Navigation("CoachRelationships");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Logging.LogLevelSettings", b =>

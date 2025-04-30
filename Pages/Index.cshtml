@@ -19,9 +19,9 @@
                         <ul class="list-group list-group-flush">
                             <li class="list-group-item"><a href="/Sessions/Index/" class="btn btn-primary btn-sm">Manage Workouts</a></li>
                             <li class="list-group-item"><a href="/Workouts/QuickWorkout" class="btn btn-primary btn-sm">Quick Workout</a></li>
-                            <li class="list-group-item"><a href="/Reports/Index/" class="btn btn-primary btn-sm">Reports</a></li>
-                            <li class="list-group-item"><a href="/Calculator/OneRepMax" class="btn btn-primary btn-sm">1RM Calculator</a></li>
-                            
+                            <li class="list-group-item"><a href="/Goals/Index" class="btn btn-primary btn-sm">Manage Goals</a></li>
+                            <li class="list-group-item"><a href="Templates/Templates/List" class="btn btn-primary btn-sm">Templates</a></li>
+                            <li class="list-group-item"><a href="Workouts/ScheduledWorkouts" class="btn btn-primary btn-sm">Scheduled Workouts</a></li>
                         </ul>
                     </div>
                 </div>
@@ -35,11 +35,16 @@
                         <ul class="list-group list-group-flush">
                             <li class="list-group-item"><a href="/ExerciseTypes/Index/" class="btn btn-primary btn-sm">Exercise Types</a></li>
                             <li class="list-group-item"><a href="/SetTypes/Index/" class="btn btn-primary btn-sm">Set Types</a></li>
-                            <li class="list-group-item"><a href="/Templates/Index/" class="btn btn-primary btn-sm">Templates</a></li>
+                            <li class="list-group-item"><a href="/Reports/Index/" class="btn btn-primary btn-sm">Reports</a></li>
+                            <li class="list-group-item"><a href="/Calculator/OneRepMax" class="btn btn-primary btn-sm">1RM Calculator</a></li>
                         </ul>
                     </div>
                 </div>
             </div>
         </div>
+    }
+    else
+    {
+        <p class="lead">Please <a asp-area="Identity" asp-page="/Account/Login">log in</a> to access your dashboard.</p>
     }
 </div>

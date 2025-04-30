@@ -87,6 +87,7 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 // Update only allowed fields
                 sessionToUpdate.Name = Session.Name;
                 sessionToUpdate.datetime = Session.datetime;
+                sessionToUpdate.endtime = Session.endtime;
                 // UserId is preserved from the original record
                 
                 await _context.SaveChangesAsync();

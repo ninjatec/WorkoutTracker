@@ -9,6 +9,7 @@ using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Services;
 using Microsoft.AspNetCore.Authorization;
+using System.ComponentModel.DataAnnotations;
 
 namespace WorkoutTrackerWeb.Pages.Sessions
 {
@@ -54,39 +55,53 @@ namespace WorkoutTrackerWeb.Pages.Sessions
             
             if (currentUserId != null)
             {
-                // Get only sessions belonging to the current user
-                var sessionsQuery = _context.Session
+                // Get current user's sessions
+                var userSessions = await _context.Session
                     .Include(s => s.User)
                     .Where(s => s.UserId == currentUserId)
-                    .AsNoTracking();
+                    .OrderByDescending(s => s.datetime)
+                    .ToListAsync();
 
                 // Apply search filter if any
                 if (!String.IsNullOrEmpty(searchString))
                 {
-                    sessionsQuery = sessionsQuery.Where(s => 
-                        s.Name.Contains(searchString));
+                    userSessions = userSessions.Where(s => 
+                        s.Name.Contains(searchString)).ToList();
                 }
 
                 // Apply sorting
                 switch (sortOrder)
                 {
                     case "name":
-                        sessionsQuery = sessionsQuery.OrderBy(s => s.Name);
+                        userSessions = userSessions.OrderBy(s => s.Name).ToList();
                         break;
                     case "name_desc":
-                        sessionsQuery = sessionsQuery.OrderByDescending(s => s.Name);
+                        userSessions = userSessions.OrderByDescending(s => s.Name).ToList();
                         break;
                     case "date_asc":
-                        sessionsQuery = sessionsQuery.OrderBy(s => s.datetime);
+                        userSessions = userSessions.OrderBy(s => s.datetime).ToList();
                         break;
                     default:
-                        sessionsQuery = sessionsQuery.OrderByDescending(s => s.datetime); // Default to newest first
+                        userSessions = userSessions.OrderByDescending(s => s.datetime).ToList(); // Default to newest first
                         break;
                 }
 
                 int pageSize = 10;
+                var sessionsQuery = userSessions.AsQueryable();
                 Session = await PaginatedList<Session>.CreateAsync(
                     sessionsQuery, pageIndex ?? 1, pageSize);
+                
+                // After getting the paginated sessions, load the associated workout session statuses
+                foreach (var session in Session)
+                {
+                    var workoutSession = await _context.WorkoutSessions
+                        .FirstOrDefaultAsync(ws => ws.UserId == session.UserId && 
+                                             ws.StartDateTime == session.StartDateTime);
+                    if (workoutSession != null)
+                    {
+                        session.WorkoutSessionStatus = workoutSession.Status;
+                    }
+                }
             }
             else
             {

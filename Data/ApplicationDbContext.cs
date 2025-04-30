@@ -2,10 +2,12 @@
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Models.Logging;
+using WorkoutTrackerWeb.Models.Identity;
+using WorkoutTrackerWeb.Models.Coaching;
 
 namespace WorkoutTrackerWeb.Data;
 
-public class ApplicationDbContext : IdentityDbContext
+public class ApplicationDbContext : IdentityDbContext<AppUser>
 {
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
         : base(options)
@@ -20,10 +22,19 @@ public class ApplicationDbContext : IdentityDbContext
     
     public DbSet<WhitelistedIp> WhitelistedIps { get; set; }
     
+    public DbSet<CoachClientRelationship> CoachClientRelationships { get; set; }
+    
+    public DbSet<CoachClientPermission> CoachClientPermissions { get; set; }
+    
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
         
+        // Add index on UserName to enforce uniqueness
+        builder.Entity<AppUser>()
+            .HasIndex(u => u.UserName)
+            .IsUnique();
+            
         // Configure relationships for log level settings
         builder.Entity<LogLevelSettings>()
             .HasMany(s => s.Overrides)
@@ -35,5 +46,31 @@ public class ApplicationDbContext : IdentityDbContext
         builder.Entity<WhitelistedIp>()
             .HasIndex(w => w.IpAddress)
             .IsUnique();
+
+        // Configure CoachClientRelationship relationships
+        builder.Entity<CoachClientRelationship>()
+            .HasOne(r => r.Coach)
+            .WithMany(u => u.CoachRelationships)
+            .HasForeignKey(r => r.CoachId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.Entity<CoachClientRelationship>()
+            .HasOne(r => r.Client)
+            .WithMany(u => u.ClientRelationships)
+            .HasForeignKey(r => r.ClientId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        // Configure unique constraint on CoachId and ClientId combination
+        builder.Entity<CoachClientRelationship>()
+            .HasIndex(r => new { r.CoachId, r.ClientId })
+            .IsUnique()
+            .HasFilter("[ClientId] IS NOT NULL");
+
+        // Configure CoachClientPermission one-to-one relationship
+        builder.Entity<CoachClientRelationship>()
+            .HasOne(r => r.Permissions)
+            .WithOne(p => p.Relationship)
+            .HasForeignKey<CoachClientPermission>(p => p.CoachClientRelationshipId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

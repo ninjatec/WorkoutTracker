@@ -88,52 +88,66 @@ namespace WorkoutTrackerWeb.Pages.Templates
                 EstimatedCalories = 0
             };
 
-            // Start a transaction to ensure all gets created or nothing does
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            // Create an execution strategy for the transaction
+            var strategy = _context.Database.CreateExecutionStrategy();
+
             try
             {
-                // First add the session to get a SessionId
-                _context.Session.Add(session);
-                await _context.SaveChangesAsync();
-
-                // Create sets from template exercises in batch instead of one by one
-                var newSets = new List<Set>();
-                
-                foreach (var templateExercise in template.TemplateExercises.OrderBy(e => e.SequenceNum))
+                // Execute everything in a resilient transaction
+                await strategy.ExecuteAsync(async () =>
                 {
-                    // For each template set in this exercise, create a real set
-                    foreach (var templateSet in templateExercise.TemplateSets.OrderBy(s => s.SequenceNum))
+                    // Start the transaction within the execution strategy
+                    using var transaction = await _context.Database.BeginTransactionAsync();
+                    try
                     {
-                        var set = new Set
-                        {
-                            SessionId = session.SessionId,
-                            ExerciseTypeId = templateExercise.ExerciseTypeId,
-                            SettypeId = templateSet.SettypeId,
-                            Description = templateSet.Description,
-                            Notes = templateSet.Notes,
-                            NumberReps = templateSet.DefaultReps,
-                            Weight = templateSet.DefaultWeight,
-                            SequenceNum = templateSet.SequenceNum,
-                            // Initialize NotMapped properties
-                            Volume = templateSet.DefaultWeight * templateSet.DefaultReps,
-                            EstimatedCalories = 0
-                        };
+                        // First add the session to get a SessionId
+                        _context.Session.Add(session);
+                        await _context.SaveChangesAsync();
 
-                        newSets.Add(set);
+                        // Create sets from template exercises in batch instead of one by one
+                        var newSets = new List<Set>();
+                        
+                        foreach (var templateExercise in template.TemplateExercises.OrderBy(e => e.SequenceNum))
+                        {
+                            // For each template set in this exercise, create a real set
+                            foreach (var templateSet in templateExercise.TemplateSets.OrderBy(s => s.SequenceNum))
+                            {
+                                var set = new Set
+                                {
+                                    SessionId = session.SessionId,
+                                    ExerciseTypeId = templateExercise.ExerciseTypeId,
+                                    SettypeId = templateSet.SettypeId,
+                                    Description = templateSet.Description,
+                                    Notes = templateSet.Notes,
+                                    NumberReps = templateSet.DefaultReps,
+                                    Weight = templateSet.DefaultWeight,
+                                    SequenceNum = templateSet.SequenceNum,
+                                    // Initialize NotMapped properties
+                                    Volume = templateSet.DefaultWeight * templateSet.DefaultReps,
+                                    EstimatedCalories = 0
+                                };
+
+                                newSets.Add(set);
+                            }
+                        }
+                        
+                        // Add all sets at once
+                        _context.Set.AddRange(newSets);
+                        await _context.SaveChangesAsync();
+                        await transaction.CommitAsync();
                     }
-                }
-                
-                // Add all sets at once
-                _context.Set.AddRange(newSets);
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
+                    catch
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                });
 
                 // Redirect to the new session
                 return RedirectToPage("/Sessions/Details", new { id = session.SessionId });
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
                 // Log the exception for debugging
                 Console.WriteLine($"Error creating workout from template: {ex.Message}");
                 throw;

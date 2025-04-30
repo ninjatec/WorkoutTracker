@@ -144,7 +144,7 @@ try
             DisableGlobalLocks = false, // Enable global locks for distributed environment
             SchemaName = "HangFire",
             PrepareSchemaIfNecessary = true // Enable auto schema creation
-        }));
+        })); // Removed .UseConsole() which was causing build errors
 
     // Get Hangfire configuration to determine if we should register this instance as a server
     using (var scope = builder.Services.BuildServiceProvider().CreateScope())
@@ -223,7 +223,7 @@ try
         .SetDefaultKeyLifetime(TimeSpan.FromDays(90)); // Rotate keys every 90 days
 
     // Configure Identity to require confirmed account and customizable password requirements
-    builder.Services.AddDefaultIdentity<IdentityUser>(options => 
+    builder.Services.AddDefaultIdentity<WorkoutTrackerWeb.Models.Identity.AppUser>(options => 
     {
         options.SignIn.RequireConfirmedAccount = true;
         options.SignIn.RequireConfirmedEmail = true;
@@ -232,14 +232,24 @@ try
         options.Password.RequireUppercase = true;
         options.Password.RequireNonAlphanumeric = true;
         options.Password.RequiredLength = 8;
+        
+        // Configure username requirements
+        options.User.RequireUniqueEmail = true;
+        options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
     })
         .AddRoles<IdentityRole>() // Add role services
-        .AddEntityFrameworkStores<ApplicationDbContext>();
+        .AddEntityFrameworkStores<ApplicationDbContext>()
+        .AddUserValidator<CustomUserValidator>(); // Register our custom user validator
+
+    // Register CustomUsernameManager service for handling unique usernames
+    builder.Services.AddScoped<CustomUsernameManager>();
 
     // Configure Authorization policies for Admin role
     builder.Services.AddAuthorization(options =>
     {
         options.AddPolicy("RequireAdminRole", policy => policy.RequireRole("Admin"));
+        // Add Coach role policy
+        options.AddPolicy("RequireCoachRole", policy => policy.RequireRole("Coach"));
     });
 
     // Configure email service
@@ -492,6 +502,27 @@ try
     builder.Services.AddScoped<IVolumeCalculationService, VolumeCalculationService>();
     builder.Services.AddScoped<ICalorieCalculationService, CalorieCalculationService>();
 
+    // Register coaching services
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.ICoachingService, WorkoutTrackerWeb.Services.Coaching.CoachingService>();
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.GoalQueryService>();
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.GoalProgressService>();
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.GoalOperationsService>();
+    
+    // Register validation services
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Validation.CoachingValidationService>();
+
+    // Register workout scheduling services
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Scheduling.ScheduledWorkoutProcessorService>();
+    builder.Services.Configure<WorkoutTrackerWeb.Services.Scheduling.ScheduledWorkoutProcessorOptions>(builder.Configuration.GetSection("ScheduledWorkoutProcessor"));
+
+    // Register workout scheduling job registration services
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.WorkoutSchedulingJobsRegistration>();
+
+    // Register workout reminder services
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Scheduling.WorkoutReminderService>();
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsService>();
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsRegistration>();
+
     // Add session state with Redis caching and JSON serialization
     builder.Services.AddSession(options =>
     {
@@ -521,7 +552,18 @@ try
     });
 
     // Add Output Cache with Redis as the backing store if Redis is configured
-    if (builder.Services.Any(s => s.ServiceType == typeof(IConnectionMultiplexer)))
+    if (builder.Environment.IsDevelopment())
+    {
+        // Disable output cache in development to ensure it's not impacting testing
+        builder.Services.AddOutputCache(options =>
+        {
+            options.DefaultExpirationTimeSpan = TimeSpan.Zero;
+            options.MaximumBodySize = 0;
+            options.SizeLimit = 0;
+        });
+        Log.Information("Disabled OutputCache in development environment for testing");
+    }
+    else if (builder.Services.Any(s => s.ServiceType == typeof(IConnectionMultiplexer)))
     {
         // Use Redis as distributed cache for OutputCache in production
         builder.Services.AddStackExchangeRedisOutputCache(options =>
@@ -535,7 +577,7 @@ try
     }
     else 
     {
-        // Use memory cache in development
+        // Use memory cache in other environments
         builder.Services.AddOutputCache();
         Log.Information("Configured OutputCache with memory backend");
     }
@@ -885,7 +927,7 @@ try
         options.Events.OnSignedIn = async context =>
         {
             var userManager = context.HttpContext.RequestServices
-                .GetRequiredService<UserManager<IdentityUser>>();
+                .GetRequiredService<UserManager<WorkoutTrackerWeb.Models.Identity.AppUser>>();
             var loginHistoryService = context.HttpContext.RequestServices
                 .GetRequiredService<LoginHistoryService>();
             
@@ -946,6 +988,9 @@ try
     // Use ForwardedHeaders middleware early in the pipeline to handle proxy headers
     app.UseForwardedHeaders();
 
+    // Add InvitationRedirectMiddleware early in the pipeline, right after ForwardedHeaders
+    app.UseInvitationRedirect();
+
     // Add Content Security Policy middleware
     app.Use(async (context, next) =>
     {
@@ -956,7 +1001,7 @@ try
             "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css 'unsafe-inline'; " + 
             "img-src 'self' data: https://cdn.jsdelivr.net; " + 
             "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
-            "connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online " +
+            "connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online " +
                              "wss://wot.ninjatec.co.uk wss://workouttracker.online wss://www.workouttracker.online " +
                              "ws://wot.ninjatec.co.uk ws://workouttracker.online ws://www.workouttracker.online wss://* ws://*; " +
             "frame-src 'self'; " +
@@ -1032,6 +1077,42 @@ try
         Log.Error(ex, "Error registering alerting jobs");
     }
 
+    // Register Workout Scheduling jobs
+    try {
+        using (var scope = app.Services.CreateScope())
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogInformation("Registering workout scheduling jobs");
+            
+            var workoutSchedulingJobsRegistration = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.WorkoutSchedulingJobsRegistration>();
+            workoutSchedulingJobsRegistration.RegisterWorkoutSchedulingJobs();
+            
+            logger.LogInformation("Workout scheduling jobs registered successfully");
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Error registering workout scheduling jobs");
+    }
+
+    // Register Workout Reminder jobs
+    try {
+        using (var scope = app.Services.CreateScope())
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogInformation("Registering workout reminder jobs");
+            
+            var workoutReminderJobsRegistration = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsRegistration>();
+            workoutReminderJobsRegistration.RegisterWorkoutReminderJobs();
+            
+            logger.LogInformation("Workout reminder jobs registered successfully");
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Error registering workout reminder jobs");
+    }
+
     // Add request metrics middleware before routing
     app.UseHttpMetrics();
 
@@ -1052,6 +1133,9 @@ try
 
     // Apply IP rate limiting
     app.UseIpRateLimiting();
+    
+    // Register our Rate Limit Bypass middleware AFTER IP rate limiting
+    app.UseRateLimitBypass();
 
     // Use CORS with our production domain policy
     app.UseCors("ProductionDomainPolicy");

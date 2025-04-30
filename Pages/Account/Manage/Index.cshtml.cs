@@ -1,20 +1,22 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using WorkoutTrackerWeb.Models.Identity;
 
 namespace WorkoutTrackerWeb.Pages.Account.Manage
 {
     [Authorize]
     public class AccountManagementModel : PageModel
     {
-        private readonly UserManager<IdentityUser> _userManager;
-        private readonly SignInManager<IdentityUser> _signInManager;
+        private readonly UserManager<AppUser> _userManager;
+        private readonly SignInManager<AppUser> _signInManager;
 
         public AccountManagementModel(
-            UserManager<IdentityUser> userManager,
-            SignInManager<IdentityUser> signInManager)
+            UserManager<AppUser> userManager,
+            SignInManager<AppUser> signInManager)
         {
             _userManager = userManager;
             _signInManager = signInManager;
@@ -32,17 +34,37 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
             [EmailAddress]
             [Display(Name = "Email")]
             public string Email { get; set; }
+            
+            [Required]
+            [Display(Name = "Username")]
+            public string UserName { get; set; }
+
+            [Display(Name = "Phone Number")]
+            [Phone]
+            public string PhoneNumber { get; set; }
 
             [Display(Name = "Current Password")]
             [DataType(DataType.Password)]
             public string Password { get; set; }
+
+            [Display(Name = "Account Created")]
+            [DisplayFormat(DataFormatString = "{0:yyyy-MM-dd HH:mm}")]
+            public DateTime CreatedDate { get; set; }
+
+            [Display(Name = "Last Updated")]
+            [DisplayFormat(DataFormatString = "{0:yyyy-MM-dd HH:mm}")]
+            public DateTime LastModifiedDate { get; set; }
         }
 
-        private async Task LoadAsync(IdentityUser user)
+        private async Task LoadAsync(AppUser user)
         {
             Input = new InputModel
             {
-                Email = user.Email
+                Email = user.Email,
+                UserName = user.UserName,
+                PhoneNumber = user.PhoneNumber,
+                CreatedDate = user.CreatedDate,
+                LastModifiedDate = user.LastModifiedDate
             };
         }
 
@@ -85,6 +107,38 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
                     return Page();
                 }
             }
+
+            if (Input.UserName != user.UserName)
+            {
+                var setUsernameResult = await _userManager.SetUserNameAsync(user, Input.UserName);
+                if (!setUsernameResult.Succeeded)
+                {
+                    foreach (var error in setUsernameResult.Errors)
+                    {
+                        ModelState.AddModelError(string.Empty, error.Description);
+                    }
+                    await LoadAsync(user);
+                    return Page();
+                }
+            }
+
+            if (Input.PhoneNumber != user.PhoneNumber)
+            {
+                var setPhoneResult = await _userManager.SetPhoneNumberAsync(user, Input.PhoneNumber);
+                if (!setPhoneResult.Succeeded)
+                {
+                    foreach (var error in setPhoneResult.Errors)
+                    {
+                        ModelState.AddModelError(string.Empty, error.Description);
+                    }
+                    await LoadAsync(user);
+                    return Page();
+                }
+            }
+
+            // Update the LastModifiedDate field
+            user.LastModifiedDate = DateTime.UtcNow;
+            await _userManager.UpdateAsync(user);
 
             if (!string.IsNullOrEmpty(Input.Password))
             {

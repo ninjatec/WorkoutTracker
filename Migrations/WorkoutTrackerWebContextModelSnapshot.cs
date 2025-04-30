@@ -312,6 +312,1061 @@ namespace WorkoutTrackerWeb.Migrations
                     b.ToTable("Notification");
                 });
 
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientActivity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("ActivityDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ActivityType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ClientId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("CoachId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsViewedByCoach")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("RelatedEntityId")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("RelatedEntityType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("ViewedByCoachDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActivityDate");
+
+                    b.HasIndex("ClientId");
+
+                    b.HasIndex("CoachId");
+
+                    b.HasIndex("IsViewedByCoach");
+
+                    b.ToTable("ClientActivities");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientEquipment", b =>
+                {
+                    b.Property<int>("ClientEquipmentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ClientEquipmentId"));
+
+                    b.Property<int>("ClientUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("EquipmentName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsAvailable")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Location")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("ClientEquipmentId");
+
+                    b.HasIndex("ClientUserId");
+
+                    b.HasIndex("IsAvailable");
+
+                    b.ToTable("ClientEquipments");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientExerciseExclusion", b =>
+                {
+                    b.Property<int>("ClientExerciseExclusionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ClientExerciseExclusionId"));
+
+                    b.Property<int>("ClientUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CreatedByCoachId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ExerciseTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("ClientExerciseExclusionId");
+
+                    b.HasIndex("ClientUserId");
+
+                    b.HasIndex("CreatedByCoachId");
+
+                    b.HasIndex("ExerciseTypeId");
+
+                    b.HasIndex("IsActive");
+
+                    b.ToTable("ClientExerciseExclusions");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientGoal", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Category")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CoachClientRelationshipId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("CompletedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CompletionCriteria")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("CurrentValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("CustomCategory")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsCoachCreated")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsVisibleToCoach")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastProgressUpdate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("MeasurementType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("MeasurementUnit")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal?>("StartValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("TargetDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("TargetValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("TrackingFrequency")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CoachClientRelationshipId");
+
+                    b.HasIndex("IsActive");
+
+                    b.ToTable("ClientGoals");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CoachId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ColorCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("LastModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CoachId");
+
+                    b.ToTable("ClientGroups");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientGroupMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AddedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ClientGroupId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CoachClientRelationshipId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientGroupId");
+
+                    b.HasIndex("CoachClientRelationshipId");
+
+                    b.ToTable("ClientGroupMembers");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientMessage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AttachmentType")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("AttachmentUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("CoachClientRelationshipId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsFromCoach")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ReadDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("SentDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CoachClientRelationshipId");
+
+                    b.ToTable("CoachClientMessages");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientPermission", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("CanAssignTemplates")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanCreateGoals")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanCreateTemplates")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanCreateWorkouts")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanDeleteWorkouts")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanEditWorkouts")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanMessage")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanModifyWorkouts")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanViewPersonalInfo")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanViewReports")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CanViewWorkouts")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("CoachClientRelationshipId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("LastModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CoachClientRelationshipId")
+                        .IsUnique();
+
+                    b.ToTable("CoachClientPermissions");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AppUserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("AppUserId1")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int?>("ClientGroupId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ClientId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("CoachId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("InvitationExpiryDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("InvitationToken")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("InvitedEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime>("LastModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppUserId");
+
+                    b.HasIndex("AppUserId1");
+
+                    b.HasIndex("ClientGroupId");
+
+                    b.HasIndex("ClientId");
+
+                    b.HasIndex("CoachId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("CoachId", "ClientId")
+                        .IsUnique()
+                        .HasFilter("[ClientId] IS NOT NULL");
+
+                    b.ToTable("CoachClientRelationships");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachNote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("CoachClientRelationshipId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsVisibleToClient")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("UpdatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CoachClientRelationshipId");
+
+                    b.HasIndex("IsVisibleToClient");
+
+                    b.ToTable("CoachNotes");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ExerciseFeedback", b =>
+                {
+                    b.Property<int>("ExerciseFeedbackId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ExerciseFeedbackId"));
+
+                    b.Property<string>("Comments")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Difficulty")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RPE")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SetId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("TooHeavy")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("TooLight")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("WorkoutFeedbackId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ExerciseFeedbackId");
+
+                    b.HasIndex("SetId");
+
+                    b.HasIndex("WorkoutFeedbackId");
+
+                    b.ToTable("ExerciseFeedbacks");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ExerciseSubstitution", b =>
+                {
+                    b.Property<int>("ExerciseSubstitutionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ExerciseSubstitutionId"));
+
+                    b.Property<int>("CreatedByCoachId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EquipmentRequired")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("EquivalencePercentage")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsGlobal")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("MovementPattern")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("MusclesTargeted")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("PrimaryExerciseTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubstituteExerciseTypeId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ExerciseSubstitutionId");
+
+                    b.HasIndex("CreatedByCoachId");
+
+                    b.HasIndex("IsGlobal");
+
+                    b.HasIndex("MovementPattern");
+
+                    b.HasIndex("PrimaryExerciseTypeId");
+
+                    b.HasIndex("SubstituteExerciseTypeId");
+
+                    b.ToTable("ExerciseSubstitutions");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.GoalFeedback", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CoachId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FeedbackType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("GoalId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("ReadDate")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CoachId");
+
+                    b.HasIndex("GoalId");
+
+                    b.HasIndex("IsRead");
+
+                    b.ToTable("GoalFeedback");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.GoalMilestone", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("GoalId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsAutomaticUpdate")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ProgressPercentage")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReferenceId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("Value")
+                        .HasColumnType("decimal(10, 2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Date");
+
+                    b.HasIndex("GoalId");
+
+                    b.ToTable("GoalMilestones");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ProgressionHistory", b =>
+                {
+                    b.Property<int>("ProgressionHistoryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProgressionHistoryId"));
+
+                    b.Property<string>("ActionTaken")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("ApplicationDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("AppliedAutomatically")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CoachOverride")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("NewValue")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("PreviousValue")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int>("ProgressionRuleId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int?>("SessionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ProgressionHistoryId");
+
+                    b.HasIndex("ApplicationDate");
+
+                    b.HasIndex("ProgressionRuleId");
+
+                    b.HasIndex("SessionId");
+
+                    b.ToTable("ProgressionHistories");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ProgressionRule", b =>
+                {
+                    b.Property<int>("ProgressionRuleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ProgressionRuleId"));
+
+                    b.Property<bool>("ApplyDeload")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("ClientUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CoachUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ConsecutiveFailuresForDeload")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ConsecutiveSuccessesRequired")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("DeloadPercentage")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<decimal>("IncrementValue")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("LastModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("MaximumValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Parameter")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("RuleType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("SuccessThreshold")
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<int?>("WorkoutTemplateExerciseId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("WorkoutTemplateSetId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ProgressionRuleId");
+
+                    b.HasIndex("ClientUserId");
+
+                    b.HasIndex("CoachUserId");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("WorkoutTemplateExerciseId");
+
+                    b.HasIndex("WorkoutTemplateSetId");
+
+                    b.ToTable("ProgressionRules");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.TemplateAssignment", b =>
+                {
+                    b.Property<int>("TemplateAssignmentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TemplateAssignmentId"));
+
+                    b.Property<DateTime>("AssignedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ClientGroupName")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<bool>("ClientNotified")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("ClientRelationshipId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ClientUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CoachNotes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("CoachUserId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("WorkoutTemplateId")
+                        .HasColumnType("int");
+
+                    b.HasKey("TemplateAssignmentId");
+
+                    b.HasIndex("ClientRelationshipId");
+
+                    b.HasIndex("ClientUserId");
+
+                    b.HasIndex("CoachUserId");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("WorkoutTemplateId");
+
+                    b.ToTable("TemplateAssignments");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.WorkoutFeedback", b =>
+                {
+                    b.Property<int>("WorkoutFeedbackId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WorkoutFeedbackId"));
+
+                    b.Property<int>("ClientUserId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("CoachNotified")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("CoachViewed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Comments")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<bool>("CompletedAllExercises")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("DifficultyRating")
+                        .HasColumnType("int");
+
+                    b.Property<int>("EnergyLevel")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("FeedbackDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("IncompleteReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("OverallRating")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SessionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("WorkoutFeedbackId");
+
+                    b.HasIndex("ClientUserId");
+
+                    b.HasIndex("CoachNotified");
+
+                    b.HasIndex("CoachViewed");
+
+                    b.HasIndex("SessionId");
+
+                    b.ToTable("WorkoutFeedbacks");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.WorkoutSchedule", b =>
+                {
+                    b.Property<int>("WorkoutScheduleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WorkoutScheduleId"));
+
+                    b.Property<int>("ClientUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CoachUserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRecurring")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("LastGeneratedSessionId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("LastGeneratedWorkoutDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastGenerationStatus")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("LastReminderSent")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("MultipleDaysOfWeek")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("RecurrenceDayOfMonth")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("RecurrenceDayOfWeek")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RecurrencePattern")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("ReminderHoursBefore")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("ScheduledDateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("SendReminder")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("TemplateAssignmentId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TemplateAssignmentId1")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TemplateId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalWorkoutsGenerated")
+                        .HasColumnType("int");
+
+                    b.HasKey("WorkoutScheduleId");
+
+                    b.HasIndex("ClientUserId");
+
+                    b.HasIndex("CoachUserId");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("LastGeneratedSessionId");
+
+                    b.HasIndex("TemplateAssignmentId");
+
+                    b.HasIndex("TemplateAssignmentId1");
+
+                    b.HasIndex("TemplateId");
+
+                    b.ToTable("WorkoutSchedules");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Equipment", b =>
+                {
+                    b.Property<int>("EquipmentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EquipmentId"));
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("EquipmentId");
+
+                    b.ToTable("Equipment");
+                });
+
             modelBuilder.Entity("WorkoutTrackerWeb.Models.ExerciseType", b =>
                 {
                     b.Property<int>("ExerciseTypeId")
@@ -319,6 +1374,10 @@ namespace WorkoutTrackerWeb.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ExerciseTypeId"));
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
@@ -350,6 +1409,14 @@ namespace WorkoutTrackerWeb.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PrimaryMuscles")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("SecondaryMuscles")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("Type")
                         .HasMaxLength(50)
@@ -565,6 +1632,64 @@ namespace WorkoutTrackerWeb.Migrations
                     b.ToTable("HelpCategory");
                 });
 
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Identity.AppUser", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("AccessFailedCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("LastModifiedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("LockoutEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("NormalizedEmail")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("NormalizedUserName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("PhoneNumberConfirmed")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SecurityStamp")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("TwoFactorEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("UserName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AppUser");
+                });
+
             modelBuilder.Entity("WorkoutTrackerWeb.Models.LoginHistory", b =>
                 {
                     b.Property<int>("Id")
@@ -690,10 +1815,16 @@ namespace WorkoutTrackerWeb.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<DateTime>("StartDateTime")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
                     b.Property<DateTime>("datetime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("endtime")
                         .HasColumnType("datetime2");
 
                     b.HasKey("SessionId");
@@ -847,6 +1978,185 @@ namespace WorkoutTrackerWeb.Migrations
                     b.ToTable("User");
                 });
 
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutExercise", b =>
+                {
+                    b.Property<int>("WorkoutExerciseId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WorkoutExerciseId"));
+
+                    b.Property<DateTime?>("EndTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("EquipmentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ExerciseTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("RestPeriodSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SequenceNum")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("StartTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("WorkoutSessionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("WorkoutExerciseId");
+
+                    b.HasIndex("EquipmentId");
+
+                    b.HasIndex("ExerciseTypeId");
+
+                    b.HasIndex("WorkoutSessionId");
+
+                    b.ToTable("WorkoutExercises");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutSession", b =>
+                {
+                    b.Property<int>("WorkoutSessionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WorkoutSessionId"));
+
+                    b.Property<DateTime?>("CompletedDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Duration")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("EndDateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsFromCoach")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("StartDateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("StartTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int?>("TemplateAssignmentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TemplatesUsed")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("WorkoutFeedbackId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("WorkoutTemplateId")
+                        .HasColumnType("int");
+
+                    b.HasKey("WorkoutSessionId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("WorkoutFeedbackId");
+
+                    b.HasIndex("WorkoutTemplateId");
+
+                    b.ToTable("WorkoutSessions");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutSet", b =>
+                {
+                    b.Property<int>("WorkoutSetId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WorkoutSetId"));
+
+                    b.Property<decimal?>("DistanceMeters")
+                        .HasColumnType("decimal(10, 2)");
+
+                    b.Property<int?>("DurationSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("RPE")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("Reps")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("RestSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SequenceNum")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SetNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("SettypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TargetMaxReps")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TargetMinReps")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("Weight")
+                        .HasColumnType("decimal(10, 2)");
+
+                    b.Property<int>("WorkoutExerciseId")
+                        .HasColumnType("int");
+
+                    b.HasKey("WorkoutSetId");
+
+                    b.HasIndex("SettypeId");
+
+                    b.HasIndex("WorkoutExerciseId");
+
+                    b.ToTable("WorkoutSets");
+                });
+
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutTemplate", b =>
                 {
                     b.Property<int>("WorkoutTemplateId")
@@ -901,20 +2211,40 @@ namespace WorkoutTrackerWeb.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WorkoutTemplateExerciseId"));
 
+                    b.Property<int?>("EquipmentId")
+                        .HasColumnType("int");
+
                     b.Property<int>("ExerciseTypeId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MaxReps")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinReps")
                         .HasColumnType("int");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int");
+
+                    b.Property<int>("RestSeconds")
+                        .HasColumnType("int");
+
                     b.Property<int>("SequenceNum")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Sets")
                         .HasColumnType("int");
 
                     b.Property<int>("WorkoutTemplateId")
                         .HasColumnType("int");
 
                     b.HasKey("WorkoutTemplateExerciseId");
+
+                    b.HasIndex("EquipmentId");
 
                     b.HasIndex("ExerciseTypeId");
 
@@ -1018,6 +2348,381 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Navigation("Alert");
                 });
 
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientActivity", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", "Coach")
+                        .WithMany()
+                        .HasForeignKey("CoachId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Client");
+
+                    b.Navigation("Coach");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientEquipment", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.User", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientExerciseExclusion", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.User", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.User", "CreatedByCoach")
+                        .WithMany()
+                        .HasForeignKey("CreatedByCoachId");
+
+                    b.HasOne("WorkoutTrackerWeb.Models.ExerciseType", "ExerciseType")
+                        .WithMany()
+                        .HasForeignKey("ExerciseTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+
+                    b.Navigation("CreatedByCoach");
+
+                    b.Navigation("ExerciseType");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientGoal", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship", "Relationship")
+                        .WithMany()
+                        .HasForeignKey("CoachClientRelationshipId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Relationship");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientGroup", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", "Coach")
+                        .WithMany()
+                        .HasForeignKey("CoachId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Coach");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientGroupMember", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.ClientGroup", "ClientGroup")
+                        .WithMany()
+                        .HasForeignKey("ClientGroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship", "Relationship")
+                        .WithMany()
+                        .HasForeignKey("CoachClientRelationshipId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ClientGroup");
+
+                    b.Navigation("Relationship");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientMessage", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship", "Relationship")
+                        .WithMany()
+                        .HasForeignKey("CoachClientRelationshipId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Relationship");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientPermission", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship", "Relationship")
+                        .WithOne("Permissions")
+                        .HasForeignKey("WorkoutTrackerWeb.Models.Coaching.CoachClientPermission", "CoachClientRelationshipId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Relationship");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", null)
+                        .WithMany("ClientRelationships")
+                        .HasForeignKey("AppUserId");
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", null)
+                        .WithMany("CoachRelationships")
+                        .HasForeignKey("AppUserId1");
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.ClientGroup", "ClientGroup")
+                        .WithMany("ClientRelationships")
+                        .HasForeignKey("ClientGroupId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", "Coach")
+                        .WithMany()
+                        .HasForeignKey("CoachId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+
+                    b.Navigation("ClientGroup");
+
+                    b.Navigation("Coach");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachNote", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship", "Relationship")
+                        .WithMany("Notes")
+                        .HasForeignKey("CoachClientRelationshipId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Relationship");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ExerciseFeedback", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Set", "Set")
+                        .WithMany()
+                        .HasForeignKey("SetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.WorkoutFeedback", "WorkoutFeedback")
+                        .WithMany("ExerciseFeedbacks")
+                        .HasForeignKey("WorkoutFeedbackId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Set");
+
+                    b.Navigation("WorkoutFeedback");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ExerciseSubstitution", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.User", "CreatedByCoach")
+                        .WithMany()
+                        .HasForeignKey("CreatedByCoachId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.ExerciseType", "PrimaryExercise")
+                        .WithMany()
+                        .HasForeignKey("PrimaryExerciseTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.ExerciseType", "SubstituteExercise")
+                        .WithMany()
+                        .HasForeignKey("SubstituteExerciseTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByCoach");
+
+                    b.Navigation("PrimaryExercise");
+
+                    b.Navigation("SubstituteExercise");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.GoalFeedback", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", "Coach")
+                        .WithMany()
+                        .HasForeignKey("CoachId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.ClientGoal", "Goal")
+                        .WithMany()
+                        .HasForeignKey("GoalId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Coach");
+
+                    b.Navigation("Goal");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.GoalMilestone", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.ClientGoal", "Goal")
+                        .WithMany()
+                        .HasForeignKey("GoalId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Goal");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ProgressionHistory", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.ProgressionRule", "ProgressionRule")
+                        .WithMany("ProgressionHistory")
+                        .HasForeignKey("ProgressionRuleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Session", "Session")
+                        .WithMany()
+                        .HasForeignKey("SessionId");
+
+                    b.Navigation("ProgressionRule");
+
+                    b.Navigation("Session");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ProgressionRule", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.User", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientUserId");
+
+                    b.HasOne("WorkoutTrackerWeb.Models.User", "Coach")
+                        .WithMany()
+                        .HasForeignKey("CoachUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutTemplateExercise", "WorkoutTemplateExercise")
+                        .WithMany()
+                        .HasForeignKey("WorkoutTemplateExerciseId");
+
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutTemplateSet", "WorkoutTemplateSet")
+                        .WithMany()
+                        .HasForeignKey("WorkoutTemplateSetId");
+
+                    b.Navigation("Client");
+
+                    b.Navigation("Coach");
+
+                    b.Navigation("WorkoutTemplateExercise");
+
+                    b.Navigation("WorkoutTemplateSet");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.TemplateAssignment", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship", "CoachClientRelationship")
+                        .WithMany()
+                        .HasForeignKey("ClientRelationshipId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("WorkoutTrackerWeb.Models.User", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.User", "Coach")
+                        .WithMany()
+                        .HasForeignKey("CoachUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutTemplate", "WorkoutTemplate")
+                        .WithMany()
+                        .HasForeignKey("WorkoutTemplateId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+
+                    b.Navigation("Coach");
+
+                    b.Navigation("CoachClientRelationship");
+
+                    b.Navigation("WorkoutTemplate");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.WorkoutFeedback", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.User", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Session", "Session")
+                        .WithMany()
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+
+                    b.Navigation("Session");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.WorkoutSchedule", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.User", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.User", "Coach")
+                        .WithMany()
+                        .HasForeignKey("CoachUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Session", "LastGeneratedSession")
+                        .WithMany()
+                        .HasForeignKey("LastGeneratedSessionId");
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.TemplateAssignment", "TemplateAssignment")
+                        .WithMany()
+                        .HasForeignKey("TemplateAssignmentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.TemplateAssignment", null)
+                        .WithMany("WorkoutSchedules")
+                        .HasForeignKey("TemplateAssignmentId1");
+
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutTemplate", "Template")
+                        .WithMany()
+                        .HasForeignKey("TemplateId");
+
+                    b.Navigation("Client");
+
+                    b.Navigation("Coach");
+
+                    b.Navigation("LastGeneratedSession");
+
+                    b.Navigation("Template");
+
+                    b.Navigation("TemplateAssignment");
+                });
+
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Feedback", b =>
                 {
                     b.HasOne("WorkoutTrackerWeb.Models.User", "User")
@@ -1114,6 +2819,71 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutExercise", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Equipment", "Equipment")
+                        .WithMany()
+                        .HasForeignKey("EquipmentId");
+
+                    b.HasOne("WorkoutTrackerWeb.Models.ExerciseType", "ExerciseType")
+                        .WithMany()
+                        .HasForeignKey("ExerciseTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutSession", "WorkoutSession")
+                        .WithMany("WorkoutExercises")
+                        .HasForeignKey("WorkoutSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Equipment");
+
+                    b.Navigation("ExerciseType");
+
+                    b.Navigation("WorkoutSession");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutSession", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.WorkoutFeedback", "WorkoutFeedback")
+                        .WithMany()
+                        .HasForeignKey("WorkoutFeedbackId");
+
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutTemplate", "WorkoutTemplate")
+                        .WithMany()
+                        .HasForeignKey("WorkoutTemplateId");
+
+                    b.Navigation("User");
+
+                    b.Navigation("WorkoutFeedback");
+
+                    b.Navigation("WorkoutTemplate");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutSet", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Settype", "Settype")
+                        .WithMany()
+                        .HasForeignKey("SettypeId");
+
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutExercise", "WorkoutExercise")
+                        .WithMany("WorkoutSets")
+                        .HasForeignKey("WorkoutExerciseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Settype");
+
+                    b.Navigation("WorkoutExercise");
+                });
+
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutTemplate", b =>
                 {
                     b.HasOne("WorkoutTrackerWeb.Models.User", "User")
@@ -1127,6 +2897,10 @@ namespace WorkoutTrackerWeb.Migrations
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutTemplateExercise", b =>
                 {
+                    b.HasOne("WorkoutTrackerWeb.Models.Equipment", "Equipment")
+                        .WithMany()
+                        .HasForeignKey("EquipmentId");
+
                     b.HasOne("WorkoutTrackerWeb.Models.ExerciseType", "ExerciseType")
                         .WithMany()
                         .HasForeignKey("ExerciseTypeId")
@@ -1138,6 +2912,8 @@ namespace WorkoutTrackerWeb.Migrations
                         .HasForeignKey("WorkoutTemplateId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Equipment");
 
                     b.Navigation("ExerciseType");
 
@@ -1163,6 +2939,33 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Navigation("WorkoutTemplateExercise");
                 });
 
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientGroup", b =>
+                {
+                    b.Navigation("ClientRelationships");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship", b =>
+                {
+                    b.Navigation("Notes");
+
+                    b.Navigation("Permissions");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ProgressionRule", b =>
+                {
+                    b.Navigation("ProgressionHistory");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.TemplateAssignment", b =>
+                {
+                    b.Navigation("WorkoutSchedules");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.WorkoutFeedback", b =>
+                {
+                    b.Navigation("ExerciseFeedbacks");
+                });
+
             modelBuilder.Entity("WorkoutTrackerWeb.Models.ExerciseType", b =>
                 {
                     b.Navigation("Sets");
@@ -1173,6 +2976,13 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Navigation("Articles");
 
                     b.Navigation("ChildCategories");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Identity.AppUser", b =>
+                {
+                    b.Navigation("ClientRelationships");
+
+                    b.Navigation("CoachRelationships");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Session", b =>
@@ -1188,6 +2998,16 @@ namespace WorkoutTrackerWeb.Migrations
             modelBuilder.Entity("WorkoutTrackerWeb.Models.User", b =>
                 {
                     b.Navigation("Sessions");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutExercise", b =>
+                {
+                    b.Navigation("WorkoutSets");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutSession", b =>
+                {
+                    b.Navigation("WorkoutExercises");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutTemplate", b =>

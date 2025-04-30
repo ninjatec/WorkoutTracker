@@ -32,6 +32,14 @@ namespace WorkoutTrackerWeb.Models
         public string? Muscle { get; set; }
         
         [StringLength(100)]
+        [Display(Name = "Primary Muscles")]
+        public string? PrimaryMuscles { get; set; }
+        
+        [StringLength(200)]
+        [Display(Name = "Secondary Muscles")]
+        public string? SecondaryMuscles { get; set; }
+        
+        [StringLength(100)]
         [Display(Name = "Equipment")]
         public string? Equipment { get; set; }
         
@@ -49,6 +57,11 @@ namespace WorkoutTrackerWeb.Models
         [DataType(DataType.DateTime)]
         [Display(Name = "Last Updated")]
         public DateTime? LastUpdated { get; set; }
+        
+        // Category for filtering and grouping
+        [StringLength(50)]
+        [Display(Name = "Category")]
+        public string Category { get; set; } = "Other";
         
         // Navigation property for related Sets
         public ICollection<Set>? Sets { get; set; }

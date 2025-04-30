@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Data;
+using WorkoutTrackerWeb.Models.Identity;
 
 namespace WorkoutTrackerWeb.Data
 {
@@ -44,7 +45,7 @@ namespace WorkoutTrackerWeb.Data
         private static async Task InitializeRolesAndAdminUser(IServiceProvider serviceProvider)
         {
             var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-            var userManager = serviceProvider.GetRequiredService<UserManager<IdentityUser>>();
+            var userManager = serviceProvider.GetRequiredService<UserManager<AppUser>>();
 
             // Create Admin role if it doesn't exist
             string adminRoleName = "Admin";
@@ -55,6 +56,16 @@ namespace WorkoutTrackerWeb.Data
                 
                 Console.WriteLine($"Created role: {adminRoleName}");
             }
+            
+            // Create Coach role if it doesn't exist
+            string coachRoleName = "Coach";
+            if (!await roleManager.RoleExistsAsync(coachRoleName))
+            {
+                var role = new IdentityRole(coachRoleName);
+                await roleManager.CreateAsync(role);
+                
+                Console.WriteLine($"Created role: {coachRoleName}");
+            }
 
             // Create admin user if it doesn't exist
             string adminEmail = "marc.coxall@ninjatec.co.uk";
@@ -62,7 +73,7 @@ namespace WorkoutTrackerWeb.Data
             
             if (adminUser == null)
             {
-                adminUser = new IdentityUser
+                adminUser = new AppUser
                 {
                     UserName = adminEmail,
                     Email = adminEmail,
@@ -191,10 +202,6 @@ namespace WorkoutTrackerWeb.Data
                 new ExerciseType { Name = "Russian Twist", Description = "A rotational exercise targeting the obliques and abdominal muscles." },
                 new ExerciseType { Name = "Leg Raise", Description = "A core exercise focusing on the lower abdominals." },
                 
-                // Cardio
-                new ExerciseType { Name = "Running", Description = "A cardiovascular exercise performed at various intensities." },
-                new ExerciseType { Name = "Cycling", Description = "A low-impact cardiovascular exercise using a bicycle or stationary bike." },
-                new ExerciseType { Name = "Rowing", Description = "A full-body cardiovascular exercise using a rowing machine." }
             };
 
             await context.ExerciseType.AddRangeAsync(exerciseTypes);
