@@ -151,12 +151,12 @@
      - [x] Implement goal status indicators in client lists
      - [x] Add quick actions for coaches to provide feedback on goal progress
 
-   - [ ] User Dashboard Integration
-     - [ ] Add goal widgets to user dashboard
-     - [ ] Create goal reminders and notifications
-     - [ ] Implement integration with workout planning to align with goals
-     - [ ] Add motivation features like streak counting and milestone celebration
-     - [ ] Create social sharing options for completed goals
+   - [x] User Dashboard Integration
+     - [x] Add goal widgets to user dashboard
+     - [x] Create goal reminders and notifications
+     - [x] Implement integration with workout planning to align with goals
+     - [x] Add motivation features like streak counting and milestone celebration
+     - [x] Create social sharing options for completed goals
 
    - [ ] Data Integration and APIs
      - [ ] Create shared services for goal operations between coach and user interfaces

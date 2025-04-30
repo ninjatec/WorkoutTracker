@@ -10,6 +10,88 @@
     @if (User.Identity.IsAuthenticated)
     {
         <div class="row">
+            <!-- Goal Progress Dashboard Widget -->
+            <div class="col-md-12 mb-4">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-trophy"></i> Your Goal Progress</h5>
+                        <a href="/Goals/Index" class="btn btn-light btn-sm">View All Goals</a>
+                    </div>
+                    <div class="card-body">
+                        @if (Model.ActiveGoals != null && Model.ActiveGoals.Any())
+                        {
+                            <div class="row">
+                                @foreach (var goal in Model.ActiveGoals.Take(3))
+                                {
+                                    <div class="col-md-4 mb-3">
+                                        <div class="card h-100 @(goal.IsCompleted ? "border-success" : "")">
+                                            <div class="card-body">
+                                                <h5 class="card-title">@goal.Description</h5>
+                                                <p class="text-muted small">@goal.Category • Due: @goal.TargetDate.ToString("MMM dd")</p>
+                                                
+                                                <div class="progress mb-2">
+                                                    <div class="progress-bar @(goal.IsCompleted ? "bg-success" : "")" 
+                                                         role="progressbar" 
+                                                         style="width: @goal.Progress%;" 
+                                                         aria-valuenow="@goal.Progress" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="100">@goal.Progress%</div>
+                                                </div>
+                                                
+                                                @if (goal.MeasurementType != null)
+                                                {
+                                                    <p class="small">
+                                                        Current: @goal.CurrentValue @goal.MeasurementUnit / 
+                                                        Target: @goal.TargetValue @goal.MeasurementUnit
+                                                    </p>
+                                                }
+                                                
+                                                @if (goal.IsCompleted)
+                                                {
+                                                    <span class="badge bg-success">Completed</span>
+                                                    <button class="btn btn-sm btn-outline-primary float-end share-goal-btn"
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#shareGoalModal" 
+                                                            data-goal-id="@goal.Id"
+                                                            data-goal-desc="@goal.Description">
+                                                        <i class="bi bi-share"></i> Share
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <a href="/Goals/Index?goalId=@goal.Id" class="btn btn-sm btn-outline-primary float-end">Update</a>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                            
+                            @if (Model.StreakCount > 0)
+                            {
+                                <div class="alert alert-success mt-2">
+                                    <i class="bi bi-lightning-charge"></i> <strong>@Model.StreakCount-day streak!</strong> Keep up the good work!
+                                </div>
+                            }
+                            
+                            @if (Model.RecentMilestone != null)
+                            {
+                                <div class="alert alert-info mt-2">
+                                    <i class="bi bi-award"></i> <strong>Recent milestone:</strong> @Model.RecentMilestone
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="text-center py-3">
+                                <p>You don't have any active goals yet.</p>
+                                <a href="/Goals/Index" class="btn btn-primary">Create Your First Goal</a>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
             <div class="col-md-6 mb-4">
                 <div class="card h-100">
                     <div class="card-header">
@@ -42,5 +124,102 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Share Goal Modal -->
+        <div class="modal fade" id="shareGoalModal" tabindex="-1" aria-labelledby="shareGoalModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="shareGoalModalLabel">Share Your Goal Achievement</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="goalIdToShare" value="" />
+                        <div class="mb-3">
+                            <label for="shareMessage" class="form-label">Add a message (optional):</label>
+                            <textarea class="form-control" id="shareMessage" rows="3" placeholder="I just achieved my fitness goal!"></textarea>
+                        </div>
+                        <div class="d-flex justify-content-between mb-3">
+                            <button type="button" class="btn btn-outline-primary share-to-platform" data-platform="twitter">
+                                <i class="bi bi-twitter"></i> Twitter
+                            </button>
+                            <button type="button" class="btn btn-outline-primary share-to-platform" data-platform="facebook">
+                                <i class="bi bi-facebook"></i> Facebook
+                            </button>
+                            <button type="button" class="btn btn-outline-primary share-to-platform" data-platform="linkedin">
+                                <i class="bi bi-linkedin"></i> LinkedIn
+                            </button>
+                        </div>
+                        <hr />
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="addToWorkoutLog" checked>
+                            <label class="form-check-label" for="addToWorkoutLog">Add to my workout log</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="copyShareLink">
+                            <i class="bi bi-clipboard"></i> Copy Link
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     }
 </div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Handle social sharing
+            $('.share-to-platform').on('click', function() {
+                const platform = $(this).data('platform');
+                const goalId = $('#goalIdToShare').val();
+                const message = $('#shareMessage').val();
+                const shareUrl = window.location.origin + '/Goals/Share?id=' + goalId;
+                
+                let shareLink = '';
+                
+                switch(platform) {
+                    case 'twitter':
+                        shareLink = `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(shareUrl)}`;
+                        break;
+                    case 'facebook':
+                        shareLink = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+                        break;
+                    case 'linkedin':
+                        shareLink = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
+                        break;
+                }
+                
+                // Open share dialog
+                if (shareLink) {
+                    window.open(shareLink, '_blank', 'width=600,height=400');
+                }
+            });
+            
+            // Handle share button clicks
+            $('.share-goal-btn').on('click', function() {
+                const goalId = $(this).data('goal-id');
+                const goalDesc = $(this).data('goal-desc');
+                
+                $('#goalIdToShare').val(goalId);
+                $('#shareMessage').val(`I just achieved my goal: "${goalDesc}"!`);
+            });
+            
+            // Handle copy link button
+            $('#copyShareLink').on('click', function() {
+                const goalId = $('#goalIdToShare').val();
+                const shareUrl = window.location.origin + '/Goals/Share?id=' + goalId;
+                
+                navigator.clipboard.writeText(shareUrl).then(function() {
+                    const btn = $('#copyShareLink');
+                    btn.html('<i class="bi bi-check"></i> Copied!');
+                    setTimeout(function() {
+                        btn.html('<i class="bi bi-clipboard"></i> Copy Link');
+                    }, 2000);
+                });
+            });
+        });
+    </script>
+}
