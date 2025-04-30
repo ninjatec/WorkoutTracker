@@ -10,7 +10,7 @@
         <a class="nav-link" asp-area="Identity" asp-page="/Account/Manage/Index" title="Manage">Hello @User.Identity?.Name!</a>
     </li>
     <li class="nav-item">
-        <form id="logoutForm" class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/Index", new { area = "" })">
+        <form id="logoutForm" class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/Index", new { area = "" })" method="post">
             <button type="submit" class="nav-link btn btn-link text-light">Logout</button>
         </form>
     </li>
@@ -18,10 +18,10 @@
 else
 {
     <li class="nav-item">
-        <a class="nav-link" asp-area="Identity" asp-page="/Account/Register">Register</a>
+        <a class="nav-link" asp-area="Identity" asp-page="/Account/Register" asp-route-returnUrl="@Context.Request.Path">Register</a>
     </li>
     <li class="nav-item">
-        <a class="nav-link" asp-area="Identity" asp-page="/Account/Login">Login</a>
+        <a class="nav-link" asp-area="Identity" asp-page="/Account/Login" asp-route-returnUrl="@Context.Request.Path">Login</a>
     </li>
 }
 </ul>
@@ -29,8 +29,7 @@ else
 @if (SignInManager.IsSignedIn(User))
 {
     <script>
-        document.getElementById('logoutForm').addEventListener('submit', function(e) {
-            // Submit the form normally, then force a redirect to the home page
+        document.getElementById('logoutForm')?.addEventListener('submit', function(e) {
             setTimeout(function() {
                 window.location.href = '/';
             }, 200);

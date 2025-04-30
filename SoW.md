@@ -72,11 +72,11 @@
      - [x] Implement reminder customization (timing, frequency)
      - [x] Create recurring workout patterns (weekly, bi-weekly, monthly)
   
- - [ ] Extend reporting system for coaches
-   - [ ] Create new dashboard layout for coaches adding a link onthe coaches dropdown menu
-   - [ ] Create client-specific report views with coach annotations
-   - [ ] Implement comparative reporting across multiple clients
-   - [ ] Add aggregate statistics for coach effectiveness metrics
+ - [x] Extend reporting system for coaches
+   - [x] Create new dashboard layout for coaches adding a link onthe coaches dropdown menu
+   - [x] Create client-specific report views with coach annotations
+   - [x] Implement comparative reporting across multiple clients
+   - [x] Add aggregate statistics for coach effectiveness metrics
  
 ---
 

@@ -18,7 +18,7 @@
         </a>
     </li>
     <li class="nav-item">
-        <form class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/", new { area = "" })" method="post" >
+        <form class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/Index", new { area = "" })" method="post">
             <button type="submit" class="nav-link btn btn-link text-dark">
                 <i class="fas fa-sign-out-alt me-1"></i>
                 Logout
@@ -29,13 +29,13 @@
 else
 {
     <li class="nav-item">
-        <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Register">
+        <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Register" asp-route-returnUrl="@Context.Request.Path">
             <i class="fas fa-user-plus me-1"></i>
             Register
         </a>
     </li>
     <li class="nav-item">
-        <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Login">
+        <a class="nav-link text-dark" asp-area="Identity" asp-page="/Account/Login" asp-route-returnUrl="@Context.Request.Path">
             <i class="fas fa-sign-in-alt me-1"></i>
             Login
         </a>
