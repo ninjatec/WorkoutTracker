@@ -485,11 +485,21 @@ namespace WorkoutTrackerWeb.Services.Alerting
                 return;
 
             // In a real application, you'd get admin user IDs from a role-based system
-            // For now, we'll assume an admin user ID for demonstration
             var adminUserIds = new[] { "admin-user-id" };
 
             foreach (var userId in adminUserIds)
             {
+                // Check if a notification already exists for this alert and user
+                var existingNotification = await _context.Notification
+                    .FirstOrDefaultAsync(n => n.AlertId == alert.Id && n.UserId == userId);
+                
+                // Skip if a notification already exists
+                if (existingNotification != null)
+                {
+                    _logger.LogDebug("Notification already exists for Alert {AlertId} and User {UserId}", alert.Id, userId);
+                    continue;
+                }
+
                 var notification = new Notification
                 {
                     AlertId = alert.Id,
@@ -502,6 +512,7 @@ namespace WorkoutTrackerWeb.Services.Alerting
                 };
 
                 _context.Notification.Add(notification);
+                _logger.LogInformation("Created notification for Alert {AlertId} and User {UserId}", alert.Id, userId);
             }
 
             await _context.SaveChangesAsync();
@@ -518,6 +529,19 @@ namespace WorkoutTrackerWeb.Services.Alerting
 
             foreach (var userId in escalationUserIds)
             {
+                // Check if an escalation notification already exists for this alert and user
+                var existingNotification = await _context.Notification
+                    .FirstOrDefaultAsync(n => n.AlertId == alert.Id && 
+                                         n.UserId == userId && 
+                                         n.Title.StartsWith("ESCALATED:"));
+                
+                // Skip if a notification already exists
+                if (existingNotification != null)
+                {
+                    _logger.LogDebug("Escalation notification already exists for Alert {AlertId} and User {UserId}", alert.Id, userId);
+                    continue;
+                }
+
                 var notification = new Notification
                 {
                     AlertId = alert.Id,
@@ -529,6 +553,7 @@ namespace WorkoutTrackerWeb.Services.Alerting
                 };
 
                 _context.Notification.Add(notification);
+                _logger.LogInformation("Created escalation notification for Alert {AlertId} and User {UserId}", alert.Id, userId);
             }
 
             await _context.SaveChangesAsync();
