@@ -141,4 +141,4 @@
 
 [x] Update help pages with new functionality
 [x] Update readme and inventory with new functionality
-[ ] Ensure mobile view lines up with online version
+[x] Ensure mobile view lines up with online version
