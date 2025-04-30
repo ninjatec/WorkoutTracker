@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,9 +29,32 @@ namespace WorkoutTrackerWeb
 
         public static async Task<PaginatedList<T>> CreateAsync(IQueryable<T> source, int pageIndex, int pageSize)
         {
-            var count = await source.CountAsync();
-            var items = await source.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToListAsync();
+            try
+            {
+                // Try EF Core async methods first
+                var count = await source.CountAsync();
+                var items = await source.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToListAsync();
+                return new PaginatedList<T>(items, count, pageIndex, pageSize);
+            }
+            catch (InvalidOperationException) when (!IsEntityFrameworkProvider(source))
+            {
+                // Fall back to synchronous methods for non-EF Core queries
+                return CreateSync(source, pageIndex, pageSize);
+            }
+        }
+
+        public static PaginatedList<T> CreateSync(IQueryable<T> source, int pageIndex, int pageSize)
+        {
+            var count = source.Count();
+            var items = source.Skip((pageIndex - 1) * pageSize).Take(pageSize).ToList();
             return new PaginatedList<T>(items, count, pageIndex, pageSize);
+        }
+
+        private static bool IsEntityFrameworkProvider(IQueryable<T> source)
+        {
+            // Check if the provider supports async operations
+            return source.Provider.GetType().GetInterfaces()
+                .Any(i => i.Name == "IAsyncQueryProvider");
         }
     }
 }
