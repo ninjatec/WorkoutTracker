@@ -216,10 +216,13 @@
 ---
 
  - [ ] Recent Client Activity should show real data.
- - [ ] Fix user Schedules page
+
+ ---
 
  - [ ] Create logic and background job for sending notifications
  
+ ---
+
  - [ ] Dashboard and Analytics Enhancement
    - [ ] Implement proper data loading and caching for dashboard
    - [ ] Create analytics pages for tracking client progress
@@ -254,3 +257,5 @@
    - [ ] Add audit logging for sensitive coaching operations
    - [ ] Implement proper security for coaching data access
 ---
+
+Make offlien version match the online version
