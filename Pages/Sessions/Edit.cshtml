@@ -25,6 +25,11 @@
                 <input asp-for="Session.datetime" class="form-control" />
                 <span asp-validation-for="Session.datetime" class="text-danger"></span>
             </div>
+            <div class="form-group">
+                <label asp-for="Session.endtime" class="control-label">End Time</label>
+                <input asp-for="Session.endtime" class="form-control" />
+                <span asp-validation-for="Session.endtime" class="text-danger"></span>
+            </div>
             <!-- User dropdown removed - sessions are tied to the current user -->
             <div class="form-group">
                 <input type="submit" value="Save" class="btn btn-primary" />
