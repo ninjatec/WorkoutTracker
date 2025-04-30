@@ -511,6 +511,13 @@ try
     // Register validation services
     builder.Services.AddScoped<WorkoutTrackerWeb.Services.Validation.CoachingValidationService>();
 
+    // Register workout scheduling services
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Scheduling.ScheduledWorkoutProcessorService>();
+    builder.Services.Configure<WorkoutTrackerWeb.Services.Scheduling.ScheduledWorkoutProcessorOptions>(builder.Configuration.GetSection("ScheduledWorkoutProcessor"));
+
+    // Register workout scheduling job registration services
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.WorkoutSchedulingJobsRegistration>();
+
     // Add session state with Redis caching and JSON serialization
     builder.Services.AddSession(options =>
     {
@@ -1063,6 +1070,24 @@ try
     catch (Exception ex)
     {
         Log.Error(ex, "Error registering alerting jobs");
+    }
+
+    // Register Workout Scheduling jobs
+    try {
+        using (var scope = app.Services.CreateScope())
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogInformation("Registering workout scheduling jobs");
+            
+            var workoutSchedulingJobsRegistration = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.WorkoutSchedulingJobsRegistration>();
+            workoutSchedulingJobsRegistration.RegisterWorkoutSchedulingJobs();
+            
+            logger.LogInformation("Workout scheduling jobs registered successfully");
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Error registering workout scheduling jobs");
     }
 
     // Add request metrics middleware before routing

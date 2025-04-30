@@ -167,13 +167,13 @@
 
 ---
 
- - [ ] Create logic and background job that converts scheduled workouts into workouts
-   - [ ] Design and implement conversion service
-     - [ ] Create ScheduledWorkoutProcessorService class
-     - [ ] Implement methods to determine which scheduled workouts are due for conversion
-     - [ ] Support different recurrence patterns (Once, Weekly, BiWeekly, Monthly)
-     - [ ] Handle timezone considerations for global users
-     - [ ] Add configuration options for advance creation (e.g., create workouts 24h in advance)
+ - [x] Create logic and background job that converts scheduled workouts into workouts
+   - [x] Design and implement conversion service
+     - [x] Create ScheduledWorkoutProcessorService class
+     - [x] Implement methods to determine which scheduled workouts are due for conversion
+     - [x] Support different recurrence patterns (Once, Weekly, BiWeekly, Monthly)
+     - [x] Handle timezone considerations for global users
+     - [x] Add configuration options for advance creation (e.g., create workouts 24h in advance)
    
    - [ ] Build template-to-workout conversion logic
      - [ ] Implement factory method to create WorkoutSession from WorkoutTemplate
