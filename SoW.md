@@ -73,11 +73,10 @@
      - [x] Create recurring workout patterns (weekly, bi-weekly, monthly)
   
  - [ ] Extend reporting system for coaches
+   - [ ] Create new dashboard layout for coaches adding a link onthe coaches dropdown menu
    - [ ] Create client-specific report views with coach annotations
    - [ ] Implement comparative reporting across multiple clients
    - [ ] Add aggregate statistics for coach effectiveness metrics
-   - [ ] Create exportable client reports for offline analysis
-   - [ ] Add report scheduling with automatic delivery options
  
 ---
  - [ ] Create feedback and communication system
@@ -202,11 +201,11 @@
      - [x] Include template/schedule details in notification
      - [x] Send workout reminders according to ReminderHoursBefore setting
    
-   - [ ] Build system to handle missed workouts
-     - [ ] Implement detection for missed workout schedule conversions
-     - [ ] Create policy for handling missed schedule conversions (skip or create late)
-     - [ ] Add configuration options for missed workout handling
-     - [ ] Update client and coach interfaces for missed workout visibility
+   - [x] Build system to handle missed workouts
+     - [x] Implement detection for missed workout schedule conversions
+     - [x] Create policy for handling missed schedule conversions (skip or create late)
+     - [x] Add configuration options for missed workout handling
+     - [x] Update client and coach interfaces for missed workout visibility
 
  
  ---
