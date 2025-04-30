@@ -575,6 +575,17 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             if (template == null)
             {
                 _logger.LogError("Cannot convert workout {Id} to session: no template found", workout.WorkoutScheduleId);
+                
+                // Update status tracking properties to record the failure
+                var actualWorkout = await _context.WorkoutSchedules
+                    .FirstOrDefaultAsync(w => w.WorkoutScheduleId == workout.WorkoutScheduleId);
+                
+                if (actualWorkout != null)
+                {
+                    actualWorkout.LastGenerationStatus = "Failed: No template found";
+                    await _context.SaveChangesAsync();
+                }
+                
                 return null;
             }
             
@@ -688,18 +699,31 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                     _context.WorkoutSets.AddRange(workoutSets);
                     await _context.SaveChangesAsync();
                 }
+
+                // Step 5: Update the status tracking on the actual workout
+                var actualWorkout = await _context.WorkoutSchedules
+                    .FirstOrDefaultAsync(w => w.WorkoutScheduleId == workout.WorkoutScheduleId);
                 
-                // If this is a one-time schedule, mark it as inactive
-                if (!workout.IsRecurring || workout.RecurrencePattern == "Once")
+                if (actualWorkout != null)
                 {
-                    var actualWorkout = await _context.WorkoutSchedules
-                        .FirstOrDefaultAsync(w => w.WorkoutScheduleId == workout.WorkoutScheduleId);
+                    // Update tracking properties
+                    actualWorkout.LastGeneratedWorkoutDate = DateTime.Now;
+                    actualWorkout.LastGeneratedSessionId = session.SessionId;
+                    actualWorkout.TotalWorkoutsGenerated = actualWorkout.TotalWorkoutsGenerated + 1;
+                    actualWorkout.LastGenerationStatus = "Success";
                     
-                    if (actualWorkout != null)
+                    // If this is a one-time schedule, mark it as inactive
+                    if (!actualWorkout.IsRecurring || actualWorkout.RecurrencePattern == "Once")
                     {
                         actualWorkout.IsActive = false;
-                        await _context.SaveChangesAsync();
                     }
+                    
+                    await _context.SaveChangesAsync();
+                }
+                else
+                {
+                    _logger.LogWarning("Could not find original workout {Id} to update status tracking", 
+                        workout.WorkoutScheduleId);
                 }
                 
                 await transaction.CommitAsync();
@@ -709,6 +733,17 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             {
                 _logger.LogError(ex, "Error converting scheduled workout {Id} to session", workout.WorkoutScheduleId);
                 await transaction.RollbackAsync();
+                
+                // Update status tracking to record the failure
+                var actualWorkout = await _context.WorkoutSchedules
+                    .FirstOrDefaultAsync(w => w.WorkoutScheduleId == workout.WorkoutScheduleId);
+                
+                if (actualWorkout != null)
+                {
+                    actualWorkout.LastGenerationStatus = $"Failed: {ex.Message}";
+                    await _context.SaveChangesAsync();
+                }
+                
                 return null;
             }
         }

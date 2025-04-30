@@ -478,7 +478,11 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
                 MultipleDaysOfWeek = schedule.MultipleDaysOfWeek,
                 SendReminder = schedule.SendReminder,
                 ReminderHoursBefore = schedule.ReminderHoursBefore,
-                IsActive = schedule.IsActive
+                IsActive = schedule.IsActive,
+                LastGeneratedWorkoutDate = schedule.LastGeneratedWorkoutDate,
+                LastGeneratedSessionId = schedule.LastGeneratedSessionId,
+                TotalWorkoutsGenerated = schedule.TotalWorkoutsGenerated,
+                LastGenerationStatus = schedule.LastGenerationStatus
             };
         }
 
@@ -502,6 +506,12 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
             public bool SendReminder { get; set; }
             public int ReminderHoursBefore { get; set; }
             public bool IsActive { get; set; }
+            
+            // Status tracking properties
+            public DateTime? LastGeneratedWorkoutDate { get; set; }
+            public int? LastGeneratedSessionId { get; set; }
+            public int TotalWorkoutsGenerated { get; set; }
+            public string LastGenerationStatus { get; set; }
             
             // Helper method to get all days of week as a list of DayOfWeek enums
             public List<DayOfWeek> GetAllDaysOfWeek()
@@ -528,6 +538,30 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
                 }
                 
                 return result;
+            }
+            
+            // Helper method to get a CSS class based on generation status
+            public string GetStatusClass()
+            {
+                if (string.IsNullOrEmpty(LastGenerationStatus))
+                    return "bg-secondary";
+                
+                return LastGenerationStatus.StartsWith("Failed") ? "bg-danger" : 
+                       LastGenerationStatus == "Success" ? "bg-success" : "bg-secondary";
+            }
+            
+            // Helper method to get a user-friendly status message
+            public string GetStatusMessage()
+            {
+                if (string.IsNullOrEmpty(LastGenerationStatus))
+                    return "Pending";
+                
+                if (LastGenerationStatus == "Success")
+                {
+                    return $"Generated {TotalWorkoutsGenerated} workout{(TotalWorkoutsGenerated != 1 ? "s" : "")}";
+                }
+                
+                return LastGenerationStatus;
             }
         }
     }

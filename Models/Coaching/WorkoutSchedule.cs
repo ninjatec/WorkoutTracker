@@ -92,6 +92,20 @@ namespace WorkoutTrackerWeb.Models.Coaching
         [Display(Name = "Is Active")]
         public bool IsActive { get; set; } = true;
         
+        // Status tracking properties
+        [Display(Name = "Last Generated Workout Date")]
+        public DateTime? LastGeneratedWorkoutDate { get; set; }
+        
+        [Display(Name = "Last Generated Session ID")]
+        public int? LastGeneratedSessionId { get; set; }
+        
+        [Display(Name = "Total Workouts Generated")]
+        public int TotalWorkoutsGenerated { get; set; } = 0;
+        
+        [StringLength(100)]
+        [Display(Name = "Last Generation Status")]
+        public string LastGenerationStatus { get; set; }
+        
         // Navigation properties
         [ForeignKey("TemplateAssignmentId")]
         public TemplateAssignment TemplateAssignment { get; set; }
@@ -104,6 +118,9 @@ namespace WorkoutTrackerWeb.Models.Coaching
         
         [ForeignKey("CoachUserId")]
         public User Coach { get; set; }
+        
+        [ForeignKey("LastGeneratedSessionId")]
+        public Session LastGeneratedSession { get; set; }
         
         /// <summary>
         /// Ensures that IsRecurring is always consistent with the RecurrencePattern

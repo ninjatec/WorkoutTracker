@@ -123,6 +123,18 @@
                                                 {
                                                     <span class="badge bg-secondary">Inactive</span>
                                                 }
+                                                
+                                                @if (schedule.LastGeneratedWorkoutDate.HasValue)
+                                                {
+                                                    <div class="mt-1">
+                                                        <span class="badge @schedule.GetStatusClass()">
+                                                            @schedule.GetStatusMessage()
+                                                        </span>
+                                                    </div>
+                                                    <small class="text-muted d-block mt-1">
+                                                        Last: @schedule.LastGeneratedWorkoutDate?.ToString("MMM dd")
+                                                    </small>
+                                                }
                                             </td>
                                             <td>
                                                 <div class="btn-group">

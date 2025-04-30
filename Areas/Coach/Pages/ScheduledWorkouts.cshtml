@@ -133,6 +133,18 @@
                                                 {
                                                     <span class="badge rounded-pill bg-secondary">Paused</span>
                                                 }
+                                                
+                                                @if (schedule.LastGeneratedWorkoutDate.HasValue)
+                                                {
+                                                    <div class="mt-1">
+                                                        <span class="badge rounded-pill @schedule.GetStatusClass()">
+                                                            @schedule.GetStatusMessage()
+                                                        </span>
+                                                    </div>
+                                                    <small class="text-muted d-block mt-1">
+                                                        Last generated: @schedule.LastGeneratedWorkoutDate?.ToString("MMM dd")
+                                                    </small>
+                                                }
                                             </td>
                                             <td>
                                                 <div class="d-flex gap-1">
