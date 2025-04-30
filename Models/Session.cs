@@ -53,5 +53,9 @@ namespace WorkoutTrackerWeb.Models
         [NotMapped]
         [Display(Name = "Estimated Calories")]
         public int EstimatedCalories { get; set; }
+        
+        // Status from the related WorkoutSession model (not stored in database)
+        [NotMapped]
+        public string WorkoutSessionStatus { get; set; }
     }
 }

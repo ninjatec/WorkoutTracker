@@ -72,23 +72,20 @@
      - [x] Implement reminder customization (timing, frequency)
      - [x] Create recurring workout patterns (weekly, bi-weekly, monthly)
   
-
- - [ ] Create feedback and communication system
-   - [ ] Implement coach comments on individual workouts/exercises
-   - [ ] Add structured feedback forms for clients to complete
-   - [ ] Create RPE (Rate of Perceived Exertion) tracking for client feedback
-   - [ ] Develop direct messaging system between coach and client
-   - [ ] Add file/image sharing for form checks and demonstrations
-   - [ ] Implement video annotation tools for technique feedback
-
  - [ ] Extend reporting system for coaches
    - [ ] Create client-specific report views with coach annotations
    - [ ] Implement comparative reporting across multiple clients
    - [ ] Add aggregate statistics for coach effectiveness metrics
    - [ ] Create exportable client reports for offline analysis
-   - [ ] Develop custom report builder for coach-specific metrics
    - [ ] Add report scheduling with automatic delivery options
  
+---
+ - [ ] Create feedback and communication system
+   - [ ] Implement coach comments on individual workouts/exercises
+   - [ ] Add structured feedback forms for clients to complete
+   - [ ] Develop direct messaging system between coach and client
+   - [ ] Add file/image sharing for form checks and demonstrations
+   - [ ] Implement video annotation tools for technique feedback
 ---
 
 [ ] Migrate Coaching Functionality to Razor Pages
@@ -114,7 +111,7 @@
 
 --
 
- - [ ] Complete unified functionality for Goals for coaches and normal users this should integrate with the coaching dashboard
+ - [x] Complete unified functionality for Goals for coaches and normal users this should integrate with the coaching dashboard
    - [x] Goal Model and Database Enhancements
      - [x] Extend ClientGoal model to support user-created goals (not just coach-assigned)
      - [x] Add fields for tracking completion criteria and automated progress
@@ -211,14 +208,6 @@
      - [ ] Add configuration options for missed workout handling
      - [ ] Update client and coach interfaces for missed workout visibility
 
-
----
-
- - [ ] Recent Client Activity should show real data.
-
- ---
-
- - [ ] Create logic and background job for sending notifications
  
  ---
 

@@ -450,6 +450,45 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                 
                 return LastGenerationStatus;
             }
+
+            /// <summary>
+            /// Helper method to get a CSS class based on status
+            /// </summary>
+            public string GetStatusBadgeClass()
+            {
+                if (string.IsNullOrEmpty(LastGenerationStatus))
+                    return "badge-secondary";
+                
+                if (LastGenerationStatus.StartsWith("Success"))
+                {
+                    if (LastGenerationStatus.Contains("Missed"))
+                        return "badge-warning";
+                    return "badge-success";
+                }
+                
+                return LastGenerationStatus.StartsWith("Failed") ? "badge-danger" : "badge-secondary";
+            }
+            
+            /// <summary>
+            /// Helper method to get a user-friendly status message
+            /// </summary>
+            public string GetFriendlyStatusMessage()
+            {
+                if (string.IsNullOrEmpty(LastGenerationStatus))
+                    return "Pending";
+                
+                if (LastGenerationStatus == "Success")
+                {
+                    return $"Generated {TotalWorkoutsGenerated} workout{(TotalWorkoutsGenerated != 1 ? "s" : "")}";
+                }
+                
+                if (LastGenerationStatus == "Success (Created Missed Workout)")
+                {
+                    return $"Created {TotalWorkoutsGenerated} missed workout{(TotalWorkoutsGenerated != 1 ? "s" : "")}";
+                }
+                
+                return LastGenerationStatus;
+            }
         }
     }
 }

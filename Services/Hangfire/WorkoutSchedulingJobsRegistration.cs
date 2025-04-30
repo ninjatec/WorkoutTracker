@@ -58,6 +58,13 @@ namespace WorkoutTrackerWeb.Services.Hangfire
                     Cron.Daily,
                     TimeZoneInfo.Local);
                 
+                // Add a daily job to process missed workouts
+                _recurringJobManager.AddOrUpdate(
+                    "process-missed-workouts",
+                    () => GetRequiredService().ProcessMissedWorkoutsAsync(),
+                    "0 2 * * *", // Run at 2 AM daily
+                    TimeZoneInfo.Local);
+                
                 _logger.LogInformation("Successfully registered all workout processing jobs");
             }
             catch (Exception ex)

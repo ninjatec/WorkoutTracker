@@ -106,6 +106,13 @@ namespace WorkoutTrackerWeb.Models.Coaching
         [Display(Name = "Last Generation Status")]
         public string LastGenerationStatus { get; set; }
         
+        /// <summary>
+        /// Indicates if this workout was missed (created after its scheduled time)
+        /// This is a transient property not stored in database, used during processing
+        /// </summary>
+        [NotMapped]
+        public bool IsMissed { get; set; }
+        
         // Navigation properties
         [ForeignKey("TemplateAssignmentId")]
         public TemplateAssignment TemplateAssignment { get; set; }

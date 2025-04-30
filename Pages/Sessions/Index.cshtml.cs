@@ -9,6 +9,7 @@ using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Services;
 using Microsoft.AspNetCore.Authorization;
+using System.ComponentModel.DataAnnotations;
 
 namespace WorkoutTrackerWeb.Pages.Sessions
 {
@@ -87,6 +88,18 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 int pageSize = 10;
                 Session = await PaginatedList<Session>.CreateAsync(
                     sessionsQuery, pageIndex ?? 1, pageSize);
+                
+                // After getting the paginated sessions, load the associated workout session statuses
+                foreach (var session in Session)
+                {
+                    var workoutSession = await _context.WorkoutSessions
+                        .FirstOrDefaultAsync(ws => ws.UserId == session.UserId && 
+                                             ws.StartDateTime == session.StartDateTime);
+                    if (workoutSession != null)
+                    {
+                        session.WorkoutSessionStatus = workoutSession.Status;
+                    }
+                }
             }
             else
             {

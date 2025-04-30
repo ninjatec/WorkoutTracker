@@ -43,6 +43,9 @@
                 </a>
             </th>
             <th>
+                Status
+            </th>
+            <th>
                 @Html.DisplayNameFor(model => model.Session[0].User)
             </th>
             <th></th>
@@ -51,12 +54,30 @@
     <tbody>
         @foreach (var item in Model.Session)
         {
-            <tr>
+            <tr class="@(item.WorkoutSessionStatus == "Missed" ? "table-warning" : "")">
                 <td>
                     @Html.DisplayFor(modelItem => item.Name)
                 </td>
                 <td>
                     @item.datetime.ToString("dd/MM/yyyy HH:mm")
+                </td>
+                <td>
+                    @if (item.WorkoutSessionStatus == "Missed")
+                    {
+                        <span class="badge badge-warning">Missed</span>
+                    }
+                    else if (item.WorkoutSessionStatus == "Completed")
+                    {
+                        <span class="badge badge-success">Completed</span>
+                    }
+                    else if (item.WorkoutSessionStatus == "Scheduled")
+                    {
+                        <span class="badge badge-info">Scheduled</span>
+                    }
+                    else
+                    {
+                        <span class="badge badge-secondary">@(string.IsNullOrEmpty(item.WorkoutSessionStatus) ? "In Progress" : item.WorkoutSessionStatus)</span>
+                    }
                 </td>
                 <td>
                     @Html.DisplayFor(modelItem => item.User.Name)
@@ -65,6 +86,11 @@
                     <a asp-page="./Edit" asp-route-id="@item.SessionId">Edit</a> |
                     <a asp-page="./Details" asp-route-id="@item.SessionId">Details</a> |
                     <a asp-page="./Delete" asp-route-id="@item.SessionId">Delete</a>
+                    @if (item.WorkoutSessionStatus == "Missed")
+                    {
+                        <text> | </text>
+                        <a asp-page="./Reschedule" asp-route-id="@item.SessionId" class="text-primary">Reschedule</a>
+                    }
                 </td>
             </tr>
         }
@@ -159,3 +185,24 @@
         </ul>
     </div>
 </nav>
+
+@section Styles {
+    <style>
+        .badge-warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .badge-success {
+            background-color: #28a745;
+            color: white;
+        }
+        .badge-info {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .badge-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+    </style>
+}
