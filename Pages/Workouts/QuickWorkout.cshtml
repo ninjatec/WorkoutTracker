@@ -145,6 +145,10 @@
                                 <input asp-for="QuickWorkout.NewSessionName" class="form-control" 
                                        value="@Model.QuickWorkout.NewSessionName" />
                             </div>
+                            <div class="mb-3">
+                                <label asp-for="QuickWorkout.StartTime" class="form-label">Start Time</label>
+                                <input asp-for="QuickWorkout.StartTime" type="datetime-local" class="form-control" id="startTime" />
+                            </div>
                             <button type="submit" class="btn btn-primary w-100">
                                 <i class="bi bi-play-fill me-1"></i> Start Workout
                             </button>
@@ -256,6 +260,10 @@
                         <input type="text" class="form-control" id="newSessionName" name="NewSessionName" 
                                value="@Model.QuickWorkout.NewSessionName" />
                     </div>
+                    <div class="mb-3">
+                        <label asp-for="QuickWorkout.StartTime" class="form-label">Start Time</label>
+                        <input asp-for="QuickWorkout.StartTime" type="datetime-local" class="form-control" id="startTime" />
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -298,26 +306,39 @@
     <script>
         // JavaScript to handle the workout timer and modal functionality
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize datetime-local inputs with the current date/time
+            const initDateTimeInput = function(inputElement) {
+                if (!inputElement) return;
+                
+                // Format the current date and time for the datetime-local input
+                const now = new Date();
+                
+                // Format as YYYY-MM-DDThh:mm (required format for datetime-local input)
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                
+                const formattedDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+                
+                // Set the input value to the current date and time
+                inputElement.value = formattedDateTime;
+            };
+            
+            // Initialize all start time inputs on page load
+            const startTimeInputs = document.querySelectorAll('input[type="datetime-local"][id="startTime"]');
+            startTimeInputs.forEach(function(input) {
+                initDateTimeInput(input);
+            });
+            
             // Set up end time field in the Finish Workout modal with current date/time
             const finishWorkoutModal = document.getElementById('finishWorkoutModal');
             const endTimeInput = document.getElementById('endTime');
             
             if (finishWorkoutModal && endTimeInput) {
                 finishWorkoutModal.addEventListener('show.bs.modal', function() {
-                    // Format the current date and time for the datetime-local input
-                    const now = new Date();
-                    
-                    // Format as YYYY-MM-DDThh:mm (required format for datetime-local input)
-                    const year = now.getFullYear();
-                    const month = String(now.getMonth() + 1).padStart(2, '0');
-                    const day = String(now.getDate()).padStart(2, '0');
-                    const hours = String(now.getHours()).padStart(2, '0');
-                    const minutes = String(now.getMinutes()).padStart(2, '0');
-                    
-                    const formattedDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
-                    
-                    // Set the input value to the current date and time
-                    endTimeInput.value = formattedDateTime;
+                    initDateTimeInput(endTimeInput);
                     
                     // Validate that end time is after start time
                     endTimeInput.addEventListener('change', function() {
@@ -370,6 +391,17 @@
                             }
                         }
                     });
+                });
+            }
+            
+            // Initialize start time in new workout modal
+            const newWorkoutModal = document.getElementById('newWorkoutModal');
+            if (newWorkoutModal) {
+                newWorkoutModal.addEventListener('show.bs.modal', function() {
+                    const startTimeInput = newWorkoutModal.querySelector('input[type="datetime-local"][id="startTime"]');
+                    if (startTimeInput) {
+                        initDateTimeInput(startTimeInput);
+                    }
                 });
             }
         });

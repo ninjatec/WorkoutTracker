@@ -39,6 +39,10 @@ namespace WorkoutTrackerWeb.ViewModels
         [StringLength(50)]
         public string NewSessionName { get; set; }
         
+        // For starting a session
+        [Display(Name = "Start Time")]
+        public DateTime StartTime { get; set; } = DateTime.Now;
+        
         // For finishing a session
         [Display(Name = "End Time")]
         public DateTime? EndTime { get; set; } = DateTime.Now;

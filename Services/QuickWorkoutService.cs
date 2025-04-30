@@ -68,9 +68,9 @@ namespace WorkoutTrackerWeb.Services
         }
 
         /// <summary>
-        /// Creates a new quick workout session
+        /// Creates a new quick workout session with a specified start time
         /// </summary>
-        public async Task<WorkoutTrackerWeb.Models.Session> CreateQuickWorkoutSessionAsync(string name = null)
+        public async Task<WorkoutTrackerWeb.Models.Session> CreateQuickWorkoutSessionAsync(string name = null, DateTime? startTime = null)
         {
             var userId = await _userService.GetCurrentUserIdAsync();
             if (userId == null)
@@ -99,11 +99,15 @@ namespace WorkoutTrackerWeb.Services
                 name = $"{dayOfWeek} - {timeOfDay} Workout";
             }
 
-            // Create a new session with the current date/time
+            // Use the provided start time or current time
+            var sessionStartTime = startTime ?? DateTime.Now;
+
+            // Create a new session with the specified start date/time
             var session = new WorkoutTrackerWeb.Models.Session
             {
                 Name = name,
-                datetime = DateTime.Now,
+                datetime = sessionStartTime,
+                StartDateTime = sessionStartTime,
                 UserId = userId.Value,
                 Notes = "Created using Quick Workout mode"
             };
@@ -111,8 +115,8 @@ namespace WorkoutTrackerWeb.Services
             _context.Session.Add(session);
             await _context.SaveChangesAsync();
             
-            _logger.LogInformation("Created quick workout session {SessionId} for user {UserId}", 
-                session.SessionId, userId.Value);
+            _logger.LogInformation("Created quick workout session {SessionId} for user {UserId} starting at {StartTime}", 
+                session.SessionId, userId.Value, session.StartDateTime);
             
             return session;
         }

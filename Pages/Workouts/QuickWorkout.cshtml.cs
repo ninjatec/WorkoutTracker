@@ -85,8 +85,18 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                     sessionName = GenerateDefaultSessionName();
                 }
                 
-                // Create a new quick workout session
-                var session = await _quickWorkoutService.CreateQuickWorkoutSessionAsync(sessionName);
+                // Get the start time from the form if available
+                DateTime? startTime = null;
+                if (Request.Form["QuickWorkout.StartTime"].Count > 0)
+                {
+                    if (DateTime.TryParse(Request.Form["QuickWorkout.StartTime"], out DateTime parsedStartTime))
+                    {
+                        startTime = parsedStartTime;
+                    }
+                }
+                
+                // Create a new quick workout session with the specified start time
+                var session = await _quickWorkoutService.CreateQuickWorkoutSessionAsync(sessionName, startTime);
                 
                 // Set success message
                 StatusMessage = $"Successfully created new quick workout: {session.Name}";
