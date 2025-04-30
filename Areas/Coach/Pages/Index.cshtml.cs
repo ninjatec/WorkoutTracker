@@ -104,27 +104,82 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
 
         private async Task FetchClientGoals(string coachUserId, List<CoachClientRelationship> relationships)
         {
-            // Since we don't have certainty about the actual model/table name,
-            // we'll use placeholder data to ensure the build completes
-            var random = new Random();
-            var sampleGoals = new List<string>
+            try
             {
-                "Increase bench press by 10%",
-                "Lose 5kg of body weight",
-                "Run 5k under 25 minutes"
-            };
+                // Get active relationships
+                var activeRelationshipIds = relationships
+                    .Where(r => r.Status == RelationshipStatus.Active)
+                    .Select(r => r.Id)
+                    .ToList();
 
-            foreach (var relationship in relationships.Where(r => r.Status == RelationshipStatus.Active).Take(3))
-            {
-                ClientGoals.Add(new ClientGoalViewModel
+                // Get all client IDs for this coach
+                var clientIds = relationships
+                    .Where(r => r.Status == RelationshipStatus.Active)
+                    .Select(r => r.ClientId)
+                    .ToList();
+
+                if (!clientIds.Any())
                 {
-                    ClientName = relationship.Client?.UserName?.Split('@')[0] ?? "Client",
-                    Description = sampleGoals[random.Next(sampleGoals.Count)],
-                    Progress = random.Next(10, 100)
-                });
+                    return; // No clients, so no goals
+                }
+
+                // Query for goals that are either:
+                // 1. Coach-created goals linked to a coach-client relationship
+                // 2. User-created goals that are visible to the coach
+                var goals = await _context.ClientGoals
+                    .Where(g => (g.CoachClientRelationshipId.HasValue && activeRelationshipIds.Contains(g.CoachClientRelationshipId.Value)) ||
+                               (clientIds.Contains(g.UserId) && g.IsVisibleToCoach))
+                    .Where(g => !g.IsCompleted && g.IsActive) // Only active, incomplete goals
+                    .OrderBy(g => g.TargetDate)
+                    .Take(5) // Limit to 5 for the dashboard
+                    .ToListAsync();
+
+                // Transform data for display
+                foreach (var goal in goals)
+                {
+                    var clientName = "Unknown";
+                    
+                    // Get client name based on the type of goal
+                    if (goal.CoachClientRelationshipId.HasValue)
+                    {
+                        var relationship = relationships.FirstOrDefault(r => r.Id == goal.CoachClientRelationshipId.Value);
+                        if (relationship?.Client != null)
+                        {
+                            clientName = relationship.Client.UserName.Split('@')[0];
+                        }
+                    }
+                    else if (!string.IsNullOrEmpty(goal.UserId))
+                    {
+                        var client = relationships.FirstOrDefault(r => r.ClientId == goal.UserId)?.Client;
+                        if (client != null)
+                        {
+                            clientName = client.UserName.Split('@')[0];
+                        }
+                    }
+
+                    ClientGoals.Add(new ClientGoalViewModel
+                    {
+                        Id = goal.Id,
+                        ClientName = clientName,
+                        Description = goal.Description,
+                        Progress = goal.ProgressPercentage,
+                        TargetDate = goal.TargetDate,
+                        Category = goal.Category.ToString(),
+                        IsCompleted = goal.IsCompleted,
+                        MeasurementType = goal.MeasurementType,
+                        MeasurementUnit = goal.MeasurementUnit,
+                        CurrentValue = goal.CurrentValue,
+                        TargetValue = goal.TargetValue,
+                        RelationshipId = goal.CoachClientRelationshipId
+                    });
+                }
             }
-            
-            await Task.CompletedTask; // To satisfy async contract
+            catch (Exception ex)
+            {
+                // Log the exception but don't crash
+                Console.WriteLine($"Error fetching goals: {ex.Message}");
+                // Leave the goals list empty
+            }
         }
 
         private async Task FetchUpcomingSessions(string coachUserId)
@@ -189,6 +244,112 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
             }
         }
 
+        public async Task<IActionResult> OnPostSendGoalFeedbackAsync(int goalId, string feedbackType, string feedbackMessage, bool sendNotification = true)
+        {
+            var coachId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(coachId))
+            {
+                return Forbid();
+            }
+
+            try
+            {
+                // Find the goal
+                var goal = await _context.ClientGoals.FindAsync(goalId);
+                if (goal == null)
+                {
+                    TempData["StatusMessage"] = "Error: Goal not found.";
+                    TempData["StatusMessageType"] = "danger";
+                    return RedirectToPage();
+                }
+
+                // Validate coach has access to this goal
+                var hasAccess = false;
+                string clientId = null;
+                
+                if (goal.CoachClientRelationshipId.HasValue)
+                {
+                    // Check if the goal is associated with a relationship where this user is the coach
+                    var relationship = await _context.CoachClientRelationships
+                        .FirstOrDefaultAsync(r => r.Id == goal.CoachClientRelationshipId.Value && r.CoachId == coachId);
+                    
+                    hasAccess = relationship != null;
+                    clientId = relationship?.ClientId;
+                }
+                else if (!string.IsNullOrEmpty(goal.UserId))
+                {
+                    // Check if the goal's user is a client of this coach and the goal is visible to coach
+                    var relationship = await _context.CoachClientRelationships
+                        .FirstOrDefaultAsync(r => r.ClientId == goal.UserId && r.CoachId == coachId && r.Status == RelationshipStatus.Active);
+                    
+                    hasAccess = relationship != null && goal.IsVisibleToCoach;
+                    clientId = goal.UserId;
+                }
+
+                if (!hasAccess)
+                {
+                    TempData["StatusMessage"] = "Error: You don't have permission to provide feedback on this goal.";
+                    TempData["StatusMessageType"] = "danger";
+                    return RedirectToPage();
+                }
+
+                // Create and save goal feedback
+                var feedback = new GoalFeedback
+                {
+                    GoalId = goalId,
+                    CoachId = coachId,
+                    FeedbackType = feedbackType,
+                    Message = feedbackMessage,
+                    CreatedDate = DateTime.UtcNow
+                };
+                
+                _context.GoalFeedback.Add(feedback);
+                await _context.SaveChangesAsync();
+
+                // Add activity entry for this feedback if we have a client ID
+                if (!string.IsNullOrEmpty(clientId))
+                {
+                    var activity = new ClientActivity
+                    {
+                        ClientId = clientId,
+                        CoachId = coachId,
+                        ActivityType = "GoalFeedback",
+                        Description = $"Received feedback on goal: {goal.Description}",
+                        ActivityDate = DateTime.UtcNow,
+                        RelatedEntityType = "Goal",
+                        RelatedEntityId = goalId.ToString()
+                    };
+                    
+                    _context.ClientActivities.Add(activity);
+                    await _context.SaveChangesAsync();
+                }
+
+                // Send notification to client if requested
+                if (sendNotification && !string.IsNullOrEmpty(clientId))
+                {
+                    var client = await _userManager.FindByIdAsync(clientId);
+                    if (client != null && !string.IsNullOrEmpty(client.Email))
+                    {
+                        // TODO: Implement email notification here
+                        // This would typically use an email service
+                        // For now, just log that we would send an email
+                        Console.WriteLine($"Would send email to {client.Email} about goal feedback");
+                    }
+                }
+
+                TempData["StatusMessage"] = "Goal feedback has been sent successfully.";
+                TempData["StatusMessageType"] = "success";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error sending goal feedback: {ex.Message}");
+                TempData["StatusMessage"] = "Error: Unable to send feedback. Please try again.";
+                TempData["StatusMessageType"] = "danger";
+            }
+
+            return RedirectToPage();
+        }
+
         public class ClientActivityViewModel
         {
             public string ClientName { get; set; }
@@ -199,9 +360,18 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
 
         public class ClientGoalViewModel
         {
+            public int Id { get; set; }
             public string ClientName { get; set; }
             public string Description { get; set; }
             public int Progress { get; set; }
+            public DateTime TargetDate { get; set; }
+            public string Category { get; set; }
+            public bool IsCompleted { get; set; }
+            public string MeasurementType { get; set; }
+            public string MeasurementUnit { get; set; }
+            public decimal? CurrentValue { get; set; }
+            public decimal? TargetValue { get; set; }
+            public int? RelationshipId { get; set; }
         }
 
         public class UpcomingSessionViewModel

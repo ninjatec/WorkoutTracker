@@ -74,6 +74,10 @@ namespace WorkoutTrackerWeb.Data
         public DbSet<WorkoutTrackerWeb.Models.WorkoutExercise> WorkoutExercises { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.WorkoutSet> WorkoutSets { get; set; } = default!;
 
+        // New DbSets for coach dashboard integration
+        public DbSet<WorkoutTrackerWeb.Models.Coaching.GoalFeedback> GoalFeedback { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.Coaching.ClientActivity> ClientActivities { get; set; } = default!;
+
         // Helper method to get the current user's own User record
         public async Task<User> GetCurrentUserAsync()
         {
@@ -635,6 +639,65 @@ namespace WorkoutTrackerWeb.Data
                 .WithMany()
                 .HasForeignKey(ef => ef.SetId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure GoalFeedback relationships and query filters
+            modelBuilder.Entity<GoalFeedback>()
+                .HasOne(gf => gf.Goal)
+                .WithMany()
+                .HasForeignKey(gf => gf.GoalId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<GoalFeedback>()
+                .HasOne(gf => gf.Coach)
+                .WithMany()
+                .HasForeignKey(gf => gf.CoachId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            // Configure ClientActivity relationships and query filters
+            modelBuilder.Entity<ClientActivity>()
+                .HasOne(ca => ca.Client)
+                .WithMany()
+                .HasForeignKey(ca => ca.ClientId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            modelBuilder.Entity<ClientActivity>()
+                .HasOne(ca => ca.Coach)
+                .WithMany()
+                .HasForeignKey(ca => ca.CoachId)
+                .OnDelete(DeleteBehavior.SetNull);
+                
+            // Add indexes for better performance
+            modelBuilder.Entity<GoalFeedback>()
+                .HasIndex(gf => gf.GoalId);
+                
+            modelBuilder.Entity<GoalFeedback>()
+                .HasIndex(gf => gf.CoachId);
+                
+            modelBuilder.Entity<GoalFeedback>()
+                .HasIndex(gf => gf.IsRead);
+                
+            modelBuilder.Entity<ClientActivity>()
+                .HasIndex(ca => ca.ClientId);
+                
+            modelBuilder.Entity<ClientActivity>()
+                .HasIndex(ca => ca.CoachId);
+                
+            modelBuilder.Entity<ClientActivity>()
+                .HasIndex(ca => ca.ActivityDate);
+                
+            modelBuilder.Entity<ClientActivity>()
+                .HasIndex(ca => ca.IsViewedByCoach);
+                
+            // Set up query filters to ensure data security
+            modelBuilder.Entity<GoalFeedback>()
+                .HasQueryFilter(gf => _currentUserId == null || 
+                             gf.CoachId == _currentUserId ||
+                             gf.Goal.UserId == _currentUserId);
+                
+            modelBuilder.Entity<ClientActivity>()
+                .HasQueryFilter(ca => _currentUserId == null || 
+                              ca.ClientId == _currentUserId || 
+                              ca.CoachId == _currentUserId);
         }
     }
 }

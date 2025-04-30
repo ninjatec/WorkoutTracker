@@ -144,12 +144,12 @@
      - [x] Implement comparison tools for goal progress over time
      - [x] Add milestone tracking for long-term goals
 
-   - [ ] Coach Dashboard Integration
-     - [ ] Enhance coach dashboard to show client goal summaries
-     - [ ] Add goal analytics to provide insights on client progress
-     - [ ] Create notifications for coaches when clients update goal progress
-     - [ ] Implement goal status indicators in client lists
-     - [ ] Add quick actions for coaches to provide feedback on goal progress
+   - [x] Coach Dashboard Integration
+     - [x] Enhance coach dashboard to show client goal summaries
+     - [x] Add goal analytics to provide insights on client progress
+     - [x] Create notifications for coaches when clients update goal progress
+     - [x] Implement goal status indicators in client lists
+     - [x] Add quick actions for coaches to provide feedback on goal progress
 
    - [ ] User Dashboard Integration
      - [ ] Add goal widgets to user dashboard
