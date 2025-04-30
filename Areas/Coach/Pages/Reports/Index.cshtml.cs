@@ -75,10 +75,15 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Reports
 
             // Get all active goals
             var goals = await _context.ClientGoals
-                .Where(g => g.IsActive && !g.IsCompleted &&
-                    (clientIds.Contains(g.UserId) || 
-                    (g.CoachClientRelationshipId.HasValue && relationships.Any(r => r.Id == g.CoachClientRelationshipId.Value))))
+                .Where(g => g.IsActive && !g.IsCompleted)
                 .ToListAsync();
+
+            // Filter goals after fetching
+            goals = goals.Where(g => 
+                clientIds.Contains(g.UserId) || 
+                (g.CoachClientRelationshipId.HasValue && 
+                relationships.Any(r => r.Id == g.CoachClientRelationshipId.Value)))
+                .ToList();
 
             ActiveGoalCount = goals.Count();
 

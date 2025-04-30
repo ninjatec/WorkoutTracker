@@ -78,9 +78,21 @@ function initializeGoalAnalyticsChart(data) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    bottom: 10
+                }
+            },
             plugins: {
                 legend: {
-                    position: 'bottom'
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 12,
+                        padding: 10,
+                        font: {
+                            size: 11
+                        }
+                    }
                 },
                 tooltip: {
                     callbacks: {
@@ -119,23 +131,32 @@ function initializeSessionTrendsChart(data) {
                 y: {
                     beginAtZero: true,
                     ticks: {
-                        precision: 0
+                        precision: 0,
+                        maxTicksLimit: 5
                     },
                     title: {
                         display: true,
-                        text: 'Number of Sessions'
+                        text: 'Sessions',
+                        padding: {
+                            top: 0,
+                            bottom: 0
+                        }
                     }
                 },
                 x: {
-                    title: {
-                        display: true,
-                        text: 'Date'
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxRotation: 0,
+                        autoSkip: true,
+                        maxTicksLimit: 7
                     }
                 }
             },
             plugins: {
                 legend: {
-                    position: 'bottom'
+                    display: false
                 },
                 tooltip: {
                     mode: 'index',
