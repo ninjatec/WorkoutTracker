@@ -133,8 +133,6 @@
      - [ ] Implement UI for users to create, update and track personal goals
      - [ ] Add unified view for both coach-assigned and personal goals
      - [ ] Create progress update functionality for users to record milestones
-     - [ ] Implement goal suggestions based on workout history
-     - [ ] Add celebration/achievement notifications when goals are completed
 
    - [ ] Goal Progress Tracking System
      - [ ] Create automated progress calculation based on workout data
