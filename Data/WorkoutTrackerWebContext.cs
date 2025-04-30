@@ -55,6 +55,7 @@ namespace WorkoutTrackerWeb.Data
         public DbSet<WorkoutTrackerWeb.Models.Coaching.ClientGroupMember> ClientGroupMembers { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Coaching.CoachNote> CoachNotes { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Coaching.ClientGoal> ClientGoals { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.Coaching.GoalMilestone> GoalMilestones { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Coaching.CoachClientMessage> CoachClientMessages { get; set; } = default!;
         
         // New workout programming DbSets
@@ -393,11 +394,28 @@ namespace WorkoutTrackerWeb.Data
             modelBuilder.Entity<ClientGoal>()
                 .HasIndex(g => g.IsActive);
                 
-            modelBuilder.Entity<CoachClientMessage>()
-                .HasIndex(m => m.CoachClientRelationshipId);
+            // Configure GoalMilestone relationships
+            modelBuilder.Entity<GoalMilestone>()
+                .HasOne(m => m.Goal)
+                .WithMany()
+                .HasForeignKey(m => m.GoalId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            // Add indexes for GoalMilestone for better performance
+            modelBuilder.Entity<GoalMilestone>()
+                .HasIndex(m => m.GoalId);
+                
+            modelBuilder.Entity<GoalMilestone>()
+                .HasIndex(m => m.Date);
+                
+            // Filter GoalMilestones based on associated goal's visibility
+            modelBuilder.Entity<GoalMilestone>()
+                .HasQueryFilter(m => _currentUserId == null || 
+                              m.Goal.UserId == _currentUserId || 
+                              (m.Goal.IsVisibleToCoach && m.Goal.Relationship.CoachId == _currentUserId));
                 
             modelBuilder.Entity<CoachClientMessage>()
-                .HasIndex(m => m.IsRead);
+                .HasIndex(m => m.CoachClientRelationshipId);
                 
             // Configure relationships and query filters for workout programming models
             

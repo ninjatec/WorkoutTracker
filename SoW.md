@@ -136,13 +136,13 @@
      - [x] Add unified view for both coach-assigned and personal goals
      - [x] Create progress update functionality for users to record milestones
 
-   - [ ] Goal Progress Tracking System
-     - [ ] Create automated progress calculation based on workout data
-     - [ ] Implement tracking mechanisms specific to goal types (weight, reps, duration)
-     - [ ] Add manual progress update capabilities for non-trackable goals
-     - [ ] Create goal history and progress timeline views
-     - [ ] Implement comparison tools for goal progress over time
-     - [ ] Add milestone tracking for long-term goals
+   - [x] Goal Progress Tracking System
+     - [x] Create automated progress calculation based on workout data
+     - [x] Implement tracking mechanisms specific to goal types (weight, reps, duration)
+     - [x] Add manual progress update capabilities for non-trackable goals
+     - [x] Create goal history and progress timeline views
+     - [x] Implement comparison tools for goal progress over time
+     - [x] Add milestone tracking for long-term goals
 
    - [ ] Coach Dashboard Integration
      - [ ] Enhance coach dashboard to show client goal summaries

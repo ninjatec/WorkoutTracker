@@ -263,9 +263,9 @@ namespace WorkoutTrackerWeb.Services
         }
 
         /// <summary>
-        /// Marks a quick workout session as finished by updating the notes
+        /// Marks a quick workout session as finished by updating the notes and setting the end time
         /// </summary>
-        public async Task<WorkoutTrackerWeb.Models.Session> FinishQuickWorkoutSessionAsync(int sessionId)
+        public async Task<WorkoutTrackerWeb.Models.Session> FinishQuickWorkoutSessionAsync(int sessionId, DateTime? endTime = null)
         {
             // Validate the session belongs to the current user
             var userId = await _userService.GetCurrentUserIdAsync();
@@ -277,8 +277,11 @@ namespace WorkoutTrackerWeb.Services
                 throw new InvalidOperationException("Session not found or doesn't belong to current user");
             }
             
+            // Set the end time (use provided value or current time)
+            session.endtime = endTime ?? DateTime.Now;
+            
             // Update the notes to indicate the session is completed
-            session.Notes = $"{session.Notes} - Completed at {DateTime.Now:yyyy-MM-dd HH:mm}";
+            session.Notes = $"{session.Notes} - Completed at {session.endtime:yyyy-MM-dd HH:mm}";
             
             _context.Update(session);
             await _context.SaveChangesAsync();
