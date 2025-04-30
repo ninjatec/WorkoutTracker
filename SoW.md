@@ -128,11 +128,11 @@
      - [x] Add goal visualization components (progress bars, charts)
      - [x] Create filtering options for viewing goals by client, status, and category
 
-   - [ ] User Goal Management Interface
-     - [ ] Create personal goal management page for regular users
-     - [ ] Implement UI for users to create, update and track personal goals
-     - [ ] Add unified view for both coach-assigned and personal goals
-     - [ ] Create progress update functionality for users to record milestones
+   - [x] User Goal Management Interface
+     - [x] Create personal goal management page for regular users
+     - [x] Implement UI for users to create, update and track personal goals
+     - [x] Add unified view for both coach-assigned and personal goals
+     - [x] Create progress update functionality for users to record milestones
 
    - [ ] Goal Progress Tracking System
      - [ ] Create automated progress calculation based on workout data
