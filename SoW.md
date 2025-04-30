@@ -158,12 +158,12 @@
      - [x] Add motivation features like streak counting and milestone celebration
      - [x] Create social sharing options for completed goals
 
-   - [ ] Data Integration and APIs
-     - [ ] Create shared services for goal operations between coach and user interfaces
-     - [ ] Implement proper permission checking for goal CRUD operations
-     - [ ] Optimize goal-related queries for performance
-     - [ ] Add API endpoints for goal tracking mobile integration
-     - [ ] Implement goal data export functionality for reporting
+   - [x] Data Integration and APIs
+     - [x] Create shared services for goal operations between coach and user interfaces
+     - [x] Implement proper permission checking for goal CRUD operations
+     - [x] Optimize goal-related queries for performance
+     - [x] Add API endpoints for goal tracking mobile integration
+     - [x] Implement goal data export functionality for reporting
 
 ---
 

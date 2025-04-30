@@ -505,6 +505,8 @@ try
     // Register coaching services
     builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.ICoachingService, WorkoutTrackerWeb.Services.Coaching.CoachingService>();
     builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.GoalQueryService>();
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.GoalProgressService>();
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.GoalOperationsService>();
     
     // Register validation services
     builder.Services.AddScoped<WorkoutTrackerWeb.Services.Validation.CoachingValidationService>();

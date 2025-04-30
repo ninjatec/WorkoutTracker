@@ -56,6 +56,20 @@ This document maintains an up-to-date inventory of all features, components, and
 - Volume Calculation System
 - Calorie Estimation System
 
+### API Controllers
+- GoalsController - Main controller for goal operations via MVC
+- GoalsApiController - RESTful API controller for mobile integration 
+
+### Services
+- GoalOperationsService - Shared service for centralized goal operations with permission checking
+- GoalQueryService - Service for optimized goal-related queries
+- GoalProgressService - Service for tracking and updating goal progress
+
+### DTOs
+- GoalExportDto - Data transfer object for goal export and API integration
+- GoalMilestoneDto - Data transfer object for goal milestone data in exports
+- GoalProgressUpdateDto - Data transfer object for goal progress updates via API
+
 ### Data Models
 - User
 - WorkoutSession
