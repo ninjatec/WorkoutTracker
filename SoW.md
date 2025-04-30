@@ -111,7 +111,9 @@
    - [x] Implement the scheduling system for coaches similar to that used by normal users /Workouts/ScheduledWorkouts
    - [x] Implement a template system for coaches similar to a normal users system, integrating with schedules as with normal users
    - [ ] Create unified template management experience
-  
+
+--
+
  - [ ] Complete unified functionality for Goals for coaches and normal users this should integrate with the coaching dashboard
    - [x] Goal Model and Database Enhancements
      - [x] Extend ClientGoal model to support user-created goals (not just coach-assigned)
@@ -163,9 +165,59 @@
      - [ ] Add API endpoints for goal tracking mobile integration
      - [ ] Implement goal data export functionality for reporting
 
+---
+
+ - [ ] Create logic and background job that converts scheduled workouts into workouts
+   - [ ] Design and implement conversion service
+     - [ ] Create ScheduledWorkoutProcessorService class
+     - [ ] Implement methods to determine which scheduled workouts are due for conversion
+     - [ ] Support different recurrence patterns (Once, Weekly, BiWeekly, Monthly)
+     - [ ] Handle timezone considerations for global users
+     - [ ] Add configuration options for advance creation (e.g., create workouts 24h in advance)
+   
+   - [ ] Build template-to-workout conversion logic
+     - [ ] Implement factory method to create WorkoutSession from WorkoutTemplate
+     - [ ] Transfer exercise data, sets, and program notes from template to workout
+     - [ ] Set proper workout metadata (scheduled date, reference to template)
+     - [ ] Create test cases for different template types
+     
+   - [ ] Create Hangfire background job
+     - [ ] Implement recurring Hangfire job to process scheduled workouts
+     - [ ] Configure appropriate schedule interval (e.g., hourly checks)
+     - [ ] Create job dashboard for monitoring conversion status
+     - [ ] Implement error handling and retry mechanisms
+     - [ ] Add logging for conversion events and failures
+   
+   - [ ] Implement recurrence pattern logic
+     - [ ] Build next occurrence calculation system for each pattern type
+     - [ ] Handle special cases like month end dates and leap years
+     - [ ] Ensure proper handling of recurring workouts with end dates
+     - [ ] Implement logic for multiple days of the week (stored in MultipleDaysOfWeek)
+   
+   - [ ] Add status tracking for scheduled workouts
+     - [ ] Create model property to track last generated workout
+     - [ ] Update schedule status when workout is generated
+     - [ ] Implement history tracking for recurring schedules
+     - [ ] Update dashboard to show conversion status
+   
+   - [ ] Create notification system integration
+     - [ ] Trigger notifications when workout is generated from schedule
+     - [ ] Configure notification timing relative to scheduled date
+     - [ ] Include template/schedule details in notification
+     - [ ] Send workout reminders according to ReminderHoursBefore setting
+   
+   - [ ] Build system to handle missed workouts
+     - [ ] Implement detection for missed workout schedule conversions
+     - [ ] Create policy for handling missed schedule conversions (skip or create late)
+     - [ ] Add configuration options for missed workout handling
+     - [ ] Update client and coach interfaces for missed workout visibility
+
+
+---
+
  - [ ] Recent Client Activity should show real data.
  - [ ] Fix user Schedules page
- - [ ] Create logic and background job that converts scheduled workouts into workouts
+
  - [ ] Create logic and background job for sending notifications
  
  - [ ] Dashboard and Analytics Enhancement
