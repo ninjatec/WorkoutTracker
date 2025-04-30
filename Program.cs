@@ -518,6 +518,11 @@ try
     // Register workout scheduling job registration services
     builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.WorkoutSchedulingJobsRegistration>();
 
+    // Register workout reminder services
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Scheduling.WorkoutReminderService>();
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsService>();
+    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsRegistration>();
+
     // Add session state with Redis caching and JSON serialization
     builder.Services.AddSession(options =>
     {
@@ -1088,6 +1093,24 @@ try
     catch (Exception ex)
     {
         Log.Error(ex, "Error registering workout scheduling jobs");
+    }
+
+    // Register Workout Reminder jobs
+    try {
+        using (var scope = app.Services.CreateScope())
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger.LogInformation("Registering workout reminder jobs");
+            
+            var workoutReminderJobsRegistration = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsRegistration>();
+            workoutReminderJobsRegistration.RegisterWorkoutReminderJobs();
+            
+            logger.LogInformation("Workout reminder jobs registered successfully");
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Error registering workout reminder jobs");
     }
 
     // Add request metrics middleware before routing
