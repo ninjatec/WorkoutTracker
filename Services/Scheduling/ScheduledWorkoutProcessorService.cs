@@ -411,7 +411,7 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             
             try
             {
-                // Create the session
+                // Step 1: Create the Session (legacy model)
                 var session = new WorkoutTrackerWeb.Models.Session
                 {
                     Name = workout.Name,
@@ -424,7 +424,24 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                 _context.Session.Add(session);
                 await _context.SaveChangesAsync();
                 
-                // Add sets from template
+                // Step 2: Create WorkoutSession (new model with proper metadata)
+                var workoutSession = new WorkoutSession
+                {
+                    Name = workout.Name,
+                    Description = workout.Description,
+                    StartDateTime = workout.ScheduledDateTime.Value,
+                    UserId = workout.ClientUserId,
+                    WorkoutTemplateId = template.WorkoutTemplateId,
+                    TemplateAssignmentId = workout.TemplateAssignmentId,
+                    TemplatesUsed = template.Name,
+                    IsFromCoach = workout.CoachUserId != workout.ClientUserId,
+                    Status = "Scheduled"
+                };
+
+                _context.WorkoutSessions.Add(workoutSession);
+                await _context.SaveChangesAsync();
+                
+                // Step 3: Add sets from template to Session model (for compatibility)
                 var setList = new List<Set>();
                 
                 foreach (var templateExercise in template.TemplateExercises.OrderBy(e => e.SequenceNum))
@@ -449,6 +466,57 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                 
                 _context.Set.AddRange(setList);
                 await _context.SaveChangesAsync();
+                
+                // Step 4: Create exercises and sets in the WorkoutSession model
+                var sequenceNum = 0;
+                foreach (var templateExercise in template.TemplateExercises.OrderBy(e => e.SequenceNum))
+                {
+                    // Create the exercise
+                    var workoutExercise = new WorkoutExercise
+                    {
+                        WorkoutSessionId = workoutSession.WorkoutSessionId,
+                        ExerciseTypeId = templateExercise.ExerciseTypeId,
+                        EquipmentId = templateExercise.EquipmentId,
+                        SequenceNum = templateExercise.SequenceNum,
+                        OrderIndex = sequenceNum++,
+                        Notes = templateExercise.Notes,
+                        // Map appropriate rest period value - for safety, handle potential null values
+                        RestPeriodSeconds = templateExercise.RestSeconds
+                    };
+                    
+                    _context.WorkoutExercises.Add(workoutExercise);
+                    await _context.SaveChangesAsync();
+                    
+                    // Create the sets for this exercise
+                    var workoutSets = new List<WorkoutSet>();
+                    var setNumber = 1;
+                    
+                    foreach (var templateSet in templateExercise.TemplateSets.OrderBy(s => s.SequenceNum))
+                    {
+                        var workoutSet = new WorkoutSet
+                        {
+                            WorkoutExerciseId = workoutExercise.WorkoutExerciseId,
+                            SettypeId = templateSet.SettypeId,
+                            SequenceNum = templateSet.SequenceNum,
+                            SetNumber = setNumber++,
+                            Reps = templateSet.DefaultReps,
+                            Weight = templateSet.DefaultWeight,
+                            Notes = templateSet.Notes,
+                            // Default rest period if needed
+                            RestSeconds = 60, // Using standard default value
+                            // Use min/max reps from template or set reasonable defaults
+                            TargetMinReps = templateExercise.MinReps,
+                            TargetMaxReps = templateExercise.MaxReps,
+                            IsCompleted = false,
+                            Timestamp = DateTime.Now
+                        };
+                        
+                        workoutSets.Add(workoutSet);
+                    }
+                    
+                    _context.WorkoutSets.AddRange(workoutSets);
+                    await _context.SaveChangesAsync();
+                }
                 
                 // If this is a one-time schedule, mark it as inactive
                 if (!workout.IsRecurring || workout.RecurrencePattern == "Once")

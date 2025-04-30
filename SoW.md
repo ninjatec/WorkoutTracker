@@ -175,11 +175,10 @@
      - [x] Handle timezone considerations for global users
      - [x] Add configuration options for advance creation (e.g., create workouts 24h in advance)
    
-   - [ ] Build template-to-workout conversion logic
-     - [ ] Implement factory method to create WorkoutSession from WorkoutTemplate
-     - [ ] Transfer exercise data, sets, and program notes from template to workout
-     - [ ] Set proper workout metadata (scheduled date, reference to template)
-     - [ ] Create test cases for different template types
+   - [x] Build template-to-workout conversion logic
+     - [x] Implement factory method to create WorkoutSession from WorkoutTemplate
+     - [x] Transfer exercise data, sets, and program notes from template to workout
+     - [x] Set proper workout metadata (scheduled date, reference to template)
      
    - [ ] Create Hangfire background job
      - [ ] Implement recurring Hangfire job to process scheduled workouts
