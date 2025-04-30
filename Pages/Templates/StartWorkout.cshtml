@@ -215,9 +215,6 @@
             var formattedDate = today.toISOString().split('T')[0];
             document.getElementById('startDate').value = formattedDate;
             
-            // Disable end date for one-time workouts
-            document.getElementById('endDate').disabled = true;
-            
             // Toggle recurrence pattern options
             document.querySelectorAll('input[name="recurrencePattern"]').forEach(function(radio) {
                 radio.addEventListener('change', function() {
@@ -240,13 +237,6 @@
                         // Set default day of month to today's date
                         var dayOfMonth = new Date().getDate();
                         document.getElementById('dayOfMonth').value = dayOfMonth;
-                    }
-                    
-                    // Enable/disable end date based on recurrence
-                    if (pattern === 'Once') {
-                        document.getElementById('endDate').disabled = true;
-                    } else {
-                        document.getElementById('endDate').disabled = false;
                     }
                 });
             });
