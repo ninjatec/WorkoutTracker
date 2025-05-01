@@ -12,8 +12,13 @@ namespace WorkoutTrackerWeb.Services.Calculations
 {
     public interface ICalorieCalculationService
     {
+        // Legacy methods for Session model
         Task<double> CalculateSessionCaloriesAsync(int sessionId);
         Task<double> CalculateSetCaloriesAsync(int setId);
+        
+        // New methods for WorkoutSession model
+        Task<double> CalculateWorkoutSessionCaloriesAsync(int workoutSessionId);
+        Task<double> CalculateWorkoutSetCaloriesAsync(int workoutSetId);
     }
 
     public class CalorieCalculationService : ICalorieCalculationService
@@ -77,6 +82,7 @@ namespace WorkoutTrackerWeb.Services.Calculations
             _logger = logger;
         }
 
+        // Legacy method - kept for backward compatibility
         public async Task<double> CalculateSessionCaloriesAsync(int sessionId)
         {
             string cacheKey = $"{CacheKeyPrefix}Session_{sessionId}";
@@ -124,6 +130,7 @@ namespace WorkoutTrackerWeb.Services.Calculations
             }
         }
 
+        // Legacy method - kept for backward compatibility
         public async Task<double> CalculateSetCaloriesAsync(int setId)
         {
             string cacheKey = $"{CacheKeyPrefix}Set_{setId}";
@@ -171,6 +178,119 @@ namespace WorkoutTrackerWeb.Services.Calculations
             }
         }
 
+        // New method for WorkoutSession
+        public async Task<double> CalculateWorkoutSessionCaloriesAsync(int workoutSessionId)
+        {
+            string cacheKey = $"{CacheKeyPrefix}WorkoutSession_{workoutSessionId}";
+
+            // Try to get from cache first
+            if (_cache.TryGetValue(cacheKey, out double cachedCalories))
+            {
+                return cachedCalories;
+            }
+
+            try
+            {
+                // Get the workout session with related data
+                var workoutSession = await _context.WorkoutSessions
+                    .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.ExerciseType)
+                    .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.WorkoutSets)
+                    .FirstOrDefaultAsync(ws => ws.WorkoutSessionId == workoutSessionId);
+
+                if (workoutSession == null)
+                {
+                    _logger.LogWarning("WorkoutSession {WorkoutSessionId} not found when calculating calories", workoutSessionId);
+                    return 0;
+                }
+
+                // Get user weight (fallback to default)
+                double userWeight = await GetUserWeightAsync(workoutSession.UserId);
+                
+                // Use the recorded duration if available, otherwise estimate
+                double durationHours;
+                if (workoutSession.Duration > 0)
+                {
+                    // Convert minutes to hours
+                    durationHours = workoutSession.Duration / 60.0;
+                }
+                else
+                {
+                    // Count total sets across all exercises
+                    int totalSets = workoutSession.WorkoutExercises.Sum(we => we.WorkoutSets.Count);
+                    durationHours = EstimateSessionDuration(totalSets);
+                }
+
+                // Get average MET value for the workout session
+                double averageMet = CalculateAverageMetForWorkoutSession(workoutSession);
+                
+                // Calculate calories using the formula: MET × Weight (kg) × Duration (hours)
+                double calories = averageMet * userWeight * durationHours;
+                
+                // Cache the result
+                _cache.Set(cacheKey, calories, CacheDuration);
+                return calories;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calculating calories for workout session {WorkoutSessionId}", workoutSessionId);
+                return 0;
+            }
+        }
+
+        // New method for WorkoutSet
+        public async Task<double> CalculateWorkoutSetCaloriesAsync(int workoutSetId)
+        {
+            string cacheKey = $"{CacheKeyPrefix}WorkoutSet_{workoutSetId}";
+
+            // Try to get from cache first
+            if (_cache.TryGetValue(cacheKey, out double cachedCalories))
+            {
+                return cachedCalories;
+            }
+
+            try
+            {
+                // Get the workout set with related data
+                var workoutSet = await _context.WorkoutSets
+                    .Include(ws => ws.WorkoutExercise)
+                    .ThenInclude(we => we.ExerciseType)
+                    .Include(ws => ws.WorkoutExercise)
+                    .ThenInclude(we => we.WorkoutSession)
+                    .FirstOrDefaultAsync(ws => ws.WorkoutSetId == workoutSetId);
+
+                if (workoutSet == null)
+                {
+                    _logger.LogWarning("WorkoutSet {WorkoutSetId} not found when calculating calories", workoutSetId);
+                    return 0;
+                }
+
+                // Get user weight (fallback to default)
+                double userWeight = await GetUserWeightAsync(workoutSet.WorkoutExercise.WorkoutSession.UserId);
+                
+                // Estimate set duration in hours (including rest)
+                double setDurationHours = EstimateSetDuration(workoutSet.Reps ?? 0);
+                
+                // Get MET value for this exercise
+                double met = GetMetValueForExercise(
+                    workoutSet.WorkoutExercise.ExerciseType?.Name ?? "unknown", 
+                    workoutSet.Weight ?? 0);
+                
+                // Calculate calories
+                double calories = met * userWeight * setDurationHours;
+                
+                // Cache the result
+                _cache.Set(cacheKey, calories, CacheDuration);
+                return calories;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calculating calories for workout set {WorkoutSetId}", workoutSetId);
+                return 0;
+            }
+        }
+
         private async Task<double> GetUserWeightAsync(int userId) 
         {
             // TODO: In a future implementation, retrieve the user's actual weight
@@ -194,6 +314,32 @@ namespace WorkoutTrackerWeb.Services.Calculations
                 {
                     totalMet += GetMetValueForExercise(set.ExerciseType.Name, set.Weight);
                     count++;
+                }
+            }
+
+            return count > 0 ? totalMet / count : _metValues["default"];
+        }
+
+        // New method for calculating average MET for WorkoutSession
+        private double CalculateAverageMetForWorkoutSession(Models.WorkoutSession workoutSession)
+        {
+            if (workoutSession?.WorkoutExercises == null || !workoutSession.WorkoutExercises.Any())
+            {
+                return _metValues["default"];
+            }
+
+            double totalMet = 0;
+            int count = 0;
+
+            foreach (var exercise in workoutSession.WorkoutExercises)
+            {
+                if (exercise.ExerciseType != null && exercise.WorkoutSets != null)
+                {
+                    foreach (var set in exercise.WorkoutSets)
+                    {
+                        totalMet += GetMetValueForExercise(exercise.ExerciseType.Name, set.Weight ?? 0);
+                        count++;
+                    }
                 }
             }
 

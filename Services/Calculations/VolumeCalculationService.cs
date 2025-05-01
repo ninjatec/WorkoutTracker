@@ -15,6 +15,11 @@ namespace WorkoutTrackerWeb.Services.Calculations
         Task<double> CalculateSessionVolumeAsync(int sessionId);
         double CalculateSetVolume(Set set);
         Task<Dictionary<string, double>> CalculateVolumeByExerciseTypeAsync(int sessionId);
+        
+        // New methods for WorkoutSession
+        Task<double> CalculateWorkoutSessionVolumeAsync(int workoutSessionId);
+        double CalculateWorkoutSetVolume(WorkoutSet workoutSet);
+        Task<Dictionary<string, double>> CalculateVolumeByExerciseTypeForWorkoutSessionAsync(int workoutSessionId);
     }
 
     public class VolumeCalculationService : IVolumeCalculationService
@@ -35,6 +40,7 @@ namespace WorkoutTrackerWeb.Services.Calculations
             _logger = logger;
         }
 
+        // Legacy method - kept for backward compatibility
         public async Task<double> CalculateSessionVolumeAsync(int sessionId)
         {
             string cacheKey = $"{CacheKeyPrefix}Session_{sessionId}";
@@ -71,6 +77,7 @@ namespace WorkoutTrackerWeb.Services.Calculations
             }
         }
 
+        // Legacy method - kept for backward compatibility
         public double CalculateSetVolume(Set set)
         {
             if (set == null || set.NumberReps == 0 || set.Weight == 0)
@@ -83,6 +90,7 @@ namespace WorkoutTrackerWeb.Services.Calculations
             return (double)set.Weight * set.NumberReps;
         }
 
+        // Legacy method - kept for backward compatibility
         public async Task<Dictionary<string, double>> CalculateVolumeByExerciseTypeAsync(int sessionId)
         {
             string cacheKey = $"{CacheKeyPrefix}SessionByExercise_{sessionId}";
@@ -127,6 +135,114 @@ namespace WorkoutTrackerWeb.Services.Calculations
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error calculating volume by exercise for session {SessionId}", sessionId);
+                return new Dictionary<string, double>();
+            }
+        }
+
+        // New method for WorkoutSession
+        public async Task<double> CalculateWorkoutSessionVolumeAsync(int workoutSessionId)
+        {
+            string cacheKey = $"{CacheKeyPrefix}WorkoutSession_{workoutSessionId}";
+
+            // Try to get from cache first
+            if (_cache.TryGetValue(cacheKey, out double cachedVolume))
+            {
+                return cachedVolume;
+            }
+
+            try
+            {
+                // Get all workout exercises and their sets for the workout session
+                var workoutExercises = await _context.WorkoutExercises
+                    .Where(we => we.WorkoutSessionId == workoutSessionId)
+                    .Include(we => we.WorkoutSets)
+                    .ToListAsync();
+
+                double totalVolume = 0;
+
+                foreach (var exercise in workoutExercises)
+                {
+                    foreach (var set in exercise.WorkoutSets)
+                    {
+                        totalVolume += CalculateWorkoutSetVolume(set);
+                    }
+                }
+
+                // Cache the result
+                _cache.Set(cacheKey, totalVolume, CacheDuration);
+                return totalVolume;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calculating workout session volume for session {WorkoutSessionId}", workoutSessionId);
+                return 0;
+            }
+        }
+
+        // New method for WorkoutSet
+        public double CalculateWorkoutSetVolume(WorkoutSet workoutSet)
+        {
+            if (workoutSet == null || !workoutSet.Reps.HasValue || !workoutSet.Weight.HasValue || 
+                workoutSet.Reps.Value == 0 || workoutSet.Weight.Value == 0)
+            {
+                return 0;
+            }
+
+            // Basic volume calculation: weight × reps
+            return (double)workoutSet.Weight.Value * workoutSet.Reps.Value;
+        }
+
+        // New method to calculate volume by exercise type for WorkoutSession
+        public async Task<Dictionary<string, double>> CalculateVolumeByExerciseTypeForWorkoutSessionAsync(int workoutSessionId)
+        {
+            string cacheKey = $"{CacheKeyPrefix}WorkoutSessionByExercise_{workoutSessionId}";
+
+            // Try to get from cache first
+            if (_cache.TryGetValue(cacheKey, out Dictionary<string, double> cachedVolumes))
+            {
+                return cachedVolumes;
+            }
+
+            try
+            {
+                // Get all workout exercises and their sets for the workout session
+                var workoutExercises = await _context.WorkoutExercises
+                    .Where(we => we.WorkoutSessionId == workoutSessionId)
+                    .Include(we => we.ExerciseType)
+                    .Include(we => we.WorkoutSets)
+                    .ToListAsync();
+
+                var volumeByExercise = new Dictionary<string, double>();
+
+                foreach (var exercise in workoutExercises)
+                {
+                    if (exercise.ExerciseType == null) continue;
+
+                    string exerciseName = exercise.ExerciseType.Name;
+                    double exerciseVolume = 0;
+
+                    foreach (var set in exercise.WorkoutSets)
+                    {
+                        exerciseVolume += CalculateWorkoutSetVolume(set);
+                    }
+
+                    if (volumeByExercise.ContainsKey(exerciseName))
+                    {
+                        volumeByExercise[exerciseName] += exerciseVolume;
+                    }
+                    else
+                    {
+                        volumeByExercise[exerciseName] = exerciseVolume;
+                    }
+                }
+
+                // Cache the result
+                _cache.Set(cacheKey, volumeByExercise, CacheDuration);
+                return volumeByExercise;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calculating volume by exercise for workout session {WorkoutSessionId}", workoutSessionId);
                 return new Dictionary<string, double>();
             }
         }

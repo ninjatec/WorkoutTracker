@@ -144,5 +144,19 @@ namespace WorkoutTrackerWeb.Services
                 
             return sessions;
         }
+
+        // Get a specific user's workout sessions (limited to a certain count)
+        public async Task<List<Models.WorkoutSession>> GetUserWorkoutSessionsAsync(int userId, int limit = 20)
+        {
+            // Get the most recent workout sessions for this user
+            var workoutSessions = await _context.WorkoutSessions
+                .Where(ws => ws.UserId == userId)
+                .OrderByDescending(ws => ws.StartDateTime)
+                .Take(limit)
+                .AsNoTracking()
+                .ToListAsync();
+                
+            return workoutSessions;
+        }
     }
 }
