@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services;
+using WorkoutTrackerWeb.Services.Migration;
 using Microsoft.AspNetCore.OutputCaching;
 
 namespace WorkoutTrackerWeb.Pages.Shared
@@ -16,14 +17,17 @@ namespace WorkoutTrackerWeb.Pages.Shared
     public class SessionModel : SharedPageModel
     {
         private readonly WorkoutTrackerWebContext _context;
+        private readonly ISessionWorkoutBridgeService _bridgeService;
 
         public SessionModel(
             WorkoutTrackerWebContext context,
             IShareTokenService shareTokenService,
+            ISessionWorkoutBridgeService bridgeService,
             ILogger<SessionModel> logger)
             : base(shareTokenService, logger)
         {
             _context = context;
+            _bridgeService = bridgeService;
         }
 
         public Session Session { get; set; }
@@ -55,7 +59,45 @@ namespace WorkoutTrackerWeb.Pages.Shared
                 return RedirectToPage("./AccessDenied");
             }
 
-            // Get session details
+            // First check if this is a WorkoutSession with the given SessionId
+            var workoutSession = await _context.WorkoutSessions
+                .FirstOrDefaultAsync(ws => ws.SessionId == id && ws.UserId == ShareToken.UserId);
+                
+            if (workoutSession != null)
+            {
+                // Use the bridge service to convert WorkoutSession to Session
+                Session = await _bridgeService.GetSessionFromWorkoutSessionAsync(workoutSession.WorkoutSessionId);
+                
+                if (Session != null && Session.Sets != null && Session.Sets.Any())
+                {
+                    // Group sets by exercise name for display
+                    foreach (var set in Session.Sets)
+                    {
+                        string exerciseName = set.ExerciseType?.Name ?? "Unknown Exercise";
+                        
+                        if (!ExerciseSets.ContainsKey(exerciseName))
+                        {
+                            ExerciseSets[exerciseName] = new List<Models.Set>();
+                        }
+                        
+                        ExerciseSets[exerciseName].Add(set);
+                    }
+                    
+                    // For compatibility, create empty rep collections for each set
+                    // (In the WorkoutSession model, reps are included directly in WorkoutSet)
+                    foreach (var set in Session.Sets)
+                    {
+                        if (!SetReps.ContainsKey(set.SetId))
+                        {
+                            SetReps[set.SetId] = new List<Rep>();
+                        }
+                    }
+                    
+                    return Page();
+                }
+            }
+            
+            // If no WorkoutSession found or conversion failed, fall back to legacy Session model
             Session = await _context.Session
                 .FirstOrDefaultAsync(s => s.SessionId == id && s.UserId == ShareToken.UserId);
 

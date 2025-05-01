@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services;
+using WorkoutTrackerWeb.Services.Migration;
 using WorkoutTrackerWeb.Extensions;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
@@ -23,17 +24,20 @@ namespace WorkoutTrackerWeb.Controllers
         private readonly IDistributedCache _cache;
         private readonly IShareTokenService _shareTokenService;
         private readonly ILogger<SharedController> _logger;
+        private readonly ISessionWorkoutBridgeService _bridgeService;
 
         public SharedController(
             WorkoutTrackerWebContext context,
             IDistributedCache cache,
             IShareTokenService shareTokenService,
-            ILogger<SharedController> logger)
+            ILogger<SharedController> logger,
+            ISessionWorkoutBridgeService bridgeService)
         {
             _context = context;
             _cache = cache;
             _shareTokenService = shareTokenService;
             _logger = logger;
+            _bridgeService = bridgeService;
         }
 
         [HttpGet]
@@ -69,18 +73,21 @@ namespace WorkoutTrackerWeb.Controllers
             ViewBag.UserName = user?.Name ?? "this user";
             ViewBag.ShareToken = validationResponse.ShareToken;
 
-            // Get sessions for this user
-            var query = _context.Session.Where(s => s.UserId == validationResponse.ShareToken.UserId);
+            // Use WorkoutSession model instead of Session
+            var query = _context.WorkoutSessions.Where(ws => ws.UserId == validationResponse.ShareToken.UserId);
 
             // If token is session-specific, only show that session
             if (validationResponse.ShareToken.SessionId.HasValue)
             {
-                query = query.Where(s => s.SessionId == validationResponse.ShareToken.SessionId.Value);
+                query = query.Where(ws => ws.SessionId == validationResponse.ShareToken.SessionId.Value);
             }
 
-            var sessions = await query
-                .OrderByDescending(s => s.datetime)
+            var workoutSessions = await query
+                .OrderByDescending(ws => ws.StartDateTime)
                 .ToListAsync();
+                
+            // Convert WorkoutSessions to Sessions for compatibility with the view
+            var sessions = await _bridgeService.GetSessionsFromWorkoutSessionsAsync(workoutSessions);
 
             return View(sessions);
         }
@@ -112,13 +119,31 @@ namespace WorkoutTrackerWeb.Controllers
                 return View("AccessDenied", new { Message = "Your share token only allows access to a specific session, not this one." });
             }
 
-            // Get the session
-            var session = await _context.Session
-                .FirstOrDefaultAsync(s => s.SessionId == id && s.UserId == validationResponse.ShareToken.UserId);
-
-            if (session == null)
+            // First check if this is a legacy Session ID or points to a WorkoutSession
+            var workoutSession = await _context.WorkoutSessions
+                .FirstOrDefaultAsync(ws => ws.SessionId == id && ws.UserId == validationResponse.ShareToken.UserId);
+                
+            Session session;
+            
+            if (workoutSession != null)
             {
-                return NotFound();
+                // Convert the WorkoutSession to a Session for compatibility with the view
+                session = await _bridgeService.GetSessionFromWorkoutSessionAsync(workoutSession.WorkoutSessionId);
+                if (session == null)
+                {
+                    return NotFound();
+                }
+            }
+            else
+            {
+                // Fall back to legacy Session model if no WorkoutSession is found
+                session = await _context.Session
+                    .FirstOrDefaultAsync(s => s.SessionId == id && s.UserId == validationResponse.ShareToken.UserId);
+
+                if (session == null)
+                {
+                    return NotFound();
+                }
             }
 
             // Get user name for display
@@ -128,26 +153,27 @@ namespace WorkoutTrackerWeb.Controllers
             ViewBag.UserName = user?.Name ?? "this user";
             ViewBag.ShareToken = validationResponse.ShareToken;
 
-            // Get sets for this session
-            var sets = await _context.Set
-                .Include(s => s.ExerciseType)
-                .Include(s => s.Settype)
-                .Where(s => s.SessionId == id)
-                .OrderBy(s => s.SetId)
-                .ToListAsync();
+            // Get sets for this session - they're already included in the Session model
+            // when using the bridge service
+            ViewBag.Sets = session.Sets;
 
-            ViewBag.Sets = sets;
+            // Get reps for all sets if this is a legacy session
+            if (session.Sets != null && session.Sets.Any())
+            {
+                var reps = await _context.Rep
+                    .Where(r => session.Sets.Select(s => s.SetId).Contains((int)r.SetsSetId))
+                    .ToListAsync();
 
-            // Get reps for all sets
-            var reps = await _context.Rep
-                .Where(r => sets.Select(s => s.SetId).ToList().Contains((int)r.SetsSetId))
-                .ToListAsync();
+                // Group reps by set
+                var repsBySet = reps.GroupBy(r => r.SetsSetId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
 
-            // Group reps by set
-            var repsBySet = reps.GroupBy(r => r.SetsSetId)
-                .ToDictionary(g => g.Key, g => g.ToList());
-
-            ViewBag.Reps = repsBySet;
+                ViewBag.Reps = repsBySet;
+            }
+            else
+            {
+                ViewBag.Reps = new Dictionary<int, List<Rep>>();
+            }
 
             return View(session);
         }
@@ -192,74 +218,195 @@ namespace WorkoutTrackerWeb.Controllers
             ViewBag.UserName = user?.Name ?? "this user";
             ViewBag.ShareToken = validationResponse.ShareToken;
 
-            // Get session count
-            ViewBag.TotalSessions = await _context.Session
-                .Where(s => s.UserId == validationResponse.ShareToken.UserId)
+            // Get session count - use WorkoutSessions instead of Sessions
+            ViewBag.TotalSessions = await _context.WorkoutSessions
+                .Where(ws => ws.UserId == validationResponse.ShareToken.UserId)
                 .CountAsync();
 
-            // Get total sets count and sets data
-            var sets = await _context.Set
+            // For better reporting, we need to combine data from both models during the transition
+            // First get sets from legacy Sessions
+            var legacySets = await _context.Set
                 .Include(s => s.Session)
                 .Include(s => s.ExerciseType)
                 .Where(s => s.Session.UserId == validationResponse.ShareToken.UserId)
                 .ToListAsync();
-
-            ViewBag.TotalSets = sets.Count;
+                
+            // Also get WorkoutExercises and WorkoutSets from the new model
+            var workoutExercises = await _context.WorkoutExercises
+                .Include(we => we.WorkoutSets)
+                .Include(we => we.WorkoutSession)
+                .Include(we => we.ExerciseType)
+                .Where(we => we.WorkoutSession.UserId == validationResponse.ShareToken.UserId)
+                .ToListAsync();
+                
+            var workoutSets = workoutExercises.SelectMany(we => we.WorkoutSets).ToList();
+            
+            // Use WorkoutSession.SessionId to avoid double counting
+            int totalSets = legacySets.Count() + 
+                            workoutSets.Count(ws => !ws.WorkoutExercise.WorkoutSession.SessionId.HasValue);
+                
+            ViewBag.TotalSets = totalSets;
 
             // Get rep counts (success vs failure)
-            var reps = await _context.Rep
-                .Where(r => sets.Select(s => s.SetId).ToList().Contains((int)r.SetsSetId))
+            var legacySetIds = legacySets.Select(s => s.SetId).ToList();
+            var legacyReps = await _context.Rep
+                .Where(r => legacySetIds.Contains((int)r.SetsSetId))
                 .ToListAsync();
 
-            ViewBag.TotalReps = reps.Count();
-            ViewBag.SuccessReps = reps.Count(r => r.success);
-            ViewBag.FailedReps = reps.Count(r => !r.success);
-
-            // Filter sets to report period
-            var periodSets = sets.Where(s => s.Session.datetime >= reportPeriodDate).ToList();
+            // In the new model, we track reps directly in the WorkoutSet.Reps property
+            int legacyRepCount = legacyReps.Count();
+            int workoutSetRepCount = workoutSets.Sum(ws => ws.Reps ?? 0);
             
-            // Create weight progress data
-            var weightProgressList = periodSets
+            ViewBag.TotalReps = legacyRepCount + workoutSetRepCount;
+            ViewBag.SuccessReps = legacyReps.Count(r => r.success) + workoutSetRepCount; // In new model all reps are successful
+            ViewBag.FailedReps = legacyReps.Count(r => !r.success);
+
+            // Filter sets to report period for both models
+            var periodLegacySets = legacySets
+                .Where(s => s.Session.datetime >= reportPeriodDate)
+                .ToList();
+                
+            var periodWorkoutSets = workoutSets
+                .Where(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime >= reportPeriodDate)
+                .ToList();
+            
+            // Create weight progress data - combining both models
+            var legacyWeightProgress = periodLegacySets
                 .Where(s => s.Weight > 0)
                 .GroupBy(s => s.ExerciseType.Name)
-                .Select(g => new WeightProgressData
+                .Select(g => new 
                 {
                     ExerciseName = g.Key,
-                    Dates = g.GroupBy(s => s.Session.datetime.Date)
-                        .Select(d => d.Key)
-                        .OrderBy(d => d)
-                        .ToList(),
-                    Weights = g.GroupBy(s => s.Session.datetime.Date)
-                        .Select(d => d.Max(s => s.Weight))
+                    Entries = g.GroupBy(s => s.Session.datetime.Date)
+                        .Select(d => new { Date = d.Key, Weight = d.Max(s => s.Weight) })
                         .ToList()
-                })
-                .Where(w => w.Weights.Any())
-                .ToList();
-
-            ViewBag.WeightProgressList = weightProgressList;
-
-            // Calculate exercise status for all exercises
-            var exerciseStatusList = periodSets
-                .GroupBy(s => s.ExerciseType.Name)
-                .Select(g => new ExerciseStatusData
+                });
+                
+            var workoutWeightProgress = periodWorkoutSets
+                .Where(ws => ws.Weight > 0 && ws.WorkoutExercise.ExerciseType != null)
+                .GroupBy(ws => ws.WorkoutExercise.ExerciseType.Name)
+                .Select(g => new 
                 {
                     ExerciseName = g.Key,
-                    SuccessfulReps = g.SelectMany(s => reps.Where(r => r.SetsSetId == s.SetId && r.success)).Count(),
-                    FailedReps = g.SelectMany(s => reps.Where(r => r.SetsSetId == s.SetId && !r.success)).Count()
-                })
+                    Entries = g.GroupBy(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime.Date)
+                        .Select(d => new { Date = d.Key, Weight = d.Max(s => s.Weight ?? 0) })
+                        .ToList()
+                });
+                
+            // Combine both data sources
+            var combinedWeightProgressList = new List<WeightProgressData>();
+            
+            // Create a dictionary to merge the data
+            var weightProgressDict = new Dictionary<string, Dictionary<DateTime, decimal>>();
+            
+            // Add legacy data
+            foreach (var item in legacyWeightProgress)
+            {
+                if (!weightProgressDict.ContainsKey(item.ExerciseName))
+                {
+                    weightProgressDict[item.ExerciseName] = new Dictionary<DateTime, decimal>();
+                }
+                
+                foreach (var entry in item.Entries)
+                {
+                    weightProgressDict[item.ExerciseName][entry.Date] = entry.Weight;
+                }
+            }
+            
+            // Add workout data (possibly overwriting with more recent data)
+            foreach (var item in workoutWeightProgress)
+            {
+                if (!weightProgressDict.ContainsKey(item.ExerciseName))
+                {
+                    weightProgressDict[item.ExerciseName] = new Dictionary<DateTime, decimal>();
+                }
+                
+                foreach (var entry in item.Entries)
+                {
+                    weightProgressDict[item.ExerciseName][entry.Date] = entry.Weight;
+                }
+            }
+            
+            // Convert to the format expected by the view
+            foreach (var item in weightProgressDict)
+            {
+                var orderedDates = item.Value.OrderBy(kvp => kvp.Key).ToList();
+                
+                combinedWeightProgressList.Add(new WeightProgressData
+                {
+                    ExerciseName = item.Key,
+                    Dates = orderedDates.Select(kvp => kvp.Key).ToList(),
+                    Weights = orderedDates.Select(kvp => kvp.Value).ToList()
+                });
+            }
+            
+            ViewBag.WeightProgressList = combinedWeightProgressList;
+
+            // Calculate exercise status for all exercises - combining both models
+            var legacyExerciseStatus = periodLegacySets
+                .GroupBy(s => s.ExerciseType?.Name ?? "Unknown")
+                .Select(g => new 
+                {
+                    ExerciseName = g.Key,
+                    SuccessfulReps = g.SelectMany(s => legacyReps.Where(r => r.SetsSetId == s.SetId && r.success)).Count(),
+                    FailedReps = g.SelectMany(s => legacyReps.Where(r => r.SetsSetId == s.SetId && !r.success)).Count()
+                });
+                
+            var workoutExerciseStatus = workoutExercises
+                .GroupBy(we => we.ExerciseType?.Name ?? "Unknown")
+                .Select(g => new 
+                {
+                    ExerciseName = g.Key,
+                    SuccessfulReps = g.SelectMany(we => we.WorkoutSets).Sum(ws => ws.Reps ?? 0),
+                    FailedReps = 0 // New model doesn't track failed reps
+                });
+                
+            // Combine exercise status data
+            var exerciseStatusDict = new Dictionary<string, ExerciseStatusData>();
+            
+            // Add legacy data
+            foreach (var item in legacyExerciseStatus)
+            {
+                exerciseStatusDict[item.ExerciseName] = new ExerciseStatusData
+                {
+                    ExerciseName = item.ExerciseName,
+                    SuccessfulReps = item.SuccessfulReps,
+                    FailedReps = item.FailedReps
+                };
+            }
+            
+            // Add workout data
+            foreach (var item in workoutExerciseStatus)
+            {
+                if (!exerciseStatusDict.ContainsKey(item.ExerciseName))
+                {
+                    exerciseStatusDict[item.ExerciseName] = new ExerciseStatusData
+                    {
+                        ExerciseName = item.ExerciseName,
+                        SuccessfulReps = 0,
+                        FailedReps = 0
+                    };
+                }
+                
+                exerciseStatusDict[item.ExerciseName].SuccessfulReps += item.SuccessfulReps;
+            }
+            
+            var combinedExerciseStatusList = exerciseStatusDict.Values
                 .Where(data => data.SuccessfulReps > 0 || data.FailedReps > 0)
                 .OrderByDescending(e => e.SuccessfulReps + e.FailedReps)
                 .ToList();
+                
+            ViewBag.ExerciseStatusList = combinedExerciseStatusList;
+            ViewBag.RecentExerciseStatusList = combinedExerciseStatusList;
 
-            ViewBag.ExerciseStatusList = exerciseStatusList;
-            ViewBag.RecentExerciseStatusList = exerciseStatusList;
-
-            // Get personal records with pagination
+            // Get personal records with pagination - combining both models
             var pageSize = 10;
-            var personalRecordsQuery = sets
+            
+            // Create personal record data for legacy model
+            var legacyPersonalRecords = legacySets
                 .Where(s => s.Weight > 0)
-                .GroupBy(s => new { s.ExerciseTypeId, ExerciseName = s.ExerciseType.Name })
-                .Select(g => new PersonalRecordData
+                .GroupBy(s => new { s.ExerciseTypeId, ExerciseName = s.ExerciseType?.Name ?? "Unknown" })
+                .Select(g => new 
                 {
                     ExerciseName = g.Key.ExerciseName,
                     MaxWeight = g.Max(s => s.Weight),
@@ -271,10 +418,63 @@ namespace WorkoutTrackerWeb.Controllers
                         .ThenByDescending(s => s.Session.datetime)
                         .Select(s => s.Session.Name)
                         .First()
+                });
+                
+            // Create personal record data for workout model
+            var workoutPersonalRecords = periodWorkoutSets
+                .Where(ws => ws.Weight > 0 && ws.WorkoutExercise.ExerciseType != null)
+                .GroupBy(ws => new { 
+                    ws.WorkoutExercise.ExerciseTypeId, 
+                    ExerciseName = ws.WorkoutExercise.ExerciseType?.Name ?? "Unknown" 
                 })
-                .OrderByDescending(pr => pr.MaxWeight);
-
-            var totalRecords = personalRecordsQuery.Count();
+                .Select(g => new 
+                {
+                    ExerciseName = g.Key.ExerciseName,
+                    MaxWeight = g.Max(ws => ws.Weight ?? 0),
+                    RecordDate = g.OrderByDescending(ws => ws.Weight)
+                        .ThenByDescending(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime)
+                        .Select(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime)
+                        .First(),
+                    SessionName = g.OrderByDescending(ws => ws.Weight)
+                        .ThenByDescending(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime)
+                        .Select(ws => ws.WorkoutExercise.WorkoutSession.Name)
+                        .First()
+                });
+                
+            // Combine personal records
+            var personalRecordDict = new Dictionary<string, PersonalRecordData>();
+            
+            // Add legacy records
+            foreach (var record in legacyPersonalRecords)
+            {
+                personalRecordDict[record.ExerciseName] = new PersonalRecordData
+                {
+                    ExerciseName = record.ExerciseName,
+                    MaxWeight = record.MaxWeight,
+                    RecordDate = record.RecordDate,
+                    SessionName = record.SessionName
+                };
+            }
+            
+            // Add workout records, replacing only if the weight is higher
+            foreach (var record in workoutPersonalRecords)
+            {
+                if (!personalRecordDict.ContainsKey(record.ExerciseName) || 
+                    record.MaxWeight > personalRecordDict[record.ExerciseName].MaxWeight)
+                {
+                    personalRecordDict[record.ExerciseName] = new PersonalRecordData
+                    {
+                        ExerciseName = record.ExerciseName,
+                        MaxWeight = record.MaxWeight,
+                        RecordDate = record.RecordDate,
+                        SessionName = record.SessionName
+                    };
+                }
+            }
+            
+            var combinedPersonalRecords = personalRecordDict.Values.OrderByDescending(pr => pr.MaxWeight);
+            
+            var totalRecords = combinedPersonalRecords.Count();
             var currentPage = pageNumber ?? 1;
             var totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
             
@@ -286,17 +486,26 @@ namespace WorkoutTrackerWeb.Controllers
             ViewBag.TotalPages = totalPages;
             
             // Paginate personal records
-            var personalRecords = personalRecordsQuery
+            var paginatedPersonalRecords = combinedPersonalRecords
                 .Skip((currentPage - 1) * pageSize)
                 .Take(pageSize)
                 .ToList();
             
-            ViewBag.PersonalRecords = personalRecords;
+            ViewBag.PersonalRecords = paginatedPersonalRecords;
 
-            // Get top exercises by usage
-            var exerciseUsage = sets
+            // Get top exercises by usage - combining both models
+            var legacyExerciseUsage = legacySets
                 .GroupBy(s => s.ExerciseType?.Name ?? "Unknown")
-                .Select(g => new { ExerciseName = g.Key, Count = g.Count() })
+                .Select(g => new { ExerciseName = g.Key, Count = g.Count() });
+                
+            var workoutExerciseUsage = workoutExercises
+                .GroupBy(we => we.ExerciseType?.Name ?? "Unknown")
+                .Select(g => new { ExerciseName = g.Key, Count = g.Count() });
+                
+            // Combine both results
+            var exerciseUsage = legacyExerciseUsage.Concat(workoutExerciseUsage)
+                .GroupBy(e => e.ExerciseName)
+                .Select(g => new { ExerciseName = g.Key, Count = g.Sum(e => e.Count) })
                 .OrderByDescending(e => e.Count)
                 .Take(10)
                 .ToList();
