@@ -48,6 +48,11 @@
                                             <select asp-for="CreateTokenInput.SessionId" asp-items="Model.SessionItems" class="form-control"></select>
                                             <small class="form-text text-muted">Leave empty to share all sessions.</small>
                                         </div>
+                                        <div class="form-group">
+                                            <label asp-for="CreateTokenInput.WorkoutSessionId"></label>
+                                            <select asp-for="CreateTokenInput.WorkoutSessionId" asp-items="Model.WorkoutSessionItems" class="form-control"></select>
+                                            <small class="form-text text-muted">Leave empty to share all workout sessions.</small>
+                                        </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="form-group">

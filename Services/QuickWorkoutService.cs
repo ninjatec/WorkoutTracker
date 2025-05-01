@@ -70,153 +70,78 @@ namespace WorkoutTrackerWeb.Services
         /// <summary>
         /// Creates a new quick workout session with a specified start time
         /// </summary>
-        public async Task<WorkoutTrackerWeb.Models.Session> CreateQuickWorkoutSessionAsync(string name = null, DateTime? startTime = null)
+        public async Task<WorkoutSession> CreateQuickWorkoutSessionAsync(string name = null, DateTime? startTime = null)
         {
             var userId = await _userService.GetCurrentUserIdAsync();
             if (userId == null)
             {
-                throw new InvalidOperationException("User not found");
+                throw new InvalidOperationException("No current user found");
             }
 
-            // Only generate default name if one wasn't provided
-            if (string.IsNullOrWhiteSpace(name))
+            // Create the WorkoutSession
+            var workoutSession = new WorkoutSession
             {
-                var now = DateTime.Now;
-                var dayOfWeek = now.DayOfWeek.ToString();
-                
-                // Determine time of day
-                string timeOfDay;
-                var hour = now.Hour;
-                if (hour >= 5 && hour < 12)
-                    timeOfDay = "Morning";
-                else if (hour >= 12 && hour < 17)
-                    timeOfDay = "Afternoon";
-                else if (hour >= 17 && hour < 21)
-                    timeOfDay = "Evening";
-                else
-                    timeOfDay = "Night";
-                
-                name = $"{dayOfWeek} - {timeOfDay} Workout";
-            }
-
-            // Use the provided start time or current time
-            var sessionStartTime = startTime ?? DateTime.Now;
-
-            // Create a new session with the specified start date/time
-            var session = new WorkoutTrackerWeb.Models.Session
-            {
-                Name = name,
-                datetime = sessionStartTime,
-                StartDateTime = sessionStartTime,
                 UserId = userId.Value,
-                Notes = "Created using Quick Workout mode"
+                Name = name ?? $"Quick Workout {DateTime.Now:yyyy-MM-dd HH:mm}",
+                Description = "Created using Quick Workout mode",
+                StartDateTime = startTime ?? DateTime.Now,
+                Status = "In Progress"
             };
 
-            _context.Session.Add(session);
+            _context.WorkoutSessions.Add(workoutSession);
             await _context.SaveChangesAsync();
             
             _logger.LogInformation("Created quick workout session {SessionId} for user {UserId} starting at {StartTime}", 
-                session.SessionId, userId.Value, session.StartDateTime);
+                workoutSession.WorkoutSessionId, userId.Value, workoutSession.StartDateTime);
             
-            return session;
+            return workoutSession;
         }
-        
+
         /// <summary>
-        /// Adds a set to the current workout with minimal input for quick logging
+        /// Adds a workout exercise to the current workout with minimal input for quick logging
         /// </summary>
-        public async Task<Set> AddQuickSetAsync(
-            int sessionId, 
-            int exerciseTypeId, 
+        public async Task<WorkoutExercise> AddQuickWorkoutExerciseAsync(
+            int workoutSessionId,
+            int exerciseTypeId,
             int settypeId,
-            decimal weight, 
+            decimal weight,
             int numberOfReps)
         {
             // Validate the session belongs to the current user
             var userId = await _userService.GetCurrentUserIdAsync();
-            var session = await _context.Session
-                .FirstOrDefaultAsync(s => s.SessionId == sessionId && s.UserId == userId);
+            var session = await _context.WorkoutSessions
+                .FirstOrDefaultAsync(s => s.WorkoutSessionId == workoutSessionId && s.UserId == userId);
                 
             if (session == null)
             {
                 throw new InvalidOperationException("Session not found or doesn't belong to current user");
             }
-            
-            // Get the next sequence number - Modified to use ToList() for client evaluation
-            var existingSequenceNumbers = await _context.Set
-                .Where(s => s.SessionId == sessionId)
-                .Select(s => s.SequenceNum)
-                .ToListAsync();
-            
-            int nextSequenceNum = existingSequenceNumbers.Any() 
-                ? existingSequenceNumbers.Max() + 1 
-                : 0;
-            
-            // Create a new set
-            var set = new Set
+
+            var workoutExercise = new WorkoutExercise
             {
-                SessionId = sessionId,
+                WorkoutSessionId = workoutSessionId,
                 ExerciseTypeId = exerciseTypeId,
-                SettypeId = settypeId,
-                Weight = weight,
-                NumberReps = numberOfReps,
-                SequenceNum = nextSequenceNum
+                SequenceNum = 1,
+                StartTime = DateTime.Now
             };
-            
-            _context.Set.Add(set);
+
+            _context.WorkoutExercises.Add(workoutExercise);
             await _context.SaveChangesAsync();
-            
-            _logger.LogInformation("Added quick set {SetId} to session {SessionId}", 
-                set.SetId, sessionId);
-            
-            return set;
-        }
-        
-        /// <summary>
-        /// Adds reps to a set in the current quick workout
-        /// </summary>
-        public async Task<List<Rep>> AddRepsToSetAsync(int setId, decimal weight, int numberOfReps, bool allSuccessful = true)
-        {
-            var set = await _context.Set
-                .Include(s => s.Session)
-                .FirstOrDefaultAsync(s => s.SetId == setId);
-                
-            if (set == null)
+
+            var workoutSet = new WorkoutSet
             {
-                throw new InvalidOperationException("Set not found");
-            }
-            
-            // Validate the set belongs to the current user
-            var userId = await _userService.GetCurrentUserIdAsync();
-            if (set.Session.UserId != userId)
-            {
-                throw new InvalidOperationException("Set doesn't belong to current user");
-            }
-            
-            var reps = new List<Rep>();
-            
-            // Create the reps
-            for (int i = 0; i < numberOfReps; i++)
-            {
-                var rep = new Rep
-                {
-                    SetsSetId = setId,
-                    weight = weight,
-                    repnumber = i + 1,
-                    success = allSuccessful
-                };
-                
-                reps.Add(rep);
-            }
-            
-            _context.Rep.AddRange(reps);
+                WorkoutExerciseId = workoutExercise.WorkoutExerciseId,
+                SetNumber = 1,
+                Weight = weight,
+                Reps = numberOfReps
+            };
+
+            _context.WorkoutSets.Add(workoutSet);
             await _context.SaveChangesAsync();
-            
-            _logger.LogInformation("Added {RepCount} reps to set {SetId}", 
-                reps.Count, setId);
-            
-            return reps;
+
+            return workoutExercise;
         }
-        
+
         /// <summary>
         /// Gets a list of set types for the dropdowns
         /// </summary>
@@ -230,7 +155,7 @@ namespace WorkoutTrackerWeb.Services
         /// <summary>
         /// Gets the most recent quick workout session for the current user, or null if none found
         /// </summary>
-        public async Task<WorkoutTrackerWeb.Models.Session> GetLatestQuickWorkoutSessionAsync()
+        public async Task<WorkoutSession> GetLatestQuickWorkoutSessionAsync()
         {
             var userId = await _userService.GetCurrentUserIdAsync();
             if (userId == null)
@@ -238,9 +163,9 @@ namespace WorkoutTrackerWeb.Services
                 return null;
             }
             
-            return await _context.Session
-                .Where(s => s.UserId == userId.Value && s.Notes.Contains("Quick Workout"))
-                .OrderByDescending(s => s.datetime)
+            return await _context.WorkoutSessions
+                .Where(s => s.UserId == userId.Value && s.Status == "In Progress")
+                .OrderByDescending(s => s.StartDateTime)
                 .FirstOrDefaultAsync();
         }
         
@@ -249,49 +174,44 @@ namespace WorkoutTrackerWeb.Services
         /// </summary>
         public async Task<bool> HasActiveQuickWorkoutAsync()
         {
-            var latestSession = await GetLatestQuickWorkoutSessionAsync();
-            if (latestSession == null)
+            var userId = await _userService.GetCurrentUserIdAsync();
+            if (userId == null)
             {
                 return false;
             }
             
-            // Check if session is marked as completed
-            if (latestSession.Notes != null && latestSession.Notes.Contains("Completed at"))
-            {
-                return false;
-            }
-            
-            // Consider a session "active" if it was created within the last 3 hours
-            var activeTimeWindow = TimeSpan.FromHours(3);
-            return DateTime.Now - latestSession.datetime < activeTimeWindow;
+            return await _context.WorkoutSessions
+                .AnyAsync(s => s.UserId == userId.Value && 
+                              s.Status == "In Progress" &&
+                              s.StartDateTime >= DateTime.Now.AddHours(-3));
         }
 
         /// <summary>
-        /// Marks a quick workout session as finished by updating the notes and setting the end time
+        /// Marks a quick workout session as finished by updating the status and setting the end time
         /// </summary>
-        public async Task<WorkoutTrackerWeb.Models.Session> FinishQuickWorkoutSessionAsync(int sessionId, DateTime? endTime = null)
+        public async Task<WorkoutSession> FinishQuickWorkoutSessionAsync(int sessionId, DateTime? endTime = null)
         {
             // Validate the session belongs to the current user
             var userId = await _userService.GetCurrentUserIdAsync();
-            var session = await _context.Session
-                .FirstOrDefaultAsync(s => s.SessionId == sessionId && s.UserId == userId);
+            var session = await _context.WorkoutSessions
+                .FirstOrDefaultAsync(s => s.WorkoutSessionId == sessionId && s.UserId == userId);
                 
             if (session == null)
             {
                 throw new InvalidOperationException("Session not found or doesn't belong to current user");
             }
             
-            // Set the end time (use provided value or current time)
-            session.endtime = endTime ?? DateTime.Now;
-            
-            // Update the notes to indicate the session is completed
-            session.Notes = $"{session.Notes} - Completed at {session.endtime:yyyy-MM-dd HH:mm}";
+            // Set the end time and status
+            session.EndDateTime = endTime ?? DateTime.Now;
+            session.Status = "Completed";
+            session.CompletedDate = session.EndDateTime;
+            session.Duration = (int)(session.EndDateTime.Value - session.StartDateTime).TotalMinutes;
             
             _context.Update(session);
             await _context.SaveChangesAsync();
             
             _logger.LogInformation("Finished quick workout session {SessionId} for user {UserId}", 
-                session.SessionId, userId);
+                session.WorkoutSessionId, userId);
             
             return session;
         }
@@ -299,30 +219,34 @@ namespace WorkoutTrackerWeb.Services
         /// <summary>
         /// Checks if a session has any completed sets
         /// </summary>
-        /// <param name="sessionId">The ID of the session to check</param>
-        /// <returns>True if the session has sets with reps, false otherwise</returns>
         public async Task<bool> HasCompletedSetsAsync(int sessionId)
         {
-            // Validate the session belongs to the current user
-            var userId = await _userService.GetCurrentUserIdAsync();
-            if (userId == null)
+            // First check if this is a WorkoutSession
+            var workoutSession = await _context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.WorkoutSets)
+                .FirstOrDefaultAsync(ws => ws.SessionId == sessionId);
+
+            if (workoutSession != null)
             {
-                return false;
+                // Check if any WorkoutSets exist and are marked as completed
+                return workoutSession.WorkoutExercises
+                    .SelectMany(we => we.WorkoutSets)
+                    .Any(ws => ws.IsCompleted);
             }
 
+            // Fall back to checking legacy Session model
             var session = await _context.Session
-                .FirstOrDefaultAsync(s => s.SessionId == sessionId && s.UserId == userId);
+                .Include(s => s.Sets)
+                .FirstOrDefaultAsync(s => s.SessionId == sessionId);
 
-            if (session == null)
+            if (session != null)
             {
-                return false;
+                // For legacy sessions, consider any sets as completed
+                return session.Sets.Any();
             }
 
-            // Check if the session has any sets with reps
-            return await _context.Set
-                .Include(s => s.Reps)
-                .Where(s => s.SessionId == sessionId)
-                .AnyAsync(s => s.Reps != null && s.Reps.Any());
+            return false;
         }
     }
 }

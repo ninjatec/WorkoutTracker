@@ -18,19 +18,23 @@ namespace WorkoutTrackerWeb.Pages.Shared
     {
         private readonly WorkoutTrackerWebContext _context;
         private readonly ISessionWorkoutBridgeService _bridgeService;
+        private readonly IWorkoutIterationService _workoutIterationService;
 
         public SessionModel(
             WorkoutTrackerWebContext context,
             IShareTokenService shareTokenService,
             ISessionWorkoutBridgeService bridgeService,
+            IWorkoutIterationService workoutIterationService,
             ILogger<SessionModel> logger)
             : base(shareTokenService, logger)
         {
             _context = context;
             _bridgeService = bridgeService;
+            _workoutIterationService = workoutIterationService;
         }
 
         public Session Session { get; set; }
+        public WorkoutSession WorkoutSession { get; set; }
         public Dictionary<string, List<Models.Set>> ExerciseSets { get; set; } = new Dictionary<string, List<Models.Set>>();
         public Dictionary<int, List<Rep>> SetReps { get; set; } = new Dictionary<int, List<Rep>>();
 
@@ -65,6 +69,8 @@ namespace WorkoutTrackerWeb.Pages.Shared
                 
             if (workoutSession != null)
             {
+                WorkoutSession = workoutSession;
+
                 // Use the bridge service to convert WorkoutSession to Session
                 Session = await _bridgeService.GetSessionFromWorkoutSessionAsync(workoutSession.WorkoutSessionId);
                 
@@ -151,6 +157,18 @@ namespace WorkoutTrackerWeb.Pages.Shared
             }
 
             return Page();
+        }
+
+        public async Task<IActionResult> OnPostStartNextIterationAsync(int id)
+        {
+            var canStart = await _workoutIterationService.CanStartNextIterationAsync(id);
+            if (!canStart)
+            {
+                return RedirectToPage("./Error", new { message = "Cannot start next iteration" });
+            }
+
+            var nextSession = await _workoutIterationService.StartNextIterationAsync(id);
+            return RedirectToPage("./Session", new { id = nextSession.WorkoutSessionId });
         }
     }
 }

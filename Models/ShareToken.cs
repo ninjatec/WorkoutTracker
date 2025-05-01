@@ -42,6 +42,10 @@ namespace WorkoutTrackerWeb.Models
         public int? SessionId { get; set; }
         public Session Session { get; set; }
         
+        // Optional specific workout session to share (null = share all workout sessions)
+        public int? WorkoutSessionId { get; set; }
+        public WorkoutSession WorkoutSession { get; set; }
+        
         // Name assigned to this share by the creator
         [StringLength(100)]
         public string Name { get; set; }

@@ -62,6 +62,21 @@ namespace WorkoutTrackerWeb.Models
         // Foreign key to original Session (for migration tracking)
         public int? SessionId { get; set; }
         
+        [Display(Name = "Iteration Number")]
+        public int IterationNumber { get; set; } = 1;
+        
+        [Display(Name = "Previous Iteration ID")]
+        public int? PreviousIterationId { get; set; }
+        
+        [Display(Name = "Next Iteration ID")]
+        public int? NextIterationId { get; set; }
+        
+        [ForeignKey("PreviousIterationId")]
+        public WorkoutSession PreviousIteration { get; set; }
+        
+        [ForeignKey("NextIterationId")]
+        public WorkoutSession NextIteration { get; set; }
+        
         // Navigation properties
         [ForeignKey("UserId")]
         public User User { get; set; }

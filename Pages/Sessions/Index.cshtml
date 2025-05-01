@@ -34,62 +34,61 @@
         <tr>
             <th>
                 <a asp-page="./Index" asp-route-sortOrder="@Model.NameSort" asp-route-currentFilter="@Model.CurrentFilter">
-                    @Html.DisplayNameFor(model => model.Session[0].Name)
+                    @Html.DisplayNameFor(model => model.WorkoutSessions[0].Name)
                 </a>
             </th>
             <th>
                 <a asp-page="./Index" asp-route-sortOrder="@Model.DateSort" asp-route-currentFilter="@Model.CurrentFilter">
-                    @Html.DisplayNameFor(model => model.Session[0].datetime)
+                    Start Time
                 </a>
             </th>
             <th>
                 Status
             </th>
             <th>
-                @Html.DisplayNameFor(model => model.Session[0].User)
+                @Html.DisplayNameFor(model => model.WorkoutSessions[0].User)
             </th>
             <th></th>
         </tr>
     </thead>
     <tbody>
-        @foreach (var item in Model.Session)
+        @foreach (var item in Model.WorkoutSessions)
         {
-            <tr class="@(item.WorkoutSessionStatus == "Missed" ? "table-warning" : "")">
+            <tr class="@(item.Status == "Missed" ? "table-warning" : "")">
                 <td>
                     @Html.DisplayFor(modelItem => item.Name)
                 </td>
                 <td>
-                    @item.datetime.ToString("dd/MM/yyyy HH:mm")
+                    @item.StartDateTime.ToString("dd/MM/yyyy HH:mm")
                 </td>
                 <td>
-                    @if (item.WorkoutSessionStatus == "Missed")
+                    @switch (item.Status)
                     {
-                        <span class="badge badge-warning">Missed</span>
-                    }
-                    else if (item.WorkoutSessionStatus == "Completed")
-                    {
-                        <span class="badge badge-success">Completed</span>
-                    }
-                    else if (item.WorkoutSessionStatus == "Scheduled")
-                    {
-                        <span class="badge badge-info">Scheduled</span>
-                    }
-                    else
-                    {
-                        <span class="badge badge-secondary">@(string.IsNullOrEmpty(item.WorkoutSessionStatus) ? "In Progress" : item.WorkoutSessionStatus)</span>
+                        case "Missed":
+                            <span class="badge badge-warning">Missed</span>
+                            break;
+                        case "Completed":
+                            <span class="badge badge-success">Completed</span>
+                            break;
+                        case "Scheduled":
+                            <span class="badge badge-info">Scheduled</span>
+                            break;
+                        default:
+                            <span class="badge badge-secondary">@(string.IsNullOrEmpty(item.Status) ? "In Progress" : item.Status)</span>
+                            break;
                     }
                 </td>
                 <td>
                     @Html.DisplayFor(modelItem => item.User.Name)
                 </td>
                 <td>
-                    <a asp-page="./Edit" asp-route-id="@item.SessionId">Edit</a> |
-                    <a asp-page="./Details" asp-route-id="@item.SessionId">Details</a> |
-                    <a asp-page="./Delete" asp-route-id="@item.SessionId">Delete</a>
-                    @if (item.WorkoutSessionStatus == "Missed")
+                    <a asp-page="./Edit" asp-route-id="@item.WorkoutSessionId">Edit</a> |
+                    <a asp-page="./Details" asp-route-id="@item.WorkoutSessionId">Details</a> |
+                    <a asp-page="./Delete" asp-route-id="@item.WorkoutSessionId">Delete</a>
+                    @if (item.Status == "Missed")
                     {
                         <text> | </text>
-                        <a asp-page="./Reschedule" asp-route-id="@item.SessionId" class="text-primary">Reschedule</a>
+                        <a asp-page="./Reschedule" asp-route-id="@item.WorkoutSessionId" class="text-primary">Reschedule</a>
                     }
                 </td>
             </tr>
@@ -98,13 +97,13 @@
 </table>
 
 @{
-    var prevDisabled = !Model.Session.HasPreviousPage ? "disabled" : "";
-    var nextDisabled = !Model.Session.HasNextPage ? "disabled" : "";
+    var prevDisabled = !Model.WorkoutSessions.HasPreviousPage ? "disabled" : "";
+    var nextDisabled = !Model.WorkoutSessions.HasNextPage ? "disabled" : "";
     
     // Calculate the range of page numbers to display
     const int maxPagesDisplayed = 5;
-    int startPage = Math.Max(1, Model.Session.PageIndex - maxPagesDisplayed / 2);
-    int endPage = Math.Min(Model.Session.TotalPages, startPage + maxPagesDisplayed - 1);
+    int startPage = Math.Max(1, Model.WorkoutSessions.PageIndex - maxPagesDisplayed / 2);
+    int endPage = Math.Min(Model.WorkoutSessions.TotalPages, startPage + maxPagesDisplayed - 1);
     
     // Adjust the start page if we're near the end
     if (endPage - startPage + 1 < maxPagesDisplayed && startPage > 1)
@@ -119,7 +118,7 @@
             <li class="page-item @prevDisabled">
                 <a asp-page="./Index"
                    asp-route-sortOrder="@Model.CurrentSort"
-                   asp-route-pageIndex="@(Model.Session.PageIndex - 1)"
+                   asp-route-pageIndex="@(Model.WorkoutSessions.PageIndex - 1)"
                    asp-route-currentFilter="@Model.CurrentFilter"
                    class="page-link @prevDisabled">
                     Previous
@@ -145,7 +144,7 @@
             
             @for (var i = startPage; i <= endPage; i++)
             {
-                <li class="page-item @(i == Model.Session.PageIndex ? "active" : "")">
+                <li class="page-item @(i == Model.WorkoutSessions.PageIndex ? "active" : "")">
                     <a asp-page="./Index"
                        asp-route-sortOrder="@Model.CurrentSort"
                        asp-route-pageIndex="@i"
@@ -156,9 +155,9 @@
                 </li>
             }
             
-            @if (endPage < Model.Session.TotalPages)
+            @if (endPage < Model.WorkoutSessions.TotalPages)
             {
-                @if (endPage < Model.Session.TotalPages - 1)
+                @if (endPage < Model.WorkoutSessions.TotalPages - 1)
                 {
                     <li class="page-item disabled">
                         <span class="page-link">...</span>
@@ -167,16 +166,16 @@
                 <li class="page-item">
                     <a asp-page="./Index"
                        asp-route-sortOrder="@Model.CurrentSort"
-                       asp-route-pageIndex="@Model.Session.TotalPages"
+                       asp-route-pageIndex="@Model.WorkoutSessions.TotalPages"
                        asp-route-currentFilter="@Model.CurrentFilter"
-                       class="page-link">@Model.Session.TotalPages</a>
+                       class="page-link">@Model.WorkoutSessions.TotalPages</a>
                 </li>
             }
             
             <li class="page-item @nextDisabled">
                 <a asp-page="./Index"
                    asp-route-sortOrder="@Model.CurrentSort"
-                   asp-route-pageIndex="@(Model.Session.PageIndex + 1)"
+                   asp-route-pageIndex="@(Model.WorkoutSessions.PageIndex + 1)"
                    asp-route-currentFilter="@Model.CurrentFilter"
                    class="page-link @nextDisabled">
                     Next

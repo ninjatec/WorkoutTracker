@@ -2,37 +2,38 @@
 @model WorkoutTrackerWeb.Pages.Sessions.CreateModel
 
 @{
-    ViewData["Title"] = "Create";
+    ViewData["Title"] = "Create Workout";
 }
         
-<h1>Create</h1>
+<h1>Create Workout</h1>
         
-<h4>Session</h4>
+<h4>New Workout Session</h4>
 <hr />
 <div class="row">
     <div class="col-md-4">
         <form method="post">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <div class="form-group">
-                <label asp-for="Session.Name" class="control-label"></label>
-                <input asp-for="Session.Name" class="form-control" />
-                <span asp-validation-for="Session.Name" class="text-danger"></span>
+                <label asp-for="WorkoutSession.Name" class="control-label">Workout Name</label>
+                <input asp-for="WorkoutSession.Name" class="form-control" />
+                <span asp-validation-for="WorkoutSession.Name" class="text-danger"></span>
             </div>
             <div class="form-group">
-                <label asp-for="Session.datetime" class="control-label"></label>
-                <input asp-for="Session.datetime" class="form-control" value="@DateTime.Now.ToString("yyyy-MM-dd\\THH:mm")" />
-                <span asp-validation-for="Session.datetime" class="text-danger"></span>
+                <label asp-for="WorkoutSession.StartDateTime" class="control-label">Start Time</label>
+                <input asp-for="WorkoutSession.StartDateTime" class="form-control" type="datetime-local" value="@DateTime.Now.ToString("yyyy-MM-dd\\THH:mm")" />
+                <span asp-validation-for="WorkoutSession.StartDateTime" class="text-danger"></span>
             </div>
-            <!-- User selection removed, automatically using current user -->
+            <div class="form-group">
+                <label asp-for="WorkoutSession.Description" class="control-label">Notes</label>
+                <textarea asp-for="WorkoutSession.Description" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="WorkoutSession.Description" class="text-danger"></span>
+            </div>
             <div class="form-group">
                 <input type="submit" value="Create" class="btn btn-primary" />
+                <a asp-page="Index" class="btn btn-secondary">Back to List</a>
             </div>
         </form>
     </div>
-</div>
-
-<div>
-    <a asp-page="Index">Back to List</a>
 </div>
 
 @section Scripts {

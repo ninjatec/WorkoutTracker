@@ -2,31 +2,51 @@
 @model WorkoutTrackerWeb.Pages.Sessions.DetailsModel
 
 @{
-    ViewData["Title"] = "Session Details";
+    ViewData["Title"] = "Workout Details";
 }
 
-<h1>Session Details</h1>
+<h1>Workout Details</h1>
 
 <div>
     <dl class="row">
         <dt class="col-sm-2">
-            @Html.DisplayNameFor(model => model.Session.Name)
+            Name
         </dt>
         <dd class="col-sm-10">
-            @Html.DisplayFor(model => model.Session.Name)
+            @Html.DisplayFor(model => model.WorkoutSession.Name)
         </dd>
         <dt class="col-sm-2">
-            @Html.DisplayNameFor(model => model.Session.datetime)
+            Start Time
         </dt>
         <dd class="col-sm-10">
-            @Model.Session.datetime.ToString("dd/MM/yy HH:mm")
+            @Model.WorkoutSession.StartDateTime.ToString("dd/MM/yy HH:mm")
+        </dd>
+        <dt class="col-sm-2">
+            Status
+        </dt>
+        <dd class="col-sm-10">
+            <span class="badge @(Model.WorkoutSession.Status switch {
+                "Completed" => "bg-success",
+                "Missed" => "bg-warning",
+                "Scheduled" => "bg-info",
+                _ => "bg-secondary"
+            })">@Model.WorkoutSession.Status</span>
         </dd>
         <dt class="col-sm-2">
             User
         </dt>
         <dd class="col-sm-10">
-            @Html.DisplayFor(model => model.Session.User.Name)
+            @Html.DisplayFor(model => model.WorkoutSession.User.Name)
         </dd>
+        @if (!string.IsNullOrEmpty(Model.WorkoutSession.Description))
+        {
+            <dt class="col-sm-2">
+                Notes
+            </dt>
+            <dd class="col-sm-10">
+                @Html.DisplayFor(model => model.WorkoutSession.Description)
+            </dd>
+        }
     </dl>
 </div>
 
@@ -59,7 +79,7 @@
                 <div class="card bg-light">
                     <div class="card-body text-center py-3">
                         <h5 class="card-title">Sets</h5>
-                        <h2 class="mb-0">@(Model.Session.Sets?.Count ?? 0)</h2>
+                        <h2 class="mb-0">@(Model.WorkoutSession.WorkoutExercises?.Sum(we => we.WorkoutSets?.Count ?? 0) ?? 0)</h2>
                         <small class="text-muted">Total sets</small>
                     </div>
                 </div>
@@ -68,7 +88,7 @@
                 <div class="card bg-light">
                     <div class="card-body text-center py-3">
                         <h5 class="card-title">Exercises</h5>
-                        <h2 class="mb-0">@(Model.Session.Sets?.Select(s => s.ExerciseType?.Name).Distinct().Count() ?? 0)</h2>
+                        <h2 class="mb-0">@(Model.WorkoutSession.WorkoutExercises?.Count ?? 0)</h2>
                         <small class="text-muted">Unique exercises</small>
                     </div>
                 </div>
@@ -103,14 +123,14 @@
     </div>
 </div>
 
-@if (Model.Session.Sets != null && Model.Session.Sets.Any())
+@if (Model.WorkoutSession.WorkoutExercises != null && Model.WorkoutSession.WorkoutExercises.Any())
 {
     <div class="mt-4">
-        <h3>Sets</h3>
+        <h3>Exercises</h3>
         
         <form method="get" class="mb-3">
             <div class="row g-3 align-items-center">
-                <input type="hidden" name="id" value="@Model.Session.SessionId" />
+                <input type="hidden" name="id" value="@Model.WorkoutSession.WorkoutSessionId" />
                 
                 <div class="col-auto">
                     <label for="sortField" class="col-form-label">Sort by:</label>
@@ -125,12 +145,12 @@
                 </div>
                 <div class="col-auto">
                     <div class="btn-group" role="group">
-                        <a asp-page="./Details" asp-route-id="@Model.Session.SessionId" 
+                        <a asp-page="./Details" asp-route-id="@Model.WorkoutSession.WorkoutSessionId" 
                            asp-route-sortField="@Model.SortField" asp-route-sortOrder="asc"
                            class="btn @(Model.SortOrder.ToLower() == "asc" ? "btn-primary" : "btn-outline-primary")">
                             <i class="bi bi-sort-up"></i> Ascending
                         </a>
-                        <a asp-page="./Details" asp-route-id="@Model.Session.SessionId" 
+                        <a asp-page="./Details" asp-route-id="@Model.WorkoutSession.WorkoutSessionId" 
                            asp-route-sortField="@Model.SortField" asp-route-sortOrder="desc"
                            class="btn @(Model.SortOrder.ToLower() == "desc" ? "btn-primary" : "btn-outline-primary")">
                             <i class="bi bi-sort-down"></i> Descending
@@ -140,113 +160,90 @@
             </div>
         </form>
         
-        <div class="accordion" id="setsAccordion">
-            @foreach (var set in Model.Session.Sets)
+        <div class="accordion" id="exercisesAccordion">
+            @foreach (var exercise in Model.WorkoutSession.WorkoutExercises)
             {
                 <div class="accordion-item">
-                    <h2 class="accordion-header" id="heading-@set.SetId">
+                    <h2 class="accordion-header" id="heading-@exercise.WorkoutExerciseId">
                         <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" 
-                                data-bs-target="#collapse-@set.SetId" aria-expanded="false" aria-controls="collapse-@set.SetId">
-                            <strong>@set.ExerciseType.Name</strong> 
-                            @if (!string.IsNullOrEmpty(set.ExerciseType.Muscle))
+                                data-bs-target="#collapse-@exercise.WorkoutExerciseId" aria-expanded="false" 
+                                aria-controls="collapse-@exercise.WorkoutExerciseId">
+                            <strong>@exercise.ExerciseType.Name</strong> 
+                            @if (!string.IsNullOrEmpty(exercise.ExerciseType.Muscle))
                             {
-                                <span class="ms-2 badge bg-info">@set.ExerciseType.Muscle</span>
+                                <span class="ms-2 badge bg-info">@exercise.ExerciseType.Muscle</span>
                             }
-                            <span class="ms-2">- @set.Settype.Name - @set.NumberReps reps - @set.Weight kg</span>
-                            @if (Model.SetVolumes.TryGetValue(set.SetId, out double setVolume) && setVolume > 0)
-                            {
-                                <span class="ms-2 badge bg-success">Volume: @setVolume.ToString("N0") kg</span>
-                            }
+                            <span class="ms-2">- @(exercise.WorkoutSets?.Count ?? 0) sets</span>
                         </button>
                     </h2>
-                    <div id="collapse-@set.SetId" class="accordion-collapse collapse" aria-labelledby="heading-@set.SetId" data-bs-parent="#setsAccordion">
+                    <div id="collapse-@exercise.WorkoutExerciseId" class="accordion-collapse collapse" 
+                         aria-labelledby="heading-@exercise.WorkoutExerciseId" data-bs-parent="#exercisesAccordion">
                         <div class="accordion-body">
-                            <div class="row mb-3">
-                                <div class="col">
-                                    <strong>Description:</strong> @(string.IsNullOrEmpty(set.Description) ? "None" : set.Description)
-                                </div>
-                            </div>
-                            <div class="row mb-3">
-                                <div class="col">
-                                    <strong>Notes:</strong> @(string.IsNullOrEmpty(set.Notes) ? "None" : set.Notes)
-                                </div>
-                            </div>
-                            @if (!string.IsNullOrEmpty(set.ExerciseType.Muscle))
+                            @if (exercise.WorkoutSets != null && exercise.WorkoutSets.Any())
                             {
-                                <div class="row mb-3">
-                                    <div class="col">
-                                        <strong>Muscle Group:</strong> @set.ExerciseType.Muscle
-                                    </div>
-                                </div>
-                            }
-                            
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <div class="card bg-light">
-                                        <div class="card-body">
-                                            <h6>Metrics</h6>
-                                            <dl class="row mb-0">
-                                                <dt class="col-6">Volume:</dt>
-                                                <dd class="col-6">@(Model.SetVolumes.TryGetValue(set.SetId, out double volume) ? volume.ToString("N0") : "0") kg</dd>
-                                                
-                                                <dt class="col-6">Weight:</dt>
-                                                <dd class="col-6">@(set.Weight.ToString()) kg</dd>
-                                                
-                                                <dt class="col-6">Reps:</dt>
-                                                <dd class="col-6">@(set.NumberReps.ToString())</dd>
-                                            </dl>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            @if (set.Reps != null && set.Reps.Any())
-                            {
-                                <h5>Reps</h5>
-                                <table class="table table-sm table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th>Rep #</th>
-                                            <th>Weight (kg)</th>
-                                            <th>Status</th>
-                                            <th>Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach (var rep in set.Reps.OrderBy(r => r.repnumber))
-                                        {
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
                                             <tr>
-                                                <td>@rep.repnumber</td>
-                                                <td>@rep.weight</td>
-                                                <td>
-                                                    @if (rep.success)
-                                                    {
-                                                        <span class="badge bg-success">Success</span>
-                                                    }
-                                                    else
-                                                    {
-                                                        <span class="badge bg-danger">Failed</span>
-                                                    }
-                                                </td>
-                                                <td>
-                                                    <a asp-page="/Reps/Edit" asp-route-id="@rep.RepId" class="btn btn-sm btn-primary">Edit</a>
-                                                    <a asp-page="/Reps/Delete" asp-route-id="@rep.RepId" class="btn btn-sm btn-danger">Delete</a>
-                                                </td>
+                                                <th>Set</th>
+                                                <th>Weight (kg)</th>
+                                                <th>Reps</th>
+                                                <th>Intensity</th>
+                                                <th>Volume</th>
+                                                <th>Notes</th>
+                                                <th>Actions</th>
                                             </tr>
-                                        }
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var set in exercise.WorkoutSets)
+                                            {
+                                                <tr>
+                                                    <td>@(exercise.WorkoutSets.ToList().IndexOf(set) + 1)</td>
+                                                    <td>@set.Weight</td>
+                                                    <td>@set.Reps</td>
+                                                    <td>@set.Intensity%</td>
+                                                    <td>
+                                                        @if (Model.SetVolumes.TryGetValue(set.WorkoutSetId, out double setVolume))
+                                                        {
+                                                            @setVolume.ToString("N0")
+                                                            <small class="text-muted">kg</small>
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        @if (!string.IsNullOrEmpty(set.Notes))
+                                                        {
+                                                            <span class="text-muted">@set.Notes</span>
+                                                        }
+                                                    </td>
+                                                    <td>
+                                                        <div class="btn-group btn-group-sm">
+                                                            <a asp-page="/WorkoutSets/Edit" asp-route-id="@set.WorkoutSetId" 
+                                                               class="btn btn-outline-primary">Edit</a>
+                                                            <a asp-page="/WorkoutSets/Delete" asp-route-id="@set.WorkoutSetId" 
+                                                               class="btn btn-outline-danger">Delete</a>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <div class="mt-3">
+                                    <a asp-page="/WorkoutSets/Create" asp-route-exerciseId="@exercise.WorkoutExerciseId" 
+                                       class="btn btn-success btn-sm">Add Set</a>
+                                </div>
                             }
                             else
                             {
-                                <div class="alert alert-info">No reps recorded for this set yet.</div>
+                                <div class="alert alert-info">
+                                    No sets recorded for this exercise yet.
+                                    <div class="mt-2">
+                                        <a asp-page="/WorkoutSets/Create" asp-route-exerciseId="@exercise.WorkoutExerciseId" 
+                                           class="btn btn-success btn-sm">Add First Set</a>
+                                    </div>
+                                </div>
                             }
-                            
-                            <div class="mt-2">
-                                <a asp-page="/Sets/Edit" asp-route-id="@set.SetId" class="btn btn-sm btn-primary">Edit Set</a>
-                                <a asp-page="/Sets/Details" asp-route-id="@set.SetId" class="btn btn-sm btn-secondary">Set Details</a>
-                                <a asp-page="/Reps/Create" asp-route-setId="@set.SetId" class="btn btn-sm btn-success">Add Reps</a>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -256,12 +253,57 @@
 }
 else
 {
-    <div class="alert alert-info mt-4">No sets recorded for this session yet.</div>
+    <div class="alert alert-info mt-4">No exercises recorded for this workout yet.</div>
 }
 
 <div class="mt-4">
-    <a asp-page="/Sets/Create" asp-route-sessionId="@Model.Session.SessionId" class="btn btn-success">Add Set</a>
-    <a asp-page="./Edit" asp-route-id="@Model.Session.SessionId" class="btn btn-primary">Edit Session</a>
-    <a asp-page="./Delete" asp-route-id="@Model.Session.SessionId" class="btn btn-danger">Delete</a>
+    <a asp-page="/WorkoutExercises/Create" asp-route-sessionId="@Model.WorkoutSession.WorkoutSessionId" 
+       class="btn btn-success">Add Exercise</a>
+    <a asp-page="./Edit" asp-route-id="@Model.WorkoutSession.WorkoutSessionId" class="btn btn-primary">Edit Workout</a>
+    <a asp-page="./Delete" asp-route-id="@Model.WorkoutSession.WorkoutSessionId" class="btn btn-danger">Delete</a>
     <a asp-page="./Index" class="btn btn-secondary">Back to List</a>
 </div>
+
+@section Scripts {
+    <script>
+        // Keep accordion sections expanded on sorting/filtering
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get expanded sections from sessionStorage
+            const expandedSections = JSON.parse(sessionStorage.getItem('expandedSections') || '[]');
+            
+            // Expand previously expanded sections
+            expandedSections.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.classList.add('show');
+                    const button = element.previousElementSibling.querySelector('.accordion-button');
+                    if (button) {
+                        button.classList.remove('collapsed');
+                        button.setAttribute('aria-expanded', 'true');
+                    }
+                }
+            });
+            
+            // Store expanded sections when toggling
+            const accordion = document.getElementById('exercisesAccordion');
+            if (accordion) {
+                accordion.addEventListener('shown.bs.collapse', function(e) {
+                    const expandedSections = JSON.parse(sessionStorage.getItem('expandedSections') || '[]');
+                    if (!expandedSections.includes(e.target.id)) {
+                        expandedSections.push(e.target.id);
+                        sessionStorage.setItem('expandedSections', JSON.stringify(expandedSections));
+                    }
+                });
+                
+                accordion.addEventListener('hidden.bs.collapse', function(e) {
+                    const expandedSections = JSON.parse(sessionStorage.getItem('expandedSections') || '[]');
+                    const index = expandedSections.indexOf(e.target.id);
+                    if (index > -1) {
+                        expandedSections.splice(index, 1);
+                        sessionStorage.setItem('expandedSections', JSON.stringify(expandedSections));
+                    }
+                });
+            }
+        });
+    </script>
+}

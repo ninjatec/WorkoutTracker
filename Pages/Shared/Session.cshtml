@@ -208,4 +208,9 @@
             </div>
         </div>
     }
+
+    @if (Model.WorkoutSession != null)
+    {
+        @await Component.InvokeAsync("WorkoutIterationControl", Model.WorkoutSession)
+    }
 </div>

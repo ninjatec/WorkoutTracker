@@ -34,7 +34,7 @@ namespace WorkoutTrackerWeb.Pages.Sessions
             _calorieCalculationService = calorieCalculationService;
         }
 
-        public Session Session { get; set; } = default!;
+        public WorkoutSession WorkoutSession { get; set; } = default!;
         
         [BindProperty(SupportsGet = true)]
         public string SortField { get; set; } = "Default";
@@ -54,8 +54,8 @@ namespace WorkoutTrackerWeb.Pages.Sessions
         {
             new SelectListItem { Value = "Default", Text = "Default" },
             new SelectListItem { Value = "ExerciseType", Text = "Exercise Type Only" },
-            new SelectListItem { Value = "SetType", Text = "Set Type Only" },
-            new SelectListItem { Value = "NumberReps", Text = "Number of Reps" },
+            new SelectListItem { Value = "Intensity", Text = "Intensity" },
+            new SelectListItem { Value = "Reps", Text = "Number of Reps" },
             new SelectListItem { Value = "Weight", Text = "Weight (kg)" },
             new SelectListItem { Value = "SetID", Text = "Set ID" }
         };
@@ -84,34 +84,38 @@ namespace WorkoutTrackerWeb.Pages.Sessions
             var currentUserId = await _userService.GetCurrentUserIdAsync();
             if (currentUserId == null)
             {
-                return Challenge(); // Redirect to login if not authenticated
+                return Challenge();
             }
 
-            // Get the session with ownership check and include Sets and Reps
-            var session = await _context.Session
-                .Include(s => s.User)
-                .Include(s => s.Sets)
-                    .ThenInclude(set => set.ExerciseType)
-                .Include(s => s.Sets)
-                    .ThenInclude(set => set.Settype)
-                .Include(s => s.Sets)
-                    .ThenInclude(set => set.Reps.OrderBy(r => r.repnumber))
-                .FirstOrDefaultAsync(m => m.SessionId == id && m.UserId == currentUserId);
+            // Get the workout session with ownership check and include related data
+            var workoutSession = await _context.WorkoutSessions
+                .Include(ws => ws.User)
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.ExerciseType)
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.WorkoutSets)
+                .FirstOrDefaultAsync(ws => ws.WorkoutSessionId == id && ws.UserId == currentUserId);
 
-            if (session == null)
+            if (workoutSession == null)
             {
                 return NotFound();
             }
 
-            // Apply sorting to the sets
-            if (session.Sets != null && session.Sets.Any())
+            // Apply sorting to the workout exercises and their sets
+            if (workoutSession.WorkoutExercises != null && workoutSession.WorkoutExercises.Any())
             {
-                session.Sets = SortOrder.ToLower() == "asc" 
-                    ? SortSetsAscending(session.Sets, SortField).ToList()
-                    : SortSetsDescending(session.Sets, SortField).ToList();
+                foreach (var exercise in workoutSession.WorkoutExercises)
+                {
+                    if (exercise.WorkoutSets != null)
+                    {
+                        exercise.WorkoutSets = SortOrder.ToLower() == "asc" 
+                            ? SortSetsAscending(exercise.WorkoutSets, SortField).ToList()
+                            : SortSetsDescending(exercise.WorkoutSets, SortField).ToList();
+                    }
+                }
             }
 
-            Session = session;
+            WorkoutSession = workoutSession;
 
             // Calculate volume and calories for the session
             if (id.HasValue)
@@ -124,11 +128,21 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 
                 // Calculate volume for each set
                 SetVolumes = new Dictionary<int, double>();
-                if (session.Sets != null)
+                if (workoutSession.WorkoutExercises != null)
                 {
-                    foreach (var set in session.Sets)
+                    foreach (var exercise in workoutSession.WorkoutExercises)
                     {
-                        SetVolumes[set.SetId] = _volumeCalculationService.CalculateSetVolume(set);
+                        foreach (var set in exercise.WorkoutSets ?? Enumerable.Empty<WorkoutSet>())
+                        {
+                            var weight = set.Weight ?? 0;
+                            var reps = set.Reps ?? 0;
+                            double volume = (double)(weight * reps);
+                            if (set.Distance.HasValue)
+                            {
+                                volume *= (double)set.Distance.Value;
+                            }
+                            SetVolumes[set.WorkoutSetId] = volume;
+                        }
                     }
                 }
             }
@@ -136,33 +150,29 @@ namespace WorkoutTrackerWeb.Pages.Sessions
             return Page();
         }
 
-        private IEnumerable<Set> SortSetsAscending(IEnumerable<Set> sets, string sortField)
+        private IEnumerable<WorkoutSet> SortSetsAscending(IEnumerable<WorkoutSet> sets, string sortField)
         {
             return sortField switch
             {
-                "Default" => sets.OrderBy(s => s.ExerciseType.Name)
-                               .ThenBy(s => s.Settype.Name)
-                               .ThenBy(s => s.SetId),
-                "SetType" => sets.OrderBy(s => s.Settype.Name),
-                "NumberReps" => sets.OrderBy(s => s.NumberReps),
+                "Default" => sets.OrderBy(s => s.WorkoutSetId),
+                "Intensity" => sets.OrderBy(s => s.Intensity),
+                "Reps" => sets.OrderBy(s => s.Reps),
                 "Weight" => sets.OrderBy(s => s.Weight),
-                "SetID" => sets.OrderBy(s => s.SetId),
-                _ => sets.OrderBy(s => s.ExerciseType.Name) // Default to ExerciseType only
+                "SetID" => sets.OrderBy(s => s.WorkoutSetId),
+                _ => sets.OrderBy(s => s.WorkoutSetId)
             };
         }
 
-        private IEnumerable<Set> SortSetsDescending(IEnumerable<Set> sets, string sortField)
+        private IEnumerable<WorkoutSet> SortSetsDescending(IEnumerable<WorkoutSet> sets, string sortField)
         {
             return sortField switch
             {
-                "Default" => sets.OrderByDescending(s => s.ExerciseType.Name)
-                               .ThenByDescending(s => s.Settype.Name)
-                               .ThenByDescending(s => s.SetId),
-                "SetType" => sets.OrderByDescending(s => s.Settype.Name),
-                "NumberReps" => sets.OrderByDescending(s => s.NumberReps),
+                "Default" => sets.OrderByDescending(s => s.WorkoutSetId),
+                "Intensity" => sets.OrderByDescending(s => s.Intensity),
+                "Reps" => sets.OrderByDescending(s => s.Reps),
                 "Weight" => sets.OrderByDescending(s => s.Weight),
-                "SetID" => sets.OrderByDescending(s => s.SetId),
-                _ => sets.OrderByDescending(s => s.ExerciseType.Name) // Default to ExerciseType only
+                "SetID" => sets.OrderByDescending(s => s.WorkoutSetId),
+                _ => sets.OrderByDescending(s => s.WorkoutSetId)
             };
         }
     }

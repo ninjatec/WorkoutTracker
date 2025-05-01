@@ -501,6 +501,29 @@ namespace WorkoutTrackerWeb.Services
             return result;
         }
 
+        public async Task<List<string>> GetAllMuscleGroupsAsync()
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
+
+            var allDescriptions = await context.ExerciseType
+                .Where(e => !string.IsNullOrEmpty(e.Description))
+                .Select(e => e.Description)
+                .ToListAsync();
+
+            var allMuscleGroups = new HashSet<string>();
+            foreach (var description in allDescriptions)
+            {
+                var muscleGroups = ExtractMuscleGroups(description);
+                foreach (var group in muscleGroups)
+                {
+                    allMuscleGroups.Add(group);
+                }
+            }
+
+            return allMuscleGroups.OrderBy(m => m).ToList();
+        }
+
         private List<string> ExtractMuscleGroups(string description)
         {
             if (string.IsNullOrEmpty(description))

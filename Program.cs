@@ -431,7 +431,7 @@ try
     builder.Services.AddHttpContextAccessor();
 
     // Register our UserService
-    builder.Services.AddScoped<UserService>();
+    builder.Services.AddScoped<IUserService, UserService>();
 
     // Register WorkoutDataPortabilityService
     builder.Services.AddScoped<WorkoutDataPortabilityService>();
@@ -505,6 +505,9 @@ try
     
     // Register SessionWorkoutBridgeService for migration compatibility
     builder.Services.AddScoped<ISessionWorkoutBridgeService, SessionWorkoutBridgeService>();
+
+    // Register WorkoutIterationService
+    builder.Services.AddScoped<IWorkoutIterationService, WorkoutIterationService>();
 
     // Register coaching services
     builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.ICoachingService, WorkoutTrackerWeb.Services.Coaching.CoachingService>();

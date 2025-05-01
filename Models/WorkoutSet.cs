@@ -41,7 +41,11 @@ namespace WorkoutTrackerWeb.Models
         
         [Display(Name = "Distance (meters)")]
         [Column(TypeName = "decimal(10, 2)")]
-        public decimal? DistanceMeters { get; set; }
+        public decimal? Distance { get; set; }
+        
+        [Display(Name = "Intensity")]
+        [Range(1, 10)]
+        public int? Intensity { get; set; }
         
         [Display(Name = "RPE (Rate of Perceived Exertion)")]
         public int? RPE { get; set; }

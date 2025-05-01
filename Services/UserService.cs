@@ -13,7 +13,16 @@ using WorkoutTrackerWeb.Models.Identity;
 
 namespace WorkoutTrackerWeb.Services
 {
-    public class UserService
+    public interface IUserService
+    {
+        string GetCurrentIdentityUserId();
+        Task<User> GetOrCreateCurrentUserAsync();
+        Task<int?> GetCurrentUserIdAsync();
+        Task<List<Models.Session>> GetUserSessionsAsync(int userId, int limit = 20);
+        Task<List<Models.WorkoutSession>> GetUserWorkoutSessionsAsync(int userId, int limit = 20);
+    }
+
+    public class UserService : IUserService
     {
         private readonly WorkoutTrackerWebContext _context;
         private readonly UserManager<AppUser> _userManager;

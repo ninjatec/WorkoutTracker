@@ -20,15 +20,18 @@ namespace WorkoutTrackerWeb.Pages.Workouts
     {
         private readonly WorkoutTrackerWebContext _context;
         private readonly QuickWorkoutService _quickWorkoutService;
+        private readonly ExerciseSelectionService _exerciseSelectionService;
         private readonly ILogger<QuickWorkoutModel> _logger;
 
         public QuickWorkoutModel(
             WorkoutTrackerWebContext context,
             QuickWorkoutService quickWorkoutService,
+            ExerciseSelectionService exerciseSelectionService,
             ILogger<QuickWorkoutModel> logger)
         {
             _context = context;
             _quickWorkoutService = quickWorkoutService;
+            _exerciseSelectionService = exerciseSelectionService;
             _logger = logger;
         }
 
@@ -40,24 +43,8 @@ namespace WorkoutTrackerWeb.Pages.Workouts
 
         public async Task<IActionResult> OnGetAsync(string muscleGroup = null)
         {
-            // Get active session if one exists
             await CheckForActiveSessionAsync();
-            
-            // Set selected muscle group if provided
-            QuickWorkout.SelectedMuscleGroup = muscleGroup;
-            
-            // Populate UI data
-            await PopulateFormDataAsync();
-            
-            // Set status message from TempData
-            QuickWorkout.StatusMessage = StatusMessage;
-            
-            // Generate default session name if none exists
-            if (string.IsNullOrEmpty(QuickWorkout.NewSessionName))
-            {
-                QuickWorkout.NewSessionName = GenerateDefaultSessionName();
-            }
-            
+            await PopulateFormDataAsync(muscleGroup);
             return Page();
         }
 
@@ -65,50 +52,43 @@ namespace WorkoutTrackerWeb.Pages.Workouts
         {
             try
             {
-                // Check if we need to finish an existing session first
                 if (finishCurrent)
                 {
                     await CheckForActiveSessionAsync();
                     
                     if (QuickWorkout.HasActiveSession && QuickWorkout.CurrentSession != null)
                     {
-                        // Finish the current workout session
                         await _quickWorkoutService.FinishQuickWorkoutSessionAsync(
-                            QuickWorkout.CurrentSession.SessionId);
+                            QuickWorkout.CurrentSession.WorkoutSessionId);
                     }
                 }
                 
-                // Get the session name from the form, use default if empty
                 var sessionName = Request.Form["NewSessionName"].ToString();
                 if (string.IsNullOrEmpty(sessionName))
                 {
                     sessionName = GenerateDefaultSessionName();
                 }
                 
-                // Get the start time from the form if available
                 DateTime? startTime = null;
-                if (Request.Form["QuickWorkout.StartTime"].Count > 0)
+                if (DateTime.TryParse(Request.Form["StartTime"].ToString(), out DateTime parsedTime))
                 {
-                    if (DateTime.TryParse(Request.Form["QuickWorkout.StartTime"], out DateTime parsedStartTime))
-                    {
-                        startTime = parsedStartTime;
-                    }
+                    startTime = parsedTime;
                 }
                 
-                // Create a new quick workout session with the specified start time
-                var session = await _quickWorkoutService.CreateQuickWorkoutSessionAsync(sessionName, startTime);
+                var workoutSession = await _quickWorkoutService.CreateQuickWorkoutSessionAsync(sessionName, startTime);
                 
-                // Set success message
-                StatusMessage = $"Successfully created new quick workout: {session.Name}";
+                QuickWorkout.CurrentSession = workoutSession;
+                QuickWorkout.HasActiveSession = true;
                 
-                // Redirect to the same page to refresh
+                StatusMessage = "New workout session created successfully.";
                 return RedirectToPage();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating quick workout session");
-                StatusMessage = $"Error creating session: {ex.Message}";
-                return RedirectToPage();
+                ModelState.AddModelError(string.Empty, "Error creating workout session.");
+                await PopulateFormDataAsync();
+                return Page();
             }
         }
 
@@ -123,7 +103,6 @@ namespace WorkoutTrackerWeb.Pages.Workouts
             
             try
             {
-                // Check for active session BEFORE trying to access QuickWorkout.CurrentSession
                 await CheckForActiveSessionAsync();
                 
                 if (QuickWorkout.CurrentSession == null || !QuickWorkout.HasActiveSession)
@@ -132,220 +111,104 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                     return RedirectToPage();
                 }
                 
-                // Add the set to the session
-                var set = await _quickWorkoutService.AddQuickSetAsync(
-                    QuickWorkout.CurrentSession.SessionId,
+                var workoutExercise = await _quickWorkoutService.AddQuickWorkoutExerciseAsync(
+                    QuickWorkout.CurrentSession.WorkoutSessionId,
                     QuickWorkout.ExerciseTypeId,
                     QuickWorkout.SettypeId,
                     QuickWorkout.Weight,
                     QuickWorkout.NumberReps);
                 
-                // Add the reps
-                await _quickWorkoutService.AddRepsToSetAsync(
-                    set.SetId,
-                    QuickWorkout.Weight,
-                    QuickWorkout.NumberReps,
-                    QuickWorkout.AllSuccessful);
+                QuickWorkout.LastAddedExercise = workoutExercise;
+                StatusMessage = "Set added successfully.";
                 
-                // Set success message
-                StatusMessage = "Set added successfully!";
-                
-                // Redirect to refresh the page
                 return RedirectToPage();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error adding quick set");
-                StatusMessage = $"Error adding set: {ex.Message}";
-                return RedirectToPage();
+                _logger.LogError(ex, "Error adding set to workout");
+                ModelState.AddModelError(string.Empty, "Error adding set to workout.");
+                await PopulateFormDataAsync();
+                return Page();
             }
-        }
-        
-        public async Task<IActionResult> OnPostFinishSessionAsync()
-        {
-            try
-            {
-                // Check for active session
-                await CheckForActiveSessionAsync();
-                
-                if (QuickWorkout.CurrentSession == null || !QuickWorkout.HasActiveSession)
-                {
-                    StatusMessage = "No active session found to finish.";
-                    return RedirectToPage();
-                }
-                
-                // Get the session details before finishing it
-                var sessionName = QuickWorkout.CurrentSession.Name;
-                var sessionId = QuickWorkout.CurrentSession.SessionId;
-                
-                // Use the provided end time from the form if available, otherwise use current time
-                DateTime endTime = DateTime.Now;
-                if (Request.Form["QuickWorkout.EndTime"].Count > 0)
-                {
-                    if (DateTime.TryParse(Request.Form["QuickWorkout.EndTime"], out DateTime parsedEndTime))
-                    {
-                        endTime = parsedEndTime;
-                    }
-                }
-                
-                // Finish the current workout session with the end time
-                await _quickWorkoutService.FinishQuickWorkoutSessionAsync(sessionId, endTime);
-                
-                // Force clearing of the current session
-                QuickWorkout.HasActiveSession = false;
-                QuickWorkout.CurrentSession = null;
-                QuickWorkout.RecentSets = new List<Set>();
-                
-                // Set success message
-                StatusMessage = $"Successfully finished workout: {sessionName}";
-                
-                // Redirect to the same page with a parameter to prevent caching
-                return RedirectToPage(new { t = DateTime.Now.Ticks });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error finishing workout session");
-                StatusMessage = $"Error finishing session: {ex.Message}";
-                return RedirectToPage();
-            }
-        }
-        
-        public async Task<IActionResult> OnGetFilterByMuscleGroupAsync(string muscleGroup)
-        {
-            // Redirect to the page with the muscle group filter
-            return RedirectToPage(new { muscleGroup });
-        }
-        
-        public IActionResult OnGetViewSession(int sessionId)
-        {
-            // Redirect to session details
-            return RedirectToPage("/Sessions/Details", new { id = sessionId });
         }
 
-        /// <summary>
-        /// API handler that returns exercises for a specific muscle group in JSON format
-        /// </summary>
-        public async Task<IActionResult> OnGetExercisesByMuscleGroupAsync(string muscleGroup)
-        {
-            // Check if this is an AJAX request
-            if (!Request.Headers["X-Requested-With"].Equals("XMLHttpRequest"))
-            {
-                return RedirectToPage(new { muscleGroup });
-            }
-
-            if (string.IsNullOrEmpty(muscleGroup))
-            {
-                return new JsonResult(new List<object>());
-            }
-
-            // Query the database for exercises with the given muscle group
-            var exercises = await _context.ExerciseType
-                .Where(e => e.Muscle.Contains(muscleGroup))
-                .OrderBy(e => e.Name)
-                .Select(e => new 
-                {
-                    id = e.ExerciseTypeId.ToString(),
-                    name = e.Name,
-                    muscle = e.Muscle
-                })
-                .ToListAsync();
-
-            // Return the exercises as JSON
-            return new JsonResult(exercises);
-        }
-        
         private async Task CheckForActiveSessionAsync()
         {
-            // Check if there's an active session in progress
             var hasActiveSession = await _quickWorkoutService.HasActiveQuickWorkoutAsync();
             QuickWorkout.HasActiveSession = hasActiveSession;
             
             if (hasActiveSession)
             {
-                // Get the latest session
                 QuickWorkout.CurrentSession = await _quickWorkoutService.GetLatestQuickWorkoutSessionAsync();
                 
                 if (QuickWorkout.CurrentSession != null)
                 {
-                    // Get the latest sets for this session
-                    QuickWorkout.RecentSets = await _context.Set
-                        .Include(s => s.ExerciseType)
-                        .Include(s => s.Settype)
-                        .Where(s => s.SessionId == QuickWorkout.CurrentSession.SessionId)
-                        .OrderByDescending(s => s.SetId)
+                    QuickWorkout.RecentWorkoutSets = await _context.WorkoutSets
+                        .Include(ws => ws.WorkoutExercise)
+                            .ThenInclude(we => we.ExerciseType)
+                        .Include(ws => ws.WorkoutExercise)
+                            .ThenInclude(we => we.WorkoutSession)
+                        .Where(ws => ws.WorkoutExercise.WorkoutSessionId == QuickWorkout.CurrentSession.WorkoutSessionId)
+                        .OrderByDescending(ws => ws.WorkoutSetId)
                         .Take(5)
                         .ToListAsync();
                 }
             }
         }
-        
-        private async Task PopulateFormDataAsync()
+
+        private async Task PopulateFormDataAsync(string muscleGroup = null)
         {
+            // Get exercises by muscle group or all exercises if no muscle group specified
+            if (!string.IsNullOrEmpty(muscleGroup))
+            {
+                var exercisesWithMuscles = await _exerciseSelectionService.GetExercisesByMuscleGroupAsync(muscleGroup);
+                QuickWorkout.ExerciseTypes = exercisesWithMuscles.Select(e => e.ExerciseType).ToList();
+            }
+            else 
+            {
+                QuickWorkout.ExerciseTypes = await _context.ExerciseType
+                    .OrderBy(e => e.Name)
+                    .ToListAsync();
+            }
+            
+            // Get set types
+            QuickWorkout.SetTypes = await _context.Settype
+                .OrderBy(s => s.Name)
+                .ToListAsync();
+
+            // Get all available muscle groups
+            QuickWorkout.MuscleGroups = await _exerciseSelectionService.GetAllMuscleGroupsAsync();
+            
             // Get recent and favorite exercises
-            QuickWorkout.RecentExercises = await _quickWorkoutService.GetRecentExercisesAsync(8);
-            QuickWorkout.FavoriteExercises = await _quickWorkoutService.GetFavoriteExercisesAsync(8);
-            
-            // Get filtered exercises by muscle group if selected
-            var exerciseQuery = _context.ExerciseType.AsQueryable();
-            
-            if (!string.IsNullOrEmpty(QuickWorkout.SelectedMuscleGroup))
-            {
-                exerciseQuery = exerciseQuery.Where(e => e.Muscle.Contains(QuickWorkout.SelectedMuscleGroup));
-            }
-            
-            // Set up dropdown lists
-            QuickWorkout.ExerciseTypeSelectList = new SelectList(
-                await exerciseQuery.OrderBy(e => e.Name).ToListAsync(),
-                "ExerciseTypeId", "Name");
-            
-            // Get all set types
-            var setTypes = await _quickWorkoutService.GetSetTypesAsync();
-            
-            // Create the select list for set types
-            QuickWorkout.SetTypeSelectList = new SelectList(
-                setTypes,
-                "SettypeId", "Name");
-            
-            // Set default set type to "Normal" if it exists and no value is already selected
-            if (QuickWorkout.SettypeId == 0)
-            {
-                // Find the "Normal" set type (case insensitive) 
-                var normalSetType = setTypes.FirstOrDefault(s => s.Name.Equals("Normal", StringComparison.OrdinalIgnoreCase));
-                
-                // If found, set it as the default
-                if (normalSetType != null)
-                {
-                    QuickWorkout.SettypeId = normalSetType.SettypeId;
-                }
-            }
+            QuickWorkout.RecentExercises = await _quickWorkoutService.GetRecentExercisesAsync();
+            QuickWorkout.FavoriteExercises = await _quickWorkoutService.GetFavoriteExercisesAsync();
         }
-        
-        /// <summary>
-        /// Generates a default session name based on current date and time
-        /// </summary>
+
         private string GenerateDefaultSessionName()
         {
-            var now = DateTime.Now;
-            string dayPart;
-            
-            if (now.Hour >= 5 && now.Hour < 12)
-            {
-                dayPart = "Morning";
-            }
-            else if (now.Hour >= 12 && now.Hour < 17)
-            {
-                dayPart = "Afternoon";
-            }
-            else if (now.Hour >= 17 && now.Hour < 22)
-            {
-                dayPart = "Evening";
-            }
-            else
-            {
-                dayPart = "Night";
-            }
-            
-            return $"{dayPart} Workout - {now:MMM d}";
+            return $"Quick Workout {DateTime.Now:yyyy-MM-dd HH:mm}";
         }
+    }
+
+    public class QuickWorkoutViewModel
+    {
+        public bool HasActiveSession { get; set; }
+        public WorkoutSession CurrentSession { get; set; }
+        public WorkoutExercise LastAddedExercise { get; set; }
+        public List<WorkoutSet> RecentWorkoutSets { get; set; } = new List<WorkoutSet>();
+        
+        public int ExerciseTypeId { get; set; }
+        public int SettypeId { get; set; }
+        public decimal Weight { get; set; }
+        public int NumberReps { get; set; }
+        
+        public List<ExerciseType> ExerciseTypes { get; set; } = new List<ExerciseType>();
+        public List<Settype> SetTypes { get; set; } = new List<Settype>();
+        public List<string> MuscleGroups { get; set; } = new List<string>();
+        public List<ExerciseTypeWithUseCount> RecentExercises { get; set; } = new List<ExerciseTypeWithUseCount>();
+        public List<ExerciseType> FavoriteExercises { get; set; } = new List<ExerciseType>();
+        
+        // Track current muscle group filter
+        public string SelectedMuscleGroup { get; set; }
     }
 }

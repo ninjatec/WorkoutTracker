@@ -26,7 +26,7 @@ namespace WorkoutTrackerWeb.Pages.Sessions
         }
 
         [BindProperty]
-        public Session Session { get; set; } = default!;
+        public WorkoutSession WorkoutSession { get; set; } = default!;
 
         public async Task<IActionResult> OnGetAsync(int? id)
         {
@@ -35,30 +35,28 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 return NotFound();
             }
 
-            // Get the current user
             var currentUserId = await _userService.GetCurrentUserIdAsync();
             if (currentUserId == null)
             {
                 return Challenge();
             }
 
-            // Get the session with ownership check
-            var session = await _context.Session
-                .Include(s => s.User)
-                .FirstOrDefaultAsync(m => m.SessionId == id && m.UserId == currentUserId);
+            // Get the workout session with ownership check
+            var workoutSession = await _context.WorkoutSessions
+                .Include(ws => ws.User)
+                .FirstOrDefaultAsync(ws => ws.WorkoutSessionId == id && ws.UserId == currentUserId);
 
-            if (session == null)
+            if (workoutSession == null)
             {
                 return NotFound();
             }
             
-            Session = session;
+            WorkoutSession = workoutSession;
             return Page();
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
-            // Get the current user
             var currentUserId = await _userService.GetCurrentUserIdAsync();
             if (currentUserId == null)
             {
@@ -66,8 +64,8 @@ namespace WorkoutTrackerWeb.Pages.Sessions
             }
 
             // Verify ownership
-            var sessionToUpdate = await _context.Session
-                .FirstOrDefaultAsync(s => s.SessionId == Session.SessionId && s.UserId == currentUserId);
+            var sessionToUpdate = await _context.WorkoutSessions
+                .FirstOrDefaultAsync(ws => ws.WorkoutSessionId == WorkoutSession.WorkoutSessionId && ws.UserId == currentUserId);
 
             if (sessionToUpdate == null)
             {
@@ -80,21 +78,27 @@ namespace WorkoutTrackerWeb.Pages.Sessions
             }
 
             // Ensure UserId isn't changed
-            Session.UserId = currentUserId.Value;
+            WorkoutSession.UserId = currentUserId.Value;
 
             try
             {
-                // Update only allowed fields
-                sessionToUpdate.Name = Session.Name;
-                sessionToUpdate.datetime = Session.datetime;
-                sessionToUpdate.endtime = Session.endtime;
-                // UserId is preserved from the original record
+                // Update fields
+                sessionToUpdate.Name = WorkoutSession.Name;
+                sessionToUpdate.StartDateTime = WorkoutSession.StartDateTime;
+                sessionToUpdate.EndDateTime = WorkoutSession.EndDateTime;
+                sessionToUpdate.Description = WorkoutSession.Description;
+                
+                // Update duration if end time is set
+                if (sessionToUpdate.EndDateTime.HasValue)
+                {
+                    sessionToUpdate.Duration = (int)(sessionToUpdate.EndDateTime.Value - sessionToUpdate.StartDateTime).TotalMinutes;
+                }
                 
                 await _context.SaveChangesAsync();
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!SessionExists(Session.SessionId))
+                if (!WorkoutSessionExists(WorkoutSession.WorkoutSessionId))
                 {
                     return NotFound();
                 }
@@ -107,9 +111,9 @@ namespace WorkoutTrackerWeb.Pages.Sessions
             return RedirectToPage("./Index");
         }
 
-        private bool SessionExists(int id)
+        private bool WorkoutSessionExists(int id)
         {
-            return _context.Session.Any(e => e.SessionId == id);
+            return _context.WorkoutSessions.Any(ws => ws.WorkoutSessionId == id);
         }
     }
 }

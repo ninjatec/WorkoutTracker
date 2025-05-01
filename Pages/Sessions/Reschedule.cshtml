@@ -7,7 +7,7 @@
 
 <h1>Reschedule Missed Workout</h1>
 
-<h4>@Model.Session.Name</h4>
+<h4>@Model.WorkoutSession.Name</h4>
 <hr />
 <div class="row">
     <div class="col-md-6">
@@ -17,21 +17,21 @@
         
         <form method="post">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <input type="hidden" asp-for="Session.SessionId" />
-            <input type="hidden" asp-for="Session.UserId" />
-            <input type="hidden" asp-for="Session.Name" />
+            <input type="hidden" asp-for="WorkoutSession.WorkoutSessionId" />
+            <input type="hidden" asp-for="WorkoutSession.UserId" />
+            <input type="hidden" asp-for="WorkoutSession.Name" />
             
             <div class="form-group mb-3">
                 <label asp-for="NewDateTime" class="control-label">New Workout Date/Time</label>
-                <input asp-for="NewDateTime" class="form-control" />
+                <input asp-for="NewDateTime" class="form-control" type="datetime-local" />
                 <span asp-validation-for="NewDateTime" class="text-danger"></span>
                 <small class="form-text text-muted">Choose a new date and time for this workout</small>
             </div>
             
             <div class="form-group mb-3">
-                <label asp-for="Session.Notes" class="control-label">Notes</label>
-                <textarea asp-for="Session.Notes" class="form-control" rows="3"></textarea>
-                <span asp-validation-for="Session.Notes" class="text-danger"></span>
+                <label asp-for="WorkoutSession.Description" class="control-label">Notes</label>
+                <textarea asp-for="WorkoutSession.Description" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="WorkoutSession.Description" class="text-danger"></span>
             </div>
             
             <div class="form-group d-flex justify-content-between mb-3">
@@ -49,13 +49,19 @@
             <div class="card-body">
                 <dl class="row">
                     <dt class="col-sm-4">Name</dt>
-                    <dd class="col-sm-8">@Model.Session.Name</dd>
+                    <dd class="col-sm-8">@Model.WorkoutSession.Name</dd>
                     
                     <dt class="col-sm-4">Original Date</dt>
-                    <dd class="col-sm-8">@Model.Session.datetime.ToString("dd/MM/yyyy HH:mm")</dd>
+                    <dd class="col-sm-8">@Model.WorkoutSession.StartDateTime.ToString("dd/MM/yyyy HH:mm")</dd>
                     
                     <dt class="col-sm-4">Template</dt>
-                    <dd class="col-sm-8">@(Model.WorkoutSession?.TemplatesUsed ?? "None")</dd>
+                    <dd class="col-sm-8">@(Model.WorkoutSession.WorkoutTemplateId.HasValue ? "Yes" : "No")</dd>
+                    
+                    @if (!string.IsNullOrEmpty(Model.WorkoutSession.Description))
+                    {
+                        <dt class="col-sm-4">Notes</dt>
+                        <dd class="col-sm-8">@Model.WorkoutSession.Description</dd>
+                    }
                 </dl>
             </div>
         </div>
@@ -63,9 +69,22 @@
 </div>
 
 <div>
-    <a asp-page="./Index">Back to List</a>
+    <a asp-page="./Index" class="btn btn-secondary mt-3">Back to List</a>
 </div>
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        // Format datetime-local input
+        document.addEventListener('DOMContentLoaded', function () {
+            var datetimeInput = document.querySelector('[type="datetime-local"]');
+            if (datetimeInput) {
+                var value = datetimeInput.value;
+                if (value) {
+                    // Keep only YYYY-MM-DDTHH:mm format
+                    datetimeInput.value = value.slice(0, 16);
+                }
+            }
+        });
+    </script>
 }

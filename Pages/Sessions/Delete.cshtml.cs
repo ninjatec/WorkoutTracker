@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -31,7 +30,7 @@ namespace WorkoutTrackerWeb.Pages.Sessions
         }
 
         [BindProperty]
-        public Session Session { get; set; } = default!;
+        public WorkoutSession WorkoutSession { get; set; } = default!;
         
         [TempData]
         public string ErrorMessage { get; set; }
@@ -43,25 +42,24 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 return NotFound();
             }
 
-            // Get current user
             var currentUserId = await _userService.GetCurrentUserIdAsync();
             if (currentUserId == null)
             {
                 return Challenge();
             }
 
-            // Get session with ownership check - use AsNoTracking since we're just reading
-            var session = await _context.Session
+            // Get workout session with ownership check
+            var workoutSession = await _context.WorkoutSessions
                 .AsNoTracking()
-                .Include(s => s.User)
-                .FirstOrDefaultAsync(m => m.SessionId == id && m.UserId == currentUserId);
+                .Include(ws => ws.User)
+                .FirstOrDefaultAsync(ws => ws.WorkoutSessionId == id && ws.UserId == currentUserId);
 
-            if (session == null)
+            if (workoutSession == null)
             {
                 return NotFound();
             }
             
-            Session = session;
+            WorkoutSession = workoutSession;
             return Page();
         }
 
@@ -72,7 +70,6 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 return NotFound();
             }
 
-            // Get current user
             var currentUserId = await _userService.GetCurrentUserIdAsync();
             if (currentUserId == null)
             {
@@ -81,13 +78,13 @@ namespace WorkoutTrackerWeb.Pages.Sessions
 
             try
             {
-                // First, find the session with all related entities to ensure it exists and belongs to user
-                var session = await _context.Session
-                    .Include(s => s.Sets)
-                        .ThenInclude(s => s.Reps)
-                    .FirstOrDefaultAsync(s => s.SessionId == id && s.UserId == currentUserId);
+                // Find the workout session with all related entities
+                var workoutSession = await _context.WorkoutSessions
+                    .Include(ws => ws.WorkoutExercises)
+                        .ThenInclude(we => we.WorkoutSets)
+                    .FirstOrDefaultAsync(ws => ws.WorkoutSessionId == id && ws.UserId == currentUserId);
                     
-                if (session == null)
+                if (workoutSession == null)
                 {
                     return NotFound();
                 }
@@ -97,31 +94,30 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 
                 await strategy.ExecuteAsync(async () =>
                 {
-                    // Delete reps first to avoid foreign key constraint issues
-                    foreach (var set in session.Sets ?? Enumerable.Empty<Set>())
+                    // Delete workout sets first
+                    foreach (var exercise in workoutSession.WorkoutExercises ?? Enumerable.Empty<WorkoutExercise>())
                     {
-                        if (set.Reps != null && set.Reps.Any())
+                        if (exercise.WorkoutSets != null && exercise.WorkoutSets.Any())
                         {
-                            _context.Rep.RemoveRange(set.Reps);
+                            _context.WorkoutSets.RemoveRange(exercise.WorkoutSets);
                         }
                     }
                     
-                    // Now delete sets
-                    if (session.Sets != null && session.Sets.Any())
+                    // Delete workout exercises
+                    if (workoutSession.WorkoutExercises != null && workoutSession.WorkoutExercises.Any())
                     {
-                        _context.Set.RemoveRange(session.Sets);
+                        _context.WorkoutExercises.RemoveRange(workoutSession.WorkoutExercises);
                     }
                     
-                    // Finally delete the session
-                    _context.Session.Remove(session);
+                    // Finally delete the workout session
+                    _context.WorkoutSessions.Remove(workoutSession);
                     
-                    // Save all changes
                     await _context.SaveChangesAsync();
                     
-                    _logger.LogInformation("Successfully deleted session {SessionId} for user {UserId}", 
+                    _logger.LogInformation("Successfully deleted workout session {WorkoutSessionId} for user {UserId}", 
                         id, currentUserId);
                     
-                    // Clear the change tracker to release memory
+                    // Clear the change tracker
                     _context.ChangeTracker.Clear();
                 });
                 
@@ -129,22 +125,22 @@ namespace WorkoutTrackerWeb.Pages.Sessions
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to delete session {SessionId}", id);
-                ErrorMessage = "An error occurred while deleting the session. Please try again.";
+                _logger.LogError(ex, "Failed to delete workout session {WorkoutSessionId}", id);
+                ErrorMessage = "An error occurred while deleting the workout session. Please try again.";
                 
                 // Re-load the session for display
-                var session = await _context.Session
+                var workoutSession = await _context.WorkoutSessions
                     .AsNoTracking()
-                    .Include(s => s.User)
-                    .FirstOrDefaultAsync(m => m.SessionId == id && m.UserId == currentUserId);
+                    .Include(ws => ws.User)
+                    .FirstOrDefaultAsync(ws => ws.WorkoutSessionId == id && ws.UserId == currentUserId);
                 
-                if (session != null)
+                if (workoutSession != null)
                 {
-                    Session = session;
+                    WorkoutSession = workoutSession;
                     return Page();
                 }
                 
-                return RedirectToPage("./Index", new { error = "Failed to delete session" });
+                return RedirectToPage("./Index", new { error = "Failed to delete workout session" });
             }
         }
     }
