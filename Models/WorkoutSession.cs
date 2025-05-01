@@ -59,12 +59,18 @@ namespace WorkoutTrackerWeb.Models
         [Display(Name = "Status")]
         public string Status { get; set; }
         
+        // Foreign key to original Session (for migration tracking)
+        public int? SessionId { get; set; }
+        
         // Navigation properties
         [ForeignKey("UserId")]
         public User User { get; set; }
         
         [ForeignKey("WorkoutTemplateId")]
         public WorkoutTemplate WorkoutTemplate { get; set; }
+        
+        [ForeignKey("SessionId")]
+        public Session Session { get; set; }
         
         // Collection navigation properties
         public ICollection<WorkoutExercise> WorkoutExercises { get; set; } = new List<WorkoutExercise>();
