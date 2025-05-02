@@ -10,6 +10,7 @@ using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Logging;
 
 namespace WorkoutTrackerWeb.Pages.Sessions
 {
@@ -18,11 +19,13 @@ namespace WorkoutTrackerWeb.Pages.Sessions
     {
         private readonly WorkoutTrackerWebContext _context;
         private readonly UserService _userService;
+        private readonly ILogger<EditModel> _logger;
 
-        public EditModel(WorkoutTrackerWebContext context, UserService userService)
+        public EditModel(WorkoutTrackerWebContext context, UserService userService, ILogger<EditModel> logger)
         {
             _context = context;
             _userService = userService;
+            _logger = logger;
         }
 
         [BindProperty]
@@ -82,21 +85,35 @@ namespace WorkoutTrackerWeb.Pages.Sessions
 
             try
             {
-                // Update fields
-                sessionToUpdate.Name = WorkoutSession.Name;
-                sessionToUpdate.StartDateTime = WorkoutSession.StartDateTime;
-                sessionToUpdate.EndDateTime = WorkoutSession.EndDateTime;
-                sessionToUpdate.Description = WorkoutSession.Description;
+                // Create execution strategy for the DB context
+                var strategy = _context.Database.CreateExecutionStrategy();
                 
-                // Update duration if end time is set
-                if (sessionToUpdate.EndDateTime.HasValue)
+                await strategy.ExecuteAsync(async () =>
                 {
-                    sessionToUpdate.Duration = (int)(sessionToUpdate.EndDateTime.Value - sessionToUpdate.StartDateTime).TotalMinutes;
-                }
-                
-                await _context.SaveChangesAsync();
+                    // Detach current entity to avoid tracking conflicts
+                    _context.Entry(sessionToUpdate).State = EntityState.Detached;
+                    
+                    // Update with the edited entity and mark as modified
+                    _context.Attach(WorkoutSession);
+                    _context.Entry(WorkoutSession).State = EntityState.Modified;
+                    
+                    // Update duration if end time is set
+                    if (WorkoutSession.EndDateTime.HasValue)
+                    {
+                        WorkoutSession.Duration = (int)(WorkoutSession.EndDateTime.Value - WorkoutSession.StartDateTime).TotalMinutes;
+                        
+                        // Update status to "Completed" when end date is set
+                        WorkoutSession.Status = "Completed";
+                        WorkoutSession.CompletedDate = WorkoutSession.EndDateTime;
+                    }
+                    
+                    // Execute the save within the strategy
+                    await _context.SaveChangesAsync();
+                    
+                    _logger.LogInformation("Session {SessionId} updated successfully", WorkoutSession.WorkoutSessionId);
+                });
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException ex)
             {
                 if (!WorkoutSessionExists(WorkoutSession.WorkoutSessionId))
                 {
@@ -104,8 +121,14 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 }
                 else
                 {
+                    _logger.LogError(ex, "Concurrency error updating session {SessionId}", WorkoutSession.WorkoutSessionId);
                     throw;
                 }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating session {SessionId}", WorkoutSession.WorkoutSessionId);
+                throw;
             }
 
             return RedirectToPage("./Index");
