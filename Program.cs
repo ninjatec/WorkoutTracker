@@ -165,6 +165,23 @@ namespace WorkoutTrackerWeb
             {
                 var hangfireConfig = sp.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.HangfireServerConfiguration>();
                 hangfireConfig.ConfigureHangfire(config);
+                
+                // Add explicit SQL Server storage options to fix query hints errors
+                var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+                if (connectionString != null)
+                {
+                    config.UseSqlServerStorage(connectionString, new Hangfire.SqlServer.SqlServerStorageOptions
+                    {
+                        CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+                        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+                        QueuePollInterval = TimeSpan.FromSeconds(15),
+                        UseRecommendedIsolationLevel = true,
+                        DisableGlobalLocks = false,
+                        SchemaName = "HangFire",
+                        EnableHeavyMigrations = false,
+                        DashboardJobListLimit = 1000
+                    });
+                }
             });
 
             // Register Hangfire jobs registration services
@@ -409,7 +426,21 @@ namespace WorkoutTrackerWeb
 
             builder.Services.AddSingleton<DatabaseResilienceService>();
 
-            builder.Services.AddScoped<ISharedStorageService, RedisSharedStorageService>();
+            // Register RedisSharedStorageService based on whether Redis is enabled
+            if (redisConfig?.Enabled == true)
+            {
+                // Redis is enabled, normal registration happens in AddRedisConfiguration
+                builder.Services.AddScoped<ISharedStorageService, RedisSharedStorageService>();
+            }
+            else
+            {
+                // Redis is disabled, register a version with null redis connection
+                builder.Services.AddScoped<ISharedStorageService>(sp => {
+                    var logger = sp.GetRequiredService<ILogger<RedisSharedStorageService>>();
+                    return new RedisSharedStorageService(null, logger);
+                });
+                Log.Information("Redis is disabled. Using local filesystem fallback for shared storage.");
+            }
 
             builder.Services.AddScoped<IAlertingService, AlertingService>();
             

@@ -40,9 +40,23 @@ public static class RedisConfigurationExtensions
     {
         var redisConfig = configuration.GetSection("Redis").Get<RedisConfiguration>();
         
+        // If Redis is not configured or disabled, skip Redis registration
+        if (redisConfig == null || !redisConfig.Enabled)
+        {
+            return services;
+        }
+        
         services.AddSingleton<IConnectionMultiplexer>(sp =>
         {
             var logger = sp.GetRequiredService<ILogger<RedisConfiguration>>();
+            
+            // Ensure we have a connection string before proceeding
+            if (string.IsNullOrEmpty(redisConfig.ConnectionString))
+            {
+                logger.LogWarning("Redis connection string is null or empty. Redis features will be unavailable.");
+                throw new InvalidOperationException("Redis connection string is not configured");
+            }
+            
             var options = new ConfigurationOptions
             {
                 EndPoints = { redisConfig.ConnectionString },
@@ -61,6 +75,9 @@ public static class RedisConfigurationExtensions
                 throw;
             }
         });
+        
+        // Also configure Redis options for services
+        services.Configure<RedisConfiguration>(configuration.GetSection("Redis"));
 
         return services;
     }
