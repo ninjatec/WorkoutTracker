@@ -117,9 +117,9 @@ namespace WorkoutTrackerWeb.Services
                     {
                         var setExport = new SetExport
                         {
-                            Notes = set.Notes,
-                            ExerciseTypeName = exercise.ExerciseType?.Name,
-                            SetTypeName = set.Settype?.Name,
+                            Notes = set.Notes ?? string.Empty, // Handle null notes
+                            ExerciseTypeName = exercise.ExerciseType?.Name ?? string.Empty, // Handle null exercise type name
+                            SetTypeName = set.Settype?.Name ?? string.Empty, // Handle null set type name
                             NumberReps = set.Reps ?? 0,
                             Weight = set.Weight ?? 0,
                             Reps = new List<RepExport>()
@@ -269,6 +269,7 @@ namespace WorkoutTrackerWeb.Services
         private async Task<List<WorkoutSession>> GetUserSessionsAsync(int userId, DateTime? startDate = null, DateTime? endDate = null)
         {
             var query = _context.WorkoutSessions
+                .AsSplitQuery() // Use split queries for better performance with multiple includes
                 .Include(ws => ws.WorkoutExercises)
                     .ThenInclude(we => we.WorkoutSets)
                         .ThenInclude(s => s.Settype)
