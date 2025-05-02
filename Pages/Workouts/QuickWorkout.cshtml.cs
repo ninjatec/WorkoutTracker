@@ -158,69 +158,97 @@ namespace WorkoutTrackerWeb.Pages.Workouts
 
         private async Task PopulateFormDataAsync(string muscleGroup = null)
         {
-            // Get exercises by muscle group or all exercises if no muscle group specified
-            if (!string.IsNullOrEmpty(muscleGroup))
+            try
             {
-                try 
+                // Get exercises by muscle group or all exercises if no muscle group specified
+                if (!string.IsNullOrEmpty(muscleGroup))
                 {
-                    var exercisesWithMuscles = await _exerciseSelectionService.GetExercisesByMuscleGroupAsync(muscleGroup);
-                    QuickWorkout.ExerciseTypes = exercisesWithMuscles.Select(e => e.ExerciseType).ToList();
+                    try 
+                    {
+                        var exercisesWithMuscles = await _exerciseSelectionService.GetExercisesByMuscleGroupAsync(muscleGroup);
+                        QuickWorkout.ExerciseTypes = exercisesWithMuscles.Select(e => e.ExerciseType).ToList();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error getting exercises by muscle group: {MuscleGroup}", muscleGroup);
+                        // Fallback to getting all exercise types if the muscle group query fails
+                        QuickWorkout.ExerciseTypes = await _context.ExerciseType
+                            .OrderBy(e => e.Name)
+                            .ToListAsync();
+                    }
                 }
-                catch (Exception ex)
+                else 
                 {
-                    _logger.LogError(ex, "Error getting exercises by muscle group: {MuscleGroup}", muscleGroup);
-                    // Fallback to getting all exercise types if the muscle group query fails
                     QuickWorkout.ExerciseTypes = await _context.ExerciseType
                         .OrderBy(e => e.Name)
                         .ToListAsync();
                 }
-            }
-            else 
-            {
-                QuickWorkout.ExerciseTypes = await _context.ExerciseType
-                    .OrderBy(e => e.Name)
+                
+                // Get set types
+                QuickWorkout.SetTypes = await _context.Settype
+                    .OrderBy(s => s.Name)
                     .ToListAsync();
-            }
-            
-            // Get set types
-            QuickWorkout.SetTypes = await _context.Settype
-                .OrderBy(s => s.Name)
-                .ToListAsync();
 
-            // Get all available muscle groups
-            try
-            {
-                QuickWorkout.MuscleGroups = await _exerciseSelectionService.GetAllMuscleGroupsAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting all muscle groups");
-                QuickWorkout.MuscleGroups = new List<string>();
-            }
-            
-            // Get recent and favorite exercises
-            try
-            {
-                QuickWorkout.RecentExercises = await _quickWorkoutService.GetRecentExercisesAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting recent exercises");
-                QuickWorkout.RecentExercises = new List<ExerciseTypeWithUseCount>();
-            }
-            
-            try
-            {
-                QuickWorkout.FavoriteExercises = await _quickWorkoutService.GetFavoriteExercisesAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting favorite exercises");
-                QuickWorkout.FavoriteExercises = new List<ExerciseType>();
-            }
+                // Get all available muscle groups with improved error handling
+                try
+                {
+                    QuickWorkout.MuscleGroups = await _exerciseSelectionService.GetAllMuscleGroupsAsync();
+                    // Additional safety check
+                    if (QuickWorkout.MuscleGroups == null)
+                    {
+                        QuickWorkout.MuscleGroups = new List<string>();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error getting all muscle groups");
+                    QuickWorkout.MuscleGroups = new List<string>();
+                }
+                
+                // Get recent and favorite exercises
+                try
+                {
+                    QuickWorkout.RecentExercises = await _quickWorkoutService.GetRecentExercisesAsync();
+                    if (QuickWorkout.RecentExercises == null)
+                    {
+                        QuickWorkout.RecentExercises = new List<ExerciseTypeWithUseCount>();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error getting recent exercises");
+                    QuickWorkout.RecentExercises = new List<ExerciseTypeWithUseCount>();
+                }
+                
+                try
+                {
+                    QuickWorkout.FavoriteExercises = await _quickWorkoutService.GetFavoriteExercisesAsync();
+                    if (QuickWorkout.FavoriteExercises == null)
+                    {
+                        QuickWorkout.FavoriteExercises = new List<ExerciseType>();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error getting favorite exercises");
+                    QuickWorkout.FavoriteExercises = new List<ExerciseType>();
+                }
 
-            // Set the selected muscle group
-            QuickWorkout.SelectedMuscleGroup = muscleGroup;
+                // Set the selected muscle group
+                QuickWorkout.SelectedMuscleGroup = muscleGroup;
+            }
+            catch (Exception ex)
+            {
+                // Global exception handler for the entire form data population process
+                _logger.LogError(ex, "Unhandled exception in PopulateFormDataAsync");
+                
+                // Initialize default empty collections to prevent null reference exceptions in the view
+                QuickWorkout.ExerciseTypes ??= new List<ExerciseType>();
+                QuickWorkout.SetTypes ??= new List<Settype>();
+                QuickWorkout.MuscleGroups ??= new List<string>();
+                QuickWorkout.RecentExercises ??= new List<ExerciseTypeWithUseCount>();
+                QuickWorkout.FavoriteExercises ??= new List<ExerciseType>();
+            }
         }
 
         private string GenerateDefaultSessionName()

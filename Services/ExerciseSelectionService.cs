@@ -539,22 +539,37 @@ namespace WorkoutTrackerWeb.Services
             using var scope = _serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
 
-            var allDescriptions = await context.ExerciseType
-                .Where(e => !string.IsNullOrEmpty(e.Description))
-                .Select(e => e.Description)
-                .ToListAsync();
-
-            var allMuscleGroups = new HashSet<string>();
-            foreach (var description in allDescriptions)
+            try
             {
-                var muscleGroups = ExtractMuscleGroups(description);
-                foreach (var group in muscleGroups)
-                {
-                    allMuscleGroups.Add(group);
-                }
-            }
+                // Use explicit NULL check and materialize the query results in memory first
+                // This helps prevent SQL NULL values from causing exceptions during string operations
+                var allDescriptions = await context.ExerciseType
+                    .Where(e => e.Description != null)
+                    .Select(e => e.Description)
+                    .ToListAsync();
 
-            return allMuscleGroups.OrderBy(m => m).ToList();
+                var allMuscleGroups = new HashSet<string>();
+                foreach (var description in allDescriptions)
+                {
+                    // Double-check for null values that might have slipped through
+                    if (!string.IsNullOrEmpty(description))
+                    {
+                        var muscleGroups = ExtractMuscleGroups(description);
+                        foreach (var group in muscleGroups)
+                        {
+                            allMuscleGroups.Add(group);
+                        }
+                    }
+                }
+
+                return allMuscleGroups.OrderBy(m => m).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving muscle groups from database");
+                // Return an empty list instead of propagating the exception
+                return new List<string>();
+            }
         }
 
         private List<string> ExtractMuscleGroups(string description)
