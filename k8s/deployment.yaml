@@ -66,6 +66,8 @@ spec:
           value: "Production"
         - name: ASPNETCORE_ENVIRONMENT
           value: "Production"
+        - name: MAINTENANCE_MODE
+          value: "false"
         - name: POD_NAME
           valueFrom:
             fieldRef:
