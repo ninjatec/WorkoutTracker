@@ -1,0 +1,23 @@
+Connected to database: WorkoutTrackerWeb
+Checking for Session and Set tables...
+Session table exists and will be dropped
+Set table exists and will be dropped
+Dropping indexes...
+Dropping foreign keys...
+Dropping columns that reference legacy tables...
+Dropping SetsSetId column from Rep
+Successfully dropped SetsSetId column from Rep
+Dropping SessionId column from ShareToken
+Error dropping SessionId column from ShareToken: ALTER TABLE DROP COLUMN SessionId failed because one or more objects access this column.
+Dropping SessionId column from ProgressionHistories
+Error dropping SessionId column from ProgressionHistories: ALTER TABLE DROP COLUMN SessionId failed because one or more objects access this column.
+Dropping SessionId column from WorkoutFeedbacks
+Error dropping SessionId column from WorkoutFeedbacks: ALTER TABLE DROP COLUMN SessionId failed because one or more objects access this column.
+Dropping SessionId column from WorkoutSessions
+Error dropping SessionId column from WorkoutSessions: ALTER TABLE DROP COLUMN SessionId failed because one or more objects access this column.
+Dropping legacy tables...
+Dropping Set table
+Successfully dropped Set table
+Dropping Session table
+Successfully dropped Session table
+Script execution complete. Session Migration Phase 5 cleanup completed.
