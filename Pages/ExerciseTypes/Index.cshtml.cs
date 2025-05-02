@@ -55,26 +55,26 @@ namespace WorkoutTrackerWeb.Pages.ExerciseTypes
             // Create IQueryable for the ExerciseType
             IQueryable<ExerciseType> exerciseTypesIQ = _context.ExerciseType;
             
-            // Apply filter if search string is provided
+            // Apply filter if search string is provided, with null checks
             if (!string.IsNullOrEmpty(searchString))
             {
                 exerciseTypesIQ = exerciseTypesIQ.Where(e => 
                     e.Name.Contains(searchString) ||
-                    e.Type.Contains(searchString) ||
-                    e.Muscle.Contains(searchString) ||
-                    e.Difficulty.Contains(searchString) ||
-                    e.Equipment.Contains(searchString)
+                    (e.Type != null && e.Type.Contains(searchString)) ||
+                    (e.Muscle != null && e.Muscle.Contains(searchString)) ||
+                    (e.Difficulty != null && e.Difficulty.Contains(searchString)) ||
+                    (e.Equipment != null && e.Equipment.Contains(searchString))
                 );
             }
             
-            // Apply sorting
+            // Apply sorting with null handling
             exerciseTypesIQ = sortOrder switch
             {
                 "name_desc" => exerciseTypesIQ.OrderByDescending(e => e.Name),
-                "type" => exerciseTypesIQ.OrderBy(e => e.Type).ThenBy(e => e.Name),
-                "type_desc" => exerciseTypesIQ.OrderByDescending(e => e.Type).ThenBy(e => e.Name),
-                "muscle" => exerciseTypesIQ.OrderBy(e => e.Muscle).ThenBy(e => e.Name),
-                "muscle_desc" => exerciseTypesIQ.OrderByDescending(e => e.Muscle).ThenBy(e => e.Name),
+                "type" => exerciseTypesIQ.OrderBy(e => e.Type ?? string.Empty).ThenBy(e => e.Name),
+                "type_desc" => exerciseTypesIQ.OrderByDescending(e => e.Type ?? string.Empty).ThenBy(e => e.Name),
+                "muscle" => exerciseTypesIQ.OrderBy(e => e.Muscle ?? string.Empty).ThenBy(e => e.Name),
+                "muscle_desc" => exerciseTypesIQ.OrderByDescending(e => e.Muscle ?? string.Empty).ThenBy(e => e.Name),
                 _ => exerciseTypesIQ.OrderBy(e => e.Name),
             };
             
