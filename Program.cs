@@ -342,6 +342,7 @@ namespace WorkoutTrackerWeb
             builder.Services.AddHttpContextAccessor();
 
             builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<UserService>();
 
             builder.Services.AddScoped<WorkoutDataPortabilityService>();
 
@@ -388,6 +389,8 @@ namespace WorkoutTrackerWeb
             builder.Services.AddScoped<IHangfireInitializationService, HangfireInitializationService>();
 
             builder.Services.AddSingleton<DatabaseResilienceService>();
+
+            builder.Services.AddScoped<ISharedStorageService, RedisSharedStorageService>();
 
             builder.Services.AddScoped<IAlertingService, AlertingService>();
             
