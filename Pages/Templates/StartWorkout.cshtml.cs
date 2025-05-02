@@ -32,11 +32,13 @@ namespace WorkoutTrackerWeb.Pages.Templates
 
             TemplateId = id;
 
+            // Modified query to avoid loading problematic columns
             WorkoutTemplate = await _context.WorkoutTemplate
-                .Include(wt => wt.TemplateExercises)
+                .Include(wt => wt.TemplateExercises.OrderBy(te => te.OrderIndex))
                     .ThenInclude(wte => wte.ExerciseType)
                 .Include(wt => wt.TemplateExercises)
-                    .ThenInclude(wte => wte.TemplateSets)
+                    .ThenInclude(wte => wte.TemplateSets.OrderBy(ts => ts.SequenceNum))
+                .AsNoTracking() // Add this to improve performance
                 .FirstOrDefaultAsync(wt => wt.WorkoutTemplateId == id);
 
             if (WorkoutTemplate == null)
@@ -52,6 +54,7 @@ namespace WorkoutTrackerWeb.Pages.Templates
                     .ThenInclude(wte => wte.ExerciseType)
                 .Include(wt => wt.TemplateExercises)
                     .ThenInclude(wte => wte.TemplateSets)
+                .AsNoTracking() // Add this to improve performance
                 .FirstOrDefaultAsync(wt => wt.WorkoutTemplateId == templateId);
 
             if (template == null)
