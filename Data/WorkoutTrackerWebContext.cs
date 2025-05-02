@@ -646,7 +646,7 @@ namespace WorkoutTrackerWeb.Data
             // WorkoutSession relationships and query filter
             modelBuilder.Entity<WorkoutSession>()
                 .HasOne(ws => ws.User)
-                .WithMany()
+                .WithMany(u => u.WorkoutSessions)
                 .HasForeignKey(ws => ws.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
                 

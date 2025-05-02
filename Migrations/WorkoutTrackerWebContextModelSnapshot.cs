@@ -117,7 +117,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("TriggeredAt");
 
-                    b.ToTable("Alert");
+                    b.ToTable("Alert", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Alerting.AlertHistory", b =>
@@ -193,7 +193,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("TriggeredAt");
 
-                    b.ToTable("AlertHistory");
+                    b.ToTable("AlertHistory", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Alerting.AlertThreshold", b =>
@@ -259,7 +259,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("MetricName");
 
-                    b.ToTable("AlertThreshold");
+                    b.ToTable("AlertThreshold", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Alerting.Notification", b =>
@@ -309,7 +309,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("UserId", "IsRead");
 
-                    b.ToTable("Notification");
+                    b.ToTable("Notification", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientActivity", b =>
@@ -363,7 +363,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("IsViewedByCoach");
 
-                    b.ToTable("ClientActivities");
+                    b.ToTable("ClientActivities", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientEquipment", b =>
@@ -398,7 +398,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("IsAvailable");
 
-                    b.ToTable("ClientEquipments");
+                    b.ToTable("ClientEquipments", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientExerciseExclusion", b =>
@@ -446,7 +446,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("IsActive");
 
-                    b.ToTable("ClientExerciseExclusions");
+                    b.ToTable("ClientExerciseExclusions", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientGoal", b =>
@@ -533,7 +533,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("IsActive");
 
-                    b.ToTable("ClientGoals");
+                    b.ToTable("ClientGoals", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientGroup", b =>
@@ -571,7 +571,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("CoachId");
 
-                    b.ToTable("ClientGroups");
+                    b.ToTable("ClientGroups", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientGroupMember", b =>
@@ -597,7 +597,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("CoachClientRelationshipId");
 
-                    b.ToTable("ClientGroupMembers");
+                    b.ToTable("ClientGroupMembers", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientMessage", b =>
@@ -638,7 +638,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("CoachClientRelationshipId");
 
-                    b.ToTable("CoachClientMessages");
+                    b.ToTable("CoachClientMessages", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientPermission", b =>
@@ -693,7 +693,7 @@ namespace WorkoutTrackerWeb.Migrations
                     b.HasIndex("CoachClientRelationshipId")
                         .IsUnique();
 
-                    b.ToTable("CoachClientPermissions");
+                    b.ToTable("CoachClientPermissions", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship", b =>
@@ -763,7 +763,7 @@ namespace WorkoutTrackerWeb.Migrations
                         .IsUnique()
                         .HasFilter("[ClientId] IS NOT NULL");
 
-                    b.ToTable("CoachClientRelationships");
+                    b.ToTable("CoachClientRelationships", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachNote", b =>
@@ -800,7 +800,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("IsVisibleToClient");
 
-                    b.ToTable("CoachNotes");
+                    b.ToTable("CoachNotes", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ExerciseFeedback", b =>
@@ -839,7 +839,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("WorkoutSetId");
 
-                    b.ToTable("ExerciseFeedbacks");
+                    b.ToTable("ExerciseFeedbacks", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ExerciseSubstitution", b =>
@@ -896,7 +896,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("SubstituteExerciseTypeId");
 
-                    b.ToTable("ExerciseSubstitutions");
+                    b.ToTable("ExerciseSubstitutions", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.GoalFeedback", b =>
@@ -940,7 +940,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("IsRead");
 
-                    b.ToTable("GoalFeedback");
+                    b.ToTable("GoalFeedback", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.GoalMilestone", b =>
@@ -982,7 +982,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("GoalId");
 
-                    b.ToTable("GoalMilestones");
+                    b.ToTable("GoalMilestones", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ProgressionHistory", b =>
@@ -1031,7 +1031,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("WorkoutSessionId");
 
-                    b.ToTable("ProgressionHistories");
+                    b.ToTable("ProgressionHistories", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ProgressionRule", b =>
@@ -1111,7 +1111,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("WorkoutTemplateSetId");
 
-                    b.ToTable("ProgressionRules");
+                    b.ToTable("ProgressionRules", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.TemplateAssignment", b =>
@@ -1181,7 +1181,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("WorkoutTemplateId");
 
-                    b.ToTable("TemplateAssignments");
+                    b.ToTable("TemplateAssignments", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.WorkoutFeedback", b =>
@@ -1245,7 +1245,7 @@ namespace WorkoutTrackerWeb.Migrations
                         .IsUnique()
                         .HasFilter("[WorkoutSessionId1] IS NOT NULL");
 
-                    b.ToTable("WorkoutFeedbacks");
+                    b.ToTable("WorkoutFeedbacks", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.WorkoutSchedule", b =>
@@ -1347,7 +1347,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("TemplateId");
 
-                    b.ToTable("WorkoutSchedules");
+                    b.ToTable("WorkoutSchedules", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Equipment", b =>
@@ -1372,7 +1372,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasKey("EquipmentId");
 
-                    b.ToTable("Equipment");
+                    b.ToTable("Equipment", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.ExerciseType", b =>
@@ -1441,7 +1441,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasKey("ExerciseTypeId");
 
-                    b.ToTable("ExerciseType");
+                    b.ToTable("ExerciseType", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Feedback", b =>
@@ -1514,7 +1514,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Feedback");
+                    b.ToTable("Feedback", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.GlossaryTerm", b =>
@@ -1549,7 +1549,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("GlossaryTerm");
+                    b.ToTable("GlossaryTerm", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.HelpArticle", b =>
@@ -1612,7 +1612,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("HelpCategoryId");
 
-                    b.ToTable("HelpArticle");
+                    b.ToTable("HelpArticle", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.HelpCategory", b =>
@@ -1646,7 +1646,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("ParentCategoryId");
 
-                    b.ToTable("HelpCategory");
+                    b.ToTable("HelpCategory", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Identity.AppUser", b =>
@@ -1704,7 +1704,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AppUser");
+                    b.ToTable("AppUser", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.LoginHistory", b =>
@@ -1745,7 +1745,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("LoginHistory");
+                    b.ToTable("LoginHistory", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.PendingExerciseSelection", b =>
@@ -1785,7 +1785,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("PendingExerciseSelection");
+                    b.ToTable("PendingExerciseSelection", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Rep", b =>
@@ -1815,7 +1815,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("WorkoutSetId");
 
-                    b.ToTable("Rep");
+                    b.ToTable("Rep", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Settype", b =>
@@ -1834,7 +1834,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasKey("SettypeId");
 
-                    b.ToTable("Settype");
+                    b.ToTable("Settype", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.ShareToken", b =>
@@ -1894,7 +1894,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("WorkoutSessionId");
 
-                    b.ToTable("ShareToken");
+                    b.ToTable("ShareToken", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.User", b =>
@@ -1916,7 +1916,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasKey("UserId");
 
-                    b.ToTable("User");
+                    b.ToTable("User", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutExercise", b =>
@@ -1968,7 +1968,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("WorkoutSessionId");
 
-                    b.ToTable("WorkoutExercises");
+                    b.ToTable("WorkoutExercises", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutSession", b =>
@@ -2052,7 +2052,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("WorkoutTemplateId");
 
-                    b.ToTable("WorkoutSessions");
+                    b.ToTable("WorkoutSessions", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutSet", b =>
@@ -2137,7 +2137,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("WorkoutExerciseId");
 
-                    b.ToTable("WorkoutSets");
+                    b.ToTable("WorkoutSets", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutTemplate", b =>
@@ -2183,7 +2183,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("WorkoutTemplate");
+                    b.ToTable("WorkoutTemplate", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutTemplateExercise", b =>
@@ -2240,7 +2240,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("WorkoutTemplateId");
 
-                    b.ToTable("WorkoutTemplateExercise");
+                    b.ToTable("WorkoutTemplateExercise", (string)null);
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutTemplateSet", b =>
@@ -2282,7 +2282,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("WorkoutTemplateExerciseId");
 
-                    b.ToTable("WorkoutTemplateSet");
+                    b.ToTable("WorkoutTemplateSet", (string)null);
                 });
 
             modelBuilder.Entity("GlossaryTermGlossaryTerm", b =>
