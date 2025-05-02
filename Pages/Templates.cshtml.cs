@@ -41,20 +41,32 @@ namespace WorkoutTrackerWeb.Pages
 
         public async Task<IActionResult> OnGetAsync()
         {
-            var userId = _userManager.GetUserId(User);
-            if (string.IsNullOrEmpty(userId))
+            var identityUserId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(identityUserId))
             {
                 return Forbid();
             }
 
+            // Get the application User entity corresponding to the identity user
+            var appUser = await _context.User
+                .FirstOrDefaultAsync(u => u.IdentityUserId == identityUserId);
+            
+            if (appUser == null)
+            {
+                // The user doesn't have a User record in the system yet
+                return RedirectToPage("/Account/CompleteRegistration");
+            }
+
+            int userId = appUser.UserId;
+
             // Load categories for filter dropdown
-            await Filter.LoadCategoriesAsync(_context, int.Parse(userId));
+            await Filter.LoadCategoriesAsync(_context, userId);
 
             // Load templates with filtering
             var query = _context.WorkoutTemplate.AsQueryable();
 
             // Apply standardized filters
-            query = Filter.ApplyFilters(query, int.Parse(userId));
+            query = Filter.ApplyFilters(query, userId);
 
             // Get the filtered list of templates
             Templates = await query
@@ -65,7 +77,7 @@ namespace WorkoutTrackerWeb.Pages
             AssignedTemplates = await _context.TemplateAssignments
                 .Include(a => a.WorkoutTemplate)
                 .Include(a => a.Coach)
-                .Where(a => a.ClientUserId == int.Parse(userId) && a.IsActive)
+                .Where(a => a.ClientUserId == userId && a.IsActive)
                 .OrderBy(a => a.WorkoutTemplate.Name)
                 .ToListAsync();
 
@@ -74,17 +86,29 @@ namespace WorkoutTrackerWeb.Pages
 
         public async Task<IActionResult> OnGetJsonAsync()
         {
-            var userId = _userManager.GetUserId(User);
-            if (string.IsNullOrEmpty(userId))
+            var identityUserId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(identityUserId))
             {
                 return Forbid();
             }
+
+            // Get the application User entity corresponding to the identity user
+            var appUser = await _context.User
+                .FirstOrDefaultAsync(u => u.IdentityUserId == identityUserId);
+            
+            if (appUser == null)
+            {
+                // The user doesn't have a User record in the system yet
+                return new JsonResult(new { error = "User profile not found" });
+            }
+
+            int userId = appUser.UserId;
 
             // Load templates with filtering
             var query = _context.WorkoutTemplate.AsQueryable();
 
             // Apply standardized filters
-            query = Filter.ApplyFilters(query, int.Parse(userId));
+            query = Filter.ApplyFilters(query, userId);
 
             // Get the filtered list of templates
             var templates = await query
@@ -96,7 +120,7 @@ namespace WorkoutTrackerWeb.Pages
                     description = t.Description,
                     category = t.Category,
                     isPublic = t.IsPublic,
-                    isOwner = t.UserId == int.Parse(userId)
+                    isOwner = t.UserId == userId
                 })
                 .ToListAsync();
 
@@ -104,7 +128,7 @@ namespace WorkoutTrackerWeb.Pages
             var assignedTemplatesQuery = _context.TemplateAssignments
                 .Include(a => a.WorkoutTemplate)
                 .Include(a => a.Coach)
-                .Where(a => a.ClientUserId == int.Parse(userId) && a.IsActive)
+                .Where(a => a.ClientUserId == userId && a.IsActive)
                 .AsQueryable();
 
             // Filter by category if provided

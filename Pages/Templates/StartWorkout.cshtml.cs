@@ -32,14 +32,46 @@ namespace WorkoutTrackerWeb.Pages.Templates
 
             TemplateId = id;
 
-            // Modified query to avoid loading problematic columns
-            WorkoutTemplate = await _context.WorkoutTemplate
-                .Include(wt => wt.TemplateExercises.OrderBy(te => te.OrderIndex))
-                    .ThenInclude(wte => wte.ExerciseType)
-                .Include(wt => wt.TemplateExercises)
-                    .ThenInclude(wte => wte.TemplateSets.OrderBy(ts => ts.SequenceNum))
-                .AsNoTracking() // Add this to improve performance
-                .FirstOrDefaultAsync(wt => wt.WorkoutTemplateId == id);
+            // Modify query to avoid loading problematic columns using a projection approach
+            var template = await _context.WorkoutTemplate
+                .AsNoTracking()
+                .Where(wt => wt.WorkoutTemplateId == id)
+                .Select(wt => new WorkoutTemplate
+                {
+                    WorkoutTemplateId = wt.WorkoutTemplateId,
+                    Name = wt.Name,
+                    Description = wt.Description,
+                    Category = wt.Category,
+                    TemplateExercises = wt.TemplateExercises.OrderBy(te => te.OrderIndex)
+                        .Select(te => new WorkoutTemplateExercise
+                        {
+                            WorkoutTemplateExerciseId = te.WorkoutTemplateExerciseId,
+                            WorkoutTemplateId = te.WorkoutTemplateId,
+                            ExerciseTypeId = te.ExerciseTypeId,
+                            OrderIndex = te.OrderIndex,
+                            Notes = te.Notes,
+                            ExerciseType = new ExerciseType
+                            {
+                                ExerciseTypeId = te.ExerciseType.ExerciseTypeId,
+                                Name = te.ExerciseType.Name,
+                                Description = te.ExerciseType.Description,
+                                Type = te.ExerciseType.Type
+                            },
+                            TemplateSets = te.TemplateSets.OrderBy(ts => ts.SequenceNum)
+                                .Select(ts => new WorkoutTemplateSet
+                                {
+                                    WorkoutTemplateSetId = ts.WorkoutTemplateSetId,
+                                    WorkoutTemplateExerciseId = ts.WorkoutTemplateExerciseId,
+                                    SequenceNum = ts.SequenceNum,
+                                    DefaultReps = ts.DefaultReps,
+                                    DefaultWeight = ts.DefaultWeight,
+                                    Notes = ts.Notes
+                                }).ToList()
+                        }).ToList()
+                })
+                .FirstOrDefaultAsync();
+
+            WorkoutTemplate = template;
 
             if (WorkoutTemplate == null)
                 return NotFound();
@@ -49,13 +81,43 @@ namespace WorkoutTrackerWeb.Pages.Templates
 
         public async Task<IActionResult> OnPostAsync(int templateId, string sessionName, DateTime? sessionDate, string sessionNotes)
         {
+            // Use projection approach to avoid loading problematic columns
             var template = await _context.WorkoutTemplate
-                .Include(wt => wt.TemplateExercises)
-                    .ThenInclude(wte => wte.ExerciseType)
-                .Include(wt => wt.TemplateExercises)
-                    .ThenInclude(wte => wte.TemplateSets)
-                .AsNoTracking() // Add this to improve performance
-                .FirstOrDefaultAsync(wt => wt.WorkoutTemplateId == templateId);
+                .AsNoTracking()
+                .Where(wt => wt.WorkoutTemplateId == templateId)
+                .Select(wt => new WorkoutTemplate
+                {
+                    WorkoutTemplateId = wt.WorkoutTemplateId,
+                    Name = wt.Name,
+                    Description = wt.Description,
+                    Category = wt.Category,
+                    TemplateExercises = wt.TemplateExercises.OrderBy(te => te.OrderIndex)
+                        .Select(te => new WorkoutTemplateExercise
+                        {
+                            WorkoutTemplateExerciseId = te.WorkoutTemplateExerciseId,
+                            WorkoutTemplateId = te.WorkoutTemplateId,
+                            ExerciseTypeId = te.ExerciseTypeId,
+                            OrderIndex = te.OrderIndex,
+                            Notes = te.Notes,
+                            ExerciseType = new ExerciseType
+                            {
+                                ExerciseTypeId = te.ExerciseType.ExerciseTypeId,
+                                Name = te.ExerciseType.Name,
+                                Description = te.ExerciseType.Description
+                            },
+                            TemplateSets = te.TemplateSets.OrderBy(ts => ts.SequenceNum)
+                                .Select(ts => new WorkoutTemplateSet
+                                {
+                                    WorkoutTemplateSetId = ts.WorkoutTemplateSetId,
+                                    WorkoutTemplateExerciseId = ts.WorkoutTemplateExerciseId,
+                                    SequenceNum = ts.SequenceNum,
+                                    DefaultReps = ts.DefaultReps,
+                                    DefaultWeight = ts.DefaultWeight,
+                                    Notes = ts.Notes
+                                }).ToList()
+                        }).ToList()
+                })
+                .FirstOrDefaultAsync();
 
             if (template == null)
                 return NotFound();
