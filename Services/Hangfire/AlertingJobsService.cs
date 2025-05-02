@@ -33,8 +33,9 @@ namespace WorkoutTrackerWeb.Services.Hangfire
         /// </summary>
         public AlertingJobsService()
         {
-            // Get services from JobActivator
-            var serviceProvider = JobActivator.Current.BeginScope(null)?.Resolve(typeof(IServiceProvider)) as IServiceProvider;
+            // Get services from JobActivator - Fix ambiguous call by explicitly using JobActivatorContext
+            var jobActivatorContext = new JobActivatorContext(null, null, null);
+            var serviceProvider = JobActivator.Current.BeginScope(jobActivatorContext)?.Resolve(typeof(IServiceProvider)) as IServiceProvider;
             
             if (serviceProvider != null)
             {
