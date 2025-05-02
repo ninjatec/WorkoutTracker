@@ -735,6 +735,9 @@ namespace WorkoutTrackerWeb
 
                         if (schemaExists)
                         {
+                            // Initialize AlertingJobsService static service provider
+                            WorkoutTrackerWeb.Services.Hangfire.AlertingJobsService.SetServiceProvider(scope.ServiceProvider);
+                            
                             // Register all background jobs only after schema is verified
                             Log.Information("Registering alerting jobs");
                             var alertingJobsRegistration = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsRegistration>();

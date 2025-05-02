@@ -3,6 +3,8 @@ using System.Threading.Tasks;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Services.Alerting;
+using Microsoft.Extensions.DependencyInjection;
+using Hangfire;
 
 namespace WorkoutTrackerWeb.Services.Hangfire
 {
@@ -13,6 +15,7 @@ namespace WorkoutTrackerWeb.Services.Hangfire
     {
         private readonly ILogger<AlertingJobsService> _logger;
         private readonly IAlertingService _alertingService;
+        private static IServiceProvider _staticServiceProvider;
 
         /// <summary>
         /// Creates a new instance of the AlertingJobsService
@@ -23,6 +26,38 @@ namespace WorkoutTrackerWeb.Services.Hangfire
         {
             _alertingService = alertingService ?? throw new ArgumentNullException(nameof(alertingService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        /// <summary>
+        /// Parameterless constructor for Hangfire to create instances
+        /// </summary>
+        public AlertingJobsService()
+        {
+            // Get services from JobActivator
+            var serviceProvider = JobActivator.Current.BeginScope(null)?.Resolve(typeof(IServiceProvider)) as IServiceProvider;
+            
+            if (serviceProvider != null)
+            {
+                _alertingService = serviceProvider.GetService<IAlertingService>();
+                _logger = serviceProvider.GetService<ILogger<AlertingJobsService>>();
+            }
+            else if (_staticServiceProvider != null)
+            {
+                // Fallback to static service provider
+                _alertingService = _staticServiceProvider.GetService<IAlertingService>();
+                _logger = _staticServiceProvider.GetService<ILogger<AlertingJobsService>>();
+            }
+            
+            // Fallback logger if nothing else works
+            _logger ??= new LoggerFactory().CreateLogger<AlertingJobsService>();
+        }
+
+        /// <summary>
+        /// Static method to set the service provider for parameterless constructor dependency resolution
+        /// </summary>
+        public static void SetServiceProvider(IServiceProvider serviceProvider)
+        {
+            _staticServiceProvider = serviceProvider;
         }
 
         /// <summary>

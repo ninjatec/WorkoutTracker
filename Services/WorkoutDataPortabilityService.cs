@@ -113,19 +113,32 @@ namespace WorkoutTrackerWeb.Services
 
                 foreach (var exercise in session.WorkoutExercises)
                 {
-                    foreach (var set in exercise.WorkoutSets)
+                    if (exercise == null)
                     {
-                        var setExport = new SetExport
+                        continue;
+                    }
+                    
+                    foreach (var set in exercise.WorkoutSets?.Where(s => s != null) ?? Enumerable.Empty<WorkoutSet>())
+                    {
+                        try
                         {
-                            Notes = set.Notes ?? string.Empty, // Handle null notes
-                            ExerciseTypeName = exercise.ExerciseType?.Name ?? string.Empty, // Handle null exercise type name
-                            SetTypeName = set.Settype?.Name ?? string.Empty, // Handle null set type name
-                            NumberReps = set.Reps ?? 0,
-                            Weight = set.Weight ?? 0,
-                            Reps = new List<RepExport>()
-                        };
-
-                        sessionExport.Sets.Add(setExport);
+                            var setExport = new SetExport
+                            {
+                                Notes = set.Notes ?? string.Empty, 
+                                ExerciseTypeName = exercise.ExerciseType?.Name ?? "Unknown Exercise",
+                                SetTypeName = set.Settype?.Name ?? "Standard",
+                                NumberReps = set.Reps ?? 0,
+                                Weight = set.Weight ?? 0,
+                                Reps = new List<RepExport>()
+                            };
+                            
+                            sessionExport.Sets.Add(setExport);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error processing set data for export. WorkoutSet ID: {WorkoutSetId}", set.WorkoutSetId);
+                            // Continue with other sets even if this one fails
+                        }
                     }
                 }
 
