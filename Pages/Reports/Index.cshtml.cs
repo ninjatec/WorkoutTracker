@@ -307,9 +307,12 @@ namespace WorkoutTrackerWeb.Pages.Reports
                         .ThenInclude(we => we.WorkoutSession)
                     .Include(ws => ws.WorkoutExercise)
                         .ThenInclude(we => we.ExerciseType)
-                    .Where(ws => ws.WorkoutExercise.WorkoutSession.UserId == user.UserId && 
+                    .Where(ws => ws.WorkoutExercise != null &&
+                                ws.WorkoutExercise.WorkoutSession != null && 
+                                ws.WorkoutExercise.WorkoutSession.UserId == user.UserId && 
                                 ws.WorkoutExercise.WorkoutSession.StartDateTime >= reportPeriodDate &&
-                                ws.WorkoutExercise.ExerciseType != null)
+                                ws.WorkoutExercise.ExerciseType != null &&
+                                ws.WorkoutExercise.ExerciseType.Name != null) 
                     .AsNoTracking()
                     .ToListAsync();
 
@@ -372,7 +375,9 @@ namespace WorkoutTrackerWeb.Pages.Reports
                 if (WeightProgressList == null)
                 {
                     WeightProgressList = allWorkoutSets
-                        .Where(ws => ws.Weight > 0 && ws.WorkoutExercise?.ExerciseType?.Name != null)
+                        .Where(ws => ws.Weight.HasValue && ws.Weight > 0 && 
+                               ws.WorkoutExercise?.ExerciseType?.Name != null && 
+                               ws.WorkoutExercise?.WorkoutSession?.StartDateTime != null)
                         .GroupBy(ws => ws.WorkoutExercise.ExerciseType.Name)
                         .Select(g => new WeightProgressData
                         {
@@ -574,23 +579,25 @@ namespace WorkoutTrackerWeb.Pages.Reports
                         .ThenInclude(we => we.WorkoutSession)
                     .Include(ws => ws.WorkoutExercise)
                         .ThenInclude(we => we.ExerciseType)
-                    .Where(ws => ws.WorkoutExercise.WorkoutSession.UserId == user.UserId && 
+                    .Where(ws => ws.WorkoutExercise != null && 
+                               ws.WorkoutExercise.WorkoutSession != null &&
+                               ws.WorkoutExercise.WorkoutSession.UserId == user.UserId && 
                                ws.WorkoutExercise.ExerciseType != null && 
-                               ws.Weight > 0)
-                    .GroupBy(ws => new { ws.WorkoutExercise.ExerciseTypeId, ws.WorkoutExercise.ExerciseType.Name })
-                    .Where(g => g.Key.Name != null)
+                               !string.IsNullOrEmpty(ws.WorkoutExercise.ExerciseType.Name) && 
+                               ws.Weight.HasValue && ws.Weight > 0)
+                    .GroupBy(ws => new { ws.WorkoutExercise.ExerciseTypeId, ExerciseName = ws.WorkoutExercise.ExerciseType.Name ?? "Unknown Exercise" })
                     .Select(g => new PersonalRecordData
                     {
-                        ExerciseName = g.Key.Name,
+                        ExerciseName = g.Key.ExerciseName,
                         MaxWeight = g.Max(ws => ws.Weight ?? 0),
                         RecordDate = g.OrderByDescending(ws => ws.Weight)
                             .ThenByDescending(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime)
                             .Select(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime)
-                            .First(),
+                            .FirstOrDefault(),
                         SessionName = g.OrderByDescending(ws => ws.Weight)
                             .ThenByDescending(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime)
                             .Select(ws => ws.WorkoutExercise.WorkoutSession.Name ?? "Unnamed Session")
-                            .First()
+                            .FirstOrDefault() ?? "Unnamed Session"
                     })
                     .OrderByDescending(pr => pr.MaxWeight);
 

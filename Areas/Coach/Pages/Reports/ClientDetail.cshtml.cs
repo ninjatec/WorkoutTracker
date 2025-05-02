@@ -80,7 +80,12 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Reports
                 return NotFound();
             }
 
-            ClientName = relationship.Client?.UserName?.Split('@')[0] ?? "Unknown";
+            ClientName = relationship.Client?.UserName != null
+                ? (relationship.Client.UserName.Contains('@')
+                    ? relationship.Client.UserName.Split('@')[0]
+                    : relationship.Client.UserName)
+                : "Unknown";
+
             var startDate = GetStartDateByPeriod(period);
 
             // Get sessions in the period using the parsed int ID
@@ -103,13 +108,16 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Reports
             Goals = goals.Select(g => new GoalViewModel
             {
                 Id = g.Id,
-                Description = g.Description,
-                Category = g.Category.ToString(),
+                Description = g.Description ?? "No description",
+                Category = g.Category != null ? g.Category.ToString() : "Uncategorized",
                 TargetDate = g.TargetDate,
                 Progress = g.ProgressPercentage,
-                CreatedBy = g.IsCoachCreated ? 
-                    g.Relationship?.Coach?.UserName?.Split('@')[0] ?? "Unknown" : 
-                    "Self"
+                CreatedBy = g.IsCoachCreated && g.Relationship?.Coach?.UserName != null
+                    ? (g.Relationship.Coach.UserName.Contains('@')
+                        ? g.Relationship.Coach.UserName.Split('@')[0]
+                        : g.Relationship.Coach.UserName)
+                    : "Self",
+                Status = g.IsCompleted ? "Completed" : (g.IsActive ? "Active" : "Pending")
             }).ToList();
 
             ActiveGoals = goals.Count(g => g.IsActive && !g.IsCompleted);

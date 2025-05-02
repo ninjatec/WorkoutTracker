@@ -108,7 +108,11 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Reports
                 var client = new ClientReportViewModel
                 {
                     Id = rel.ClientId,
-                    Name = rel.Client?.UserName?.Split('@')[0] ?? "Unknown",
+                    Name = rel.Client?.UserName != null 
+                           ? (rel.Client.UserName.Contains('@') 
+                              ? rel.Client.UserName.Split('@')[0] 
+                              : rel.Client.UserName) 
+                           : "Unknown",
                     ActiveGoalCount = clientGoals.Count(),
                     RecentSessionCount = actualSessions,
                     ConsistencyRate = Math.Min(100, Math.Round(consistency, 1)),
