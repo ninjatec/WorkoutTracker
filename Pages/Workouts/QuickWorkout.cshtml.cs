@@ -143,7 +143,8 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                 
                 if (QuickWorkout.CurrentSession != null)
                 {
-                    QuickWorkout.RecentWorkoutSets = await _context.WorkoutSets
+                    // Use explicit projection to avoid requesting columns that don't exist in the database
+                    var recentSets = await _context.WorkoutSets
                         .Include(ws => ws.WorkoutExercise)
                             .ThenInclude(we => we.ExerciseType)
                         .Include(ws => ws.WorkoutExercise)
@@ -151,7 +152,39 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                         .Where(ws => ws.WorkoutExercise.WorkoutSessionId == QuickWorkout.CurrentSession.WorkoutSessionId)
                         .OrderByDescending(ws => ws.WorkoutSetId)
                         .Take(5)
+                        .Select(ws => new WorkoutSet
+                        {
+                            WorkoutSetId = ws.WorkoutSetId,
+                            WorkoutExerciseId = ws.WorkoutExerciseId,
+                            SettypeId = ws.SettypeId,
+                            SequenceNum = ws.SequenceNum,
+                            SetNumber = ws.SetNumber,
+                            Reps = ws.Reps,
+                            TargetMinReps = ws.TargetMinReps,
+                            TargetMaxReps = ws.TargetMaxReps,
+                            Weight = ws.Weight,
+                            DurationSeconds = ws.DurationSeconds,
+                            Distance = ws.Distance,
+                            RPE = ws.RPE,
+                            RestSeconds = ws.RestSeconds,
+                            IsCompleted = ws.IsCompleted,
+                            Notes = ws.Notes,
+                            Timestamp = ws.Timestamp,
+                            Intensity = ws.Intensity,
+                            WorkoutExercise = new WorkoutExercise
+                            {
+                                WorkoutExerciseId = ws.WorkoutExercise.WorkoutExerciseId,
+                                ExerciseTypeId = ws.WorkoutExercise.ExerciseTypeId,
+                                WorkoutSessionId = ws.WorkoutExercise.WorkoutSessionId,
+                                SequenceNum = ws.WorkoutExercise.SequenceNum,
+                                Notes = ws.WorkoutExercise.Notes,
+                                ExerciseType = ws.WorkoutExercise.ExerciseType,
+                                WorkoutSession = ws.WorkoutExercise.WorkoutSession
+                            }
+                        })
                         .ToListAsync();
+                        
+                    QuickWorkout.RecentWorkoutSets = recentSets;
                 }
             }
         }
