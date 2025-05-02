@@ -1,3 +1,5 @@
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -62,8 +64,17 @@ namespace WorkoutTrackerWeb.Models
         [StringLength(50)]
         [Display(Name = "Category")]
         public string Category { get; set; } = "Other";
+
+        [StringLength(50)]
+        [Display(Name = "Primary Muscle Group")]
+        public string? PrimaryMuscleGroup { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        [Display(Name = "Calories Per Minute")]
+        public decimal? CaloriesPerMinute { get; set; }
         
-        // Navigation property for related Sets
-        public ICollection<Set>? Sets { get; set; }
+        // WorkoutSession-based collection navigation properties
+        public ICollection<WorkoutExercise> WorkoutExercises { get; set; } = new List<WorkoutExercise>();
+        public ICollection<WorkoutTemplateExercise> TemplateExercises { get; set; } = new List<WorkoutTemplateExercise>();
     }
 }

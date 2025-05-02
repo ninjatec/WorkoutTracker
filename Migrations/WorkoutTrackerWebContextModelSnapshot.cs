@@ -1947,11 +1947,16 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("WorkoutSessionId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
                     b.HasIndex("SessionId");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("WorkoutSessionId");
 
                     b.ToTable("ShareToken");
                 });
@@ -2153,6 +2158,10 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.Property<int?>("SettypeId")
                         .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int?>("TargetMaxReps")
                         .HasColumnType("int");
@@ -2835,9 +2844,15 @@ namespace WorkoutTrackerWeb.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutSession", "WorkoutSession")
+                        .WithMany()
+                        .HasForeignKey("WorkoutSessionId");
+
                     b.Navigation("Session");
 
                     b.Navigation("User");
+
+                    b.Navigation("WorkoutSession");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutExercise", b =>

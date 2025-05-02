@@ -1,4 +1,4 @@
-@model WorkoutTrackerWeb.Models.Session
+@model WorkoutTrackerWeb.Models.WorkoutSession
 @{
     ViewData["Title"] = "Workout Details";
     Layout = "_SharedLayout";
@@ -15,22 +15,22 @@
     <div class="card-header bg-primary text-white">
         <div class="d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
-                @Model.datetime.ToString("MMMM d, yyyy") at @Model.datetime.ToString("h:mm tt")
+                @Model.StartDateTime.ToString("MMMM d, yyyy") at @Model.StartDateTime.ToString("h:mm tt")
             </h5>
-            @if (Model.TotalWorkoutTime != TimeSpan.Zero)
+            @if (Model.Duration > 0)
             {
                 <span class="badge bg-light text-dark">
-                    Duration: @Model.TotalWorkoutTime.ToString(@"hh\:mm\:ss")
+                    Duration: @TimeSpan.FromMinutes(Model.Duration).ToString(@"hh\:mm\:ss")
                 </span>
             }
         </div>
     </div>
     <div class="card-body">
-        @if (!string.IsNullOrEmpty(Model.Notes))
+        @if (!string.IsNullOrEmpty(Model.Description))
         {
             <div class="mb-3">
                 <h6>Session Notes:</h6>
-                <p class="mb-0">@Model.Notes</p>
+                <p class="mb-0">@Model.Description</p>
             </div>
         }
         
@@ -116,9 +116,9 @@
                                                 }
                                             </td>
                                             <td class="text-center">
-                                                @if (set.NumberReps.HasValue && set.NumberReps.Value > 0)
+                                                @if (set.Reps.HasValue && set.Reps.Value > 0)
                                                 {
-                                                    <span>@set.NumberReps</span>
+                                                    <span>@set.Reps</span>
                                                 }
                                                 else
                                                 {

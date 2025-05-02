@@ -127,7 +127,7 @@ namespace WorkoutTrackerWeb.Models.Coaching
         public User Coach { get; set; }
         
         [ForeignKey("LastGeneratedSessionId")]
-        public Session LastGeneratedSession { get; set; }
+        public WorkoutSession LastGeneratedSession { get; set; }
         
         /// <summary>
         /// Ensures that IsRecurring is always consistent with the RecurrencePattern

@@ -18,8 +18,8 @@ namespace WorkoutTrackerWeb.Services
         string GetCurrentIdentityUserId();
         Task<User> GetOrCreateCurrentUserAsync();
         Task<int?> GetCurrentUserIdAsync();
-        Task<List<Models.Session>> GetUserSessionsAsync(int userId, int limit = 20);
         Task<List<Models.WorkoutSession>> GetUserWorkoutSessionsAsync(int userId, int limit = 20);
+        Task<List<Models.WorkoutSession>> GetUserSessionsAsync(int userId, int limit = 20);
     }
 
     public class UserService : IUserService
@@ -42,13 +42,11 @@ namespace WorkoutTrackerWeb.Services
             _cache = cache;
         }
 
-        // Get the current identity user ID
         public string GetCurrentIdentityUserId()
         {
             return _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
         }
 
-        // Get or create the current user in our app's context
         public async Task<User> GetOrCreateCurrentUserAsync()
         {
             string identityUserId = GetCurrentIdentityUserId();
@@ -57,19 +55,16 @@ namespace WorkoutTrackerWeb.Services
                 return null;
             }
 
-            // Try to get from cache first
             string cacheKey = $"User_Identity_{identityUserId}";
             if (_cache.TryGetValue(cacheKey, out User cachedUser))
             {
                 return cachedUser;
             }
 
-            // Try to find existing user with AsNoTracking for read-only operations
             var user = await _context.User
                 .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.IdentityUserId == identityUserId);
             
-            // If not found, create a new one
             if (user == null)
             {
                 var identityUser = await _userManager.FindByIdAsync(identityUserId);
@@ -84,7 +79,6 @@ namespace WorkoutTrackerWeb.Services
                     IdentityUserId = identityUserId
                 };
                 
-                // Use a new scope to handle the insert operation separately
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
@@ -96,28 +90,24 @@ namespace WorkoutTrackerWeb.Services
                 {
                     await transaction.RollbackAsync();
                     
-                    // Double-check if another thread created the user already
                     user = await _context.User
                         .AsNoTracking()
                         .FirstOrDefaultAsync(u => u.IdentityUserId == identityUserId);
                         
                     if (user == null)
                     {
-                        throw; // Re-throw if it's a different error
+                        throw;
                     }
                 }
             }
             
-            // Cache the result to reduce database hits
             _cache.Set(cacheKey, user, _cacheExpiry);
             
             return user;
         }
 
-        // Get current user's ID
         public async Task<int?> GetCurrentUserIdAsync()
         {
-            // Try to get just the ID from cache first
             string identityUserId = GetCurrentIdentityUserId();
             if (string.IsNullOrEmpty(identityUserId))
             {
@@ -130,7 +120,6 @@ namespace WorkoutTrackerWeb.Services
                 return cachedUserId;
             }
             
-            // If not in cache, get the full user object
             var user = await GetOrCreateCurrentUserAsync();
             if (user?.UserId > 0)
             {
@@ -140,32 +129,19 @@ namespace WorkoutTrackerWeb.Services
             return user?.UserId;
         }
 
-        // Get a specific user's sessions (limited to a certain count)
-        public async Task<List<Models.Session>> GetUserSessionsAsync(int userId, int limit = 20)
-        {
-            // Get the most recent sessions for this user
-            var sessions = await _context.Session
-                .Where(s => s.UserId == userId)
-                .OrderByDescending(s => s.datetime)
-                .Take(limit)
-                .AsNoTracking()
-                .ToListAsync();
-                
-            return sessions;
-        }
-
-        // Get a specific user's workout sessions (limited to a certain count)
         public async Task<List<Models.WorkoutSession>> GetUserWorkoutSessionsAsync(int userId, int limit = 20)
         {
-            // Get the most recent workout sessions for this user
-            var workoutSessions = await _context.WorkoutSessions
+            return await _context.WorkoutSessions
                 .Where(ws => ws.UserId == userId)
                 .OrderByDescending(ws => ws.StartDateTime)
                 .Take(limit)
                 .AsNoTracking()
                 .ToListAsync();
-                
-            return workoutSessions;
+        }
+
+        public async Task<List<Models.WorkoutSession>> GetUserSessionsAsync(int userId, int limit = 20)
+        {
+            return await GetUserWorkoutSessionsAsync(userId, limit);
         }
     }
 }

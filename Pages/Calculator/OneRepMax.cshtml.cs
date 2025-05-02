@@ -45,6 +45,14 @@ namespace WorkoutTrackerWeb.Pages.Calculator
 
         public decimal AverageOneRepMax { get; set; }
         
+        // User's workout set data for plotting
+        public List<CalculatorSetData> UserSets { get; set; }
+        
+        // Max values for chart scaling
+        public double MaxOneRepMax { get; set; }
+        public decimal MaxWeight { get; set; }
+        public int MaxReps { get; set; }
+        
         // Recent sets that can be used to calculate 1RM
         public List<RecentSetData> RecentSets { get; set; } = new List<RecentSetData>();
         
@@ -93,10 +101,56 @@ namespace WorkoutTrackerWeb.Pages.Calculator
             public DateTime LastSetDate { get; set; }
         }
 
-        public async Task OnGetAsync()
+        public class CalculatorSetData
         {
-            await LoadUserDataAsync();
-            await PopulateExerciseTypesAsync();
+            public DateTime Date { get; set; }
+            public double Weight { get; set; }
+            public int Reps { get; set; }
+            public double OneRepMax { get; set; }
+            public double EstimatedOneRepMax { get; set; }
+        }
+
+        public async Task<IActionResult> OnGetAsync()
+        {
+            var user = await _context.GetCurrentUserAsync();
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            var sets = await _context.WorkoutSets
+                .Include(s => s.WorkoutExercise)
+                    .ThenInclude(we => we.ExerciseType)
+                .Include(s => s.WorkoutExercise)
+                    .ThenInclude(we => we.WorkoutSession)
+                .Where(s => s.WorkoutExercise.WorkoutSession.UserId == user.UserId)
+                .Where(s => s.Weight.HasValue && s.Reps.HasValue)
+                .OrderByDescending(s => s.WorkoutExercise.WorkoutSession.StartDateTime)
+                .Take(1000)
+                .ToListAsync();
+
+            UserSets = new List<CalculatorSetData>();
+            MaxOneRepMax = 0;
+            MaxWeight = 0;
+            MaxReps = 0;
+
+            foreach (var set in sets)
+            {
+                var oneRepMax = CalculateOneRepMax(set.Weight.Value, set.Reps.Value);
+                UserSets.Add(new CalculatorSetData
+                {
+                    // Add explicit conversion from decimal to double
+                    Weight = (double)set.Weight.Value,
+                    Reps = set.Reps.Value,
+                    OneRepMax = oneRepMax
+                });
+                
+                MaxOneRepMax = Math.Max(MaxOneRepMax, oneRepMax);
+                MaxWeight = Math.Max(MaxWeight, set.Weight.Value);
+                MaxReps = Math.Max(MaxReps, set.Reps.Value);
+            }
+
+            return Page();
         }
 
         public async Task<IActionResult> OnPostAsync()
@@ -158,34 +212,44 @@ namespace WorkoutTrackerWeb.Pages.Calculator
                 return RedirectToPage("/Account/Login");
             }
 
-            // Create a new session for this 1RM calculation
-            var session = new Session
+            // Create a new workout session for this 1RM calculation
+            var workoutSession = new WorkoutSession
             {
-                Name = $"1RM Calculation - {DateTime.Now.ToString("dd/MM/yyyy")}",
-                datetime = DateTime.Now,
-                UserId = currentUserId.Value
+                Name = $"1RM Calculation - {DateTime.Now:dd/MM/yyyy}",
+                StartDateTime = DateTime.Now,
+                UserId = currentUserId.Value,
+                Status = "Completed"
             };
 
-            _context.Session.Add(session);
+            _context.WorkoutSessions.Add(workoutSession);
             await _context.SaveChangesAsync();
 
-            // Create a set with the 1RM result
-            var set = new Set
+            // Create a workout exercise
+            var workoutExercise = new WorkoutExercise
             {
-                Description = $"1RM Calculation",
-                Notes = $"Estimated 1RM: {AverageOneRepMax:F2}kg (avg of 7 formulas) based on {Weight}kg for {Reps} reps",
-                SessionId = session.SessionId,
+                WorkoutSessionId = workoutSession.WorkoutSessionId,
                 ExerciseTypeId = ExerciseTypeId.Value,
-                SettypeId = 1, // Assuming 1 is a default settype
-                NumberReps = Reps,
-                Weight = Weight
+                Notes = $"1RM Calculation"
             };
 
-            _context.Set.Add(set);
+            _context.WorkoutExercises.Add(workoutExercise);
             await _context.SaveChangesAsync();
 
-            TempData["SuccessMessage"] = $"1RM calculation saved: {AverageOneRepMax:F2}kg for {await GetExerciseNameAsync(set.ExerciseTypeId)}";
-            return RedirectToPage("/Sessions/Details", new { id = session.SessionId });
+            // Create a workout set with the 1RM result
+            var workoutSet = new WorkoutSet
+            {
+                WorkoutExerciseId = workoutExercise.WorkoutExerciseId,
+                Notes = $"Estimated 1RM: {AverageOneRepMax:F2}kg (avg of 7 formulas) based on {Weight}kg for {Reps} reps",
+                Reps = Reps,
+                Weight = Weight,
+                IsWarmup = false
+            };
+
+            _context.WorkoutSets.Add(workoutSet);
+            await _context.SaveChangesAsync();
+
+            TempData["SuccessMessage"] = $"1RM calculation saved: {AverageOneRepMax:F2}kg for {await GetExerciseNameAsync(workoutExercise.ExerciseTypeId)}";
+            return RedirectToPage("/Sessions/Details", new { id = workoutSession.WorkoutSessionId });
         }
 
         private async Task LoadUserDataAsync()
@@ -200,18 +264,19 @@ namespace WorkoutTrackerWeb.Pages.Calculator
             // Get recent sets (last ReportPeriod days) with 1-10 reps (most accurate for 1RM prediction)
             var reportPeriodAgo = DateTime.Now.AddDays(-ReportPeriod);
             
-            var recentSets = await _context.Set
-                .Include(s => s.ExerciseType)
-                .Include(s => s.Session)
-                .Include(s => s.Settype)  // Include the set type
-                .Where(s => 
-                    s.Session.UserId == currentUserId && 
-                    s.Session.datetime >= reportPeriodAgo &&
-                    s.NumberReps >= 1 && 
-                    s.NumberReps <= 10 &&
-                    s.Weight > 0 &&
-                    s.Settype.Name.ToLower() != "warmup")  // Changed to lowercase comparison
-                .OrderByDescending(s => s.Session.datetime)
+            var recentSets = await _context.WorkoutSets
+                .Include(ws => ws.WorkoutExercise)
+                    .ThenInclude(we => we.ExerciseType)
+                .Include(ws => ws.WorkoutExercise)
+                    .ThenInclude(we => we.WorkoutSession)
+                .Where(ws => 
+                    ws.WorkoutExercise.WorkoutSession.UserId == currentUserId && 
+                    ws.WorkoutExercise.WorkoutSession.StartDateTime >= reportPeriodAgo &&
+                    ws.Reps >= 1 && 
+                    ws.Reps <= 10 &&
+                    ws.Weight > 0 &&
+                    !ws.IsWarmup)
+                .OrderByDescending(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime)
                 .ToListAsync();
 
             // Populate RecentSets with the most recent 15 sets
@@ -219,19 +284,19 @@ namespace WorkoutTrackerWeb.Pages.Calculator
                 .Take(15)
                 .Select(s => new RecentSetData 
                 {
-                    SetId = s.SetId,
-                    ExerciseName = s.ExerciseType.Name,
-                    SessionName = s.Session.Name,
-                    SessionDate = s.Session.datetime,
-                    Weight = s.Weight,
-                    Reps = s.NumberReps,
-                    EstimatedOneRM = CalculateAverageOneRM(s.Weight, s.NumberReps)
+                    SetId = s.WorkoutSetId,
+                    ExerciseName = s.WorkoutExercise.ExerciseType.Name,
+                    SessionName = s.WorkoutExercise.WorkoutSession.Name,
+                    SessionDate = s.WorkoutExercise.WorkoutSession.StartDateTime,
+                    Weight = s.Weight.Value,
+                    Reps = s.Reps.Value,
+                    EstimatedOneRM = CalculateAverageOneRM(s.Weight.Value, s.Reps.Value)
                 })
                 .ToList();
 
             // Group sets by exercise type
             var exerciseGroups = recentSets
-                .GroupBy(s => new { s.ExerciseTypeId, s.ExerciseType.Name });
+                .GroupBy(s => new { s.WorkoutExercise.ExerciseTypeId, s.WorkoutExercise.ExerciseType.Name });
             
             // Dictionary to store max 1RM per exercise for sorting
             var exerciseMaxOneRMs = new Dictionary<string, decimal>();
@@ -240,39 +305,64 @@ namespace WorkoutTrackerWeb.Pages.Calculator
             // Calculate the different estimates for each exercise
             foreach (var exerciseGroup in exerciseGroups)
             {
-                var maxOneRM = exerciseGroup.Select(s => CalculateAverageOneRM(s.Weight, s.NumberReps)).Max();
-                exerciseMaxOneRMs[exerciseGroup.Key.Name] = maxOneRM;
+                var exerciseName = exerciseGroup.Key.Name;
+                var exerciseOneRMs = new Dictionary<string, decimal>();
                 
-                // Calculate results for each formula
-                var formulas = new Dictionary<string, Func<decimal, int, decimal>>
+                // Calculate max 1RM for each formula
+                foreach (var set in exerciseGroup)
                 {
-                    { "Brzycki", CalculateBrzycki },
-                    { "Epley", CalculateEpley },
-                    { "Lander", CalculateLander },
-                    { "Lombardi", CalculateLombardi },
-                    { "Mayhew", CalculateMayhew },
-                    { "O'Conner", CalculateOConner },
-                    { "Wathan", CalculateWathan },
-                    { "Average", CalculateAverageOneRM }
-                };
-
-                foreach (var formula in formulas)
-                {
-                    var oneRMs = exerciseGroup.Select(s => formula.Value(s.Weight, s.NumberReps)).ToList();
+                    var setWeight = set.Weight.Value;
+                    var setReps = set.Reps.Value;
                     
-                    if (oneRMs.Any())
+                    exerciseOneRMs["Brzycki"] = Math.Max(
+                        exerciseOneRMs.GetValueOrDefault("Brzycki"), 
+                        CalculateBrzycki(setWeight, setReps));
+                        
+                    exerciseOneRMs["Epley"] = Math.Max(
+                        exerciseOneRMs.GetValueOrDefault("Epley"), 
+                        CalculateEpley(setWeight, setReps));
+                        
+                    exerciseOneRMs["Lander"] = Math.Max(
+                        exerciseOneRMs.GetValueOrDefault("Lander"), 
+                        CalculateLander(setWeight, setReps));
+                        
+                    exerciseOneRMs["Lombardi"] = Math.Max(
+                        exerciseOneRMs.GetValueOrDefault("Lombardi"), 
+                        CalculateLombardi(setWeight, setReps));
+                        
+                    exerciseOneRMs["Mayhew"] = Math.Max(
+                        exerciseOneRMs.GetValueOrDefault("Mayhew"), 
+                        CalculateMayhew(setWeight, setReps));
+                        
+                    exerciseOneRMs["O'Conner"] = Math.Max(
+                        exerciseOneRMs.GetValueOrDefault("O'Conner"), 
+                        CalculateOConner(setWeight, setReps));
+                        
+                    exerciseOneRMs["Wathan"] = Math.Max(
+                        exerciseOneRMs.GetValueOrDefault("Wathan"), 
+                        CalculateWathan(setWeight, setReps));
+                }
+                
+                // Calculate average max 1RM across all formulas
+                var averageOneRM = exerciseOneRMs.Values.Average();
+                exerciseOneRMs["Average"] = averageOneRM;
+                
+                // Store max 1RM for sorting
+                exerciseMaxOneRMs[exerciseName] = averageOneRM;
+                
+                // Create summary entries for each formula
+                foreach (var formula in exerciseOneRMs)
+                {
+                    allExerciseSummaries.Add(new ExerciseSummaryData
                     {
-                        allExerciseSummaries.Add(new ExerciseSummaryData
-                        {
-                            ExerciseTypeId = exerciseGroup.Key.ExerciseTypeId,
-                            ExerciseName = exerciseGroup.Key.Name,
-                            Formula = formula.Key,
-                            EstimatedOneRM = oneRMs.Max(),
-                            SetsCount = exerciseGroup.Count(),
-                            FirstSetDate = exerciseGroup.Min(s => s.Session.datetime),
-                            LastSetDate = exerciseGroup.Max(s => s.Session.datetime)
-                        });
-                    }
+                        ExerciseTypeId = exerciseGroup.Key.ExerciseTypeId,
+                        ExerciseName = exerciseName,
+                        Formula = formula.Key,
+                        EstimatedOneRM = formula.Value,
+                        SetsCount = exerciseGroup.Count(),
+                        FirstSetDate = exerciseGroup.Min(s => s.WorkoutExercise.WorkoutSession.StartDateTime),
+                        LastSetDate = exerciseGroup.Max(s => s.WorkoutExercise.WorkoutSession.StartDateTime)
+                    });
                 }
             }
             
@@ -290,8 +380,51 @@ namespace WorkoutTrackerWeb.Pages.Calculator
                 .Take(PageSize)
                 .SelectMany(g => g)
                 .OrderBy(s => s.ExerciseName)
-                .ThenBy(s => s.Formula == "Average" ? 0 : 1) // Ensure "Average" appears first
+                .ThenBy(s => s.Formula == "Average" ? 0 : 1)
                 .ToList();
+        }
+
+        private async Task LoadUserDataAsync(int userId, int exerciseTypeId)
+        {
+            // Get recent sessions for this user and exercise
+            var sessions = await _context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.WorkoutSets)
+                .Where(ws => ws.UserId == userId)
+                .OrderByDescending(ws => ws.StartDateTime)
+                .Take(10)
+                .ToListAsync();
+
+            List<CalculatorSetData> setData = new();
+            foreach (var session in sessions)
+            {
+                foreach (var exercise in session.WorkoutExercises.Where(we => we.ExerciseTypeId == exerciseTypeId))
+                {
+                    foreach (var set in exercise.WorkoutSets)
+                    {
+                        if (set.Weight.HasValue && set.Reps.HasValue)
+                        {
+                            var oneRepMaxValue = CalculateOneRepMax(set.Weight.Value, set.Reps.Value);
+                            setData.Add(new CalculatorSetData
+                            {
+                                Date = session.StartDateTime,
+                                Weight = (double)set.Weight.Value,
+                                Reps = set.Reps.Value,
+                                OneRepMax = oneRepMaxValue,
+                                EstimatedOneRepMax = oneRepMaxValue
+                            });
+                        }
+                    }
+                }
+            }
+
+            UserSets = setData.OrderByDescending(s => s.Date).ToList();
+            if (setData.Any())
+            {
+                MaxOneRepMax = setData.Max(s => s.EstimatedOneRepMax);
+                MaxWeight = setData.Max(s => (decimal)s.Weight);
+                MaxReps = setData.Max(s => s.Reps);
+            }
         }
 
         private async Task PopulateExerciseTypesAsync()
@@ -320,6 +453,12 @@ namespace WorkoutTrackerWeb.Pages.Calculator
                 CalculateOConner(weight, reps),
                 CalculateWathan(weight, reps)
             }.Average();
+        }
+
+        // Calculate average one rep max across all formulas
+        private double CalculateOneRepMax(decimal weight, int reps)
+        {
+            return (double)CalculateAverageOneRM(weight, reps);
         }
 
         // 1RM Formula implementations

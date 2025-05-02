@@ -59,7 +59,7 @@
                                             <tr class="table-primary">
                                                 <td>@averageRow.ExerciseName</td>
                                                 <td><strong>Average (All Methods)</strong></td>
-                                                <td><strong>@averageRow.EstimatedOneRM.ToString("F2") kg</strong></td>
+                                                <td><strong>@averageRow.EstimatedOneRM.ToString("F2")</strong> kg</td>
                                                 <td>@averageRow.SetsCount</td>
                                                 <td>@averageRow.FirstSetDate.ToString("dd/MM/yyyy") - @averageRow.LastSetDate.ToString("dd/MM/yyyy")</td>
                                             </tr>
@@ -127,9 +127,9 @@
                                             <td>@set.ExerciseName</td>
                                             <td>@set.SessionName</td>
                                             <td>@set.SessionDate.ToString("dd/MM/yyyy")</td>
-                                            <td>@set.Weight.ToString("F2") kg</td>
+                                            <td>@String.Format("{0:F2}", set.Weight) kg</td>
                                             <td>@set.Reps</td>
-                                            <td>@set.EstimatedOneRM.ToString("F2") kg</td>
+                                            <td>@String.Format("{0:F2}", set.EstimatedOneRM) kg</td>
                                         </tr>
                                     }
                                 </tbody>

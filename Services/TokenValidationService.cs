@@ -9,12 +9,27 @@ using WorkoutTrackerWeb.Dtos;
 
 namespace WorkoutTrackerWeb.Services
 {
+    // Result class needed by SharedPageModel
+    public class ShareTokenValidationResult
+    {
+        public bool IsValid { get; set; }
+        public int SessionId { get; set; }
+        public int UserId { get; set; }
+        public string Message { get; set; }
+        public bool AllowReportAccess { get; set; }
+        public bool AllowSessionAccess { get; set; }
+        public bool AllowCalculatorAccess { get; set; }
+    }
+
     public interface ITokenValidationService
     {
         Task<(bool IsValid, ShareTokenValidationResponse ValidationResult)> ValidateTokenAsync(string token, string ipAddress);
         Task<bool> ValidateTokenPermissionAsync(string token, string permission, HttpContext httpContext);
         bool CheckIsAccessAllowed(ShareTokenDto shareToken, string permission);
         Task ClearCacheForTokenAsync(string token);
+        
+        // Added for SharedPageModel compatibility
+        Task<ShareTokenValidationResult> ValidateShareTokenAsync(string token);
     }
 
     public class TokenValidationService : ITokenValidationService
@@ -205,6 +220,52 @@ namespace WorkoutTrackerWeb.Services
 
             // Fallback to connection remote IP
             return httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        }
+
+        public async Task<ShareTokenValidationResult> ValidateShareTokenAsync(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                return new ShareTokenValidationResult
+                {
+                    IsValid = false,
+                    Message = "Token is required"
+                };
+            }
+
+            try
+            {
+                var validationResult = await _shareTokenService.ValidateTokenAsync(token);
+
+                if (!validationResult.IsValid || validationResult.ShareToken == null)
+                {
+                    return new ShareTokenValidationResult
+                    {
+                        IsValid = false,
+                        Message = validationResult.Message
+                    };
+                }
+
+                return new ShareTokenValidationResult
+                {
+                    IsValid = true,
+                    SessionId = validationResult.ShareToken.SessionId,
+                    UserId = validationResult.ShareToken.UserId,
+                    AllowReportAccess = validationResult.ShareToken.AllowReportAccess,
+                    AllowSessionAccess = validationResult.ShareToken.AllowSessionAccess,
+                    AllowCalculatorAccess = validationResult.ShareToken.AllowCalculatorAccess,
+                    Message = "Validation successful"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error validating share token");
+                return new ShareTokenValidationResult
+                {
+                    IsValid = false,
+                    Message = "An error occurred during validation"
+                };
+            }
         }
     }
 }

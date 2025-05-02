@@ -24,7 +24,7 @@
         </div>
     </div>
 
-    @if (!Model.Sessions.Any())
+    @if (!Model.WorkoutSessions.Any())
     {
         <div class="alert alert-info">
             <p class="mb-0">No workout sessions have been shared yet.</p>
@@ -53,17 +53,22 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var session in Model.Sessions.OrderByDescending(s => s.datetime))
+                                    @foreach (var session in Model.WorkoutSessions.OrderByDescending(s => s.StartDateTime))
                                     {
+                                        var totalVolume = session.WorkoutExercises.SelectMany(we => we.WorkoutSets)
+                                            .Where(ws => ws.Weight.HasValue && ws.Reps.HasValue)
+                                            .Sum(ws => ws.Weight.Value * ws.Reps.Value);
+
                                         <tr>
                                             <td>
-                                                <strong>@session.datetime.ToString("MMM d, yyyy")</strong><br>
-                                                <small class="text-muted">@session.datetime.ToString("h:mm tt")</small>
+                                                <strong>@session.StartDateTime.ToString("MMM d, yyyy")</strong><br>
+                                                <small class="text-muted">@session.StartDateTime.ToString("h:mm tt")</small>
                                             </td>
                                             <td>
-                                                @if (session.TotalWorkoutTime != TimeSpan.Zero)
+                                                @if (session.Duration > 0)
                                                 {
-                                                    @session.TotalWorkoutTime.ToString(@"hh\:mm\:ss")
+                                                    var duration = TimeSpan.FromMinutes(session.Duration);
+                                                    @duration.ToString(@"hh\:mm\:ss")
                                                 }
                                                 else
                                                 {
@@ -71,29 +76,18 @@
                                                 }
                                             </td>
                                             <td class="text-center">
-                                                @if (Model.SessionStats != null && Model.SessionStats.ContainsKey(session.SessionId))
-                                                {
-                                                    <span>@Model.SessionStats[session.SessionId].ExerciseCount</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>-</span>
-                                                }
+                                                <span>@session.WorkoutExercises.Count()</span>
                                             </td>
                                             <td class="text-center">
-                                                @if (Model.SessionStats != null && Model.SessionStats.ContainsKey(session.SessionId))
-                                                {
-                                                    <span>@Model.SessionStats[session.SessionId].SetCount</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>-</span>
-                                                }
+                                                <span>@session.WorkoutExercises.Sum(we => we.WorkoutSets.Count())</span>
                                             </td>
                                             <td class="text-center">
-                                                @if (Model.SessionStats != null && Model.SessionStats.ContainsKey(session.SessionId))
+                                                <span>@totalVolume.ToString("N0") kg</span>
+                                            </td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(session.Description))
                                                 {
-                                                    <span>@Model.SessionStats[session.SessionId].TotalVolume.ToString("N0") kg</span>
+                                                    <span class="session-notes">@(session.Description.Length > 50 ? session.Description.Substring(0, 47) + "..." : session.Description)</span>
                                                 }
                                                 else
                                                 {
@@ -101,17 +95,7 @@
                                                 }
                                             </td>
                                             <td>
-                                                @if (!string.IsNullOrEmpty(session.Notes))
-                                                {
-                                                    <span class="session-notes">@(session.Notes.Length > 50 ? session.Notes.Substring(0, 47) + "..." : session.Notes)</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>-</span>
-                                                }
-                                            </td>
-                                            <td>
-                                                <a asp-page="./Session" asp-route-id="@session.SessionId" asp-route-token="@tokenParam" class="btn btn-sm btn-outline-primary">
+                                                <a asp-page="./Session" asp-route-id="@session.WorkoutSessionId" asp-route-token="@tokenParam" class="btn btn-sm btn-outline-primary">
                                                     <i class="bi bi-eye"></i> View
                                                 </a>
                                             </td>

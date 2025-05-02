@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
+using System.Text;
+using Hangfire;
 
 namespace WorkoutTrackerWeb.Services.Hangfire
 {
@@ -289,17 +291,14 @@ namespace WorkoutTrackerWeb.Services.Hangfire
         {
             try
             {
-                var diagnostics = new System.Text.StringBuilder();
+                var diagnostics = new StringBuilder();
                 diagnostics.AppendLine("## Hangfire Diagnostic Information ##");
                 
-                // Check database connectivity
-                bool canConnect = false;
                 using (var connection = new SqlConnection(_connectionString))
                 {
                     try
                     {
                         connection.Open();
-                        canConnect = true;
                         diagnostics.AppendLine("✅ Database connection: SUCCESS");
                         
                         // Get database name

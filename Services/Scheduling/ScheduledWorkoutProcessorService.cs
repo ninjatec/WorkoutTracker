@@ -52,11 +52,12 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             
             try
             {
-                // Get active scheduled workouts
+                // Get all due workouts
                 var dueWorkouts = await GetDueWorkoutsAsync(now);
                 
-                _logger.LogInformation("Found {Count} workouts due for processing", dueWorkouts.Count);
+                _logger.LogInformation("Found {Count} due workouts that need processing", dueWorkouts.Count);
                 
+                // Process each due workout
                 foreach (var workout in dueWorkouts)
                 {
                     try
@@ -64,14 +65,8 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                         _logger.LogDebug("Processing workout {Id}: {Name}", workout.WorkoutScheduleId, workout.Name);
                         
                         // Convert the scheduled workout to an actual session
-                        var result = await ConvertScheduledWorkoutToSessionAsync(workout);
-                        
-                        if (result != null)
-                        {
-                            workoutsCreated++;
-                            _logger.LogInformation("Successfully created workout session {SessionId} from schedule {ScheduleId}", 
-                                result.SessionId, workout.WorkoutScheduleId);
-                        }
+                        await ProcessScheduledWorkoutAsync(workout);
+                        workoutsCreated++;
                     }
                     catch (Exception ex)
                     {
@@ -110,13 +105,21 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             {
                 // Calculate date range for missed workouts
                 var startDate = now.AddDays(-_options.MaxDaysForMissedWorkouts);
-                var endDate = now.AddHours(-_options.MaximumHoursLate);
+                var endDate = now.AddHours(-_options.MaximumHoursLate); // Don't overlap with regular processing
                 
-                _logger.LogDebug("Looking for missed workouts between {StartDate} and {EndDate}", startDate, endDate);
+                // Skip if range is invalid
+                if (startDate >= endDate)
+                {
+                    _logger.LogInformation("Invalid date range for missed workouts. Skipping.");
+                    return 0;
+                }
                 
-                // Get all active scheduled workouts
+                _logger.LogInformation("Looking for missed workouts between {StartDate} and {EndDate}", 
+                    startDate, endDate);
+                
+                // Get all active workout schedules
                 var activeWorkouts = await _context.WorkoutSchedules
-                    .Where(s => s.IsActive)
+                    .Where(s => s.IsActive && s.WorkoutScheduleId > 0)
                     .Include(s => s.Template)
                         .ThenInclude(t => t.TemplateExercises)
                             .ThenInclude(e => e.TemplateSets)
@@ -126,6 +129,7 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                                 .ThenInclude(e => e.TemplateSets)
                     .ToListAsync();
                 
+                // Find missed occurrences for each schedule
                 var missedWorkouts = new List<WorkoutSchedule>();
                 
                 foreach (var workout in activeWorkouts)
@@ -134,25 +138,9 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                     var template = workout.Template ?? workout.TemplateAssignment?.WorkoutTemplate;
                     if (template == null)
                     {
-                        _logger.LogWarning("Skipping workout {Id} without a template", workout.WorkoutScheduleId);
                         continue;
                     }
                     
-                    // Handle one-time workouts
-                    if (!workout.IsRecurring || workout.RecurrencePattern == "Once")
-                    {
-                        // Check if it was missed (scheduled in the past but within our window)
-                        if (workout.ScheduledDateTime != null &&
-                            workout.ScheduledDateTime >= startDate &&
-                            workout.ScheduledDateTime < endDate &&
-                            workout.LastGeneratedSessionId == null) // Not previously generated
-                        {
-                            missedWorkouts.Add(workout);
-                        }
-                        continue;
-                    }
-                    
-                    // Handle recurring workouts
                     await FindMissedRecurringWorkouts(workout, startDate, endDate, missedWorkouts, now);
                 }
                 
@@ -166,21 +154,16 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                         _logger.LogDebug("Processing missed workout {Id}: {Name} scheduled for {Date}", 
                             workout.WorkoutScheduleId, workout.Name, workout.ScheduledDateTime);
                         
-                        // Mark workout as missed in its status if configured to do so
+                        // Special handling for missed workouts
                         if (_options.MarkMissedWorkoutsAsLate)
                         {
-                            // Create a copy of the workout with the missed flag
-                            var missedWorkout = CloneWorkoutWithDate(workout, workout.ScheduledDateTime.Value);
-                            missedWorkout.IsMissed = true;
-                            
-                            // Convert the workout using the missed copy
-                            var result = await ConvertMissedWorkoutToSessionAsync(missedWorkout);
+                            var result = await ConvertMissedWorkoutToSessionAsync(workout);
                             
                             if (result != null)
                             {
                                 workoutsCreated++;
                                 _logger.LogInformation("Successfully created MISSED workout session {SessionId} from schedule {ScheduleId} (originally scheduled for {Date})", 
-                                    result.SessionId, workout.WorkoutScheduleId, workout.ScheduledDateTime);
+                                    result.WorkoutSessionId, workout.WorkoutScheduleId, workout.ScheduledDateTime);
                             }
                         }
                         else
@@ -192,7 +175,7 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                             {
                                 workoutsCreated++;
                                 _logger.LogInformation("Successfully created workout session {SessionId} from missed schedule {ScheduleId}", 
-                                    result.SessionId, workout.WorkoutScheduleId);
+                                    result.WorkoutSessionId, workout.WorkoutScheduleId);
                             }
                         }
                     }
@@ -212,75 +195,69 @@ namespace WorkoutTrackerWeb.Services.Scheduling
         }
 
         /// <summary>
-        /// Find missed recurring workouts within the given date range
+        /// Find missed occurrences of a recurring workout
         /// </summary>
         private async Task FindMissedRecurringWorkouts(
             WorkoutSchedule workout, 
             DateTime startDate, 
             DateTime endDate, 
             List<WorkoutSchedule> missedWorkouts,
-            DateTime now)
+            DateTime referenceDate)
         {
-            // Get all occurrences that should have happened in the date range
-            var occurrences = await GetPastOccurrencesInRangeAsync(workout, startDate, endDate);
-            
-            foreach (var occurrence in occurrences)
+            // Skip non-recurring workouts
+            if (!workout.IsRecurring || workout.RecurrencePattern == "Once")
             {
-                // Check if this occurrence was already processed
-                bool wasProcessed = await WasWorkoutOccurrenceProcessedAsync(workout, occurrence);
-                
-                if (!wasProcessed)
-                {
-                    // Clone the workout with the occurrence date
-                    var missedWorkout = CloneWorkoutWithDate(workout, occurrence);
-                    missedWorkouts.Add(missedWorkout);
-                    
-                    _logger.LogDebug("Found missed {Pattern} workout {Id} scheduled for {Date}", 
-                        workout.RecurrencePattern, workout.WorkoutScheduleId, occurrence);
-                }
+                return;
             }
-        }
+            
+            // Get the workout time of day (default to now if not specified)
+            var timeOfDay = workout.ScheduledDateTime?.TimeOfDay ?? TimeSpan.Zero;
 
-        /// <summary>
-        /// Get all past occurrences of a recurring workout within a date range
-        /// </summary>
-        private async Task<List<DateTime>> GetPastOccurrencesInRangeAsync(WorkoutSchedule workout, DateTime startDate, DateTime endDate)
-        {
+            // Calculate all occurrences within range based on recurrence pattern
             var occurrences = new List<DateTime>();
-            
-            // Don't process workouts that started after our range ends
-            if (workout.StartDate > endDate)
-            {
-                return occurrences;
-            }
-            
-            // Adjust start date if workout started after our range starts
-            var effectiveStartDate = workout.StartDate > startDate ? workout.StartDate : startDate;
-            
-            // Get the time of day from the original schedule
-            var timeOfDay = workout.ScheduledDateTime?.TimeOfDay ?? new TimeSpan(17, 0, 0); // Default to 5 PM
             
             switch (workout.RecurrencePattern)
             {
                 case "Weekly":
-                    await GetWeeklyOccurrencesInRangeAsync(workout, effectiveStartDate, endDate, timeOfDay, occurrences);
+                    await GetWeeklyOccurrencesInRangeAsync(workout, startDate, endDate, timeOfDay, occurrences);
                     break;
-                
+                    
                 case "BiWeekly":
-                    await GetBiWeeklyOccurrencesInRangeAsync(workout, effectiveStartDate, endDate, timeOfDay, occurrences);
+                    await GetBiWeeklyOccurrencesInRangeAsync(workout, startDate, endDate, timeOfDay, occurrences);
                     break;
-                
+                    
                 case "Monthly":
-                    await GetMonthlyOccurrencesInRangeAsync(workout, effectiveStartDate, endDate, timeOfDay, occurrences);
+                    await GetMonthlyOccurrencesInRangeAsync(workout, startDate, endDate, timeOfDay, occurrences);
                     break;
-                
+                    
                 default:
-                    _logger.LogWarning("Unknown recurrence pattern: {Pattern} for workout {Id}", 
-                        workout.RecurrencePattern, workout.WorkoutScheduleId);
-                    break;
+                    _logger.LogWarning("Unknown recurrence pattern for workout {Id}: {Pattern}", 
+                        workout.WorkoutScheduleId, workout.RecurrencePattern);
+                    return;
             }
             
-            return occurrences;
+            // Check which occurrences were not processed
+            foreach (var occurrence in occurrences)
+            {
+                var wasProcessed = await WasWorkoutOccurrenceProcessedAsync(workout, occurrence);
+                
+                if (!wasProcessed)
+                {
+                    // Clone the workout with this occurrence date
+                    var missedWorkout = CloneWorkoutWithDate(workout, occurrence);
+                    
+                    // Skip if this occurrence is in the future
+                    if (occurrence > referenceDate)
+                    {
+                        continue;
+                    }
+                    
+                    missedWorkouts.Add(missedWorkout);
+                    
+                    _logger.LogInformation("Found missed occurrence of workout {Id} scheduled for {Date}", 
+                        workout.WorkoutScheduleId, occurrence);
+                }
+            }
         }
 
         /// <summary>
@@ -304,24 +281,42 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             
             // Start at the beginning of the range and go forward by days
             var currentDate = startDate.Date;
+            var workoutStartDate = workout.StartDate.Date;
             
+            // Don't look before the workout start date
+            if (currentDate < workoutStartDate)
+            {
+                currentDate = workoutStartDate;
+            }
+            
+            // Loop through each day in the range
             while (currentDate <= endDate.Date)
             {
+                // Check if this day matches one of our days of week
                 if (daysOfWeek.Contains(currentDate.DayOfWeek))
                 {
-                    var occurrenceDateTime = currentDate.Add(timeOfDay);
+                    var occurrence = currentDate.Add(timeOfDay);
                     
-                    // Check if it's within our range and not in the future
-                    if (occurrenceDateTime >= startDate && occurrenceDateTime <= endDate)
+                    // Skip if occurrence is before start date (could happen with time of day)
+                    if (occurrence < startDate)
                     {
-                        occurrences.Add(occurrenceDateTime);
+                        currentDate = currentDate.AddDays(1);
+                        continue;
                     }
+                    
+                    // Check end date of workout if it has one
+                    if (workout.EndDate.HasValue && occurrence.Date > workout.EndDate.Value.Date)
+                    {
+                        break;
+                    }
+                    
+                    occurrences.Add(occurrence);
                 }
                 
                 currentDate = currentDate.AddDays(1);
             }
         }
-
+        
         /// <summary>
         /// Get all bi-weekly occurrences that fall within the date range
         /// </summary>
@@ -345,30 +340,47 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             var currentDate = startDate.Date;
             var workoutStartDate = workout.StartDate.Date;
             
+            // Don't look before the workout start date
+            if (currentDate < workoutStartDate)
+            {
+                currentDate = workoutStartDate;
+            }
+            
+            // Loop through each day in the range
             while (currentDate <= endDate.Date)
             {
+                // Check if this day matches one of our days of week
                 if (daysOfWeek.Contains(currentDate.DayOfWeek))
                 {
-                    // Calculate if this day falls on the bi-weekly pattern
+                    // Calculate weeks since the start date to determine if this is a bi-weekly occurrence
                     var weeksSinceStart = (int)Math.Round((currentDate - workoutStartDate).TotalDays / 7.0);
                     
                     // Check if this is a bi-weekly occurrence (every two weeks)
                     if (weeksSinceStart % 2 == 0)
                     {
-                        var occurrenceDateTime = currentDate.Add(timeOfDay);
+                        var occurrence = currentDate.Add(timeOfDay);
                         
-                        // Check if it's within our range
-                        if (occurrenceDateTime >= startDate && occurrenceDateTime <= endDate)
+                        // Skip if occurrence is before start date (could happen with time of day)
+                        if (occurrence < startDate)
                         {
-                            occurrences.Add(occurrenceDateTime);
+                            currentDate = currentDate.AddDays(1);
+                            continue;
                         }
+                        
+                        // Check end date of workout if it has one
+                        if (workout.EndDate.HasValue && occurrence.Date > workout.EndDate.Value.Date)
+                        {
+                            break;
+                        }
+                        
+                        occurrences.Add(occurrence);
                     }
                 }
                 
                 currentDate = currentDate.AddDays(1);
             }
         }
-
+        
         /// <summary>
         /// Get all monthly occurrences that fall within the date range
         /// </summary>
@@ -379,46 +391,53 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             TimeSpan timeOfDay, 
             List<DateTime> occurrences)
         {
-            // Get the day of month for the workout
-            int dayOfMonth = workout.RecurrenceDayOfMonth ?? workout.StartDate.Day;
+            // Get the day of month this workout occurs on
+            var dayOfMonth = workout.RecurrenceDayOfMonth ?? workout.StartDate.Day;
             
             // Start at the beginning of the range
-            var currentMonth = new DateTime(startDate.Year, startDate.Month, 1);
+            var currentDate = startDate.Date;
+            var workoutStartDate = workout.StartDate.Date;
             
-            while (currentMonth <= endDate)
+            // Don't look before the workout start date
+            if (currentDate < workoutStartDate)
+            {
+                currentDate = workoutStartDate;
+            }
+            
+            // Move to the first of the month
+            var currentMonth = new DateTime(currentDate.Year, currentDate.Month, 1);
+            
+            // Loop through each month in the range
+            while (currentMonth <= endDate.Date)
             {
                 try
                 {
-                    // Handle special cases like February 29th in non-leap years
+                    // Handle months with fewer days
                     var daysInMonth = DateTime.DaysInMonth(currentMonth.Year, currentMonth.Month);
-                    int actualDay = Math.Min(dayOfMonth, daysInMonth);
+                    var actualDayOfMonth = Math.Min(dayOfMonth, daysInMonth);
                     
-                    var occurrenceDate = new DateTime(currentMonth.Year, currentMonth.Month, actualDay);
-                    var occurrenceDateTime = occurrenceDate.Add(timeOfDay);
+                    var occurrenceDate = new DateTime(currentMonth.Year, currentMonth.Month, actualDayOfMonth);
                     
-                    // Check if it's within our range and not in the future
-                    if (occurrenceDateTime >= startDate && occurrenceDateTime <= endDate)
+                    // Skip if occurrence is before our start date or start date of workout
+                    if (occurrenceDate >= currentDate && occurrenceDate <= endDate.Date)
                     {
-                        occurrences.Add(occurrenceDateTime);
+                        // Check end date of workout if it has one
+                        if (workout.EndDate.HasValue && occurrenceDate > workout.EndDate.Value.Date)
+                        {
+                            break;
+                        }
+                        
+                        var occurrence = occurrenceDate.Add(timeOfDay);
+                        occurrences.Add(occurrence);
                     }
                 }
-                catch (ArgumentOutOfRangeException)
+                catch (ArgumentOutOfRangeException ex)
                 {
-                    // Handle any remaining edge cases by taking the last day of the month
-                    var lastDayOfMonth = DateTime.DaysInMonth(currentMonth.Year, currentMonth.Month);
-                    var occurrenceDate = new DateTime(currentMonth.Year, currentMonth.Month, lastDayOfMonth);
-                    var occurrenceDateTime = occurrenceDate.Add(timeOfDay);
-                    
-                    if (occurrenceDateTime >= startDate && occurrenceDateTime <= endDate)
-                    {
-                        occurrences.Add(occurrenceDateTime);
-                    }
-                    
-                    _logger.LogWarning("Monthly workout {Id} requested invalid day {RequestedDay}, using last day of month ({ActualDay})", 
-                        workout.WorkoutScheduleId, dayOfMonth, lastDayOfMonth);
+                    _logger.LogError(ex, "Error calculating monthly occurrence for workout {Id} in month {Month}", 
+                        workout.WorkoutScheduleId, currentMonth);
                 }
                 
-                // Move to the next month
+                // Move to next month
                 currentMonth = currentMonth.AddMonths(1);
             }
         }
@@ -428,260 +447,142 @@ namespace WorkoutTrackerWeb.Services.Scheduling
         /// </summary>
         private async Task<bool> WasWorkoutOccurrenceProcessedAsync(WorkoutSchedule workout, DateTime occurrence)
         {
+            // Check if the specific day already has a workout session from this schedule
             var date = occurrence.Date;
             
-            // For one-time workouts, just check if it was processed at all
-            if (!workout.IsRecurring || workout.RecurrencePattern == "Once")
-            {
-                return workout.LastGeneratedSessionId.HasValue;
-            }
-            
-            // For recurring workouts, check workout sessions around this date
             return await _context.WorkoutSessions
                 .AnyAsync(s => 
+                    s.WorkoutTemplateId == workout.TemplateId && 
                     s.UserId == workout.ClientUserId && 
-                    (s.WorkoutTemplateId == workout.TemplateId || s.TemplateAssignmentId == workout.TemplateAssignmentId) &&
-                    s.StartDateTime != null && 
                     s.StartDateTime.Date == date);
         }
 
         /// <summary>
         /// Converts a missed workout to an actual workout session with appropriate status
         /// </summary>
-        private async Task<WorkoutTrackerWeb.Models.Session> ConvertMissedWorkoutToSessionAsync(WorkoutSchedule workout)
+        private async Task<WorkoutSession> ConvertMissedWorkoutToSessionAsync(WorkoutSchedule workout)
         {
-            // Determine which template to use (direct template or via assignment)
             var template = workout.Template ?? workout.TemplateAssignment?.WorkoutTemplate;
-            
             if (template == null)
             {
-                _logger.LogError("Cannot convert missed workout {Id} to session: no template found", workout.WorkoutScheduleId);
-                
-                // Update status tracking properties to record the failure
-                var actualWorkout = await _context.WorkoutSchedules
-                    .FirstOrDefaultAsync(w => w.WorkoutScheduleId == workout.WorkoutScheduleId);
-                
-                if (actualWorkout != null)
-                {
-                    actualWorkout.LastGenerationStatus = "Failed: No template found";
-                    await _context.SaveChangesAsync();
-                }
-                
+                _logger.LogError("Cannot convert missed workout {Id} without a template", workout.WorkoutScheduleId);
                 return null;
             }
-            
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            
-            try
+
+            var workoutSession = new WorkoutSession
             {
-                // Step 1: Create the Session (legacy model)
-                var session = new WorkoutTrackerWeb.Models.Session
+                Name = workout.Name,
+                Description = workout.Description,
+                UserId = workout.ClientUserId,
+                StartDateTime = workout.ScheduledDateTime ?? DateTime.UtcNow,
+                Status = "Missed", // Special status for missed workouts
+                IsFromCoach = true,
+                WorkoutTemplateId = workout.TemplateId,
+                TemplateAssignmentId = workout.TemplateAssignmentId
+            };
+
+            _context.WorkoutSessions.Add(workoutSession);
+            await _context.SaveChangesAsync();
+
+            // Create exercises and sets from template
+            foreach (var templateExercise in template.TemplateExercises.OrderBy(e => e.OrderIndex))
+            {
+                var workoutExercise = new WorkoutExercise
                 {
-                    Name = workout.Name,
-                    datetime = workout.ScheduledDateTime.Value,
-                    StartDateTime = workout.ScheduledDateTime.Value,
-                    Notes = $"Automatically created from MISSED scheduled workout: {workout.Name} (originally scheduled for {workout.ScheduledDateTime.Value:g})",
-                    UserId = workout.ClientUserId
-                };
-                
-                _context.Session.Add(session);
-                await _context.SaveChangesAsync();
-                
-                // Step 2: Create WorkoutSession (new model with proper metadata)
-                var workoutSession = new WorkoutSession
-                {
-                    Name = workout.Name,
-                    Description = workout.Description,
-                    StartDateTime = workout.ScheduledDateTime.Value,
-                    UserId = workout.ClientUserId,
-                    WorkoutTemplateId = template.WorkoutTemplateId,
-                    TemplateAssignmentId = workout.TemplateAssignmentId,
-                    TemplatesUsed = template.Name,
-                    IsFromCoach = workout.CoachUserId != workout.ClientUserId,
-                    Status = "Missed" // Mark as missed
+                    WorkoutSessionId = workoutSession.WorkoutSessionId,
+                    ExerciseTypeId = templateExercise.ExerciseTypeId,
+                    SequenceNum = templateExercise.OrderIndex,
+                    OrderIndex = templateExercise.OrderIndex,
+                    Notes = templateExercise.Notes
                 };
 
-                _context.WorkoutSessions.Add(workoutSession);
+                _context.WorkoutExercises.Add(workoutExercise);
                 await _context.SaveChangesAsync();
-                
-                // Step 3: Add sets from template to Session model (for compatibility)
-                var setList = new List<Set>();
-                
-                foreach (var templateExercise in template.TemplateExercises.OrderBy(e => e.SequenceNum))
+
+                foreach (var templateSet in templateExercise.TemplateSets.OrderBy(s => s.SequenceNum))
                 {
-                    foreach (var templateSet in templateExercise.TemplateSets.OrderBy(s => s.SequenceNum))
+                    var workoutSet = new WorkoutSet
                     {
-                        var set = new Set
-                        {
-                            SessionId = session.SessionId,
-                            ExerciseTypeId = templateExercise.ExerciseTypeId,
-                            SettypeId = templateSet.SettypeId,
-                            Description = templateSet.Description,
-                            Notes = templateSet.Notes,
-                            NumberReps = templateSet.DefaultReps,
-                            Weight = templateSet.DefaultWeight,
-                            SequenceNum = templateSet.SequenceNum
-                        };
-                        
-                        setList.Add(set);
-                    }
-                }
-                
-                _context.Set.AddRange(setList);
-                await _context.SaveChangesAsync();
-                
-                // Step 4: Create exercises and sets in the WorkoutSession model
-                var sequenceNum = 0;
-                foreach (var templateExercise in template.TemplateExercises.OrderBy(e => e.SequenceNum))
-                {
-                    // Create the exercise
-                    var workoutExercise = new WorkoutExercise
-                    {
-                        WorkoutSessionId = workoutSession.WorkoutSessionId,
-                        ExerciseTypeId = templateExercise.ExerciseTypeId,
-                        EquipmentId = templateExercise.EquipmentId,
-                        SequenceNum = templateExercise.SequenceNum,
-                        OrderIndex = sequenceNum++,
-                        Notes = templateExercise.Notes,
-                        // Map appropriate rest period value - for safety, handle potential null values
-                        RestPeriodSeconds = templateExercise.RestSeconds
+                        WorkoutExerciseId = workoutExercise.WorkoutExerciseId,
+                        SettypeId = templateSet.SettypeId,
+                        SequenceNum = templateSet.SequenceNum,
+                        SetNumber = templateSet.SequenceNum,
+                        Reps = templateSet.DefaultReps,
+                        Weight = templateSet.DefaultWeight,
+                        Notes = templateSet.Notes,
+                        IsCompleted = false  // Mark as not completed since it was missed
                     };
-                    
-                    _context.WorkoutExercises.Add(workoutExercise);
-                    await _context.SaveChangesAsync();
-                    
-                    // Create the sets for this exercise
-                    var workoutSets = new List<WorkoutSet>();
-                    var setNumber = 1;
-                    
-                    foreach (var templateSet in templateExercise.TemplateSets.OrderBy(s => s.SequenceNum))
-                    {
-                        var workoutSet = new WorkoutSet
-                        {
-                            WorkoutExerciseId = workoutExercise.WorkoutExerciseId,
-                            SettypeId = templateSet.SettypeId,
-                            SequenceNum = templateSet.SequenceNum,
-                            SetNumber = setNumber++,
-                            Reps = templateSet.DefaultReps,
-                            Weight = templateSet.DefaultWeight,
-                            Notes = templateSet.Notes,
-                            // Default rest period if needed
-                            RestSeconds = 60, // Using standard default value
-                            // Use min/max reps from template or set reasonable defaults
-                            TargetMinReps = templateExercise.MinReps,
-                            TargetMaxReps = templateExercise.MaxReps,
-                            IsCompleted = false,
-                            Timestamp = DateTime.Now
-                        };
-                        
-                        workoutSets.Add(workoutSet);
-                    }
-                    
-                    _context.WorkoutSets.AddRange(workoutSets);
-                    await _context.SaveChangesAsync();
-                }
 
-                // Step 5: Update the status tracking on the actual workout
-                var actualWorkout = await _context.WorkoutSchedules
-                    .FirstOrDefaultAsync(w => w.WorkoutScheduleId == workout.WorkoutScheduleId);
-                
-                if (actualWorkout != null)
-                {
-                    // Update tracking properties
-                    actualWorkout.LastGeneratedWorkoutDate = DateTime.Now;
-                    actualWorkout.LastGeneratedSessionId = session.SessionId;
-                    actualWorkout.TotalWorkoutsGenerated = actualWorkout.TotalWorkoutsGenerated + 1;
-                    actualWorkout.LastGenerationStatus = "Success (Created Missed Workout)";
-                    
-                    // If this is a one-time schedule, mark it as inactive
-                    if (!actualWorkout.IsRecurring || actualWorkout.RecurrencePattern == "Once")
-                    {
-                        actualWorkout.IsActive = false;
-                    }
-                    
-                    await _context.SaveChangesAsync();
+                    _context.WorkoutSets.Add(workoutSet);
                 }
-                else
-                {
-                    _logger.LogWarning("Could not find original workout {Id} to update status tracking", 
-                        workout.WorkoutScheduleId);
-                }
-                
-                await transaction.CommitAsync();
-                return session;
             }
-            catch (Exception ex)
+            await _context.SaveChangesAsync();
+
+            // Update the workout schedule status
+            if (workout.WorkoutScheduleId > 0) // Only update if this is a real schedule
             {
-                _logger.LogError(ex, "Error converting missed workout {Id} to session", workout.WorkoutScheduleId);
-                await transaction.RollbackAsync();
-                
-                // Update status tracking to record the failure
-                var actualWorkout = await _context.WorkoutSchedules
-                    .FirstOrDefaultAsync(w => w.WorkoutScheduleId == workout.WorkoutScheduleId);
-                
-                if (actualWorkout != null)
+                // Find the actual workout schedule in the database and update its status
+                var scheduleToUpdate = await _context.WorkoutSchedules.FindAsync(workout.WorkoutScheduleId);
+                if (scheduleToUpdate != null)
                 {
-                    actualWorkout.LastGenerationStatus = $"Failed: {ex.Message}";
+                    scheduleToUpdate.LastGenerationStatus = "Processed";
+                    scheduleToUpdate.LastGeneratedWorkoutDate = DateTime.UtcNow;
+                    scheduleToUpdate.LastGeneratedSessionId = workoutSession.WorkoutSessionId;
                     await _context.SaveChangesAsync();
                 }
-                
-                return null;
             }
+
+            return workoutSession;
         }
 
         /// <summary>
         /// Cleans up expired scheduled workouts that are no longer needed
         /// </summary>
-        /// <returns>Number of workouts cleaned up</returns>
         public async Task<int> CleanupExpiredWorkoutsAsync()
         {
-            var cleanedUpCount = 0;
-            var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, _timeZone);
+            var now = DateTime.UtcNow;
+            var threshold = now.AddDays(-30); // Keep 30 days history
             
-            _logger.LogInformation("Starting expired workout cleanup at {Now}", now);
-            
-            try
-            {
-                // Find completed one-time workouts (not recurring and in the past)
-                var expiredOneTimeWorkouts = await _context.WorkoutSchedules
-                    .Where(s => 
-                        (!s.IsRecurring || s.RecurrencePattern == "Once") && 
-                        s.ScheduledDateTime < now.AddDays(-1) && // At least 1 day old
-                        s.IsActive) // Still marked as active
-                    .ToListAsync();
-                    
-                // Find recurring workouts that have passed their end date
-                var expiredRecurringWorkouts = await _context.WorkoutSchedules
-                    .Where(s => 
-                        s.IsRecurring && 
-                        s.RecurrencePattern != "Once" && 
-                        s.EndDate.HasValue && 
-                        s.EndDate.Value < now.Date.AddDays(-1) && // End date at least 1 day in the past
-                        s.IsActive) // Still marked as active
-                    .ToListAsync();
-                    
-                _logger.LogInformation("Found {OneTimeCount} expired one-time workouts and {RecurringCount} expired recurring workouts",
-                    expiredOneTimeWorkouts.Count, expiredRecurringWorkouts.Count);
-                    
-                // Mark all expired workouts as inactive
-                foreach (var workout in expiredOneTimeWorkouts.Concat(expiredRecurringWorkouts))
-                {
-                    workout.IsActive = false;
-                    _logger.LogDebug("Marking workout {Id} '{Name}' as inactive", workout.WorkoutScheduleId, workout.Name);
-                    cleanedUpCount++;
-                }
+            var expiredWorkouts = await _context.WorkoutSchedules
+                .Where(s => !s.IsRecurring && s.LastGenerationStatus == "Processed" && 
+                            s.LastGeneratedWorkoutDate != null && s.LastGeneratedWorkoutDate < threshold)
+                .ToListAsync();
                 
+            var count = expiredWorkouts.Count;
+            if (count > 0)
+            {
+                _logger.LogInformation("Cleaning up {Count} expired workout schedules", count);
+                _context.WorkoutSchedules.RemoveRange(expiredWorkouts);
                 await _context.SaveChangesAsync();
-                
-                _logger.LogInformation("Successfully marked {Count} expired workouts as inactive", cleanedUpCount);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error cleaning up expired workouts");
-                throw; // Rethrow to let Hangfire know this job failed
             }
             
-            return cleanedUpCount;
+            return count;
+        }
+
+        /// <summary>
+        /// Calculates the next occurrence for a recurring workout
+        /// </summary>
+        private DateTime? CalculateNextOccurrence(WorkoutSchedule workout, DateTime referenceDate)
+        {
+            // Get the workout time of day (default to now if not specified)
+            var timeOfDay = workout.ScheduledDateTime?.TimeOfDay ?? TimeSpan.Zero;
+            
+            switch (workout.RecurrencePattern)
+            {
+                case "Weekly":
+                    return CalculateNextWeeklyOccurrence(workout, referenceDate, timeOfDay);
+                    
+                case "BiWeekly":
+                    return CalculateNextBiWeeklyOccurrence(workout, referenceDate, timeOfDay);
+                    
+                case "Monthly":
+                    return CalculateNextMonthlyOccurrence(workout, referenceDate, timeOfDay);
+                    
+                default:
+                    _logger.LogWarning("Unknown recurrence pattern for workout {Id}: {Pattern}", 
+                        workout.WorkoutScheduleId, workout.RecurrencePattern);
+                    return null;
+            }
         }
 
         /// <summary>
@@ -689,17 +590,18 @@ namespace WorkoutTrackerWeb.Services.Scheduling
         /// </summary>
         private async Task<List<WorkoutSchedule>> GetDueWorkoutsAsync(DateTime now)
         {
-            // Calculate the date range based on advance creation setting
-            var endDate = now.AddHours(_options.HoursAdvanceCreation);
-            var startDate = now.AddHours(-_options.MaximumHoursLate);
-            
-            _logger.LogDebug("Looking for workouts between {StartDate} and {EndDate}", startDate, endDate);
-
             var dueWorkouts = new List<WorkoutSchedule>();
             
-            // Get all active scheduled workouts
+            // Calculate the date range for due workouts
+            var startDate = now; // Current time
+            var endDate = now.AddHours(_options.HoursAdvanceCreation); // Look ahead by configured hours
+            
+            _logger.LogInformation("Looking for due workouts between {StartDate} and {EndDate}", 
+                startDate, endDate);
+            
+            // Get all active workout schedules
             var activeWorkouts = await _context.WorkoutSchedules
-                .Where(s => s.IsActive)
+                .Where(s => s.IsActive && s.WorkoutScheduleId > 0)
                 .Include(s => s.Template)
                     .ThenInclude(t => t.TemplateExercises)
                         .ThenInclude(e => e.TemplateSets)
@@ -748,38 +650,6 @@ namespace WorkoutTrackerWeb.Services.Scheduling
         }
 
         /// <summary>
-        /// Calculates the next occurrence of a recurring workout
-        /// </summary>
-        private DateTime? CalculateNextOccurrence(WorkoutSchedule workout, DateTime referenceDate)
-        {
-            // Check if the workout has an end date and if it's already past
-            if (workout.EndDate.HasValue && workout.EndDate.Value < referenceDate.Date)
-            {
-                return null; // Workout has ended
-            }
-
-            // Get the time of day from the original schedule
-            var timeOfDay = workout.ScheduledDateTime?.TimeOfDay ?? new TimeSpan(17, 0, 0); // Default to 5 PM
-            
-            // Calculate the next occurrence based on recurrence pattern
-            switch (workout.RecurrencePattern)
-            {
-                case "Weekly":
-                    return CalculateNextWeeklyOccurrence(workout, referenceDate, timeOfDay);
-                    
-                case "BiWeekly":
-                    return CalculateNextBiWeeklyOccurrence(workout, referenceDate, timeOfDay);
-                    
-                case "Monthly":
-                    return CalculateNextMonthlyOccurrence(workout, referenceDate, timeOfDay);
-                    
-                default:
-                    _logger.LogWarning("Unknown recurrence pattern: {Pattern}", workout.RecurrencePattern);
-                    return null;
-            }
-        }
-
-        /// <summary>
         /// Calculates the next occurrence for a weekly recurring workout
         /// </summary>
         private DateTime? CalculateNextWeeklyOccurrence(WorkoutSchedule workout, DateTime referenceDate, TimeSpan timeOfDay)
@@ -796,41 +666,18 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             // Sort by day of week to ensure we find the earliest next occurrence
             var orderedDaysOfWeek = daysOfWeek.OrderBy(d => (((int)d - (int)referenceDate.DayOfWeek) + 7) % 7).ToList();
             
-            // Find the next occurrence by checking days in order starting from today
-            var date = referenceDate.Date;
             DateTime? result = null;
             
-            // First pass: check the next 7 days
-            for (int i = 0; i < 7; i++) 
+            // First check if today is one of our days and the time hasn't passed yet
+            if (daysOfWeek.Contains(referenceDate.DayOfWeek) && timeOfDay > referenceDate.TimeOfDay)
             {
-                var dayOfWeek = date.DayOfWeek;
-                if (daysOfWeek.Contains(dayOfWeek))
-                {
-                    // For today, check if the time is in the future
-                    if (date == referenceDate.Date)
-                    {
-                        if (timeOfDay > referenceDate.TimeOfDay)
-                        {
-                            // Today's occurrence is still in the future
-                            result = date.Add(timeOfDay);
-                            break;
-                        }
-                    }
-                    else
-                    {
-                        // Future date, so we can use it
-                        result = date.Add(timeOfDay);
-                        break;
-                    }
-                }
-                
-                date = date.AddDays(1);
+                // Today is a match and the time hasn't passed
+                result = referenceDate.Date.Add(timeOfDay);
             }
-            
-            // If we didn't find a date, use the first configured day of next week
-            if (result == null)
+            else
             {
-                date = referenceDate.Date.AddDays(1);
+                // Find the next matching day of week
+                var date = referenceDate.Date.AddDays(1); // Start with tomorrow
                 while (!daysOfWeek.Contains(date.DayOfWeek))
                 {
                     date = date.AddDays(1);
@@ -869,55 +716,36 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             // Sort days by closest upcoming day of week
             var orderedDaysOfWeek = daysOfWeek.OrderBy(d => (((int)d - (int)referenceDate.DayOfWeek) + 7) % 7).ToList();
             
-            // Find the next occurrence by checking days within a two-week period
-            var date = referenceDate.Date;
             DateTime? result = null;
             
-            // Look ahead for the next two weeks (14 days)
-            for (int i = 0; i < 14; i++)
+            // First check if today is one of our days, the time hasn't passed yet, and it's a bi-weekly occurrence
+            if (daysOfWeek.Contains(referenceDate.DayOfWeek))
             {
-                var dayOfWeek = date.DayOfWeek;
-                if (daysOfWeek.Contains(dayOfWeek))
+                // Calculate weeks since the start date to determine if this is a bi-weekly occurrence
+                var weeksSinceStart = (int)Math.Round((referenceDate.Date - startDate.Date).TotalDays / 7.0);
+                
+                // Check if this is a bi-weekly occurrence (every two weeks)
+                if (weeksSinceStart % 2 == 0)
                 {
-                    // Calculate weeks since the start date to determine if this is a bi-weekly occurrence
-                    var weeksSinceStart = (int)Math.Round((date - startDate.Date).TotalDays / 7.0);
-                    
-                    // Check if this is a bi-weekly occurrence (every two weeks)
-                    if (weeksSinceStart % 2 == 0)
+                    // For today, we need to check if the time is still in the future
+                    if (timeOfDay > referenceDate.TimeOfDay)
                     {
-                        // For today, we need to check if the time is still in the future
-                        if (date == referenceDate.Date)
-                        {
-                            if (timeOfDay > referenceDate.TimeOfDay)
-                            {
-                                // Today's occurrence is still in the future
-                                result = date.Add(timeOfDay);
-                                break;
-                            }
-                        }
-                        else
-                        {
-                            // Future date, so we can use it
-                            result = date.Add(timeOfDay);
-                            break;
-                        }
+                        result = referenceDate.Date.Add(timeOfDay);
                     }
                 }
-                
-                date = date.AddDays(1);
             }
             
-            // If no date found in the next two weeks, calculate the next bi-weekly occurrence
+            // If today wasn't a match, find the next matching day
             if (result == null)
             {
-                // Find the first day of the next bi-weekly cycle
+                // Calculate current weeks since start
                 var currentWeeksSinceStart = (int)Math.Floor((referenceDate.Date - startDate.Date).TotalDays / 7.0);
                 // Ensure we get the next even-number of weeks from the start date
                 var weeksToAdd = currentWeeksSinceStart % 2 == 0 ? 2 : 1;
                 var nextCycleStart = startDate.Date.AddDays((currentWeeksSinceStart + weeksToAdd) * 7);
                 
                 // Find the first matching day of week in the next cycle
-                date = nextCycleStart;
+                var date = nextCycleStart;
                 for (int i = 0; i < 7; i++)
                 {
                     if (daysOfWeek.Contains(date.DayOfWeek))
@@ -945,17 +773,17 @@ namespace WorkoutTrackerWeb.Services.Scheduling
         /// </summary>
         private DateTime? CalculateNextMonthlyOccurrence(WorkoutSchedule workout, DateTime referenceDate, TimeSpan timeOfDay)
         {
-            // Get the day of month for the workout
-            int dayOfMonth = workout.RecurrenceDayOfMonth ?? workout.StartDate.Day;
+            // Get the day of month this workout occurs on (use start date day if not specified)
+            var dayOfMonth = workout.RecurrenceDayOfMonth ?? workout.StartDate.Day;
             
-            // Start with the current month's first day
+            DateTime? result = null;
+            
+            // Check if the specified day in the current month is still in the future
             var currentMonth = new DateTime(referenceDate.Year, referenceDate.Month, 1);
-            DateTime result;
             
-            // Check if we can use the current month (day hasn't passed yet)
-            if (referenceDate.Day < dayOfMonth || (referenceDate.Day == dayOfMonth && referenceDate.TimeOfDay < timeOfDay))
+            if (dayOfMonth >= referenceDate.Day)
             {
-                // Day hasn't occurred yet this month
+                // The day in this month is still coming up
                 try
                 {
                     // Handle special cases like February 29th in non-leap years
@@ -980,7 +808,6 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                 var nextMonth = currentMonth.AddMonths(1);
                 try
                 {
-                    // Handle special cases like February 29th in non-leap years
                     var daysInMonth = DateTime.DaysInMonth(nextMonth.Year, nextMonth.Month);
                     int actualDay = Math.Min(dayOfMonth, daysInMonth);
                     result = new DateTime(nextMonth.Year, nextMonth.Month, actualDay,
@@ -988,7 +815,7 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                 }
                 catch (ArgumentOutOfRangeException)
                 {
-                    // Handle any remaining edge cases by taking the last day of the month
+                    // Handle edge cases with last day of the month
                     var lastDayOfMonth = DateTime.DaysInMonth(nextMonth.Year, nextMonth.Month);
                     result = new DateTime(nextMonth.Year, nextMonth.Month, lastDayOfMonth,
                         timeOfDay.Hours, timeOfDay.Minutes, timeOfDay.Seconds);
@@ -998,10 +825,10 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             }
             
             // Final check: make sure we respect end date
-            if (workout.EndDate.HasValue && result.Date > workout.EndDate.Value.Date)
+            if (result != null && workout.EndDate.HasValue && result.Value.Date > workout.EndDate.Value.Date)
             {
                 _logger.LogInformation("Monthly workout {Id} next occurrence would be {Date}, but that's after end date {EndDate}", 
-                    workout.WorkoutScheduleId, result, workout.EndDate.Value);
+                    workout.WorkoutScheduleId, result.Value, workout.EndDate.Value);
                 return null;
             }
             
@@ -1108,112 +935,124 @@ namespace WorkoutTrackerWeb.Services.Scheduling
         /// <summary>
         /// Converts a scheduled workout to an actual workout session
         /// </summary>
-        private async Task<WorkoutTrackerWeb.Models.Session> ConvertScheduledWorkoutToSessionAsync(WorkoutSchedule workout)
+        private async Task<WorkoutSession> ConvertScheduledWorkoutToSessionAsync(WorkoutSchedule workout)
         {
-            // Determine which template to use (direct template or via assignment)
             var template = workout.Template ?? workout.TemplateAssignment?.WorkoutTemplate;
-            
             if (template == null)
             {
-                _logger.LogError("Cannot convert workout {Id} to session: no template found", workout.WorkoutScheduleId);
-                
-                // Update status tracking properties to record the failure
-                var actualWorkout = await _context.WorkoutSchedules
-                    .FirstOrDefaultAsync(w => w.WorkoutScheduleId == workout.WorkoutScheduleId);
-                
-                if (actualWorkout != null)
-                {
-                    actualWorkout.LastGenerationStatus = "Failed: No template found";
-                    await _context.SaveChangesAsync();
-                }
-                
+                _logger.LogError("Cannot convert scheduled workout {Id} without a template", workout.WorkoutScheduleId);
                 return null;
             }
-            
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            
+
+            var workoutSession = new WorkoutSession
+            {
+                Name = workout.Name,
+                Description = workout.Description,
+                UserId = workout.ClientUserId,
+                StartDateTime = workout.ScheduledDateTime ?? DateTime.UtcNow,
+                Status = "Scheduled",
+                IsFromCoach = true,
+                WorkoutTemplateId = workout.TemplateId,
+                TemplateAssignmentId = workout.TemplateAssignmentId
+            };
+
+            _context.WorkoutSessions.Add(workoutSession);
+            await _context.SaveChangesAsync();
+
+            // Create exercises and sets from template
+            foreach (var templateExercise in template.TemplateExercises.OrderBy(e => e.OrderIndex))
+            {
+                var workoutExercise = new WorkoutExercise
+                {
+                    WorkoutSessionId = workoutSession.WorkoutSessionId,
+                    ExerciseTypeId = templateExercise.ExerciseTypeId,
+                    SequenceNum = templateExercise.OrderIndex,
+                    OrderIndex = templateExercise.OrderIndex,
+                    Notes = templateExercise.Notes
+                };
+
+                _context.WorkoutExercises.Add(workoutExercise);
+                await _context.SaveChangesAsync();
+
+                foreach (var templateSet in templateExercise.TemplateSets.OrderBy(s => s.SequenceNum))
+                {
+                    var workoutSet = new WorkoutSet
+                    {
+                        WorkoutExerciseId = workoutExercise.WorkoutExerciseId,
+                        SettypeId = templateSet.SettypeId,
+                        SequenceNum = templateSet.SequenceNum,
+                        SetNumber = templateSet.SequenceNum,
+                        Reps = templateSet.DefaultReps,
+                        Weight = templateSet.DefaultWeight,
+                        Notes = templateSet.Notes
+                    };
+
+                    _context.WorkoutSets.Add(workoutSet);
+                }
+            }
+            await _context.SaveChangesAsync();
+
+            // Update the workout schedule status
+            if (workout.WorkoutScheduleId > 0) // Only update if this is a real schedule
+            {
+                // Find the actual workout schedule in the database and update its status
+                var scheduleToUpdate = await _context.WorkoutSchedules.FindAsync(workout.WorkoutScheduleId);
+                if (scheduleToUpdate != null)
+                {
+                    scheduleToUpdate.LastGenerationStatus = "Processed";
+                    scheduleToUpdate.LastGeneratedWorkoutDate = DateTime.UtcNow;
+                    scheduleToUpdate.LastGeneratedSessionId = workoutSession.WorkoutSessionId;
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            return workoutSession;
+        }
+
+        /// <summary>
+        /// Processes a single scheduled workout
+        /// </summary>
+        private async Task ProcessScheduledWorkoutAsync(WorkoutSchedule schedule)
+        {
+            if (schedule == null || schedule.Template == null)
+            {
+                _logger.LogError("Invalid schedule or missing template");
+                return;
+            }
+
             try
             {
-                // Step 1: Create the Session (legacy model)
-                var session = new WorkoutTrackerWeb.Models.Session
-                {
-                    Name = workout.Name,
-                    datetime = workout.ScheduledDateTime.Value,
-                    StartDateTime = workout.ScheduledDateTime.Value,
-                    Notes = $"Automatically created from scheduled workout: {workout.Name}",
-                    UserId = workout.ClientUserId
-                };
-                
-                _context.Session.Add(session);
-                await _context.SaveChangesAsync();
-                
-                // Step 2: Create WorkoutSession (new model with proper metadata)
+                // Create new workout session from template
                 var workoutSession = new WorkoutSession
                 {
-                    Name = workout.Name,
-                    Description = workout.Description,
-                    StartDateTime = workout.ScheduledDateTime.Value,
-                    UserId = workout.ClientUserId,
-                    WorkoutTemplateId = template.WorkoutTemplateId,
-                    TemplateAssignmentId = workout.TemplateAssignmentId,
-                    TemplatesUsed = template.Name,
-                    IsFromCoach = workout.CoachUserId != workout.ClientUserId,
-                    Status = "Scheduled"
+                    UserId = schedule.ClientUserId,
+                    Name = schedule.Template.Name,
+                    Description = schedule.Template.Description,
+                    StartDateTime = schedule.ScheduledDateTime ?? DateTime.UtcNow,
+                    Status = "Scheduled",
+                    IsFromCoach = true,
+                    WorkoutTemplateId = schedule.TemplateId
                 };
 
                 _context.WorkoutSessions.Add(workoutSession);
                 await _context.SaveChangesAsync();
-                
-                // Step 3: Add sets from template to Session model (for compatibility)
-                var setList = new List<Set>();
-                
-                foreach (var templateExercise in template.TemplateExercises.OrderBy(e => e.SequenceNum))
+
+                // Copy exercises from template
+                foreach (var templateExercise in schedule.Template.TemplateExercises.OrderBy(x => x.OrderIndex))
                 {
-                    foreach (var templateSet in templateExercise.TemplateSets.OrderBy(s => s.SequenceNum))
-                    {
-                        var set = new Set
-                        {
-                            SessionId = session.SessionId,
-                            ExerciseTypeId = templateExercise.ExerciseTypeId,
-                            SettypeId = templateSet.SettypeId,
-                            Description = templateSet.Description,
-                            Notes = templateSet.Notes,
-                            NumberReps = templateSet.DefaultReps,
-                            Weight = templateSet.DefaultWeight,
-                            SequenceNum = templateSet.SequenceNum
-                        };
-                        
-                        setList.Add(set);
-                    }
-                }
-                
-                _context.Set.AddRange(setList);
-                await _context.SaveChangesAsync();
-                
-                // Step 4: Create exercises and sets in the WorkoutSession model
-                var sequenceNum = 0;
-                foreach (var templateExercise in template.TemplateExercises.OrderBy(e => e.SequenceNum))
-                {
-                    // Create the exercise
                     var workoutExercise = new WorkoutExercise
                     {
                         WorkoutSessionId = workoutSession.WorkoutSessionId,
                         ExerciseTypeId = templateExercise.ExerciseTypeId,
-                        EquipmentId = templateExercise.EquipmentId,
-                        SequenceNum = templateExercise.SequenceNum,
-                        OrderIndex = sequenceNum++,
-                        Notes = templateExercise.Notes,
-                        // Map appropriate rest period value - for safety, handle potential null values
-                        RestPeriodSeconds = templateExercise.RestSeconds
+                        SequenceNum = templateExercise.OrderIndex,
+                        OrderIndex = templateExercise.OrderIndex,
+                        Notes = templateExercise.Notes
                     };
-                    
+
                     _context.WorkoutExercises.Add(workoutExercise);
                     await _context.SaveChangesAsync();
-                    
-                    // Create the sets for this exercise
-                    var workoutSets = new List<WorkoutSet>();
-                    var setNumber = 1;
-                    
+
+                    // Copy sets from template
                     foreach (var templateSet in templateExercise.TemplateSets.OrderBy(s => s.SequenceNum))
                     {
                         var workoutSet = new WorkoutSet
@@ -1221,71 +1060,44 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                             WorkoutExerciseId = workoutExercise.WorkoutExerciseId,
                             SettypeId = templateSet.SettypeId,
                             SequenceNum = templateSet.SequenceNum,
-                            SetNumber = setNumber++,
+                            SetNumber = templateSet.SequenceNum,
                             Reps = templateSet.DefaultReps,
                             Weight = templateSet.DefaultWeight,
-                            Notes = templateSet.Notes,
-                            // Default rest period if needed
-                            RestSeconds = 60, // Using standard default value
-                            // Use min/max reps from template or set reasonable defaults
-                            TargetMinReps = templateExercise.MinReps,
-                            TargetMaxReps = templateExercise.MaxReps,
-                            IsCompleted = false,
-                            Timestamp = DateTime.Now
+                            Notes = templateSet.Notes
                         };
-                        
-                        workoutSets.Add(workoutSet);
+
+                        _context.WorkoutSets.Add(workoutSet);
                     }
-                    
-                    _context.WorkoutSets.AddRange(workoutSets);
-                    await _context.SaveChangesAsync();
+                }
+                await _context.SaveChangesAsync();
+                
+                // Update schedule status
+                if (schedule.WorkoutScheduleId > 0) // Only update if this is a real schedule
+                {
+                    // Find the actual workout schedule in the database and update its status
+                    var scheduleToUpdate = await _context.WorkoutSchedules.FindAsync(schedule.WorkoutScheduleId);
+                    if (scheduleToUpdate != null)
+                    {
+                        scheduleToUpdate.LastGenerationStatus = "Processed";
+                        scheduleToUpdate.LastGeneratedWorkoutDate = DateTime.UtcNow;
+                        scheduleToUpdate.LastGeneratedSessionId = workoutSession.WorkoutSessionId;
+                    }
                 }
 
-                // Step 5: Update the status tracking on the actual workout
-                var actualWorkout = await _context.WorkoutSchedules
-                    .FirstOrDefaultAsync(w => w.WorkoutScheduleId == workout.WorkoutScheduleId);
+                await _context.SaveChangesAsync();
                 
-                if (actualWorkout != null)
-                {
-                    // Update tracking properties
-                    actualWorkout.LastGeneratedWorkoutDate = DateTime.Now;
-                    actualWorkout.LastGeneratedSessionId = session.SessionId;
-                    actualWorkout.TotalWorkoutsGenerated = actualWorkout.TotalWorkoutsGenerated + 1;
-                    actualWorkout.LastGenerationStatus = "Success";
-                    
-                    // If this is a one-time schedule, mark it as inactive
-                    if (!actualWorkout.IsRecurring || actualWorkout.RecurrencePattern == "Once")
-                    {
-                        actualWorkout.IsActive = false;
-                    }
-                    
-                    await _context.SaveChangesAsync();
-                }
-                else
-                {
-                    _logger.LogWarning("Could not find original workout {Id} to update status tracking", 
-                        workout.WorkoutScheduleId);
-                }
-                
-                await transaction.CommitAsync();
-                return session;
+                _logger.LogInformation(
+                    "Successfully processed scheduled workout {ScheduleId} for user {UserId}", 
+                    schedule.WorkoutScheduleId, 
+                    schedule.ClientUserId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error converting scheduled workout {Id} to session", workout.WorkoutScheduleId);
-                await transaction.RollbackAsync();
-                
-                // Update status tracking to record the failure
-                var actualWorkout = await _context.WorkoutSchedules
-                    .FirstOrDefaultAsync(w => w.WorkoutScheduleId == workout.WorkoutScheduleId);
-                
-                if (actualWorkout != null)
-                {
-                    actualWorkout.LastGenerationStatus = $"Failed: {ex.Message}";
-                    await _context.SaveChangesAsync();
-                }
-                
-                return null;
+                _logger.LogError(ex, 
+                    "Error processing scheduled workout {ScheduleId} for user {UserId}", 
+                    schedule.WorkoutScheduleId, 
+                    schedule.ClientUserId);
+                throw;
             }
         }
     }

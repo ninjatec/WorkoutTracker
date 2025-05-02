@@ -2,6 +2,7 @@
 @model WorkoutTrackerWeb.Pages.Account.Manage.ShareTokensModel
 @{
     ViewData["Title"] = "Manage Share Tokens";
+    var allWorkoutSessionsText = "All workout sessions";
 }
 
 <h1>Account Management</h1>
@@ -44,11 +45,6 @@
                                             <span asp-validation-for="CreateTokenInput.Description" class="text-danger"></span>
                                         </div>
                                         <div class="form-group">
-                                            <label asp-for="CreateTokenInput.SessionId"></label>
-                                            <select asp-for="CreateTokenInput.SessionId" asp-items="Model.SessionItems" class="form-control"></select>
-                                            <small class="form-text text-muted">Leave empty to share all sessions.</small>
-                                        </div>
-                                        <div class="form-group">
                                             <label asp-for="CreateTokenInput.WorkoutSessionId"></label>
                                             <select asp-for="CreateTokenInput.WorkoutSessionId" asp-items="Model.WorkoutSessionItems" class="form-control"></select>
                                             <small class="form-text text-muted">Leave empty to share all workout sessions.</small>
@@ -68,10 +64,6 @@
                                         </div>
                                         <div class="form-group">
                                             <label>Permissions</label>
-                                            <div class="form-check">
-                                                <input asp-for="CreateTokenInput.AllowSessionAccess" class="form-check-input" />
-                                                <label asp-for="CreateTokenInput.AllowSessionAccess" class="form-check-label"></label>
-                                            </div>
                                             <div class="form-check">
                                                 <input asp-for="CreateTokenInput.AllowReportAccess" class="form-check-input" />
                                                 <label asp-for="CreateTokenInput.AllowReportAccess" class="form-check-label"></label>
@@ -124,10 +116,16 @@
                                                 <div class="d-flex w-100 justify-content-between align-items-center">
                                                     <div>
                                                         <strong>@(string.IsNullOrEmpty(token.Name) ? $"Share {token.CreatedAt:yyyy-MM-dd}" : token.Name)</strong>
-                                                        @if (token.SessionId.HasValue)
-                                                        {
-                                                            <span class="badge bg-info ms-2">Session: @token.SessionName</span>
-                                                        }
+                                                        <span class="badge bg-light text-dark mb-1">
+                                                            @if (token.WorkoutSessionId != null && token.WorkoutSessionId != 0)
+                                                            {
+                                                                <i class="fas fa-dumbbell me-1"></i> @(token.WorkoutSessionName ?? $"Workout Session #{token.WorkoutSessionId}")
+                                                            }
+                                                            else
+                                                            {
+                                                                <i class="fas fa-calendar me-1"></i> @allWorkoutSessionsText
+                                                            }
+                                                        </span>
                                                     </div>
                                                     <div class="ms-3">
                                                         @if (token.IsValid)
@@ -220,10 +218,6 @@
                                                                 
                                                                 <h5>Permissions</h5>
                                                                 <ul class="list-group mb-3">
-                                                                    <li class="list-group-item @(token.AllowSessionAccess ? "list-group-item-success" : "list-group-item-danger")">
-                                                                        <i class="bi @(token.AllowSessionAccess ? "bi-check-circle" : "bi-x-circle")"></i>
-                                                                        Sessions
-                                                                    </li>
                                                                     <li class="list-group-item @(token.AllowReportAccess ? "list-group-item-success" : "list-group-item-danger")">
                                                                         <i class="bi @(token.AllowReportAccess ? "bi-check-circle" : "bi-x-circle")"></i>
                                                                         Reports
@@ -314,11 +308,6 @@
                                                             
                                                             <div class="form-group mb-3">
                                                                 <label>Permissions</label>
-                                                                <div class="form-check">
-                                                                    <input type="checkbox" class="form-check-input" id="EditTokenInput_AllowSessionAccess_@token.Id" 
-                                                                           name="EditTokenInput.AllowSessionAccess" @(token.AllowSessionAccess ? "checked" : "")>
-                                                                    <label class="form-check-label" for="EditTokenInput_AllowSessionAccess_@token.Id">Allow access to sessions</label>
-                                                                </div>
                                                                 <div class="form-check">
                                                                     <input type="checkbox" class="form-check-input" id="EditTokenInput_AllowReportAccess_@token.Id" 
                                                                            name="EditTokenInput.AllowReportAccess" @(token.AllowReportAccess ? "checked" : "")>

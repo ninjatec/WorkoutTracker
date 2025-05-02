@@ -3,6 +3,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Hangfire;
 using Hangfire.Server;
+using Hangfire.Redis.StackExchange;
+using Hangfire.SqlServer;
+using Microsoft.Extensions.DependencyInjection;
+using WorkoutTrackerWeb.Services.Redis;
 
 namespace WorkoutTrackerWeb.Services.Hangfire
 {
@@ -15,42 +19,10 @@ namespace WorkoutTrackerWeb.Services.Hangfire
         private readonly IConfiguration _configuration;
         private readonly ILogger<HangfireServerConfiguration> _logger;
 
-        /// <summary>
-        /// Indicates whether this server instance should process background jobs
-        /// Used to disable processing on web app pods while enabling it on worker pods
-        /// </summary>
+        // Server configuration properties
         public bool IsProcessingEnabled { get; private set; }
-
-        /// <summary>
-        /// Number of worker threads to use for job processing
-        /// For dedicated workers, this should be higher than web pods
-        /// </summary>
         public int WorkerCount { get; private set; }
-
-        /// <summary>
-        /// Server name used to identify this instance in the Hangfire dashboard
-        /// </summary>
-        public string ServerName { get; private set; }
-
-        /// <summary>
-        /// Queues this server will process, in order of priority
-        /// </summary>
         public string[] Queues { get; private set; }
-
-        /// <summary>
-        /// How often the server should report its status to the database
-        /// </summary>
-        public TimeSpan HeartbeatInterval { get; private set; }
-
-        /// <summary>
-        /// How often to check for server timeouts
-        /// </summary>
-        public TimeSpan ServerCheckInterval { get; private set; }
-
-        /// <summary>
-        /// How often to check for scheduled jobs
-        /// </summary>
-        public TimeSpan SchedulePollingInterval { get; private set; }
 
         /// <summary>
         /// Creates a new instance of HangfireServerConfiguration
@@ -69,76 +41,79 @@ namespace WorkoutTrackerWeb.Services.Hangfire
         }
 
         /// <summary>
-        /// Loads configuration from appsettings.json and environment variables
+        /// Configures Hangfire global configuration based on settings
         /// </summary>
-        private void InitializeConfiguration()
+        /// <param name="config">Hangfire global configuration</param>
+        public void ConfigureHangfire(IGlobalConfiguration config)
         {
-            // First check environment variables (for Kubernetes pod configuration)
-            var processingEnabledEnv = Environment.GetEnvironmentVariable("HANGFIRE_PROCESSING_ENABLED");
-            var workerCountEnv = Environment.GetEnvironmentVariable("HANGFIRE_WORKER_COUNT");
-            var serverNameEnv = Environment.GetEnvironmentVariable("POD_NAME") ?? Environment.GetEnvironmentVariable("HOSTNAME");
-
-            // Then check configuration files (with environment variables taking precedence)
-            IsProcessingEnabled = string.IsNullOrEmpty(processingEnabledEnv)
-                ? _configuration.GetValue<bool>("Hangfire:ProcessingEnabled", true)
-                : bool.TryParse(processingEnabledEnv, out var result) && result;
-
-            WorkerCount = string.IsNullOrEmpty(workerCountEnv)
-                ? _configuration.GetValue<int>("Hangfire:WorkerCount", Environment.ProcessorCount * 2)
-                : int.TryParse(workerCountEnv, out var count) ? count : Environment.ProcessorCount * 2;
-
-            ServerName = serverNameEnv ?? 
-                _configuration.GetValue<string>("Hangfire:ServerName", $"server:{Environment.MachineName}");
-
-            Queues = _configuration.GetSection("Hangfire:Queues").Get<string[]>() ?? 
-                new[] { "critical", "default" };
-
-            // Parse TimeSpan values from configuration
-            if (TimeSpan.TryParse(_configuration["Hangfire:HeartbeatInterval"], out var heartbeatInterval))
-                HeartbeatInterval = heartbeatInterval;
+            var redisConfig = _configuration.GetSection("Redis").Get<RedisConfiguration>();
+            
+            if (redisConfig?.Enabled == true && !string.IsNullOrEmpty(redisConfig.ConnectionString))
+            {
+                _logger.LogInformation("Configuring Hangfire with Redis storage");
+                
+                // Configure Redis as the storage provider
+                config.UseRedisStorage(redisConfig.ConnectionString, new RedisStorageOptions
+                {
+                    Prefix = "hangfire:",
+                    SucceededListSize = 1000,
+                    DeletedListSize = 1000,
+                    InvisibilityTimeout = TimeSpan.FromMinutes(30)
+                });
+            }
             else
-                HeartbeatInterval = TimeSpan.FromSeconds(30);
+            {
+                _logger.LogInformation("Configuring Hangfire with SQL Server storage");
+                
+                // Use SQL Server as the storage provider
+                var connectionString = _configuration.GetConnectionString("DefaultConnection");
+                config.UseSqlServerStorage(connectionString, new SqlServerStorageOptions
+                {
+                    SchemaName = "HangFire",
+                    CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+                    QueuePollInterval = TimeSpan.FromSeconds(15),
+                    UseRecommendedIsolationLevel = true,
+                    DisableGlobalLocks = false // Keep global locks for distributed environment
+                });
+            }
 
-            if (TimeSpan.TryParse(_configuration["Hangfire:ServerCheckInterval"], out var serverCheckInterval))
-                ServerCheckInterval = serverCheckInterval;
-            else
-                ServerCheckInterval = TimeSpan.FromMinutes(1);
-
-            if (TimeSpan.TryParse(_configuration["Hangfire:SchedulePollingInterval"], out var schedulePollingInterval))
-                SchedulePollingInterval = schedulePollingInterval;
-            else
-                SchedulePollingInterval = TimeSpan.FromSeconds(15);
-
-            _logger.LogInformation(
-                "Hangfire server configuration initialized. Processing: {IsProcessingEnabled}, Workers: {WorkerCount}, Server: {ServerName}",
-                IsProcessingEnabled, WorkerCount, ServerName);
+            // Configure job activation timeout
+            config.SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                  .UseSimpleAssemblyNameTypeSerializer()
+                  .UseRecommendedSerializerSettings()
+                  .UseDefaultActivator();
         }
 
         /// <summary>
-        /// Applies the current configuration to Hangfire server options
+        /// Configures Hangfire server options
         /// </summary>
-        /// <param name="options">The BackgroundJobServerOptions to configure</param>
+        /// <param name="options">Server options to configure</param>
         public void ConfigureServerOptions(BackgroundJobServerOptions options)
         {
-            if (options == null) throw new ArgumentNullException(nameof(options));
-
-            options.ServerName = ServerName;
             options.WorkerCount = WorkerCount;
             options.Queues = Queues;
-            options.HeartbeatInterval = HeartbeatInterval;
-            options.ServerCheckInterval = ServerCheckInterval;
-            options.SchedulePollingInterval = SchedulePollingInterval;
+            options.ServerTimeout = TimeSpan.FromMinutes(5);
+            options.ShutdownTimeout = TimeSpan.FromMinutes(2);
+            options.ServerName = $"{Environment.MachineName}:{DateTime.UtcNow:yyyyMMddHHmmss}";
+        }
 
-            // Set specific worker count based on role
-            if (!IsProcessingEnabled)
-            {
-                options.WorkerCount = 0; // Disable workers completely if processing is disabled
-                _logger.LogInformation("Hangfire server configured as non-processing node. Worker count set to 0.");
-            }
-            else
-            {
-                _logger.LogInformation("Hangfire server configured as processing node with {WorkerCount} workers.", options.WorkerCount);
-            }
+        private void InitializeConfiguration()
+        {
+            var section = _configuration.GetSection("Hangfire");
+            
+            // Determine if this instance should process jobs
+            IsProcessingEnabled = section.GetValue<bool>("Processing:Enabled", true);
+            
+            // Configure worker count based on settings or environment
+            WorkerCount = section.GetValue<int>("Processing:WorkerCount", Environment.ProcessorCount * 2);
+            
+            // Configure job queues and their priorities
+            var configuredQueues = section.GetSection("Processing:Queues").Get<string[]>();
+            Queues = configuredQueues ?? new[] { "critical", "default" };
+
+            _logger.LogInformation(
+                "Initialized Hangfire configuration: Processing={IsEnabled}, Workers={Workers}, Queues={Queues}",
+                IsProcessingEnabled, WorkerCount, string.Join(",", Queues));
         }
     }
 }

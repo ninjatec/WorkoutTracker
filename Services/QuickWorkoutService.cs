@@ -221,32 +221,20 @@ namespace WorkoutTrackerWeb.Services
         /// </summary>
         public async Task<bool> HasCompletedSetsAsync(int sessionId)
         {
-            // First check if this is a WorkoutSession
             var workoutSession = await _context.WorkoutSessions
                 .Include(ws => ws.WorkoutExercises)
                     .ThenInclude(we => we.WorkoutSets)
-                .FirstOrDefaultAsync(ws => ws.SessionId == sessionId);
+                .FirstOrDefaultAsync(ws => ws.WorkoutSessionId == sessionId);
 
-            if (workoutSession != null)
+            if (workoutSession == null)
             {
-                // Check if any WorkoutSets exist and are marked as completed
-                return workoutSession.WorkoutExercises
-                    .SelectMany(we => we.WorkoutSets)
-                    .Any(ws => ws.IsCompleted);
+                return false;
             }
 
-            // Fall back to checking legacy Session model
-            var session = await _context.Session
-                .Include(s => s.Sets)
-                .FirstOrDefaultAsync(s => s.SessionId == sessionId);
-
-            if (session != null)
-            {
-                // For legacy sessions, consider any sets as completed
-                return session.Sets.Any();
-            }
-
-            return false;
+            // Check if any WorkoutSets exist and are marked as completed
+            return workoutSession.WorkoutExercises
+                .SelectMany(we => we.WorkoutSets)
+                .Any(ws => ws.IsCompleted);
         }
     }
 }

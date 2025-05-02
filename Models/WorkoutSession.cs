@@ -59,9 +59,6 @@ namespace WorkoutTrackerWeb.Models
         [Display(Name = "Status")]
         public string Status { get; set; }
         
-        // Foreign key to original Session (for migration tracking)
-        public int? SessionId { get; set; }
-        
         [Display(Name = "Iteration Number")]
         public int IterationNumber { get; set; } = 1;
         
@@ -84,8 +81,22 @@ namespace WorkoutTrackerWeb.Models
         [ForeignKey("WorkoutTemplateId")]
         public WorkoutTemplate WorkoutTemplate { get; set; }
         
-        [ForeignKey("SessionId")]
-        public Session Session { get; set; }
+        // Additional properties to ensure backwards compatibility
+        [NotMapped]
+        public string Notes { 
+            get => Description;
+            set => Description = value; 
+        }
+        
+        [NotMapped]
+        public DateTime? datetime {
+            get => StartDateTime;
+            set { if (value.HasValue) StartDateTime = value.Value; }
+        }
+        
+        // Helper property for code that expects Exercises navigation property
+        [NotMapped]
+        public ICollection<WorkoutExercise> Exercises => WorkoutExercises;
         
         // Collection navigation properties
         public ICollection<WorkoutExercise> WorkoutExercises { get; set; } = new List<WorkoutExercise>();

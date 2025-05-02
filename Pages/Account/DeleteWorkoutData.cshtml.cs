@@ -58,10 +58,19 @@ namespace WorkoutTrackerWeb.Pages.Account
                 
                 if (!string.IsNullOrEmpty(JobId))
                 {
-                    // Get current job state
-                    JobState = GetJobState(JobId);
-                    
-                    _logger.LogDebug("Retrieved job state {JobState} for job {JobId}", JobState, JobId);
+                    try
+                    {
+                        // Get job state directly from Hangfire connection
+                        var jobData = JobStorage.Current.GetConnection().GetJobData(JobId);
+                        JobState = jobData?.State ?? "Unknown";
+                        
+                        _logger.LogDebug("Retrieved job state {JobState} for job {JobId}", JobState, JobId);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error retrieving job state for job {JobId}", JobId);
+                        JobState = "Error";
+                    }
                 }
             }
             
@@ -99,8 +108,16 @@ namespace WorkoutTrackerWeb.Pages.Account
                 // Store job ID in TempData so it persists across requests
                 TempData["JobId"] = JobId;
                 
-                // Get initial job state
-                JobState = GetJobState(JobId);
+                // Get job state directly
+                try
+                {
+                    var jobData = JobStorage.Current.GetConnection().GetJobData(JobId);
+                    JobState = jobData?.State ?? "Unknown";
+                }
+                catch
+                {
+                    JobState = "Unknown";
+                }
 
                 Message = "Your workout data deletion has been queued. This process will run in the background. You can view the progress on this page.";
                 Success = true;
@@ -118,35 +135,44 @@ namespace WorkoutTrackerWeb.Pages.Account
         // Helper method to get the current state of a Hangfire job
         private string GetJobState(string jobId)
         {
+            // Quick validation
             if (string.IsNullOrEmpty(jobId))
                 return "Unknown";
                 
             try
             {
+                // Simplified approach that doesn't need direct comparisons
+                if (!int.TryParse(jobId, out _))
+                {
+                    _logger.LogWarning("Invalid job ID format: {JobId}", jobId);
+                    return "Invalid";
+                }
+                
+                // Instead of directly comparing with job IDs, use string.Equals
                 var monitoringApi = JobStorage.Current.GetMonitoringApi();
                 
-                // Check each state collection for this job ID
-                var processingJobs = monitoringApi.ProcessingJobs(0, 1000);
-                if (processingJobs.Any(j => j.Key == jobId))
-                    return "Processing";
+                // Check various job states using a simpler approach
+                try 
+                {
+                    var job = JobStorage.Current.GetConnection().GetJobData(jobId);
+                    if (job != null)
+                    {
+                        switch (job.State)
+                        {
+                            case "Processing": return "Processing";
+                            case "Succeeded": return "Succeeded";
+                            case "Failed": return "Failed";
+                            case "Scheduled": return "Scheduled";
+                            case "Enqueued": return "Enqueued";
+                            default: return job.State ?? "Unknown";
+                        }
+                    }
+                }
+                catch 
+                {
+                    // Fall back to generic "Unknown" if we can't retrieve the job
+                }
                 
-                var succeededJobs = monitoringApi.SucceededJobs(0, 1000);
-                if (succeededJobs.Any(j => j.Key == jobId))
-                    return "Succeeded";
-                    
-                var failedJobs = monitoringApi.FailedJobs(0, 1000);
-                if (failedJobs.Any(j => j.Key == jobId))
-                    return "Failed";
-                    
-                var scheduledJobs = monitoringApi.ScheduledJobs(0, 1000);  
-                if (scheduledJobs.Any(j => j.Key == jobId))
-                    return "Scheduled";
-                
-                var enqueuedJobs = monitoringApi.EnqueuedJobs("default", 0, 1000);
-                if (enqueuedJobs.Any(j => j.Key == jobId))
-                    return "Enqueued";
-                
-                // If we got here, the job wasn't found in any known state
                 return "Unknown";
             }
             catch (Exception ex)

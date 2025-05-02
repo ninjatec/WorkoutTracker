@@ -25,10 +25,7 @@ namespace WorkoutTrackerWeb.Data
         }
 
         public DbSet<WorkoutTrackerWeb.Models.User> User { get; set; } = default!;
-        public DbSet<WorkoutTrackerWeb.Models.Session> Session { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.ExerciseType> ExerciseType { get; set; } = default!;
-        public DbSet<WorkoutTrackerWeb.Models.Rep> Rep { get; set; } = default!;
-        public DbSet<WorkoutTrackerWeb.Models.Set> Set { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Settype> Settype { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Feedback> Feedback { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.HelpArticle> HelpArticle { get; set; } = default!;
@@ -74,6 +71,7 @@ namespace WorkoutTrackerWeb.Data
         public DbSet<WorkoutTrackerWeb.Models.WorkoutSession> WorkoutSessions { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.WorkoutExercise> WorkoutExercises { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.WorkoutSet> WorkoutSets { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.Rep> Rep { get; set; } = default!;
 
         // New DbSets for coach dashboard integration
         public DbSet<WorkoutTrackerWeb.Models.Coaching.GoalFeedback> GoalFeedback { get; set; } = default!;
@@ -157,40 +155,9 @@ namespace WorkoutTrackerWeb.Data
                 .HasForeignKey(m => m.CoachClientRelationshipId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Sessions are filtered by the current user
-            modelBuilder.Entity<Session>()
-                .HasQueryFilter(s => _currentUserId == null || s.User.IdentityUserId == _currentUserId);
-
-            // Sets are directly filtered by the current user (via Session)
-            modelBuilder.Entity<Set>()
-                .HasQueryFilter(s => _currentUserId == null || s.Session.User.IdentityUserId == _currentUserId);
-
-            // Reps are filtered by the current user (via Set -> Session)
-            modelBuilder.Entity<Rep>()
-                .HasQueryFilter(r => _currentUserId == null || r.Set.Session.User.IdentityUserId == _currentUserId);
-                
             // Feedback is filtered by the current user (only see your own feedback unless admin)
             modelBuilder.Entity<Feedback>()
                 .HasQueryFilter(f => _currentUserId == null || f.User == null || f.User.IdentityUserId == _currentUserId);
-
-            // Configure cascade delete for Rep-Set relationship
-            modelBuilder.Entity<Set>()
-                .HasMany(s => s.Reps)
-                .WithOne(r => r.Set)
-                .HasForeignKey(r => r.SetsSetId)
-                .OnDelete(DeleteBehavior.Cascade);
-            
-            // Configure the relationship between Set and ExerciseType
-            modelBuilder.Entity<Set>()
-                .HasOne(s => s.ExerciseType)
-                .WithMany(e => e.Sets)
-                .HasForeignKey(s => s.ExerciseTypeId);
-                
-            // Configure the relationship between Set and Session
-            modelBuilder.Entity<Set>()
-                .HasOne(s => s.Session)
-                .WithMany(s => s.Sets)
-                .HasForeignKey(s => s.SessionId);
                 
             // Configure the relationship between Feedback and User
             modelBuilder.Entity<Feedback>()
@@ -231,9 +198,9 @@ namespace WorkoutTrackerWeb.Data
                 .OnDelete(DeleteBehavior.Restrict);
                 
             modelBuilder.Entity<ShareToken>()
-                .HasOne(st => st.Session)
+                .HasOne(st => st.WorkoutSession)
                 .WithMany()
-                .HasForeignKey(st => st.SessionId)
+                .HasForeignKey(st => st.WorkoutSessionId)
                 .OnDelete(DeleteBehavior.SetNull);
                 
             // ShareTokens are filtered by the current user (only see your own tokens unless admin)
@@ -586,7 +553,7 @@ namespace WorkoutTrackerWeb.Data
                 .HasIndex(ws => ws.IsActive);
                 
             modelBuilder.Entity<WorkoutFeedback>()
-                .HasIndex(wf => wf.SessionId);
+                .HasIndex(wf => wf.WorkoutSessionId);
                 
             modelBuilder.Entity<WorkoutFeedback>()
                 .HasIndex(wf => wf.ClientUserId);
@@ -601,7 +568,7 @@ namespace WorkoutTrackerWeb.Data
                 .HasIndex(ef => ef.WorkoutFeedbackId);
                 
             modelBuilder.Entity<ExerciseFeedback>()
-                .HasIndex(ef => ef.SetId);
+                .HasIndex(ef => ef.WorkoutSetId);
                 
             modelBuilder.Entity<ProgressionRule>()
                 .HasIndex(pr => pr.WorkoutTemplateExerciseId);
@@ -622,7 +589,7 @@ namespace WorkoutTrackerWeb.Data
                 .HasIndex(ph => ph.ProgressionRuleId);
                 
             modelBuilder.Entity<ProgressionHistory>()
-                .HasIndex(ph => ph.SessionId);
+                .HasIndex(ph => ph.WorkoutSessionId);
                 
             modelBuilder.Entity<ProgressionHistory>()
                 .HasIndex(ph => ph.ApplicationDate);
@@ -676,31 +643,71 @@ namespace WorkoutTrackerWeb.Data
                 .HasForeignKey(es => es.CreatedByCoachId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // WorkoutSession relationships and query filter
+            modelBuilder.Entity<WorkoutSession>()
+                .HasOne(ws => ws.User)
+                .WithMany()
+                .HasForeignKey(ws => ws.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            modelBuilder.Entity<WorkoutSession>()
+                .HasQueryFilter(ws => _currentUserId == null || ws.User.IdentityUserId == _currentUserId);
+                
+            // WorkoutExercise relationships
+            modelBuilder.Entity<WorkoutExercise>()
+                .HasOne(we => we.WorkoutSession)
+                .WithMany(ws => ws.WorkoutExercises)
+                .HasForeignKey(we => we.WorkoutSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<WorkoutExercise>()
+                .HasOne(we => we.ExerciseType)
+                .WithMany()
+                .HasForeignKey(we => we.ExerciseTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            // WorkoutSet relationships
+            modelBuilder.Entity<WorkoutSet>()
+                .HasOne(ws => ws.WorkoutExercise)
+                .WithMany(we => we.WorkoutSets)
+                .HasForeignKey(ws => ws.WorkoutExerciseId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
             // WorkoutFeedback relationships
             modelBuilder.Entity<WorkoutFeedback>()
-                .HasOne(wf => wf.Session)
+                .HasOne(wf => wf.WorkoutSession)
                 .WithMany()
-                .HasForeignKey(wf => wf.SessionId)
-                .OnDelete(DeleteBehavior.Cascade);
-                
-            modelBuilder.Entity<WorkoutFeedback>()
-                .HasOne(wf => wf.Client)
-                .WithMany()
-                .HasForeignKey(wf => wf.ClientUserId)
-                .OnDelete(DeleteBehavior.Restrict);
-                
-            // ExerciseFeedback relationships
-            modelBuilder.Entity<ExerciseFeedback>()
-                .HasOne(ef => ef.WorkoutFeedback)
-                .WithMany(wf => wf.ExerciseFeedbacks)
-                .HasForeignKey(ef => ef.WorkoutFeedbackId)
+                .HasForeignKey(wf => wf.WorkoutSessionId)
                 .OnDelete(DeleteBehavior.Cascade);
                 
             modelBuilder.Entity<ExerciseFeedback>()
-                .HasOne(ef => ef.Set)
+                .HasOne(ef => ef.WorkoutSet)
                 .WithMany()
-                .HasForeignKey(ef => ef.SetId)
+                .HasForeignKey(ef => ef.WorkoutSetId)
                 .OnDelete(DeleteBehavior.Restrict);
+                
+            // ProgressionHistory relationships
+            modelBuilder.Entity<ProgressionHistory>()
+                .HasOne(ph => ph.WorkoutSession)
+                .WithMany()
+                .HasForeignKey(ph => ph.WorkoutSessionId)
+                .OnDelete(DeleteBehavior.SetNull);
+                
+            // Add indexes for better performance
+            modelBuilder.Entity<WorkoutSession>()
+                .HasIndex(ws => ws.UserId);
+                
+            modelBuilder.Entity<WorkoutSession>()
+                .HasIndex(ws => ws.StartDateTime);
+                
+            modelBuilder.Entity<WorkoutExercise>()
+                .HasIndex(we => we.WorkoutSessionId);
+                
+            modelBuilder.Entity<WorkoutExercise>()
+                .HasIndex(we => we.ExerciseTypeId);
+                
+            modelBuilder.Entity<WorkoutSet>()
+                .HasIndex(ws => ws.WorkoutExerciseId);
 
             // Configure GoalFeedback relationships and query filters
             modelBuilder.Entity<GoalFeedback>()

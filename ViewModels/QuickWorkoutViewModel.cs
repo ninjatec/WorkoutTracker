@@ -10,7 +10,7 @@ namespace WorkoutTrackerWeb.ViewModels
     public class QuickWorkoutViewModel
     {
         // Active session information
-        public Session CurrentSession { get; set; }
+        public WorkoutSession CurrentSession { get; set; }
         
         // For adding new sets
         [Display(Name = "Exercise")]
@@ -49,7 +49,7 @@ namespace WorkoutTrackerWeb.ViewModels
         
         // For UI display
         public bool HasActiveSession { get; set; }
-        public List<Set> RecentSets { get; set; } = new List<Set>();
+        public List<WorkoutSet> RecentSets { get; set; } = new List<WorkoutSet>();
         public List<ExerciseTypeWithUseCount> RecentExercises { get; set; } = new List<ExerciseTypeWithUseCount>();
         public List<ExerciseType> FavoriteExercises { get; set; } = new List<ExerciseType>();
         

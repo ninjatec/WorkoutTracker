@@ -1,10 +1,6 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
 namespace WorkoutTrackerWeb.Models
 {
@@ -12,15 +8,18 @@ namespace WorkoutTrackerWeb.Models
     {
         public int RepId { get; set; }
         
-        [Column(TypeName = "decimal(6, 2)")]
-        public decimal weight { get; set; } = 0;
+        public int WorkoutSetId { get; set; }
         
-        public int repnumber { get; set; } = 0;
-        public bool success { get; set; } = true; //true = success, false = fail
+        public int RepNumber { get; set; }
         
-        public int? SetsSetId { get; set; }
-        [ForeignKey("SetsSetId")]
-        [DeleteBehavior(DeleteBehavior.Cascade)]
-        public Set Set { get; set; }
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal Weight { get; set; }
+        
+        public bool Success { get; set; }
+        
+        public DateTime Timestamp { get; set; } = DateTime.Now;
+        
+        [ForeignKey("WorkoutSetId")]
+        public WorkoutSet WorkoutSet { get; set; }
     }
 }

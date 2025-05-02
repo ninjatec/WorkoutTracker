@@ -82,6 +82,26 @@ namespace WorkoutTrackerWeb.Models.Coaching
         
         // Navigation to progression history
         public ICollection<ProgressionHistory> ProgressionHistory { get; set; } = new List<ProgressionHistory>();
+
+        public bool CanApplyToWorkout(WorkoutSession session)
+        {
+            if (session == null)
+                return false;
+
+            // Check if this rule applies to the client
+            if (ClientUserId.HasValue && session.UserId != ClientUserId.Value)
+                return false;
+
+            // If this rule is specific to a template exercise, verify it matches
+            if (WorkoutTemplateExerciseId.HasValue && session.WorkoutTemplateId.HasValue)
+            {
+                var templateId = session.WorkoutTemplateId.Value;
+                // Further template-specific checks would go here
+            }
+
+            // Add any additional validation logic here
+            return true;
+        }
     }
     
     /// <summary>
@@ -94,8 +114,8 @@ namespace WorkoutTrackerWeb.Models.Coaching
         // Foreign key for ProgressionRule
         public int ProgressionRuleId { get; set; }
         
-        // Foreign key for Session that triggered the progression
-        public int? SessionId { get; set; }
+        // Foreign key for WorkoutSession that triggered the progression
+        public int? WorkoutSessionId { get; set; }
         
         [Display(Name = "Application Date")]
         public DateTime ApplicationDate { get; set; } = DateTime.Now;
@@ -125,6 +145,8 @@ namespace WorkoutTrackerWeb.Models.Coaching
         
         // Navigation properties
         public ProgressionRule ProgressionRule { get; set; }
-        public Session Session { get; set; }
+        
+        [ForeignKey("WorkoutSessionId")]
+        public WorkoutSession WorkoutSession { get; set; }
     }
 }

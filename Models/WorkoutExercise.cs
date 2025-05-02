@@ -52,6 +52,10 @@ namespace WorkoutTrackerWeb.Models
         
         // Collection navigation properties
         public ICollection<WorkoutSet> WorkoutSets { get; set; } = new List<WorkoutSet>();
+        
+        // Compatibility property for code that expects Sets
+        [NotMapped]
+        public ICollection<WorkoutSet> Sets => WorkoutSets;
     }
     
     /// <summary>

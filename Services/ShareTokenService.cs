@@ -107,7 +107,6 @@ namespace WorkoutTrackerWeb.Services
             {
                 var shareTokens = await _context.ShareToken
                     .Include(st => st.User)
-                    .Include(st => st.Session)
                     .Include(st => st.WorkoutSession)
                     .Where(st => st.UserId == userId)
                     .OrderByDescending(st => st.CreatedAt)
@@ -129,7 +128,6 @@ namespace WorkoutTrackerWeb.Services
             {
                 var shareToken = await _context.ShareToken
                     .Include(st => st.User)
-                    .Include(st => st.Session)
                     .Include(st => st.WorkoutSession)
                     .FirstOrDefaultAsync(st => st.Id == id && st.UserId == userId);
 
@@ -154,18 +152,6 @@ namespace WorkoutTrackerWeb.Services
                 if (user == null)
                 {
                     throw new InvalidOperationException($"User with ID {userId} not found");
-                }
-
-                Models.Session session = null;
-                if (request.SessionId.HasValue)
-                {
-                    session = await _context.Session
-                        .FirstOrDefaultAsync(s => s.SessionId == request.SessionId.Value && s.UserId == userId);
-                    
-                    if (session == null)
-                    {
-                        throw new InvalidOperationException($"Session with ID {request.SessionId.Value} not found or does not belong to user");
-                    }
                 }
 
                 WorkoutSession workoutSession = null;
@@ -199,7 +185,6 @@ namespace WorkoutTrackerWeb.Services
                     AllowReportAccess = request.AllowReportAccess,
                     AllowCalculatorAccess = request.AllowCalculatorAccess,
                     UserId = userId,
-                    SessionId = request.SessionId,
                     WorkoutSessionId = request.WorkoutSessionId,
                     Name = request.Name ?? $"Share {DateTime.UtcNow:yyyy-MM-dd}",
                     Description = request.Description
@@ -229,7 +214,6 @@ namespace WorkoutTrackerWeb.Services
                 
                 var shareToken = await _context.ShareToken
                     .Include(st => st.User)
-                    .Include(st => st.Session)
                     .Include(st => st.WorkoutSession)
                     .FirstOrDefaultAsync(st => st.Token == token);
 
@@ -310,7 +294,6 @@ namespace WorkoutTrackerWeb.Services
             {
                 var shareToken = await _context.ShareToken
                     .Include(st => st.User)
-                    .Include(st => st.Session)
                     .Include(st => st.WorkoutSession)
                     .FirstOrDefaultAsync(st => st.Id == id && st.UserId == userId);
 
@@ -438,8 +421,6 @@ namespace WorkoutTrackerWeb.Services
                 AllowCalculatorAccess = shareToken.AllowCalculatorAccess,
                 UserId = shareToken.UserId,
                 UserName = shareToken.User?.Name,
-                SessionId = shareToken.SessionId,
-                SessionName = shareToken.Session?.Name,
                 WorkoutSessionId = shareToken.WorkoutSessionId,
                 WorkoutSessionName = shareToken.WorkoutSession?.Name,
                 Name = shareToken.Name,
@@ -453,6 +434,42 @@ namespace WorkoutTrackerWeb.Services
             Console.WriteLine($"MapToDto: AllowSessionAccess={dto.AllowSessionAccess}, AllowReportAccess={dto.AllowReportAccess}, AllowCalculatorAccess={dto.AllowCalculatorAccess}");
             
             return dto;
+        }
+
+        /// <summary>
+        /// Creates a new share token for a user.
+        /// </summary>
+        /// <param name="userId">The ID of the user creating the token.</param>
+        /// <param name="workoutSessionId">The ID of the workout session to associate with the token, if any.</param>
+        /// <returns>The newly created share token DTO.</returns>
+        public async Task<ShareTokenDto> CreateTokenAsync(int userId, int? workoutSessionId = null)
+        {
+            // Validate access to session if specified
+            if (workoutSessionId.HasValue)
+            {
+                var session = await _context.WorkoutSessions
+                    .FirstOrDefaultAsync(s => s.WorkoutSessionId == workoutSessionId && s.UserId == userId);
+
+                if (session == null)
+                {
+                    throw new InvalidOperationException("Cannot create share token - session not found or access denied");
+                }
+            }
+
+            var token = new ShareToken
+            {
+                Token = GenerateSecureToken(),
+                CreatedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddDays(30), // DefaultTokenValidityDays
+                UserId = userId,
+                WorkoutSessionId = workoutSessionId,
+                IsActive = true
+            };
+
+            _context.ShareToken.Add(token);
+            await _context.SaveChangesAsync();
+
+            return MapToDto(token);
         }
     }
 }

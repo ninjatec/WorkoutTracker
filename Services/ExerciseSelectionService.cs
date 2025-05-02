@@ -400,6 +400,35 @@ namespace WorkoutTrackerWeb.Services
                 .CountAsync(p => !p.IsResolved);
         }
 
+        private async Task<int> GetExerciseUsageCountAsync(int exerciseTypeId, int userId)
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
+
+            return await context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                .Where(ws => ws.UserId == userId)
+                .SelectMany(ws => ws.WorkoutExercises)
+                .CountAsync(we => we.ExerciseTypeId == exerciseTypeId);
+        }
+
+        public async Task<List<ExerciseType>> GetRecentExercisesAsync(int userId, int count = 10)
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
+
+            return await context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.ExerciseType)
+                .Where(ws => ws.UserId == userId)
+                .OrderByDescending(ws => ws.StartDateTime)
+                .SelectMany(ws => ws.WorkoutExercises)
+                .Select(we => we.ExerciseType)
+                .Distinct()
+                .Take(count)
+                .ToListAsync();
+        }
+
         public async Task<List<ExerciseTypeWithUseCount>> GetRecentlyUsedExercisesAsync(int userId, int numberOfResults = 10)
         {
             using var scope = _serviceProvider.CreateScope();
@@ -408,9 +437,11 @@ namespace WorkoutTrackerWeb.Services
             var currentTime = DateTime.UtcNow;
             var pastMonth = currentTime.AddMonths(-1);
 
-            var exerciseUsages = await context.Set
-                .Where(s => s.Session.UserId == userId && s.Session.datetime >= pastMonth)
-                .GroupBy(s => s.ExerciseTypeId)
+            var exerciseUsages = await context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                .Where(ws => ws.UserId == userId && ws.StartDateTime >= pastMonth)
+                .SelectMany(ws => ws.WorkoutExercises)
+                .GroupBy(we => we.ExerciseTypeId)
                 .Select(g => new { ExerciseTypeId = g.Key, Count = g.Count() })
                 .OrderByDescending(g => g.Count)
                 .Take(numberOfResults)
@@ -445,8 +476,10 @@ namespace WorkoutTrackerWeb.Services
             using var scope = _serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
 
-            var popularExerciseIds = await context.Set
-                .GroupBy(s => s.ExerciseTypeId)
+            var popularExerciseIds = await context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                .SelectMany(ws => ws.WorkoutExercises)
+                .GroupBy(we => we.ExerciseTypeId)
                 .Select(g => new { ExerciseTypeId = g.Key, Count = g.Count() })
                 .OrderByDescending(g => g.Count)
                 .Take(numberOfResults)
@@ -541,6 +574,38 @@ namespace WorkoutTrackerWeb.Services
             return commonMuscleGroups
                 .Where(muscle => description.Contains(muscle))
                 .ToList();
+        }
+
+        public async Task<Dictionary<string, int>> GetExerciseCountByMuscleGroupAsync(int userId)
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
+
+            var muscleGroupCounts = await context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                .Where(ws => ws.UserId == userId)
+                .SelectMany(ws => ws.WorkoutExercises)
+                .GroupBy(we => we.ExerciseType.PrimaryMuscleGroup)
+                .Select(g => new { MuscleGroup = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.MuscleGroup, x => x.Count);
+
+            return muscleGroupCounts;
+        }
+
+        public async Task<Dictionary<ExerciseType, int>> GetExerciseFrequencyAsync(int userId)
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
+
+            var exerciseFrequency = await context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                .Where(ws => ws.UserId == userId)
+                .SelectMany(ws => ws.WorkoutExercises)
+                .GroupBy(we => we.ExerciseType)
+                .Select(g => new { Exercise = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Exercise, x => x.Count);
+
+            return exerciseFrequency;
         }
     }
 

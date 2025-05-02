@@ -84,8 +84,8 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Reports
             var startDate = GetStartDateByPeriod(period);
 
             // Get sessions in the period using the parsed int ID
-            var sessions = await _context.Session
-                .Where(s => s.UserId == clientIdInt && s.datetime >= startDate)
+            var sessions = await _context.WorkoutSessions
+                .Where(s => s.UserId == clientIdInt && s.StartDateTime >= startDate)
                 .ToListAsync();
 
             TotalSessions = sessions.Count;

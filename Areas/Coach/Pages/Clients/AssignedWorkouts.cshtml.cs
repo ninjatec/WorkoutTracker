@@ -134,13 +134,14 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                     // Get recent workout feedback from this client
                     RecentFeedback = await _context.WorkoutFeedbacks
                         .Where(f => f.ClientUserId == ClientId)
+                        .Include(f => f.WorkoutSession)
                         .OrderByDescending(f => f.FeedbackDate)
                         .Take(10)
                         .Select(f => new WorkoutFeedbackViewModel
                         {
                             WorkoutFeedbackId = f.WorkoutFeedbackId,
-                            SessionName = f.Session.Name,
-                            SessionDate = f.Session.StartDateTime,
+                            SessionName = f.WorkoutSession.Name,
+                            SessionDate = f.WorkoutSession.StartDateTime,
                             FeedbackDate = f.FeedbackDate,
                             OverallRating = f.OverallRating,
                             DifficultyRating = f.DifficultyRating,

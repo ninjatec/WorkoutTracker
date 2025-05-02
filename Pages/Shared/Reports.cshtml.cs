@@ -9,6 +9,8 @@ using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services;
+using WorkoutTrackerWeb.Services.Reports;
+using WorkoutTrackerWeb.ViewModels;
 using Microsoft.AspNetCore.OutputCaching;
 
 namespace WorkoutTrackerWeb.Pages.Shared
@@ -16,375 +18,109 @@ namespace WorkoutTrackerWeb.Pages.Shared
     [OutputCache(PolicyName = "SharedWorkoutReports")]
     public class ReportsModel : SharedPageModel
     {
-        private readonly WorkoutTrackerWebContext _context;
-        private readonly IDistributedCache _cache;
-        private readonly UserService _userService;
+        private readonly IReportsService _reportsService;
+        private new readonly ILogger<ReportsModel> _logger;
 
         public ReportsModel(
-            WorkoutTrackerWebContext context,
-            IDistributedCache cache,
-            IShareTokenService shareTokenService,
-            UserService userService,
+            IReportsService reportsService,
+            ITokenValidationService tokenValidationService,
             ILogger<ReportsModel> logger)
-            : base(shareTokenService, logger)
+            : base(tokenValidationService, logger)
         {
-            _context = context;
-            _cache = cache;
-            _userService = userService;
+            _reportsService = reportsService;
+            _logger = logger;
         }
 
-        public int TotalSessions { get; set; }
-        public int TotalSets { get; set; }
-        public int TotalReps { get; set; }
+        // Reports data
+        public List<PersonalRecord> PersonalRecords { get; set; } = new List<PersonalRecord>();
+        public List<ExerciseWeightProgress> WeightProgressList { get; set; } = new List<ExerciseWeightProgress>();
+        public List<ExerciseStatusViewModel> ExerciseStatusList { get; set; } = new List<ExerciseStatusViewModel>();
+        public List<ExerciseStatusViewModel> RecentExerciseStatusList { get; set; } = new List<ExerciseStatusViewModel>();
         public int SuccessReps { get; set; }
         public int FailedReps { get; set; }
-        public int ReportPeriod { get; set; } = 90; // Default to 90 days
+        
+        // Pagination and filtering
         public int CurrentPage { get; set; } = 1;
         public int TotalPages { get; set; } = 1;
-        public List<ExerciseUsageData> ExerciseUsage { get; set; } = new List<ExerciseUsageData>();
-        public List<VolumeData> RecentVolumes { get; set; } = new List<VolumeData>();
-        public List<PersonalRecordData> PersonalRecords { get; set; } = new List<PersonalRecordData>();
-        public List<WeightProgressData> WeightProgressList { get; set; } = new List<WeightProgressData>();
-        public List<ExerciseStatusData> ExerciseStatusList { get; set; } = new List<ExerciseStatusData>();
-        public List<ExerciseStatusData> RecentExerciseStatusList { get; set; } = new List<ExerciseStatusData>();
-
-        public class ExerciseUsageData
-        {
-            public string ExerciseName { get; set; }
-            public int Count { get; set; }
-        }
-
-        public class VolumeData
-        {
-            public DateTime Date { get; set; }
-            public decimal Volume { get; set; }
-        }
-
-        public class PersonalRecordData
-        {
-            public string ExerciseName { get; set; }
-            public decimal MaxWeight { get; set; }
-            public DateTime RecordDate { get; set; }
-            public string SessionName { get; set; }
-        }
-
-        public class WeightProgressData
-        {
-            public string ExerciseName { get; set; }
-            public List<DateTime> Dates { get; set; } = new List<DateTime>();
-            public List<decimal> Weights { get; set; } = new List<decimal>();
-        }
-
-        public class ExerciseStatusData
-        {
-            public string ExerciseName { get; set; }
-            public int SuccessfulReps { get; set; }
-            public int FailedReps { get; set; }
-        }
+        public int ReportPeriod { get; set; } = 90;
+        
+        // Share token access
+        public string ShareToken { get; set; }
 
         public async Task<IActionResult> OnGetAsync(string token = null, int? pageNumber = 1, int? period = 90)
         {
-            // Validate token and check permissions
-            bool isValid = await ValidateTokenAsync(token, "ReportAccess");
+            // Set token for validation
+            Token = token;
+            ShareToken = token;
+            var isValid = await ValidateShareTokenAsync();
             if (!isValid)
             {
-                if (string.IsNullOrEmpty(token) && !HttpContext.Request.Cookies.ContainsKey("share_token"))
+                if (string.IsNullOrEmpty(token))
                 {
                     return RedirectToPage("./TokenRequired");
                 }
-                return RedirectToPage("./InvalidToken");
+                return RedirectToPage("./InvalidToken", new { Message = "Invalid or expired token" });
             }
 
-            // Set report period with defaults
+            // Check if token allows report access
+            if (!SharedTokenData.IsValid)
+            {
+                _logger.LogWarning("Token is not valid");
+                return RedirectToPage("./InvalidToken", new { Message = "Invalid or expired token" });
+            }
+            
+            // Check if the token has permission to access reports
+            if (!SharedTokenData.AllowReportAccess)
+            {
+                _logger.LogWarning("Token does not have permission to access reports");
+                return RedirectToPage("./AccessDenied", new { Message = "Your share token does not have permission to view reports." });
+            }
+            
+            // Set the page number and period with validation
+            CurrentPage = Math.Max(1, pageNumber ?? 1);
             ReportPeriod = period ?? 90;
+            
+            // Only allow certain period values
             if (ReportPeriod != 30 && ReportPeriod != 60 && ReportPeriod != 90 && ReportPeriod != 120)
             {
                 ReportPeriod = 90;
             }
 
-            // Set pagination
-            CurrentPage = pageNumber ?? 1;
-            if (CurrentPage < 1) CurrentPage = 1;
-
-            // Get user name for display
-            var user = await _context.User.FirstOrDefaultAsync(u => u.UserId == ShareToken.UserId);
-            UserName = user?.Name ?? "this user";
-
-            // Get total sessions count
-            TotalSessions = await _context.Session
-                .Where(s => s.UserId == ShareToken.UserId)
-                .CountAsync();
-
-            // Calculate date range for report period
-            var reportPeriodDate = DateTime.Now.AddDays(-ReportPeriod);
-
-            // Get all sets for this user
-            var sets = await _context.Set
-                .Include(s => s.Session)
-                .Include(s => s.ExerciseType)
-                .Where(s => s.Session.UserId == ShareToken.UserId)
-                .ToListAsync();
-
-            TotalSets = sets.Count;
-
-            // Get rep counts (success vs failure)
-            if (sets.Any())
-            {
-                var setIds = sets.Select(s => s.SetId).ToList();
-                var reps = await _context.Rep
-                    .Where(r => setIds.Contains((int)r.SetsSetId))
-                    .ToListAsync();
-
-                TotalReps = reps.Count;
-                SuccessReps = reps.Count(r => r.success);
-                FailedReps = TotalReps - SuccessReps;
-
-                // Get top exercises by usage
-                ExerciseUsage = sets
-                    .Where(s => s.ExerciseType != null)
-                    .GroupBy(s => s.ExerciseType.Name)
-                    .Select(g => new ExerciseUsageData
-                    {
-                        ExerciseName = g.Key,
-                        Count = g.Count()
-                    })
-                    .OrderByDescending(e => e.Count)
-                    .Take(10)
-                    .ToList();
-
-                // Get recent workout volumes
-                RecentVolumes = await GetRecentWorkoutVolumesAsync();
-
-                // Get personal records
-                await LoadPersonalRecordsAsync(reportPeriodDate);
-
-                // Get weight progress data
-                await LoadWeightProgressDataAsync(reportPeriodDate);
-
-                // Get exercise status data
-                await LoadExerciseStatusDataAsync(reportPeriodDate);
-            }
-
+            // Load report data
+            await LoadReportDataAsync(SharedTokenData.UserId, ReportPeriod, CurrentPage);
+            
             return Page();
         }
 
-        private async Task<List<VolumeData>> GetRecentWorkoutVolumesAsync()
+        private async Task LoadReportDataAsync(int userId, int period, int page)
         {
-            // Get sessions from the last 30 days
-            var thirtyDaysAgo = DateTime.UtcNow.AddDays(-30);
-            
-            var sessions = await _context.Session
-                .Where(s => s.UserId == ShareToken.UserId && s.datetime >= thirtyDaysAgo)
-                .OrderBy(s => s.datetime)
-                .ToListAsync();
-
-            var sessionIds = sessions.Select(s => s.SessionId).ToList();
-            
-            // Get sets for these sessions
-            var sets = await _context.Set
-                .Where(s => sessionIds.Contains(s.SessionId))
-                .ToListAsync();
-
-            var setIds = sets.Select(s => s.SetId).ToList();
-            
-            // Get reps for these sets
-            var reps = await _context.Rep
-                .Where(r => setIds.Contains((int)r.SetsSetId))
-                .ToListAsync();
-
-            // Group by date and calculate total volume
-            var volumeByDate = new Dictionary<DateTime, decimal>();
-            
-            foreach (var session in sessions)
+            try
             {
-                var date = session.datetime.Date;
-                var sessionSets = sets.Where(s => s.SessionId == session.SessionId).ToList();
-                decimal dailyVolume = 0;
+                // Get personal records with pagination
+                var prData = await _reportsService.GetPersonalRecordsAsync(userId, page, 10);
+                PersonalRecords = prData.Records;
+                TotalPages = prData.TotalPages;
                 
-                foreach (var set in sessionSets)
-                {
-                    var setReps = reps.Where(r => r.SetsSetId == set.SetId).ToList();
-                    
-                    if (setReps.Any())
-                    {
-                        // Calculate volume as sum of weights
-                        decimal setVolume = 0;
-                        foreach (var rep in setReps)
-                        {
-                            // Weight is non-nullable (default 0)
-                            setVolume += rep.weight;
-                        }
-                        dailyVolume += setVolume;
-                    }
-                    else if (set.NumberReps > 0 && set.Weight > 0)
-                    {
-                        // If no reps, use set data
-                        dailyVolume += set.NumberReps * set.Weight;
-                    }
-                }
+                // Get weight progress
+                WeightProgressList = await _reportsService.GetWeightProgressAsync(userId, period);
                 
-                if (volumeByDate.ContainsKey(date))
-                {
-                    volumeByDate[date] += dailyVolume;
-                }
-                else
-                {
-                    volumeByDate[date] = dailyVolume;
-                }
+                // Get exercise status statistics
+                var exerciseStats = await _reportsService.GetExerciseStatusAsync(userId, period);
+                ExerciseStatusList = exerciseStats.AllExercises;
+                RecentExerciseStatusList = exerciseStats.TopExercises;
+                SuccessReps = exerciseStats.TotalSuccess;
+                FailedReps = exerciseStats.TotalFailed;
             }
-            
-            // Convert to list and ensure we have at least 7 data points
-            var result = volumeByDate
-                .Select(kvp => new VolumeData { Date = kvp.Key, Volume = kvp.Value })
-                .OrderBy(v => v.Date)
-                .ToList();
-                
-            // If we have fewer than 7 data points, add dummy points
-            if (result.Count() < 7)
+            catch (Exception ex)
             {
-                var earliestDate = result.Any() 
-                    ? result.Min(v => v.Date)
-                    : DateTime.UtcNow.Date.AddDays(-6);
-                    
-                for (int i = 0; i < 7; i++)
-                {
-                    var date = earliestDate.AddDays(i);
-                    if (!volumeByDate.ContainsKey(date))
-                    {
-                        result.Add(new VolumeData { Date = date, Volume = 0 });
-                    }
-                }
+                _logger.LogError(ex, "Error loading report data for user {UserId}", userId);
                 
-                result = result.OrderBy(v => v.Date).ToList();
+                // Initialize empty collections to avoid null reference exceptions in the view
+                PersonalRecords = new List<PersonalRecord>();
+                WeightProgressList = new List<ExerciseWeightProgress>();
+                ExerciseStatusList = new List<ExerciseStatusViewModel>();
+                RecentExerciseStatusList = new List<ExerciseStatusViewModel>();
             }
-            
-            return result;
-        }
-
-        private async Task LoadPersonalRecordsAsync(DateTime reportPeriodDate)
-        {
-            const int pageSize = 10;
-
-            // Get all reps that have weights and are successful in the period
-            var repsWithWeights = await _context.Rep
-                .Include(r => r.Set)
-                .ThenInclude(s => s.Session)
-                .Include(r => r.Set)
-                .ThenInclude(s => s.ExerciseType)
-                .Where(r => r.Set.Session.UserId == ShareToken.UserId &&
-                           r.Set.Session.datetime >= reportPeriodDate &&
-                           r.success &&
-                           r.weight > 0) // Changed from r.weight.HasValue
-                .ToListAsync();
-
-            // Group by exercise type and find max weight for each
-            var personalRecordsQuery = repsWithWeights
-                .GroupBy(r => new { ExerciseTypeId = r.Set.ExerciseTypeId, ExerciseName = r.Set.ExerciseType?.Name ?? "Unknown" })
-                .Select(g => new
-                {
-                    ExerciseTypeId = g.Key.ExerciseTypeId,
-                    ExerciseName = g.Key.ExerciseName,
-                    MaxWeightRep = g.OrderByDescending(r => r.weight).FirstOrDefault()
-                })
-                .Where(x => x.MaxWeightRep != null)
-                .OrderByDescending(x => x.MaxWeightRep.weight)
-                .ToList();
-
-            // Calculate total pages
-            int totalRecords = personalRecordsQuery.Count();
-            TotalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
-
-            // Make sure current page is within range
-            if (CurrentPage > TotalPages && TotalPages > 0) CurrentPage = TotalPages;
-
-            // Paginate personal records
-            var pagedRecords = personalRecordsQuery
-                .Skip((CurrentPage - 1) * pageSize)
-                .Take(pageSize);
-
-            // Map to DTOs
-            PersonalRecords = pagedRecords
-                .Select(r => new PersonalRecordData
-                {
-                    ExerciseName = r.ExerciseName,
-                    MaxWeight = r.MaxWeightRep.weight, // Changed from r.MaxWeightRep.weight.Value
-                    RecordDate = r.MaxWeightRep.Set.Session.datetime,
-                    SessionName = r.MaxWeightRep.Set.Session.Name
-                })
-                .ToList();
-        }
-
-        private async Task LoadWeightProgressDataAsync(DateTime reportPeriodDate)
-        {
-            // Get all successful reps with weights in the period
-            var repsWithWeights = await _context.Rep
-                .Include(r => r.Set)
-                .ThenInclude(s => s.Session)
-                .Include(r => r.Set)
-                .ThenInclude(s => s.ExerciseType)
-                .Where(r => r.Set.Session.UserId == ShareToken.UserId &&
-                           r.Set.Session.datetime >= reportPeriodDate &&
-                           r.success &&
-                           r.weight > 0) // Changed from r.weight.HasValue
-                .OrderBy(r => r.Set.Session.datetime)
-                .ToListAsync();
-
-            // Group by exercise type and create progress data
-            WeightProgressList = repsWithWeights
-                .GroupBy(r => new { ExerciseTypeId = r.Set.ExerciseTypeId, ExerciseName = r.Set.ExerciseType?.Name ?? "Unknown" })
-                .Select(g => new WeightProgressData
-                {
-                    ExerciseName = g.Key.ExerciseName,
-                    Dates = g.GroupBy(r => r.Set.Session.datetime.Date)
-                        .OrderBy(dateGroup => dateGroup.Key)
-                        .Select(dateGroup =>
-                        {
-                            // For each date, get the max weight
-                            return dateGroup.Key;
-                        }).ToList(),
-                    Weights = g.GroupBy(r => r.Set.Session.datetime.Date)
-                        .OrderBy(dateGroup => dateGroup.Key)
-                        .Select(dateGroup =>
-                        {
-                            // For each date, get the max weight
-                            return dateGroup.Max(r => r.weight); // Changed from r.weight.Value
-                        }).ToList()
-                })
-                .Where(d => d.Dates.Count > 0 && d.Weights.Count > 0)
-                .OrderByDescending(d => d.Weights.Max())
-                .Take(5) // Top 5 exercises
-                .ToList();
-        }
-
-        private async Task LoadExerciseStatusDataAsync(DateTime reportPeriodDate)
-        {
-            // Get all reps in the period
-            var reps = await _context.Rep
-                .Include(r => r.Set)
-                .ThenInclude(s => s.Session)
-                .Include(r => r.Set)
-                .ThenInclude(s => s.ExerciseType)
-                .Where(r => r.Set.Session.UserId == ShareToken.UserId &&
-                           r.Set.Session.datetime >= reportPeriodDate)
-                .ToListAsync();
-
-            // Group by exercise type and count successful/failed reps
-            ExerciseStatusList = reps
-                .GroupBy(r => new { ExerciseTypeId = r.Set.ExerciseTypeId, ExerciseName = r.Set.ExerciseType?.Name ?? "Unknown" })
-                .Select(g => new ExerciseStatusData
-                {
-                    ExerciseName = g.Key.ExerciseName,
-                    SuccessfulReps = g.Count(r => r.success),
-                    FailedReps = g.Count(r => !r.success)
-                })
-                .OrderByDescending(x => x.SuccessfulReps + x.FailedReps)
-                .ToList();
-
-            // Recent exercise status (top 10 by volume)
-            RecentExerciseStatusList = ExerciseStatusList
-                .OrderByDescending(x => x.SuccessfulReps + x.FailedReps)
-                .Take(10)
-                .ToList();
         }
     }
 }
