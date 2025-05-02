@@ -124,7 +124,7 @@ namespace WorkoutTrackerWeb.Pages.Calculator
                 .Include(s => s.WorkoutExercise)
                     .ThenInclude(we => we.WorkoutSession)
                 .Where(s => s.WorkoutExercise.WorkoutSession.UserId == user.UserId)
-                .Where(s => s.Weight.HasValue && s.Reps.HasValue)
+                .Where(s => s.Weight.HasValue && s.Reps.HasValue && s.WorkoutExercise.ExerciseType != null)
                 .OrderByDescending(s => s.WorkoutExercise.WorkoutSession.StartDateTime)
                 .Take(1000)
                 .ToListAsync();
@@ -272,6 +272,7 @@ namespace WorkoutTrackerWeb.Pages.Calculator
                 .Where(ws => 
                     ws.WorkoutExercise.WorkoutSession.UserId == currentUserId && 
                     ws.WorkoutExercise.WorkoutSession.StartDateTime >= reportPeriodAgo &&
+                    ws.WorkoutExercise.ExerciseType != null &&
                     ws.Reps >= 1 && 
                     ws.Reps <= 10 &&
                     ws.Weight > 0 &&
@@ -296,6 +297,7 @@ namespace WorkoutTrackerWeb.Pages.Calculator
 
             // Group sets by exercise type
             var exerciseGroups = recentSets
+                .Where(s => s.WorkoutExercise?.ExerciseType?.Name != null)
                 .GroupBy(s => new { s.WorkoutExercise.ExerciseTypeId, s.WorkoutExercise.ExerciseType.Name });
             
             // Dictionary to store max 1RM per exercise for sorting
