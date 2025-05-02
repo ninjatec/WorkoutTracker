@@ -682,6 +682,8 @@ namespace WorkoutTrackerWeb
 
             app.UseForwardedHeaders();
 
+            app.UseMaintenanceMode();
+
             app.UseInvitationRedirect();
 
             app.Use(async (context, next) =>
