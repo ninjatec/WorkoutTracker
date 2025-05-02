@@ -581,15 +581,35 @@ namespace WorkoutTrackerWeb.Services
             using var scope = _serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
 
-            var muscleGroupCounts = await context.WorkoutSessions
-                .Include(ws => ws.WorkoutExercises)
-                .Where(ws => ws.UserId == userId)
-                .SelectMany(ws => ws.WorkoutExercises)
-                .GroupBy(we => we.ExerciseType.PrimaryMuscleGroup)
-                .Select(g => new { MuscleGroup = g.Key, Count = g.Count() })
-                .ToDictionaryAsync(x => x.MuscleGroup, x => x.Count);
+            try
+            {
+                // First, load the data into memory to avoid SQL null handling issues
+                var workoutExercises = await context.WorkoutSessions
+                    .Where(ws => ws.UserId == userId)
+                    .SelectMany(ws => ws.WorkoutExercises)
+                    .Select(we => new
+                    {
+                        we.ExerciseTypeId,
+                        // Use null-safe projection with default value
+                        MuscleGroup = we.ExerciseType != null ? 
+                            (string.IsNullOrEmpty(we.ExerciseType.PrimaryMuscleGroup) ? "Unknown" : we.ExerciseType.PrimaryMuscleGroup) : 
+                            "Unknown"
+                    })
+                    .ToListAsync();
 
-            return muscleGroupCounts;
+                // Process the data in memory
+                var muscleGroupCounts = workoutExercises
+                    .GroupBy(we => we.MuscleGroup)
+                    .ToDictionary(g => g.Key, g => g.Count());
+
+                return muscleGroupCounts;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting exercise count by muscle group for user {UserId}", userId);
+                // Return empty dictionary on error to avoid crashing the application
+                return new Dictionary<string, int>();
+            }
         }
 
         public async Task<Dictionary<ExerciseType, int>> GetExerciseFrequencyAsync(int userId)

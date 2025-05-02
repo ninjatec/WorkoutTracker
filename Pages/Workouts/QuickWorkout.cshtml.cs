@@ -161,8 +161,19 @@ namespace WorkoutTrackerWeb.Pages.Workouts
             // Get exercises by muscle group or all exercises if no muscle group specified
             if (!string.IsNullOrEmpty(muscleGroup))
             {
-                var exercisesWithMuscles = await _exerciseSelectionService.GetExercisesByMuscleGroupAsync(muscleGroup);
-                QuickWorkout.ExerciseTypes = exercisesWithMuscles.Select(e => e.ExerciseType).ToList();
+                try 
+                {
+                    var exercisesWithMuscles = await _exerciseSelectionService.GetExercisesByMuscleGroupAsync(muscleGroup);
+                    QuickWorkout.ExerciseTypes = exercisesWithMuscles.Select(e => e.ExerciseType).ToList();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error getting exercises by muscle group: {MuscleGroup}", muscleGroup);
+                    // Fallback to getting all exercise types if the muscle group query fails
+                    QuickWorkout.ExerciseTypes = await _context.ExerciseType
+                        .OrderBy(e => e.Name)
+                        .ToListAsync();
+                }
             }
             else 
             {
@@ -177,11 +188,39 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                 .ToListAsync();
 
             // Get all available muscle groups
-            QuickWorkout.MuscleGroups = await _exerciseSelectionService.GetAllMuscleGroupsAsync();
+            try
+            {
+                QuickWorkout.MuscleGroups = await _exerciseSelectionService.GetAllMuscleGroupsAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting all muscle groups");
+                QuickWorkout.MuscleGroups = new List<string>();
+            }
             
             // Get recent and favorite exercises
-            QuickWorkout.RecentExercises = await _quickWorkoutService.GetRecentExercisesAsync();
-            QuickWorkout.FavoriteExercises = await _quickWorkoutService.GetFavoriteExercisesAsync();
+            try
+            {
+                QuickWorkout.RecentExercises = await _quickWorkoutService.GetRecentExercisesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting recent exercises");
+                QuickWorkout.RecentExercises = new List<ExerciseTypeWithUseCount>();
+            }
+            
+            try
+            {
+                QuickWorkout.FavoriteExercises = await _quickWorkoutService.GetFavoriteExercisesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting favorite exercises");
+                QuickWorkout.FavoriteExercises = new List<ExerciseType>();
+            }
+
+            // Set the selected muscle group
+            QuickWorkout.SelectedMuscleGroup = muscleGroup;
         }
 
         private string GenerateDefaultSessionName()
