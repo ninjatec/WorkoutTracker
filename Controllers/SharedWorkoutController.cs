@@ -8,9 +8,6 @@ using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services;
 using Microsoft.Extensions.Caching.Distributed;
-using System.Text.Json;
-using System;
-using WorkoutTrackerWeb.Dtos;
 
 namespace WorkoutTrackerWeb.Controllers
 {
@@ -36,234 +33,120 @@ namespace WorkoutTrackerWeb.Controllers
         }
 
         [HttpGet("sessions")]
-        [ShareTokenAuthorize("SessionAccess")]
-        public async Task<ActionResult<IEnumerable<Session>>> GetSessions()
+        public async Task<IActionResult> GetSessions([FromQuery] string token)
         {
-            // Get the validated token
-            var tokenData = HttpContext.Items["ShareTokenData"] as ShareToken;
-            if (tokenData == null)
+            var validationResponse = await _shareTokenService.ValidateTokenAsync(token, false);
+            if (!validationResponse.IsValid)
             {
-                return Unauthorized();
+                return BadRequest(new { error = validationResponse.Message });
             }
 
-            // Create query to get sessions for this user
-            var query = _context.Session.Where(s => s.UserId == tokenData.UserId);
-
-            // If token is session-specific, only return that session
-            if (tokenData.SessionId.HasValue)
+            if (!validationResponse.ShareToken.AllowSessionAccess)
             {
-                query = query.Where(s => s.SessionId == tokenData.SessionId.Value);
+                return Forbid();
             }
 
-            // Execute query and return results
-            var sessions = await query
-                .OrderByDescending(s => s.datetime)
+            // Check if token is for a specific workout session
+            if (validationResponse.ShareToken.WorkoutSessionId.HasValue)
+            {
+                var session = await _context.WorkoutSessions
+                    .Include(ws => ws.WorkoutExercises)
+                        .ThenInclude(we => we.WorkoutSets)
+                    .Include(ws => ws.WorkoutExercises)
+                        .ThenInclude(we => we.ExerciseType)
+                    .FirstOrDefaultAsync(ws => ws.WorkoutSessionId == validationResponse.ShareToken.WorkoutSessionId.Value);
+
+                return Ok(new[] { session });
+            }
+
+            // Get all sessions for the user
+            var sessions = await _context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.WorkoutSets)
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.ExerciseType)
+                .Where(ws => ws.UserId == validationResponse.ShareToken.UserId)
+                .OrderByDescending(ws => ws.StartDateTime)
                 .ToListAsync();
 
             return Ok(sessions);
         }
 
         [HttpGet("sessions/{id}")]
-        [ShareTokenAuthorize("SessionAccess")]
-        public async Task<ActionResult<Session>> GetSession(int id)
+        public async Task<IActionResult> GetSession(int id, [FromQuery] string token)
         {
-            // Get the validated token
-            var tokenData = HttpContext.Items["ShareTokenData"] as ShareToken;
-            if (tokenData == null)
+            var validationResponse = await _shareTokenService.ValidateTokenAsync(token, false);
+            if (!validationResponse.IsValid)
             {
-                return Unauthorized();
+                return BadRequest(new { error = validationResponse.Message });
             }
 
-            // If token is session-specific, verify it's for this session
-            if (tokenData.SessionId.HasValue && tokenData.SessionId.Value != id)
+            if (!validationResponse.ShareToken.AllowSessionAccess)
             {
                 return Forbid();
             }
 
-            // Get the session
-            var session = await _context.Session
-                .FirstOrDefaultAsync(s => s.SessionId == id && s.UserId == tokenData.UserId);
+            var session = await _context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.WorkoutSets)
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.ExerciseType)
+                .FirstOrDefaultAsync(ws => ws.WorkoutSessionId == id);
 
             if (session == null)
             {
                 return NotFound();
+            }
+
+            // Check if token is for a specific workout session
+            if (validationResponse.ShareToken.WorkoutSessionId.HasValue &&
+                validationResponse.ShareToken.WorkoutSessionId.Value != id)
+            {
+                return Forbid();
             }
 
             return Ok(session);
         }
 
         [HttpGet("sessions/{id}/sets")]
-        [ShareTokenAuthorize("SessionAccess")]
-        public async Task<ActionResult<IEnumerable<Set>>> GetSets(int id)
+        public async Task<IActionResult> GetSets(int id, [FromQuery] string token)
         {
-            // Get the validated token
-            var tokenData = HttpContext.Items["ShareTokenData"] as ShareToken;
-            if (tokenData == null)
+            var validationResponse = await _shareTokenService.ValidateTokenAsync(token, false);
+            if (!validationResponse.IsValid)
             {
-                return Unauthorized();
+                return BadRequest(new { error = validationResponse.Message });
             }
 
-            // Verify the session belongs to the user
-            var session = await _context.Session
-                .FirstOrDefaultAsync(s => s.SessionId == id && s.UserId == tokenData.UserId);
+            if (!validationResponse.ShareToken.AllowSessionAccess)
+            {
+                return Forbid();
+            }
+
+            var session = await _context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.WorkoutSets)
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.ExerciseType)
+                .FirstOrDefaultAsync(ws => ws.WorkoutSessionId == id);
 
             if (session == null)
             {
                 return NotFound();
             }
 
-            // If token is session-specific, verify it's for this session
-            if (tokenData.SessionId.HasValue && tokenData.SessionId.Value != id)
+            // Check if token is for a specific workout session
+            if (validationResponse.ShareToken.WorkoutSessionId.HasValue &&
+                validationResponse.ShareToken.WorkoutSessionId.Value != id)
             {
                 return Forbid();
             }
 
-            // Get sets for this session
-            var sets = await _context.Set
-                .Include(s => s.ExerciseType)
-                .Include(s => s.Settype)
-                .Where(s => s.SessionId == id)
-                .OrderBy(s => s.SetId)
-                .ToListAsync();
-
-            return Ok(sets);
-        }
-
-        [HttpGet("sets/{id}/reps")]
-        [ShareTokenAuthorize("SessionAccess")]
-        public async Task<ActionResult<IEnumerable<Rep>>> GetReps(int id)
-        {
-            // Get the validated token
-            var tokenData = HttpContext.Items["ShareTokenData"] as ShareToken;
-            if (tokenData == null)
-            {
-                return Unauthorized();
-            }
-
-            // Verify the set belongs to a session owned by the user
-            var set = await _context.Set
-                .Include(s => s.Session)
-                .FirstOrDefaultAsync(s => s.SetId == id);
-
-            if (set == null)
-            {
-                return NotFound();
-            }
-
-            if (set.Session.UserId != tokenData.UserId)
-            {
-                return Forbid();
-            }
-
-            // If token is session-specific, verify it's for this session
-            if (tokenData.SessionId.HasValue && tokenData.SessionId.Value != set.SessionId)
-            {
-                return Forbid();
-            }
-
-            // Get reps for this set
-            var reps = await _context.Rep
-                .Where(r => r.SetsSetId == id)
-                .OrderBy(r => r.repnumber)
-                .ToListAsync();
-
-            return Ok(reps);
-        }
-
-        [HttpGet("exercise-types")]
-        [ShareTokenAuthorize("SessionAccess")]
-        public async Task<ActionResult<IEnumerable<ExerciseType>>> GetExerciseTypes()
-        {
-            var exerciseTypes = await _context.ExerciseType
-                .OrderBy(e => e.Name)
-                .ToListAsync();
-
-            return Ok(exerciseTypes);
-        }
-
-        [HttpGet("set-types")]
-        [ShareTokenAuthorize("SessionAccess")]
-        public async Task<ActionResult<IEnumerable<Settype>>> GetSetTypes()
-        {
-            var setTypes = await _context.Settype
-                .OrderBy(s => s.Name)
-                .ToListAsync();
-
-            return Ok(setTypes);
-        }
-
-        [HttpGet("reports/stats")]
-        [ShareTokenAuthorize("ReportAccess")]
-        public async Task<ActionResult<object>> GetStats()
-        {
-            // Get the validated token
-            var tokenData = HttpContext.Items["ShareTokenData"] as ShareToken;
-            if (tokenData == null)
-            {
-                return Unauthorized();
-            }
-
-            // Get total sessions count
-            int totalSessions = await _context.Session
-                .Where(s => s.UserId == tokenData.UserId)
-                .CountAsync();
-
-            // Get total sets and reps
-            var sets = await _context.Set
-                .Include(s => s.Session)
-                .Where(s => s.Session.UserId == tokenData.UserId)
-                .ToListAsync();
-
-            int totalSets = sets.Count();
-
-            var setIds = sets.Select(s => s.SetId).ToList();
-            var reps = await _context.Rep
-                .Where(r => setIds.Contains((int)r.SetsSetId))
-                .ToListAsync();
-
-            int totalReps = reps.Count();
-            int successReps = reps.Count(r => r.success);
-            int failedReps = totalReps - successReps;
-
-            // Get top exercises by usage
-            var exerciseUsage = sets
-                .GroupBy(s => s.ExerciseType?.Name ?? "Unknown")
-                .Select(g => new { ExerciseName = g.Key, Count = g.Count() })
-                .OrderByDescending(e => e.Count)
-                .Take(10)
+            var sets = session.WorkoutExercises
+                .SelectMany(we => we.WorkoutSets)
+                .OrderBy(ws => ws.SequenceNum)
                 .ToList();
 
-            return Ok(new
-            {
-                TotalSessions = totalSessions,
-                TotalSets = totalSets,
-                TotalReps = totalReps,
-                SuccessReps = successReps,
-                FailedReps = failedReps,
-                ExerciseUsage = exerciseUsage
-            });
-        }
-
-        [HttpGet("sessions/{id}/has-completed-sets")]
-        [ShareTokenAuthorize("SessionAccess")]
-        public async Task<ActionResult<bool>> HasCompletedSets(int id)
-        {
-            // Get the validated token
-            var tokenData = HttpContext.Items["ShareTokenData"] as ShareToken;
-            if (tokenData == null)
-            {
-                return Unauthorized();
-            }
-
-            // If token is session-specific, verify it's for this session
-            if (tokenData.SessionId.HasValue && tokenData.SessionId.Value != id)
-            {
-                return Forbid();
-            }
-
-            // Use the service to check if the session has completed sets
-            var result = await _quickWorkoutService.HasCompletedSetsAsync(id);
-            return Ok(result);
+            return Ok(sets);
         }
     }
 }

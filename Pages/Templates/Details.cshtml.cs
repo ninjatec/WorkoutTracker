@@ -48,15 +48,67 @@ namespace WorkoutTrackerWeb.Pages.Templates
                 HttpContext.Response.Headers["X-Template-Detail-Cache"] = "Development-Extended";
             }
 
+            // Use projection to avoid loading problematic columns
             var workoutTemplate = await _context.WorkoutTemplate
-                .Include(t => t.TemplateExercises.OrderBy(e => e.SequenceNum))
-                .ThenInclude(e => e.ExerciseType)
-                .Include(t => t.TemplateExercises)
-                .ThenInclude(e => e.TemplateSets.OrderBy(s => s.SequenceNum))
-                .ThenInclude(s => s.Settype)
+                .Where(t => t.WorkoutTemplateId == id)
+                .Select(t => new WorkoutTemplate
+                {
+                    WorkoutTemplateId = t.WorkoutTemplateId,
+                    Name = t.Name,
+                    Description = t.Description,
+                    Category = t.Category,
+                    IsPublic = t.IsPublic,
+                    CreatedDate = t.CreatedDate,
+                    LastModifiedDate = t.LastModifiedDate,
+                    UserId = t.UserId,
+                    Tags = t.Tags,
+                    TemplateExercises = t.TemplateExercises
+                        .OrderBy(e => e.SequenceNum)
+                        .Select(e => new WorkoutTemplateExercise
+                        {
+                            WorkoutTemplateExerciseId = e.WorkoutTemplateExerciseId,
+                            WorkoutTemplateId = e.WorkoutTemplateId,
+                            ExerciseTypeId = e.ExerciseTypeId,
+                            OrderIndex = e.OrderIndex,
+                            SequenceNum = e.SequenceNum,
+                            Notes = e.Notes,
+                            MinReps = e.MinReps,
+                            MaxReps = e.MaxReps,
+                            Sets = e.Sets,
+                            RestSeconds = e.RestSeconds,
+                            ExerciseType = new ExerciseType
+                            {
+                                ExerciseTypeId = e.ExerciseType.ExerciseTypeId,
+                                Name = e.ExerciseType.Name,
+                                Description = e.ExerciseType.Description,
+                                Type = e.ExerciseType.Type,
+                                Muscle = e.ExerciseType.Muscle,
+                                Difficulty = e.ExerciseType.Difficulty
+                            },
+                            TemplateSets = e.TemplateSets
+                                .OrderBy(s => s.SequenceNum)
+                                .Select(s => new WorkoutTemplateSet
+                                {
+                                    WorkoutTemplateSetId = s.WorkoutTemplateSetId,
+                                    WorkoutTemplateExerciseId = s.WorkoutTemplateExerciseId,
+                                    SettypeId = s.SettypeId,
+                                    SequenceNum = s.SequenceNum,
+                                    DefaultReps = s.DefaultReps,
+                                    DefaultWeight = s.DefaultWeight,
+                                    Notes = s.Notes,
+                                    Description = s.Description,
+                                    Settype = new Settype
+                                    {
+                                        SettypeId = s.Settype.SettypeId,
+                                        Name = s.Settype.Name,
+                                        Description = s.Settype.Description
+                                    }
+                                }).ToList()
+                        }).ToList()
+                })
                 .AsNoTracking()
                 .AsSplitQuery() // Split into multiple SQL queries for better performance
-                .FirstOrDefaultAsync(t => t.WorkoutTemplateId == id);
+                .FirstOrDefaultAsync();
 
             if (workoutTemplate == null)
             {

@@ -23,6 +23,7 @@ namespace WorkoutTrackerWeb.Models
         [Display(Name = "Set Number")]
         public int SetNumber { get; set; }
         
+        [Range(0, int.MaxValue, ErrorMessage = "Reps must be greater than 0")]
         [Display(Name = "Reps")]
         public int? Reps { get; set; }
         
@@ -32,8 +33,9 @@ namespace WorkoutTrackerWeb.Models
         [Display(Name = "Max Reps Target")]
         public int? TargetMaxReps { get; set; }
         
+        [Column(TypeName = "decimal(18,2)")]
+        [Range(0, double.MaxValue, ErrorMessage = "Weight must be greater than 0")]
         [Display(Name = "Weight (kg)")]
-        [Column(TypeName = "decimal(10, 2)")]
         public decimal? Weight { get; set; }
         
         [Display(Name = "Duration (seconds)")]
@@ -41,13 +43,20 @@ namespace WorkoutTrackerWeb.Models
         
         [Display(Name = "Distance (meters)")]
         [Column(TypeName = "decimal(10, 2)")]
-        public decimal? DistanceMeters { get; set; }
+        public decimal? Distance { get; set; }
         
+        [Display(Name = "Intensity")]
+        [Range(1, 10)]
+        public int? Intensity { get; set; }
+        
+        [Column(TypeName = "decimal(18,2)")]
         [Display(Name = "RPE (Rate of Perceived Exertion)")]
-        public int? RPE { get; set; }
+        public decimal? RPE { get; set; }
         
         [Display(Name = "Rest Period (seconds)")]
         public int? RestSeconds { get; set; }
+        
+        public TimeSpan? RestTime { get; set; }
         
         [Display(Name = "Completed")]
         public bool IsCompleted { get; set; }
@@ -56,12 +65,26 @@ namespace WorkoutTrackerWeb.Models
         [Display(Name = "Notes")]
         public string Notes { get; set; }
         
+        [StringLength(50)]
+        [Display(Name = "Status")]
+        public string Status { get; set; } = "Pending";
+        
         [Display(Name = "Timestamp")]
         public DateTime Timestamp { get; set; } = DateTime.Now;
         
+        public bool IsWarmup { get; set; }
+        
+        public int? TargetReps { get; set; }
+        
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? TargetWeight { get; set; }
+        
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? EstimatedOneRM { get; set; }
+        
         // Navigation properties
         [ForeignKey("WorkoutExerciseId")]
-        public WorkoutExercise WorkoutExercise { get; set; }
+        public virtual WorkoutExercise WorkoutExercise { get; set; }
         
         [ForeignKey("SettypeId")]
         public Settype Settype { get; set; }

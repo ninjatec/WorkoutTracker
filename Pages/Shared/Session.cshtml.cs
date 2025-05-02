@@ -16,99 +16,90 @@ namespace WorkoutTrackerWeb.Pages.Shared
     public class SessionModel : SharedPageModel
     {
         private readonly WorkoutTrackerWebContext _context;
+        private readonly IWorkoutIterationService _workoutIterationService;
 
         public SessionModel(
             WorkoutTrackerWebContext context,
-            IShareTokenService shareTokenService,
+            ITokenValidationService tokenValidationService,
+            IWorkoutIterationService workoutIterationService,
             ILogger<SessionModel> logger)
-            : base(shareTokenService, logger)
+            : base(tokenValidationService, logger)
         {
             _context = context;
+            _workoutIterationService = workoutIterationService;
         }
 
-        public Session Session { get; set; }
-        public Dictionary<string, List<Models.Set>> ExerciseSets { get; set; } = new Dictionary<string, List<Models.Set>>();
-        public Dictionary<int, List<Rep>> SetReps { get; set; } = new Dictionary<int, List<Rep>>();
+        public WorkoutSession WorkoutSession { get; set; }
+        public Dictionary<string, List<WorkoutSet>> ExerciseSets { get; set; } = new();
 
-        public async Task<IActionResult> OnGetAsync(int id, string token = null)
+        public async Task<IActionResult> OnGetAsync(int? id, string token = null)
         {
-            // Validate token and check permissions
-            bool isValid = await ValidateTokenAsync(token, "SessionAccess");
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            // Set the SessionId for validation
+            SessionId = id.Value;
+            
+            // Validate the token provided in the request
+            Token = token;
+            var isValid = await ValidateShareTokenAsync();
             if (!isValid)
             {
-                if (string.IsNullOrEmpty(token) && !HttpContext.Request.Cookies.ContainsKey("share_token"))
-                {
-                    return RedirectToPage("./TokenRequired");
-                }
-                return RedirectToPage("./InvalidToken");
+                return RedirectToPage("./TokenRequired", new { token, errorMessage = "Invalid or expired token" });
+            }
+            
+            // Check if token allows session access
+            if (!SharedTokenData.IsValid)
+            {
+                _logger.LogWarning("Token does not have permission to access sessions");
+                return RedirectToPage("./AccessDenied", new { Message = "Your share token does not have permission to view workout sessions." });
             }
 
-            // Get user name for display
-            var user = await _context.User.FirstOrDefaultAsync(u => u.UserId == ShareToken.UserId);
-            UserName = user?.Name ?? "this user";
+            // Get the workout session
+            WorkoutSession = await _context.WorkoutSessions
+                .Include(ws => ws.User)
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.WorkoutSets)
+                    .ThenInclude(ws => ws.Settype)
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.ExerciseType)
+                .FirstOrDefaultAsync(ws => ws.WorkoutSessionId == id && ws.UserId == SharedTokenData.UserId);
 
-            // Check if the user has access to this specific session
-            if (ShareToken.SessionId.HasValue && ShareToken.SessionId.Value != id)
+            if (WorkoutSession == null)
             {
-                _logger.LogWarning("User attempted to access session {SessionId} but token only grants access to session {TokenSessionId}", 
-                    id, ShareToken.SessionId.Value);
-                return RedirectToPage("./AccessDenied");
+                return NotFound();
             }
 
-            // Get session details
-            Session = await _context.Session
-                .FirstOrDefaultAsync(s => s.SessionId == id && s.UserId == ShareToken.UserId);
-
-            if (Session == null)
+            // Group sets by exercise
+            foreach (var exercise in WorkoutSession.WorkoutExercises.OrderBy(we => we.SequenceNum))
             {
-                _logger.LogWarning("Session {SessionId} not found for user {UserId}", id, ShareToken.UserId);
-                return Page();
-            }
-
-            // Get sets for this session
-            var sets = await _context.Set
-                .Include(s => s.ExerciseType)
-                .Where(s => s.SessionId == id)
-                .OrderBy(s => s.ExerciseTypeId)
-                .ThenBy(s => s.SequenceNum)
-                .ToListAsync();
-
-            // Group sets by exercise name
-            foreach (var set in sets)
-            {
-                string exerciseName = set.ExerciseType?.Name ?? "Unknown Exercise";
+                string exerciseName = exercise.ExerciseType?.Name ?? "Unknown Exercise";
                 
                 if (!ExerciseSets.ContainsKey(exerciseName))
                 {
-                    ExerciseSets[exerciseName] = new List<Models.Set>();
+                    ExerciseSets[exerciseName] = new List<WorkoutSet>();
                 }
                 
-                ExerciseSets[exerciseName].Add(set);
-            }
-
-            // Get reps for all sets
-            if (sets.Any())
-            {
-                var setIds = sets.Select(s => s.SetId).ToList();
-                var reps = await _context.Rep
-                    .Where(r => setIds.Contains((int)r.SetsSetId))
-                    .ToListAsync();
-
-                // Group reps by set ID
-                foreach (var rep in reps)
-                {
-                    int setId = (int)rep.SetsSetId;
-                    
-                    if (!SetReps.ContainsKey(setId))
-                    {
-                        SetReps[setId] = new List<Rep>();
-                    }
-                    
-                    SetReps[setId].Add(rep);
-                }
+                ExerciseSets[exerciseName].AddRange(
+                    exercise.WorkoutSets.OrderBy(ws => ws.SequenceNum)
+                );
             }
 
             return Page();
+        }
+
+        public async Task<IActionResult> OnPostStartNextIterationAsync(int id)
+        {
+            var canStart = await _workoutIterationService.CanStartNextIterationAsync(id);
+            if (!canStart)
+            {
+                return RedirectToPage("./Error", new { message = "Cannot start next iteration" });
+            }
+
+            var nextSession = await _workoutIterationService.StartNextIterationAsync(id);
+            return RedirectToPage("./Session", new { id = nextSession.WorkoutSessionId });
         }
     }
 }

@@ -59,12 +59,44 @@ namespace WorkoutTrackerWeb.Models
         [Display(Name = "Status")]
         public string Status { get; set; }
         
+        [Display(Name = "Iteration Number")]
+        public int IterationNumber { get; set; } = 1;
+        
+        [Display(Name = "Previous Iteration ID")]
+        public int? PreviousIterationId { get; set; }
+        
+        [Display(Name = "Next Iteration ID")]
+        public int? NextIterationId { get; set; }
+        
+        [ForeignKey("PreviousIterationId")]
+        public WorkoutSession PreviousIteration { get; set; }
+        
+        [ForeignKey("NextIterationId")]
+        public WorkoutSession NextIteration { get; set; }
+        
         // Navigation properties
         [ForeignKey("UserId")]
         public User User { get; set; }
         
         [ForeignKey("WorkoutTemplateId")]
         public WorkoutTemplate WorkoutTemplate { get; set; }
+        
+        // Additional properties to ensure backwards compatibility
+        [NotMapped]
+        public string Notes { 
+            get => Description;
+            set => Description = value; 
+        }
+        
+        [NotMapped]
+        public DateTime? datetime {
+            get => StartDateTime;
+            set { if (value.HasValue) StartDateTime = value.Value; }
+        }
+        
+        // Helper property for code that expects Exercises navigation property
+        [NotMapped]
+        public ICollection<WorkoutExercise> Exercises => WorkoutExercises;
         
         // Collection navigation properties
         public ICollection<WorkoutExercise> WorkoutExercises { get; set; } = new List<WorkoutExercise>();

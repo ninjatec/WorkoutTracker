@@ -208,6 +208,170 @@ namespace WorkoutTrackerWeb.Services.Coaching
             return count;
         }
 
+        public async Task<decimal> CalculateTotalVolumeForUserAsync(int userId, DateTime startDate, DateTime endDate)
+        {
+            try
+            {
+                var workouts = await _context.WorkoutSessions
+                    .Include(ws => ws.WorkoutExercises)
+                        .ThenInclude(we => we.WorkoutSets)
+                    .Where(ws => ws.UserId == userId && 
+                               ws.StartDateTime >= startDate && 
+                               ws.StartDateTime <= endDate)
+                    .ToListAsync();
+
+                decimal totalVolume = 0;
+                foreach (var workout in workouts)
+                {
+                    foreach (var exercise in workout.WorkoutExercises)
+                    {
+                        foreach (var set in exercise.WorkoutSets)
+                        {
+                            if (set.Weight.HasValue && set.Reps.HasValue)
+                            {
+                                totalVolume += set.Weight.Value * set.Reps.Value;
+                            }
+                        }
+                    }
+                }
+
+                return totalVolume;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calculating total volume for user {UserId}", userId);
+                throw;
+            }
+        }
+
+        public async Task<decimal> CalculateAverageWeightPerSetAsync(int userId, int exerciseTypeId, DateTime startDate, DateTime endDate)
+        {
+            try
+            {
+                var sets = await _context.WorkoutSessions
+                    .Include(ws => ws.WorkoutExercises)
+                        .ThenInclude(we => we.WorkoutSets)
+                    .Where(ws => ws.UserId == userId && 
+                               ws.StartDateTime >= startDate && 
+                               ws.StartDateTime <= endDate)
+                    .SelectMany(ws => ws.WorkoutExercises)
+                    .Where(we => we.ExerciseTypeId == exerciseTypeId)
+                    .SelectMany(we => we.WorkoutSets)
+                    .Where(s => s.Weight.HasValue)
+                    .ToListAsync();
+
+                if (!sets.Any())
+                {
+                    return 0;
+                }
+
+                return sets.Average(s => s.Weight.Value);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calculating average weight per set for user {UserId} and exercise {ExerciseId}", userId, exerciseTypeId);
+                throw;
+            }
+        }
+
+        public async Task<int> CountWorkoutsAsync(int userId, DateTime startDate, DateTime endDate)
+        {
+            try
+            {
+                return await _context.WorkoutSessions
+                    .CountAsync(ws => ws.UserId == userId && 
+                                    ws.StartDateTime >= startDate && 
+                                    ws.StartDateTime <= endDate);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error counting workouts for user {UserId}", userId);
+                throw;
+            }
+        }
+
+        public async Task<decimal> CalculateMaxWeightForExerciseAsync(int userId, int exerciseTypeId, DateTime startDate, DateTime endDate)
+        {
+            try
+            {
+                var maxWeight = await _context.WorkoutSessions
+                    .Include(ws => ws.WorkoutExercises)
+                        .ThenInclude(we => we.WorkoutSets)
+                    .Where(ws => ws.UserId == userId && 
+                               ws.StartDateTime >= startDate && 
+                               ws.StartDateTime <= endDate)
+                    .SelectMany(ws => ws.WorkoutExercises)
+                    .Where(we => we.ExerciseTypeId == exerciseTypeId)
+                    .SelectMany(we => we.WorkoutSets)
+                    .Where(s => s.Weight.HasValue)
+                    .MaxAsync(s => (decimal?)s.Weight) ?? 0;
+
+                return maxWeight;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calculating max weight for user {UserId} and exercise {ExerciseId}", userId, exerciseTypeId);
+                throw;
+            }
+        }
+
+        public async Task<int> CountTotalSetsAsync(int userId, int? exerciseTypeId, DateTime startDate, DateTime endDate)
+        {
+            try
+            {
+                var query = _context.WorkoutSessions
+                    .Include(ws => ws.WorkoutExercises)
+                        .ThenInclude(we => we.WorkoutSets)
+                    .Where(ws => ws.UserId == userId && 
+                               ws.StartDateTime >= startDate && 
+                               ws.StartDateTime <= endDate)
+                    .SelectMany(ws => ws.WorkoutExercises);
+
+                if (exerciseTypeId.HasValue)
+                {
+                    query = query.Where(we => we.ExerciseTypeId == exerciseTypeId.Value);
+                }
+
+                return await query.SelectMany(we => we.WorkoutSets).CountAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error counting total sets for user {UserId}", userId);
+                throw;
+            }
+        }
+
+        public async Task<int> CountTotalRepsAsync(int userId, int? exerciseTypeId, DateTime startDate, DateTime endDate)
+        {
+            try
+            {
+                var query = _context.WorkoutSessions
+                    .Include(ws => ws.WorkoutExercises)
+                        .ThenInclude(we => we.WorkoutSets)
+                    .Where(ws => ws.UserId == userId && 
+                               ws.StartDateTime >= startDate && 
+                               ws.StartDateTime <= endDate)
+                    .SelectMany(ws => ws.WorkoutExercises);
+
+                if (exerciseTypeId.HasValue)
+                {
+                    query = query.Where(we => we.ExerciseTypeId == exerciseTypeId.Value);
+                }
+
+                var totalReps = await query
+                    .SelectMany(we => we.WorkoutSets)
+                    .Where(s => s.Reps.HasValue)
+                    .SumAsync(s => s.Reps.Value);
+
+                return totalReps;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error counting total reps for user {UserId}", userId);
+                throw;
+            }
+        }
+
         #region Private Helper Methods
 
         /// <summary>
@@ -220,9 +384,10 @@ namespace WorkoutTrackerWeb.Services.Coaching
                 GoalId = goal.Id,
                 Date = DateTime.UtcNow,
                 Value = newValue,
-                ProgressPercentage = CalculateProgressPercentage(goal.StartValue.GetValueOrDefault(), 
-                                                                goal.TargetValue.GetValueOrDefault(), 
-                                                                newValue),
+                ProgressPercentage = await Task.Run(() => CalculateProgressPercentage(
+                    goal.StartValue.GetValueOrDefault(), 
+                    goal.TargetValue.GetValueOrDefault(), 
+                    newValue)),
                 Notes = notes,
                 IsAutomaticUpdate = false,
                 Source = "manual"
@@ -242,22 +407,24 @@ namespace WorkoutTrackerWeb.Services.Coaching
             if (string.IsNullOrEmpty(exerciseName))
                 return;
 
-            var latestSession = await _context.Session
+            var latestSession = await _context.WorkoutSessions
                 .Where(s => s.UserId.ToString() == goal.UserId) // Ensure types match for comparison
-                .OrderByDescending(s => s.datetime)
+                .OrderByDescending(s => s.StartDateTime)
                 .FirstOrDefaultAsync();
 
             if (latestSession == null)
                 return;
 
             // Get completed sets for the relevant exercise in recent workouts
-            var recentSets = await _context.Set
-                .Include(s => s.Session)
-                .Include(s => s.ExerciseType)
-                .Where(s => s.Session.UserId.ToString() == goal.UserId && // Ensure types match for comparison
-                           s.Session.datetime >= goal.CreatedDate &&
-                           s.ExerciseType.Name.Contains(exerciseName))
-                .OrderByDescending(s => s.Session.datetime)
+            var recentSets = await _context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.WorkoutSets)
+                .Where(ws => ws.UserId.ToString() == goal.UserId && // Ensure types match for comparison
+                           ws.StartDateTime >= goal.CreatedDate)
+                .SelectMany(ws => ws.WorkoutExercises)
+                .Where(we => we.ExerciseType.Name.Contains(exerciseName))
+                .SelectMany(we => we.WorkoutSets)
+                .OrderByDescending(s => s.Weight)
                 .Take(20) // Limit to recent sets
                 .ToListAsync();
 
@@ -265,7 +432,7 @@ namespace WorkoutTrackerWeb.Services.Coaching
                 return;
 
             // Find the maximum weight
-            decimal maxWeight = recentSets.Max(s => s.Weight);
+            decimal maxWeight = recentSets.Max(s => s.Weight.Value);
             
             // Only update if the new max is higher than the current value
             if (maxWeight > (goal.CurrentValue ?? 0))
@@ -286,41 +453,32 @@ namespace WorkoutTrackerWeb.Services.Coaching
                 return;
 
             // Get recent workouts
-            var recentSessions = await _context.Session
-                .Where(s => s.UserId.ToString() == goal.UserId && s.datetime >= goal.CreatedDate) // Ensure types match for comparison
-                .OrderByDescending(s => s.datetime)
+            var recentSessions = await _context.WorkoutSessions
+                .Where(s => s.UserId.ToString() == goal.UserId && s.StartDateTime >= goal.CreatedDate)
+                .OrderByDescending(s => s.StartDateTime)
                 .Take(10)
                 .ToListAsync();
 
             if (!recentSessions.Any())
                 return;
 
-            var sessionIds = recentSessions.Select(s => s.SessionId).ToList();
+            var sessionIds = recentSessions.Select(s => s.WorkoutSessionId).ToList();
 
             // Get sets for the exercise
-            var sets = await _context.Set
-                .Include(s => s.ExerciseType)
-                .Where(s => sessionIds.Contains(s.SessionId) && 
-                           s.ExerciseType.Name.Contains(exerciseName))
+            var sets = await _context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.WorkoutSets)
+                .Where(ws => sessionIds.Contains(ws.WorkoutSessionId))
+                .SelectMany(ws => ws.WorkoutExercises)
+                .Where(we => we.ExerciseType.Name.Contains(exerciseName))
+                .SelectMany(we => we.WorkoutSets)
                 .ToListAsync();
 
             if (!sets.Any())
                 return;
 
-            // Get set IDs
-            var setIds = sets.Select(s => s.SetId).ToList();
-
-            // Get reps for the sets
-            var reps = await _context.Rep
-                .Where(r => r.SetsSetId.HasValue && setIds.Contains(r.SetsSetId.Value))
-                .ToListAsync();
-
-            if (!reps.Any())
-                return;
-
             // Calculate max reps in a single set
-            var setGroups = reps.GroupBy(r => r.SetsSetId);
-            int maxReps = setGroups.Max(g => g.Count());
+            int maxReps = sets.Max(s => s.Reps.Value);
 
             // Only update if the new max is higher than the current value
             if (maxReps > (goal.CurrentValue ?? 0))
@@ -339,27 +497,29 @@ namespace WorkoutTrackerWeb.Services.Coaching
             var cardioKeywords = new[] { "run", "jog", "walk", "bike", "cycle", "swim", "row", "elliptical", "cardio" };
             
             // Get recent workouts
-            var recentSessions = await _context.Session
-                .Where(s => s.UserId.ToString() == goal.UserId && s.datetime >= goal.CreatedDate) // Ensure types match for comparison
-                .OrderByDescending(s => s.datetime)
+            var recentSessions = await _context.WorkoutSessions
+                .Where(s => s.UserId.ToString() == goal.UserId && s.StartDateTime >= goal.CreatedDate)
+                .OrderByDescending(s => s.StartDateTime)
                 .Take(10)
                 .ToListAsync();
 
             if (!recentSessions.Any())
                 return;
 
-            var sessionIds = recentSessions.Select(s => s.SessionId).ToList();
+            var sessionIds = recentSessions.Select(s => s.WorkoutSessionId).ToList();
 
             // For now, we'll estimate distance based on session time for cardio exercises
-            // In a real-world app, you'd have actual distance data or formulas
             decimal totalDistanceEstimate = 0;
             bool foundCardioSessions = false;
             
             // Get sets that might be cardio exercises
-            var cardioSets = await _context.Set
-                .Include(s => s.ExerciseType)
-                .Where(s => sessionIds.Contains(s.SessionId) && 
-                           cardioKeywords.Any(k => s.ExerciseType.Name.ToLower().Contains(k)))
+            var cardioSets = await _context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.WorkoutSets)
+                .Where(ws => sessionIds.Contains(ws.WorkoutSessionId))
+                .SelectMany(ws => ws.WorkoutExercises)
+                .Where(we => cardioKeywords.Any(k => we.ExerciseType.Name.ToLower().Contains(k)))
+                .SelectMany(we => we.WorkoutSets)
                 .ToListAsync();
                 
             if (cardioSets.Any())
@@ -396,9 +556,9 @@ namespace WorkoutTrackerWeb.Services.Coaching
         private async Task UpdateDurationBasedGoalAsync(ClientGoal goal)
         {
             // Get recent workouts
-            var recentSessions = await _context.Session
-                .Where(s => s.UserId.ToString() == goal.UserId && s.datetime >= goal.CreatedDate) // Ensure types match for comparison
-                .OrderByDescending(s => s.datetime)
+            var recentSessions = await _context.WorkoutSessions
+                .Where(s => s.UserId.ToString() == goal.UserId && s.StartDateTime >= goal.CreatedDate) // Ensure types match for comparison
+                .OrderByDescending(s => s.StartDateTime)
                 .Take(10)
                 .ToListAsync();
 

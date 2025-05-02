@@ -134,43 +134,45 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Templates
             try
             {
                 // Create new workout session
-                var session = new Session
+                var session = new WorkoutSession
                 {
                     UserId = clientId,
                     Name = sessionName,
-                    Notes = sessionNotes,
+                    Description = sessionNotes,
                     StartDateTime = sessionDate,
-                    datetime = sessionDate
+                    Status = "Created",
+                    IsCompleted = false
                 };
 
-                _context.Session.Add(session);
+                _context.WorkoutSessions.Add(session);
                 await _context.SaveChangesAsync();
 
-                // Create sets from template
-                int exerciseSequence = 1;
+                // Create exercises and sets from template
                 foreach (var templateExercise in template.TemplateExercises.OrderBy(e => e.SequenceNum))
                 {
+                    var workoutExercise = new WorkoutExercise
+                    {
+                        WorkoutSessionId = session.WorkoutSessionId,
+                        ExerciseTypeId = templateExercise.ExerciseTypeId,
+                        SequenceNum = templateExercise.SequenceNum
+                    };
+
+                    _context.WorkoutExercises.Add(workoutExercise);
+                    await _context.SaveChangesAsync();
+
                     int setSequence = 1;
                     foreach (var templateSet in templateExercise.TemplateSets.OrderBy(s => s.SequenceNum))
                     {
-                        var sessionSet = new Set
+                        var workoutSet = new WorkoutSet
                         {
-                            SessionId = session.SessionId,
+                            WorkoutExerciseId = workoutExercise.WorkoutExerciseId,
                             SequenceNum = setSequence++,
-                            ExerciseTypeId = templateExercise.ExerciseTypeId,
+                            Weight = templateSet.DefaultWeight,
+                            Reps = templateSet.DefaultReps,
                             SettypeId = templateSet.SettypeId
                         };
                         
-                        // Add reps
-                        sessionSet.Reps = new List<Rep>();
-                        var rep = new Rep
-                        {
-                            repnumber = templateSet.DefaultReps,
-                            weight = templateSet.DefaultWeight
-                        };
-                        sessionSet.Reps.Add(rep);
-
-                        _context.Set.Add(sessionSet);
+                        _context.WorkoutSets.Add(workoutSet);
                     }
                 }
 

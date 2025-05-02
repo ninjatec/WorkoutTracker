@@ -1,170 +1,61 @@
-@model IEnumerable<WorkoutTrackerWeb.Models.Session>
+@model IEnumerable<WorkoutTrackerWeb.Models.WorkoutSession>
+
 @{
     ViewData["Title"] = "Shared Workouts";
-    Layout = "_SharedLayout";
 }
 
-<div class="container">
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <h1 class="mb-0">Shared Workouts</h1>
-                <div>
-                    @if (ViewBag.ShareToken != null)
-                    {
-                        <span class="text-muted">Token: @ViewBag.ShareToken.TokenId</span>
-                    }
-                </div>
-            </div>
-            <p class="text-muted">These workout sessions have been shared with you.</p>
-        </div>
-    </div>
+<h1>@ViewData["Title"]</h1>
 
-    @if (!Model.Any())
-    {
-        <div class="alert alert-info">
-            <p class="mb-0">No workout sessions have been shared yet.</p>
-        </div>
-    }
-    else
-    {
-        <div class="row">
-            <div class="col-12 mb-4">
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">Workout Sessions</h5>
-                    </div>
-                    <div class="card-body p-0">
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">Shared Workouts for @ViewBag.UserName</h5>
+                </div>
+                <div class="card-body">
+                    @if (!Model.Any())
+                    {
+                        <p>No workouts found.</p>
+                    }
+                    else
+                    {
                         <div class="table-responsive">
-                            <table class="table table-hover mb-0">
+                            <table class="table table-hover">
                                 <thead>
                                     <tr>
-                                        <th>Date & Time</th>
+                                        <th>Name</th>
+                                        <th>Date</th>
                                         <th>Duration</th>
-                                        <th class="text-center">Exercises</th>
-                                        <th class="text-center">Sets</th>
-                                        <th class="text-center">Volume</th>
-                                        <th>Notes</th>
-                                        <th></th>
+                                        <th>Exercises</th>
+                                        <th>Description</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach (var session in Model.OrderByDescending(s => s.datetime))
+                                    @foreach (var session in Model.OrderByDescending(s => s.StartDateTime))
                                     {
                                         <tr>
+                                            <td>@session.Name</td>
+                                            <td>@session.StartDateTime.ToShortDateString()</td>
+                                            <td>@(session.EndDateTime.HasValue ? $"{(session.EndDateTime.Value - session.StartDateTime).TotalMinutes:F0} minutes" : "In Progress")</td>
+                                            <td>@session.WorkoutExercises.Count()</td>
+                                            <td>@(string.IsNullOrEmpty(session.Description) ? "-" : session.Description)</td>
                                             <td>
-                                                <strong>@session.datetime.ToString("MMM d, yyyy")</strong><br>
-                                                <small class="text-muted">@session.datetime.ToString("h:mm tt")</small>
-                                            </td>
-                                            <td>
-                                                @if (session.TotalWorkoutTime != TimeSpan.Zero)
-                                                {
-                                                    @session.TotalWorkoutTime.ToString(@"hh\:mm\:ss")
-                                                }
-                                                else
-                                                {
-                                                    <span>-</span>
-                                                }
-                                            </td>
-                                            <td class="text-center">
-                                                @if (ViewBag.SessionStats != null && ViewBag.SessionStats.ContainsKey(session.SessionId))
-                                                {
-                                                    <span>@ViewBag.SessionStats[session.SessionId].ExerciseCount</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>-</span>
-                                                }
-                                            </td>
-                                            <td class="text-center">
-                                                @if (ViewBag.SessionStats != null && ViewBag.SessionStats.ContainsKey(session.SessionId))
-                                                {
-                                                    <span>@ViewBag.SessionStats[session.SessionId].SetCount</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>-</span>
-                                                }
-                                            </td>
-                                            <td class="text-center">
-                                                @if (ViewBag.SessionStats != null && ViewBag.SessionStats.ContainsKey(session.SessionId))
-                                                {
-                                                    <span>@ViewBag.SessionStats[session.SessionId].TotalVolume.ToString("N0") kg</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>-</span>
-                                                }
-                                            </td>
-                                            <td>
-                                                @if (!string.IsNullOrEmpty(session.Notes))
-                                                {
-                                                    <span class="session-notes">@(session.Notes.Length > 50 ? session.Notes.Substring(0, 47) + "..." : session.Notes)</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>-</span>
-                                                }
-                                            </td>
-                                            <td>
-                                                <a asp-action="Session" asp-route-id="@session.SessionId" class="btn btn-sm btn-outline-primary">
-                                                    <i class="bi bi-eye"></i> View
-                                                </a>
+                                                <div class="btn-group">
+                                                    <a asp-controller="Shared" asp-action="Session" asp-route-id="@session.WorkoutSessionId" asp-route-token="@ViewBag.ShareToken.Token" class="btn btn-sm btn-primary">
+                                                        View
+                                                    </a>
+                                                </div>
                                             </td>
                                         </tr>
                                     }
                                 </tbody>
                             </table>
                         </div>
-                    </div>
+                    }
                 </div>
             </div>
         </div>
-
-        @if (ViewBag.ShareToken != null && ViewBag.ShareToken.AllowReports)
-        {
-            <div class="row">
-                <div class="col-12 mb-4">
-                    <div class="card">
-                        <div class="card-header bg-success text-white">
-                            <h5 class="mb-0">Analytics</h5>
-                        </div>
-                        <div class="card-body">
-                            <p>View analytics and reports for these shared workouts.</p>
-                            <a asp-action="Reports" class="btn btn-outline-success">
-                                <i class="bi bi-graph-up"></i> View Reports
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        }
-
-        @if (ViewBag.ShareToken != null && ViewBag.ShareToken.AllowCalculator)
-        {
-            <div class="row">
-                <div class="col-12 mb-4">
-                    <div class="card">
-                        <div class="card-header bg-info text-white">
-                            <h5 class="mb-0">1RM Calculator</h5>
-                        </div>
-                        <div class="card-body">
-                            <p>Calculate your estimated one-rep max (1RM) based on weight and reps.</p>
-                            <a asp-action="Calculator" class="btn btn-outline-info">
-                                <i class="bi bi-calculator"></i> Open Calculator
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        }
-    }
+    </div>
 </div>
-
-@section Scripts {
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Any client-side interaction can be added here
-        });
-    </script>
-}

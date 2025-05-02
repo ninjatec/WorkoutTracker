@@ -18,14 +18,16 @@ namespace WorkoutTrackerWeb.Dtos
         public bool AllowCalculatorAccess { get; set; }
         public int UserId { get; set; }
         public string UserName { get; set; }
-        public int? SessionId { get; set; }
-        public string SessionName { get; set; }
+        public int? WorkoutSessionId { get; set; }
+        public string WorkoutSessionName { get; set; }
         public string Name { get; set; }
         public string Description { get; set; }
         public bool IsValid { get; set; }
         public int DaysUntilExpiration { get; set; }
         public bool HasUsageLimits { get; set; }
         public int? RemainingUses { get; set; }
+        public int SessionId { get; set; }
+        public string SessionName { get; set; }
     }
 
     public class CreateShareTokenRequest
@@ -35,6 +37,7 @@ namespace WorkoutTrackerWeb.Dtos
         public int ExpiryDays { get; set; } = 7;
         
         public int? SessionId { get; set; }
+        public int? WorkoutSessionId { get; set; }
         
         [StringLength(100)]
         public string Name { get; set; }

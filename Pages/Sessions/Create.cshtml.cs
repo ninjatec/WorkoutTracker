@@ -34,7 +34,12 @@ namespace WorkoutTrackerWeb.Pages.Sessions
         }
 
         [BindProperty]
-        public Session Session { get; set; } = new Session();
+        public WorkoutSession WorkoutSession { get; set; } = new WorkoutSession
+        {
+            StartDateTime = DateTime.Now,
+            Status = "Created",
+            IsCompleted = false
+        };
 
         public async Task<IActionResult> OnPostAsync()
         {
@@ -43,17 +48,27 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 return Page();
             }
 
-            // Get the current user ID only (not the User entity)
+            // Get the current user ID
             var currentUserId = await _userService.GetCurrentUserIdAsync();
             if (!currentUserId.HasValue)
             {
                 return Challenge(); // Redirect to login if user not authenticated
             }
 
-            // Only assign the user ID, not the whole User entity
-            Session.UserId = currentUserId.Value;
+            // Set up the workout session
+            WorkoutSession.UserId = currentUserId.Value;
+            
+            // Set initial properties if not already set
+            if (WorkoutSession.StartDateTime == default)
+            {
+                WorkoutSession.StartDateTime = DateTime.Now;
+            }
+            if (string.IsNullOrEmpty(WorkoutSession.Status))
+            {
+                WorkoutSession.Status = "Created";
+            }
 
-            _context.Session.Add(Session);
+            _context.WorkoutSessions.Add(WorkoutSession);
             await _context.SaveChangesAsync();
 
             return RedirectToPage("./Index");

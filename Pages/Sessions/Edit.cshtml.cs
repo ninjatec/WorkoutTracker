@@ -10,6 +10,7 @@ using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Logging;
 
 namespace WorkoutTrackerWeb.Pages.Sessions
 {
@@ -18,15 +19,17 @@ namespace WorkoutTrackerWeb.Pages.Sessions
     {
         private readonly WorkoutTrackerWebContext _context;
         private readonly UserService _userService;
+        private readonly ILogger<EditModel> _logger;
 
-        public EditModel(WorkoutTrackerWebContext context, UserService userService)
+        public EditModel(WorkoutTrackerWebContext context, UserService userService, ILogger<EditModel> logger)
         {
             _context = context;
             _userService = userService;
+            _logger = logger;
         }
 
         [BindProperty]
-        public Session Session { get; set; } = default!;
+        public WorkoutSession WorkoutSession { get; set; } = default!;
 
         public async Task<IActionResult> OnGetAsync(int? id)
         {
@@ -35,30 +38,28 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 return NotFound();
             }
 
-            // Get the current user
             var currentUserId = await _userService.GetCurrentUserIdAsync();
             if (currentUserId == null)
             {
                 return Challenge();
             }
 
-            // Get the session with ownership check
-            var session = await _context.Session
-                .Include(s => s.User)
-                .FirstOrDefaultAsync(m => m.SessionId == id && m.UserId == currentUserId);
+            // Get the workout session with ownership check
+            var workoutSession = await _context.WorkoutSessions
+                .Include(ws => ws.User)
+                .FirstOrDefaultAsync(ws => ws.WorkoutSessionId == id && ws.UserId == currentUserId);
 
-            if (session == null)
+            if (workoutSession == null)
             {
                 return NotFound();
             }
             
-            Session = session;
+            WorkoutSession = workoutSession;
             return Page();
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
-            // Get the current user
             var currentUserId = await _userService.GetCurrentUserIdAsync();
             if (currentUserId == null)
             {
@@ -66,8 +67,8 @@ namespace WorkoutTrackerWeb.Pages.Sessions
             }
 
             // Verify ownership
-            var sessionToUpdate = await _context.Session
-                .FirstOrDefaultAsync(s => s.SessionId == Session.SessionId && s.UserId == currentUserId);
+            var sessionToUpdate = await _context.WorkoutSessions
+                .FirstOrDefaultAsync(ws => ws.WorkoutSessionId == WorkoutSession.WorkoutSessionId && ws.UserId == currentUserId);
 
             if (sessionToUpdate == null)
             {
@@ -80,36 +81,62 @@ namespace WorkoutTrackerWeb.Pages.Sessions
             }
 
             // Ensure UserId isn't changed
-            Session.UserId = currentUserId.Value;
+            WorkoutSession.UserId = currentUserId.Value;
 
             try
             {
-                // Update only allowed fields
-                sessionToUpdate.Name = Session.Name;
-                sessionToUpdate.datetime = Session.datetime;
-                sessionToUpdate.endtime = Session.endtime;
-                // UserId is preserved from the original record
+                // Create execution strategy for the DB context
+                var strategy = _context.Database.CreateExecutionStrategy();
                 
-                await _context.SaveChangesAsync();
+                await strategy.ExecuteAsync(async () =>
+                {
+                    // Detach current entity to avoid tracking conflicts
+                    _context.Entry(sessionToUpdate).State = EntityState.Detached;
+                    
+                    // Update with the edited entity and mark as modified
+                    _context.Attach(WorkoutSession);
+                    _context.Entry(WorkoutSession).State = EntityState.Modified;
+                    
+                    // Update duration if end time is set
+                    if (WorkoutSession.EndDateTime.HasValue)
+                    {
+                        WorkoutSession.Duration = (int)(WorkoutSession.EndDateTime.Value - WorkoutSession.StartDateTime).TotalMinutes;
+                        
+                        // Update status to "Completed" when end date is set
+                        WorkoutSession.Status = "Completed";
+                        WorkoutSession.CompletedDate = WorkoutSession.EndDateTime;
+                    }
+                    
+                    // Execute the save within the strategy
+                    await _context.SaveChangesAsync();
+                    
+                    _logger.LogInformation("Session {SessionId} updated successfully", WorkoutSession.WorkoutSessionId);
+                });
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException ex)
             {
-                if (!SessionExists(Session.SessionId))
+                if (!WorkoutSessionExists(WorkoutSession.WorkoutSessionId))
                 {
                     return NotFound();
                 }
                 else
                 {
+                    _logger.LogError(ex, "Concurrency error updating session {SessionId}", WorkoutSession.WorkoutSessionId);
                     throw;
                 }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating session {SessionId}", WorkoutSession.WorkoutSessionId);
+                throw;
             }
 
             return RedirectToPage("./Index");
         }
 
-        private bool SessionExists(int id)
+        private bool WorkoutSessionExists(int id)
         {
-            return _context.Session.Any(e => e.SessionId == id);
+            return _context.WorkoutSessions.Any(ws => ws.WorkoutSessionId == id);
         }
     }
 }

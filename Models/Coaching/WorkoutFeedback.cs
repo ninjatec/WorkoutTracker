@@ -12,8 +12,11 @@ namespace WorkoutTrackerWeb.Models.Coaching
     {
         public int WorkoutFeedbackId { get; set; }
         
-        // Foreign key for Session
-        public int SessionId { get; set; }
+        // Foreign key for WorkoutSession
+        public int WorkoutSessionId { get; set; }
+        
+        [ForeignKey("WorkoutSessionId")]
+        public WorkoutSession WorkoutSession { get; set; }
         
         // Foreign key for client User
         public int ClientUserId { get; set; }
@@ -51,8 +54,6 @@ namespace WorkoutTrackerWeb.Models.Coaching
         public bool CoachViewed { get; set; } = false;
         
         // Navigation properties
-        public Session Session { get; set; }
-        
         [ForeignKey("ClientUserId")]
         public User Client { get; set; }
         
@@ -70,8 +71,8 @@ namespace WorkoutTrackerWeb.Models.Coaching
         // Foreign key for WorkoutFeedback
         public int WorkoutFeedbackId { get; set; }
         
-        // Foreign key for Set
-        public int SetId { get; set; }
+        // Foreign key for WorkoutSet instead of Set
+        public int WorkoutSetId { get; set; }
         
         [Range(1, 10)]
         [Display(Name = "RPE (Rate of Perceived Exertion)")]
@@ -93,6 +94,6 @@ namespace WorkoutTrackerWeb.Models.Coaching
         
         // Navigation properties
         public WorkoutFeedback WorkoutFeedback { get; set; }
-        public Set Set { get; set; }
+        public WorkoutSet WorkoutSet { get; set; }
     }
 }

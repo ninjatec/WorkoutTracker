@@ -1,125 +1,59 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
-using WorkoutTrackerWeb.Dtos;
-using WorkoutTrackerWeb.Extensions;
 using WorkoutTrackerWeb.Services;
+using WorkoutTrackerWeb.Models;
+using WorkoutTrackerWeb.ViewModels;
+using System.Threading.Tasks;
 
 namespace WorkoutTrackerWeb.Pages.Shared
 {
     public abstract class SharedPageModel : PageModel
     {
-        protected readonly IShareTokenService _shareTokenService;
+        protected readonly ITokenValidationService _tokenValidationService;
         protected readonly ILogger _logger;
 
-        public SharedPageModel(
-            IShareTokenService shareTokenService,
-            ILogger logger)
+        [BindProperty(SupportsGet = true)]
+        public string Token { get; set; }
+
+        public ShareTokenValidationResult SharedTokenData { get; private set; }
+
+        public int? SessionId { get; set; }
+
+        protected SharedPageModel(ITokenValidationService tokenValidationService, ILogger logger)
         {
-            _shareTokenService = shareTokenService;
+            _tokenValidationService = tokenValidationService;
             _logger = logger;
         }
 
-        public ShareTokenDto ShareToken { get; protected set; }
-        public string UserName { get; protected set; }
-
-        protected async Task<bool> ValidateTokenAsync(string token, string requiredPermission)
+        protected async Task<bool> ValidateShareTokenAsync()
         {
-            // Get token from query string or cookie
-            string tokenValue = token;
-            if (string.IsNullOrEmpty(tokenValue) && HttpContext.Request.Cookies.ContainsKey("share_token"))
+            // Validate token if present in URL
+            if (!string.IsNullOrEmpty(Token))
             {
-                tokenValue = HttpContext.Request.Cookies["share_token"];
-            }
-
-            if (string.IsNullOrEmpty(tokenValue))
-            {
-                _logger.LogWarning("No token provided for shared page access");
-                return false;
-            }
-
-            try
-            {
-                // Validate token
-                var result = await _shareTokenService.ValidateTokenAsync(tokenValue);
-                if (!result.IsValid)
+                var tokenData = await _tokenValidationService.ValidateShareTokenAsync(Token);
+                if (tokenData != null && tokenData.IsValid)
                 {
-                    _logger.LogWarning("Invalid token provided: {Error}", result.Message);
+                    _logger.LogInformation("Valid share token used: {Token}", Token);
                     
-                    // Redirect to invalid token page with error message
-                    if (this.GetType() != typeof(InvalidTokenModel))
-                    {
-                        Response.Redirect($"/Shared/InvalidToken?error={Uri.EscapeDataString(result.Message)}");
-                    }
+                    // Store token data for later use
+                    SharedTokenData = tokenData;
                     
-                    return false;
-                }
-
-                // Store token in cookie for future requests if not already there
-                if (string.IsNullOrEmpty(token) && !HttpContext.Request.Cookies.ContainsKey("share_token"))
-                {
-                    var cookieOptions = new CookieOptions
+                    // Validate session-specific token if applicable
+                    if (SessionId.HasValue && SessionId.Value > 0 && tokenData.SessionId > 0 && SessionId.Value != tokenData.SessionId)
                     {
-                        HttpOnly = true,
-                        Secure = true,
-                        SameSite = SameSiteMode.Lax,
-                        Expires = DateTimeOffset.UtcNow.AddDays(7) // Cookie expires in 7 days
-                    };
-                    Response.Cookies.Append("share_token", tokenValue, cookieOptions);
-                }
-
-                // Store token and set access data
-                ShareToken = result.ShareToken;
-                UserName = result.ShareToken?.UserName;
-
-                // Check permission if required
-                if (!string.IsNullOrEmpty(requiredPermission))
-                {
-                    bool hasPermission = false;
-                    
-                    // Normalize permission check
-                    string normalizedPermission = requiredPermission.ToLowerInvariant();
-                    
-                    // Check for the permission with more flexible matching
-                    if (normalizedPermission == "session" || normalizedPermission == "sessionaccess")
-                    {
-                        hasPermission = ShareToken.AllowSessionAccess;
-                    }
-                    else if (normalizedPermission == "report" || normalizedPermission == "reportaccess")
-                    {
-                        hasPermission = ShareToken.AllowReportAccess;
-                    }
-                    else if (normalizedPermission == "calculator" || normalizedPermission == "calculatoraccess")
-                    {
-                        hasPermission = ShareToken.AllowCalculatorAccess;
-                    }
-                    
-                    if (!hasPermission)
-                    {
-                        _logger.LogWarning("Token lacks required permission: {Permission}", requiredPermission);
-                        
-                        // Redirect to access denied page with missing permission
-                        if (this.GetType() != typeof(AccessDeniedModel))
-                        {
-                            Response.Redirect($"/Shared/AccessDenied?permission={Uri.EscapeDataString(requiredPermission)}");
-                        }
-                        
+                        _logger.LogWarning("Session-specific token used for wrong session. Expected: {Expected}, Actual: {Actual}", 
+                            tokenData.SessionId, SessionId);
                         return false;
                     }
+                    
+                    return true;
                 }
-
-                return true;
+                
+                _logger.LogWarning("Invalid share token used: {Token}", Token);
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error validating share token");
-                return false;
-            }
+            
+            return false;
         }
     }
 }

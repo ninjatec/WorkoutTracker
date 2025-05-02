@@ -35,7 +35,7 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
 
         public List<ShareTokenDto> UserTokens { get; set; } = new List<ShareTokenDto>();
         
-        public IEnumerable<SelectListItem> SessionItems { get; set; } = new List<SelectListItem>();
+        public IEnumerable<SelectListItem> WorkoutSessionItems { get; set; } = new List<SelectListItem>();
         
         [BindProperty]
         public CreateTokenInputModel CreateTokenInput { get; set; }
@@ -53,8 +53,8 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
             [Display(Name = "Token expiry (days)")]
             public int ExpiryDays { get; set; } = 7;
             
-            [Display(Name = "Share specific session only")]
-            public int? SessionId { get; set; }
+            [Display(Name = "Share specific workout session only")]
+            public int? WorkoutSessionId { get; set; }
             
             [StringLength(100, ErrorMessage = "Name cannot exceed 100 characters")]
             [Display(Name = "Name (optional)")]
@@ -118,8 +118,8 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
                     return Unauthorized();
                 }
 
-                // Get user's sessions for the dropdown
-                await LoadSessionsAsync(userId.Value);
+                // Get user's workout sessions for the dropdown
+                await LoadWorkoutSessionsAsync(userId.Value);
                 
                 // Get user's share tokens
                 UserTokens = await _shareTokenService.GetUserShareTokensAsync(userId.Value);
@@ -146,7 +146,7 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
 
                 if (!ModelState.IsValid)
                 {
-                    await LoadSessionsAsync(userId.Value);
+                    await LoadWorkoutSessionsAsync(userId.Value);
                     UserTokens = await _shareTokenService.GetUserShareTokensAsync(userId.Value);
                     return Page();
                 }
@@ -154,7 +154,7 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
                 var createRequest = new CreateShareTokenRequest
                 {
                     ExpiryDays = CreateTokenInput.ExpiryDays,
-                    SessionId = CreateTokenInput.SessionId,
+                    WorkoutSessionId = CreateTokenInput.WorkoutSessionId,
                     Name = CreateTokenInput.Name,
                     Description = CreateTokenInput.Description,
                     MaxAccessCount = CreateTokenInput.MaxAccessCount,
@@ -176,7 +176,7 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
                 var userId = await GetCurrentUserIdAsync();
                 if (userId.HasValue)
                 {
-                    await LoadSessionsAsync(userId.Value);
+                    await LoadWorkoutSessionsAsync(userId.Value);
                     UserTokens = await _shareTokenService.GetUserShareTokensAsync(userId.Value);
                 }
                 
@@ -196,7 +196,7 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
 
                 if (!ModelState.IsValid)
                 {
-                    await LoadSessionsAsync(userId.Value);
+                    await LoadWorkoutSessionsAsync(userId.Value);
                     UserTokens = await _shareTokenService.GetUserShareTokensAsync(userId.Value);
                     return Page();
                 }
@@ -233,7 +233,7 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
                 var userId = await GetCurrentUserIdAsync();
                 if (userId.HasValue)
                 {
-                    await LoadSessionsAsync(userId.Value);
+                    await LoadWorkoutSessionsAsync(userId.Value);
                     UserTokens = await _shareTokenService.GetUserShareTokensAsync(userId.Value);
                 }
                 
@@ -329,34 +329,34 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
             return user?.UserId;
         }
         
-        private async Task LoadSessionsAsync(int userId)
+        private async Task LoadWorkoutSessionsAsync(int userId)
         {
             try
             {
-                // Get the last 50 sessions for the dropdown
-                var sessions = await _userService.GetUserSessionsAsync(userId, 50);
+                // Get the last 50 workout sessions for the dropdown
+                var workoutSessions = await _userService.GetUserWorkoutSessionsAsync(userId, 50);
                 
-                SessionItems = sessions.Select(s => new SelectListItem
+                WorkoutSessionItems = workoutSessions.Select(s => new SelectListItem
                 {
-                    Value = s.SessionId.ToString(),
-                    Text = $"{s.Name} - {s.datetime:g}"
+                    Value = s.WorkoutSessionId.ToString(),
+                    Text = $"{s.Name} - {s.StartDateTime:g}"
                 }).ToList();
                 
                 // Add an empty item at the beginning
                 var emptyItem = new SelectListItem
                 {
                     Value = "",
-                    Text = "--- All sessions ---",
+                    Text = "--- All workout sessions ---",
                     Selected = true
                 };
                 
-                SessionItems = new[] { emptyItem }.Concat(SessionItems);
+                WorkoutSessionItems = new[] { emptyItem }.Concat(WorkoutSessionItems);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error loading sessions for share token page");
-                // Don't throw - just leave the sessions list empty
-                SessionItems = new List<SelectListItem>();
+                _logger.LogError(ex, "Error loading workout sessions for share token page");
+                // Don't throw - just leave the workout sessions list empty
+                WorkoutSessionItems = new List<SelectListItem>();
             }
         }
     }

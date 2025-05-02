@@ -26,6 +26,18 @@ namespace WorkoutTrackerWeb.Services
         public int PercentComplete => TotalReps > 0 ? (ProcessedReps * 100) / TotalReps : (TotalWorkouts > 0 ? (CurrentWorkout * 100) / TotalWorkouts : 0);
     }
 
+    // Add custom DataRow class for import
+    public class DataRow
+    {
+        private readonly Dictionary<string, object> _data = new Dictionary<string, object>();
+        
+        public object this[string name]
+        {
+            get => _data.TryGetValue(name, out var value) ? value : null;
+            set => _data[name] = value;
+        }
+    }
+
     public class TrainAIWorkout
     {
         public string Name { get; set; }
@@ -67,66 +79,19 @@ namespace WorkoutTrackerWeb.Services
             _logger = logger;
         }
 
-        private async Task<ExerciseType> GetOrCreateExerciseTypeAsync(string exerciseName)
+        private async Task<ExerciseType> GetOrCreateExerciseTypeAsync(string name)
         {
-            // Normalize exercise name and search case-insensitively
-            var normalizedName = exerciseName.Trim();
-            var existingExercise = await _context.ExerciseType
-                .FirstOrDefaultAsync(e => e.Name.ToLower() == normalizedName.ToLower());
+            var exerciseType = await _context.ExerciseType
+                .FirstOrDefaultAsync(et => et.Name == name);
 
-            if (existingExercise != null)
+            if (exerciseType == null)
             {
-                return existingExercise;
+                exerciseType = new ExerciseType { Name = name };
+                _context.ExerciseType.Add(exerciseType);
+                await _context.SaveChangesAsync();
             }
 
-            // Check for similar names to prevent duplicates
-            var similarExercises = await _context.ExerciseType
-                .Where(e => EF.Functions.Like(e.Name.ToLower(), $"%{normalizedName.ToLower()}%") 
-                        || normalizedName.ToLower().Contains(e.Name.ToLower()))
-                .ToListAsync();
-
-            if (similarExercises.Any())
-            {
-                // Use the most similar existing exercise
-                return similarExercises.OrderBy(e => 
-                    LevenshteinDistance(e.Name.ToLower(), normalizedName.ToLower()))
-                    .First();
-            }
-
-            // Create new exercise type if no match found
-            var newExercise = new ExerciseType
-            {
-                Name = normalizedName,
-                Description = $"Imported from TrainAI: {normalizedName}"
-            };
-            _context.ExerciseType.Add(newExercise);
-            await _context.SaveChangesAsync();
-            return newExercise;
-        }
-
-        // Helper method to calculate string similarity
-        private static int LevenshteinDistance(string s1, string s2)
-        {
-            var costs = new int[s1.Length + 1, s2.Length + 1];
-
-            for (int i = 0; i <= s1.Length; i++)
-                costs[i, 0] = i;
-            
-            for (int j = 0; j <= s2.Length; j++)
-                costs[0, j] = j;
-
-            for (int i = 1; i <= s1.Length; i++)
-            {
-                for (int j = 1; j <= s2.Length; j++)
-                {
-                    int cost = (s1[i - 1] == s2[j - 1]) ? 0 : 1;
-                    costs[i, j] = Math.Min(
-                        Math.Min(costs[i - 1, j] + 1, costs[i, j - 1] + 1),
-                        costs[i - 1, j - 1] + cost);
-                }
-            }
-
-            return costs[s1.Length, s2.Length];
+            return exerciseType;
         }
 
         public async Task<List<TrainAIWorkout>> ParseTrainAICsvAsync(Stream csvStream)
@@ -257,8 +222,6 @@ namespace WorkoutTrackerWeb.Services
         {
             var importedItems = new List<string>();
             var progress = new ImportProgress { TotalWorkouts = workouts.Count };
-            var batchedReps = new List<Rep>();
-            var progressCounter = 0;
 
             try
             {
@@ -268,128 +231,7 @@ namespace WorkoutTrackerWeb.Services
                 progress.TotalReps = workouts.Sum(w => w.Sets.Sum(s => s.Reps));
                 ReportProgress(progress, "Starting import", 0);
 
-                foreach (var workout in workouts)
-                {
-                    progress.CurrentWorkout++;
-                    progress.CurrentWorkoutName = workout.Name;
-                    progress.TotalSets = workout.Sets.Count;
-                    progress.CurrentSet = 0;
-                    
-                    ReportProgress(progress, $"Processing workout {progress.CurrentWorkout}/{progress.TotalWorkouts}: {workout.Name}", 
-                        progress.PercentComplete);
-
-                    // Create a strategy and use it for all database operations in this workout
-                    var strategy = _context.Database.CreateExecutionStrategy();
-                    
-                    await strategy.ExecuteAsync(async () => 
-                    {
-                        // Use transaction within execution strategy
-                        using var transaction = await _context.Database.BeginTransactionAsync();
-                        try
-                        {
-                            // Create session
-                            var session = new Models.Session
-                            {
-                                Name = workout.Name,
-                                datetime = workout.StartTime,
-                                UserId = userId
-                            };
-
-                            _context.Session.Add(session);
-                            await _context.SaveChangesAsync();
-                            importedItems.Add($"Session: {session.Name} ({session.datetime})");
-
-                            // Process sets with optimized batching
-                            foreach (var trainAiSet in workout.Sets)
-                            {
-                                progress.CurrentSet++;
-                                progress.CurrentExercise = trainAiSet.Exercise;
-                                
-                                ReportProgress(progress, $"Processing set {progress.CurrentSet}/{progress.TotalSets}: {trainAiSet.Exercise}", 
-                                    progress.PercentComplete);
-
-                                var exerciseType = await GetOrCreateExerciseTypeAsync(trainAiSet.Exercise);
-                                if (!importedItems.Contains($"Exercise Type: {exerciseType.Name}"))
-                                {
-                                    importedItems.Add($"Exercise Type: {exerciseType.Name}");
-                                }
-
-                                var setType = await _context.Settype
-                                    .FirstOrDefaultAsync(s => s.Name == "Normal");
-
-                                if (setType == null)
-                                {
-                                    setType = new Settype
-                                    {
-                                        Name = "Normal",
-                                        Description = "Regular working set"
-                                    };
-                                    _context.Settype.Add(setType);
-                                    await _context.SaveChangesAsync();
-                                    importedItems.Add($"Set Type: {setType.Name}");
-                                }
-
-                                var set = new Set
-                                {
-                                    Description = $"Imported from TrainAI",
-                                    Notes = $"Rest time: {trainAiSet.RestTime} seconds",
-                                    ExerciseTypeId = exerciseType.ExerciseTypeId,
-                                    SettypeId = setType.SettypeId,
-                                    NumberReps = trainAiSet.Reps,
-                                    Weight = trainAiSet.Weight,
-                                    SessionId = session.SessionId
-                                };
-
-                                _context.Set.Add(set);
-                                await _context.SaveChangesAsync();
-
-                                // Create reps with optimized progress reporting
-                                for (int i = 0; i < trainAiSet.Reps; i++)
-                                {
-                                    batchedReps.Add(new Rep
-                                    {
-                                        weight = trainAiSet.Weight,
-                                        repnumber = i + 1,
-                                        success = true,
-                                        SetsSetId = set.SetId
-                                    });
-                                    
-                                    progress.ProcessedReps++;
-                                    progressCounter++;
-
-                                    // Update progress less frequently to reduce overhead
-                                    if (progressCounter >= PROGRESS_UPDATE_FREQUENCY)
-                                    {
-                                        ReportProgress(progress, $"Processing reps ({progress.ProcessedReps}/{progress.TotalReps})", 
-                                            progress.PercentComplete);
-                                        progressCounter = 0;
-                                    }
-
-                                    // Save in larger batches
-                                    if (batchedReps.Count >= BATCH_SIZE)
-                                    {
-                                        await SaveRepsBatchAsync(batchedReps);
-                                        batchedReps.Clear();
-                                    }
-                                }
-                            }
-
-                            // Save any remaining reps in the batch
-                            if (batchedReps.Any())
-                            {
-                                await SaveRepsBatchAsync(batchedReps);
-                                batchedReps.Clear();
-                            }
-
-                            await transaction.CommitAsync();
-                        }
-                        catch (Exception)
-                        {
-                            await transaction.RollbackAsync();
-                            throw;
-                        }
-                    });
-                }
+                importedItems = await ImportWorkoutSessionsAsync(workouts, userId);
 
                 // Ensure final progress is reported
                 ReportProgress(progress, "Import completed successfully", 100);
@@ -405,13 +247,68 @@ namespace WorkoutTrackerWeb.Services
             }
         }
 
-        private async Task SaveRepsBatchAsync(List<Rep> reps)
+        private async Task<List<string>> ImportWorkoutSessionsAsync(List<TrainAIWorkout> workouts, int userId)
         {
-            // Use AddRangeAsync for better performance with large batches
-            await _context.Rep.AddRangeAsync(reps);
-            await _context.SaveChangesAsync();
+            var importedItems = new List<string>();
+
+            foreach (var workout in workouts)
+            {
+                var session = new WorkoutSession
+                {
+                    Name = workout.Name,
+                    StartDateTime = workout.StartTime,
+                    EndDateTime = workout.EndTime,
+                    Duration = workout.TotalDuration,
+                    UserId = userId,
+                    IsCompleted = true,
+                    Status = "Completed"
+                };
+
+                _context.WorkoutSessions.Add(session);
+                await _context.SaveChangesAsync();
+                importedItems.Add($"WorkoutSession: {session.Name} ({session.StartDateTime})");
+
+                // Group sets by exercise name to create WorkoutExercises
+                var exerciseGroups = workout.Sets.GroupBy(s => s.Exercise);
+                var sequenceNum = 0;
+
+                foreach (var exerciseGroup in exerciseGroups)
+                {
+                    var exerciseType = await GetOrCreateExerciseTypeAsync(exerciseGroup.Key);
+                    
+                    var workoutExercise = new WorkoutExercise
+                    {
+                        WorkoutSessionId = session.WorkoutSessionId,
+                        ExerciseTypeId = exerciseType.ExerciseTypeId,
+                        SequenceNum = sequenceNum++
+                    };
+
+                    _context.WorkoutExercises.Add(workoutExercise);
+                    await _context.SaveChangesAsync();
+
+                    var setSequence = 0;
+                    foreach (var trainAiSet in exerciseGroup)
+                    {
+                        var workoutSet = new WorkoutSet
+                        {
+                            WorkoutExerciseId = workoutExercise.WorkoutExerciseId,
+                            SequenceNum = setSequence++,
+                            Weight = trainAiSet.Weight,
+                            Reps = trainAiSet.Reps,
+                            Notes = trainAiSet.RestTime > 0 ? $"Rest: {trainAiSet.RestTime}s" : null
+                        };
+
+                        _context.WorkoutSets.Add(workoutSet);
+                    }
+
+                    await _context.SaveChangesAsync();
+                    importedItems.Add($"Exercise: {exerciseType.Name} with {exerciseGroup.Count()} sets");
+                }
+            }
+
+            return importedItems;
         }
-        
+
         // Helper method to report progress through both the legacy and new systems
         private void ReportProgress(ImportProgress progress, string status, int percentComplete, string errorMessage = null)
         {

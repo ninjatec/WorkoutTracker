@@ -19,7 +19,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
             _context = context;
         }
 
-        public IList<Session> Sessions { get; set; }
+        public IList<WorkoutSession> WorkoutSessions { get; set; }
 
         public async Task<IActionResult> OnGetAsync(string clientUserId)
         {
@@ -38,13 +38,13 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
             }
 
             // Now use the application User ID for queries
-            var clientSessions = await _context.Session
-                .Where(s => s.UserId == clientAppUser.UserId)
-                .OrderByDescending(s => s.datetime)
+            var clientWorkoutSessions = await _context.WorkoutSessions
+                .Where(ws => ws.UserId == clientAppUser.UserId)
+                .OrderByDescending(ws => ws.StartDateTime)
                 .Take(5)
                 .ToListAsync();
 
-            Sessions = clientSessions;
+            WorkoutSessions = clientWorkoutSessions;
 
             return Page();
         }

@@ -67,8 +67,8 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Reports
                                        .ToList();
 
             // Get all sessions for these clients in the last 30 days
-            var sessions = await _context.Session
-                .Where(s => clientIdInts.Contains(s.UserId) && s.datetime >= thirtyDaysAgo)
+            var sessions = await _context.WorkoutSessions
+                .Where(s => clientIdInts.Contains(s.UserId) && s.StartDateTime >= thirtyDaysAgo)
                 .ToListAsync();
 
             TotalSessions = sessions.Count();
@@ -127,7 +127,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Reports
 
             // Prepare chart data
             var sessionsByDate = sessions
-                .GroupBy(s => s.datetime.Date)
+                .GroupBy(s => s.StartDateTime.Date)
                 .OrderBy(g => g.Key)
                 .Select(g => new { Date = g.Key, Count = g.Count() })
                 .ToList();

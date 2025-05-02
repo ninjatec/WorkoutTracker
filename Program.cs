@@ -3,16 +3,15 @@ using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Data;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Session;
 using Microsoft.Extensions.Caching.Distributed;
 using WorkoutTrackerWeb.Services;
 using WorkoutTrackerWeb.Services.Email;
 using WorkoutTrackerWeb.Services.Session;
 using WorkoutTrackerWeb.Services.VersionManagement;
 using WorkoutTrackerWeb.Services.Hangfire;
-using WorkoutTrackerWeb.Services.Logging; // Add the Logging namespace for extension methods
-using WorkoutTrackerWeb.Services.Alerting; // Add the Alerting namespace
-using WorkoutTrackerWeb.Services.Calculations; // Add the Calculations namespace
+using WorkoutTrackerWeb.Services.Logging;
+using WorkoutTrackerWeb.Services.Alerting;
+using WorkoutTrackerWeb.Services.Calculations;
 using WorkoutTrackerWeb.Middleware;
 using WorkoutTrackerWeb.Hubs;
 using Microsoft.AspNetCore.Identity.UI.Services;
@@ -33,6 +32,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Hangfire;
 using Hangfire.SqlServer;
 using Hangfire.Dashboard;
+using Hangfire.Redis.StackExchange;
 using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.StaticFiles;
 using StackExchange.Redis;
@@ -43,1327 +43,865 @@ using WorkoutTrackerWeb.Services.TempData;
 using Microsoft.EntityFrameworkCore.SqlServer;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Diagnostics;
-using WorkoutTrackerWeb.HealthChecks; // Add this for our custom health checks
+using WorkoutTrackerWeb.HealthChecks;
+using Microsoft.Extensions.Options;
+using WorkoutTrackerWeb.Models;
+using WorkoutTrackerWeb.Services.Redis;
+using WorkoutTrackerWeb.Extensions;
+using WorkoutTrackerWeb.Services.Metrics;
 
-// Initialize Serilog first, before creating the web host
-Log.Logger = new LoggerConfiguration()
-    .ReadFrom.Configuration(new ConfigurationBuilder()
-        .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-        .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", optional: true, reloadOnChange: true)
-        .AddEnvironmentVariables()
-        .Build())
-    .CreateLogger();
-
-try
+namespace WorkoutTrackerWeb
 {
-    Log.Information("Starting up WorkoutTracker application");
-
-    var builder = WebApplication.CreateBuilder(args);
-
-    // Add trusted domains for the application
-    string[] trustedDomains = new[] {
-        "workouttracker.online", 
-        "www.workouttracker.online",
-        "wot.ninjatec.co.uk",
-        "localhost",
-        "localhost:5001",
-        "localhost:5000"
-    };
-
-    // Add Serilog to the application
-    builder.Host.UseSerilog();
-
-    // Configure host filtering to accept the correct domains
-    builder.Services.AddHostFiltering(options => {
-        options.AllowedHosts = trustedDomains;
-        options.AllowEmptyHosts = true;  // Allow requests without a Host header
-        options.IncludeFailureMessage = true; // Include detailed failure messages
-    });
-
-    // Log the host filtering settings
-    Log.Information("Host filtering configured with allowed hosts: {AllowedHosts}", string.Join(", ", trustedDomains));
-
-    // Configure forwarded headers options to properly handle proxy servers like Cloudflare
-    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    public class Program
     {
-        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-        
-        // Clear the default networks that are trusted by default - we'll explicitly add our own
-        options.KnownNetworks.Clear();
-        options.KnownProxies.Clear();
-        
-        // Trust all proxies for now - in a production environment you'd want to be more specific
-        // about which proxies are trusted. For Cloudflare, you'd add their IP ranges.
-        options.ForwardLimit = null; // No limit on number of proxy hops
-    });
-
-    // Configure cookie policy
-    builder.Services.Configure<CookiePolicyOptions>(options =>
-    {
-        options.CheckConsentNeeded = context => true;
-        options.MinimumSameSitePolicy = SameSiteMode.None;
-        options.Secure = CookieSecurePolicy.Always;
-    });
-
-    // Configure rate limiting
-    builder.Services.AddMemoryCache();
-
-    // Rate limiting configuration
-    builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
-    builder.Services.Configure<IpRateLimitPolicies>(builder.Configuration.GetSection("IpRateLimitPolicies"));
-    builder.Services.AddInMemoryRateLimiting();
-    builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
-
-    // Add services to the container.
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseSqlServer(connectionString));
-    builder.Services.AddDatabaseDeveloperPageExceptionFilter();
-
-    // Register Logging Services
-    builder.Services.AddLoggingServices();
-    builder.Services.AddHostedService<WorkoutTrackerWeb.Services.Logging.LogLevelConfigurationHostedService>();
-
-    // Register HttpClientFactory
-    builder.Services.AddHttpClient();
-
-    // Register HangfireServerConfiguration first so it's available for service configuration
-    builder.Services.AddSingleton<HangfireServerConfiguration>();
-
-    // Configure Hangfire for background processing
-    builder.Services.AddHangfire(configuration => configuration
-        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-        .UseSimpleAssemblyNameTypeSerializer()
-        .UseRecommendedSerializerSettings()
-        .UseSqlServerStorage(connectionString, new SqlServerStorageOptions
+        public static void Main(string[] args)
         {
-            CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
-            SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
-            QueuePollInterval = TimeSpan.FromSeconds(15),
-            UseRecommendedIsolationLevel = true,
-            DisableGlobalLocks = false, // Enable global locks for distributed environment
-            SchemaName = "HangFire",
-            PrepareSchemaIfNecessary = true // Enable auto schema creation
-        })); // Removed .UseConsole() which was causing build errors
+            Log.Logger = new LoggerConfiguration()
+                .ReadFrom.Configuration(new ConfigurationBuilder()
+                    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                    .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", optional: true, reloadOnChange: true)
+                    .AddEnvironmentVariables()
+                    .Build())
+                .CreateLogger();
 
-    // Get Hangfire configuration to determine if we should register this instance as a server
-    using (var scope = builder.Services.BuildServiceProvider().CreateScope())
-    {
-        var hangfireConfig = scope.ServiceProvider.GetRequiredService<HangfireServerConfiguration>();
-        
-        // Only add Hangfire server if processing is enabled
-        if (hangfireConfig.IsProcessingEnabled) 
-        {
-            Log.Information("Registering this instance as a Hangfire server with {WorkerCount} workers", hangfireConfig.WorkerCount);
-            builder.Services.AddHangfireServer(options => {
-                // Let the configuration service configure the options
-                hangfireConfig.ConfigureServerOptions(options);
-            });
-        }
-        else
-        {
-            Log.Information("Hangfire processing is disabled for this instance - NOT registering as a server");
-        }
-    }
-
-    // Helper method to get SQL connection options with pooling and resilience settings
-    Func<string, Action<SqlServerDbContextOptionsBuilder>, DbContextOptionsBuilder> getSqlOptions = (connString, sqlOptionsAction) =>
-    {
-        // Get connection pooling settings from configuration
-        var poolingConfig = builder.Configuration.GetSection("DatabaseConnectionPooling");
-        int maxPoolSize = poolingConfig.GetValue<int>("MaxPoolSize", 200);
-        int minPoolSize = poolingConfig.GetValue<int>("MinPoolSize", 10);
-        int connectionLifetime = poolingConfig.GetValue<int>("ConnectionLifetime", 300);
-        bool connectionResetEnabled = poolingConfig.GetValue<bool>("ConnectionResetEnabled", true);
-        int loadBalanceTimeout = poolingConfig.GetValue<int>("LoadBalanceTimeout", 30);
-        int retryCount = poolingConfig.GetValue<int>("RetryCount", 5);
-        int retryInterval = poolingConfig.GetValue<int>("RetryInterval", 10);
-        
-        // Build connection string with additional connection pooling parameters
-        var sqlConnectionBuilder = new SqlConnectionStringBuilder(connString)
-        {
-            MaxPoolSize = maxPoolSize,
-            MinPoolSize = minPoolSize,
-            ConnectTimeout = loadBalanceTimeout,
-            LoadBalanceTimeout = loadBalanceTimeout,
-            ConnectRetryCount = retryCount,
-            ConnectRetryInterval = retryInterval
-        };
-
-        // Add additional parameters to connection string directly
-        string enhancedConnectionString = sqlConnectionBuilder.ConnectionString;
-        if (connectionLifetime > 0)
-        {
-            enhancedConnectionString += $";Connection Lifetime={connectionLifetime}";
-        }
-        
-        // Add connection reset parameter directly to connection string - only on Windows
-        if (connectionResetEnabled && OperatingSystem.IsWindows())
-        {
-            enhancedConnectionString += $";Connection Reset=true";
-        }
-        
-        // Create options builder with the enhanced connection string and SQL Server options
-        var optionsBuilder = new DbContextOptionsBuilder<WorkoutTrackerWebContext>();
-        optionsBuilder.UseSqlServer(enhancedConnectionString, sqlOptionsAction)
-            .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
-            .EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
-            
-        return optionsBuilder;
-    };
-
-    // Configure DataProtectionKeysDbContext for persistent key storage
-    builder.Services.AddDbContext<DataProtectionKeysDbContext>(options =>
-        options.UseSqlServer(connectionString));
-
-    // Configure Data Protection with persistent key storage
-    builder.Services.AddDataProtection()
-        .PersistKeysToDbContext<DataProtectionKeysDbContext>()
-        .SetApplicationName("WorkoutTracker")
-        .SetDefaultKeyLifetime(TimeSpan.FromDays(90)); // Rotate keys every 90 days
-
-    // Configure Identity to require confirmed account and customizable password requirements
-    builder.Services.AddDefaultIdentity<WorkoutTrackerWeb.Models.Identity.AppUser>(options => 
-    {
-        options.SignIn.RequireConfirmedAccount = true;
-        options.SignIn.RequireConfirmedEmail = true;
-        options.Password.RequireDigit = true;
-        options.Password.RequireLowercase = true;
-        options.Password.RequireUppercase = true;
-        options.Password.RequireNonAlphanumeric = true;
-        options.Password.RequiredLength = 8;
-        
-        // Configure username requirements
-        options.User.RequireUniqueEmail = true;
-        options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
-    })
-        .AddRoles<IdentityRole>() // Add role services
-        .AddEntityFrameworkStores<ApplicationDbContext>()
-        .AddUserValidator<CustomUserValidator>(); // Register our custom user validator
-
-    // Register CustomUsernameManager service for handling unique usernames
-    builder.Services.AddScoped<CustomUsernameManager>();
-
-    // Configure Authorization policies for Admin role
-    builder.Services.AddAuthorization(options =>
-    {
-        options.AddPolicy("RequireAdminRole", policy => policy.RequireRole("Admin"));
-        // Add Coach role policy
-        options.AddPolicy("RequireCoachRole", policy => policy.RequireRole("Coach"));
-    });
-
-    // Configure email service
-    builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
-    builder.Services.AddTransient<IEmailService, WorkoutTrackerWeb.Services.Email.EmailService>();
-    // Register adapter to make our email service compatible with Identity
-    builder.Services.AddTransient<IEmailSender, EmailSenderAdapter>();
-
-    // Add SignalR services with Redis backplane configuration
-    try
-    {
-        if (builder.Environment.IsDevelopment())
-        {
-            // In development, use in-memory SignalR without Redis
-            builder.Services.AddSignalR(options => {
-                options.EnableDetailedErrors = true;
-                options.MaximumReceiveMessageSize = 102400; // 100 KB
-                options.ClientTimeoutInterval = TimeSpan.FromSeconds(30); // How long to wait before timing out the client
-                options.HandshakeTimeout = TimeSpan.FromSeconds(15);     // How long to wait for the handshake to complete
-            });
-            Log.Information("Configured SignalR with in-memory backplane for development");
-        }
-        else
-        {
-            // In production, use Redis backplane for scaling
             try
             {
-                // Configure Redis with Sentinel for HA
-                var redisConnectionString = builder.Configuration.GetConnectionString("Redis") ?? 
-                                        Environment.GetEnvironmentVariable("ConnectionStrings__Redis") ?? 
-                                        "redis-master.web.svc.cluster.local:6379,abortConnect=false";
-                                        
-                var redisOptions = ConfigureRedisOptions(redisConnectionString);
-                
-                builder.Services.AddSignalR(options => {
-                    options.EnableDetailedErrors = true;
-                    options.MaximumReceiveMessageSize = 102400; // 100 KB
-                    options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
-                    options.HandshakeTimeout = TimeSpan.FromSeconds(15);
-                    // Set reasonable timeouts for connection keep-alive
-                    options.KeepAliveInterval = TimeSpan.FromSeconds(15);
-                }).AddStackExchangeRedis(options => 
-                {
-                    options.Configuration = redisOptions;
-                    options.ConnectionFactory = async writer => 
-                    {
-                        var connection = await ConnectionMultiplexer.ConnectAsync(redisOptions, writer);
-                        connection.ConnectionFailed += (_, e) => 
-                        {
-                            Log.Warning("Redis connection failed: {EndPoint}, {FailureType}", e.EndPoint, e.FailureType);
-                        };
-                        connection.ConnectionRestored += (_, e) => 
-                        {
-                            Log.Information("Redis connection restored: {EndPoint}", e.EndPoint);
-                        };
-                        connection.ErrorMessage += (_, e) =>
-                        {
-                            Log.Warning("Redis error: {Message}", e.Message);
-                        };
-                        return connection;
-                    };
-                });
-                Log.Information("Configured SignalR with Redis backplane using {ConnectionString}", redisConnectionString);
+                Log.Information("Starting up WorkoutTracker application");
+
+                // Run as synchronous to avoid issues with top-level statements
+                MainAsync(args).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
-                // Fallback to in-memory SignalR if Redis configuration fails
-                Log.Error(ex, "Failed to configure SignalR with Redis backplane, falling back to in-memory");
-                builder.Services.AddSignalR(options => {
-                    options.EnableDetailedErrors = true;
-                    options.MaximumReceiveMessageSize = 102400; // 100 KB
-                    options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
-                    options.HandshakeTimeout = TimeSpan.FromSeconds(15);
-                });
-                Log.Warning("Using in-memory SignalR backplane in production due to Redis configuration failure");
+                Log.Fatal(ex, "Application startup failed");
+            }
+            finally
+            {
+                Log.CloseAndFlush();
             }
         }
-    }
-    catch (Exception ex)
-    {
-        Log.Error(ex, "Error configuring SignalR services");
-        throw; // Re-throw as this is a critical error
-    }
 
-    // Add Redis for distributed caching and shared storage
-    if (builder.Environment.IsDevelopment())
-    {
-        // In development, use in-memory cache instead of Redis
-        Log.Information("Using in-memory distributed cache for development environment");
-        builder.Services.AddDistributedMemoryCache();
-        
-        // Register mock shared storage service for development
-        builder.Services.AddScoped<ISharedStorageService>(sp => {
-            // Create a mock implementation for development that uses local filesystem
-            var logger = sp.GetRequiredService<ILogger<RedisSharedStorageService>>();
-            return new RedisSharedStorageService(null, logger);
-        });
-    }
-    else
-    {
-        var redisConfigString = builder.Configuration.GetConnectionString("Redis") ?? 
-                             Environment.GetEnvironmentVariable("ConnectionStrings__Redis") ?? 
-                             "redis-master.web.svc.cluster.local:6379,abortConnect=false";
+        private static async Task MainAsync(string[] args)
+        {
+            var builder = WebApplication.CreateBuilder(args);
 
-        try {
-            var redisOptions = ConfigureRedisOptions(redisConfigString);
-            
-            // Register the ConnectionMultiplexer as a singleton
-            builder.Services.AddSingleton<IConnectionMultiplexer>(sp => {
-                var logger = sp.GetRequiredService<ILogger<Program>>();
-                try {
-                    var redisOptions = ConfigureRedisOptions(redisConfigString);
-                    
-                    // Create a new multiplexer with these options
-                    var connection = ConnectionMultiplexer.Connect(redisOptions);
-                    
-                    // Verify we have a master connection
-                    var hasWritableEndpoint = false;
-                    foreach (var endpoint in connection.GetEndPoints())
+            string[] trustedDomains = new[] {
+                "workouttracker.online", 
+                "www.workouttracker.online",
+                "wot.ninjatec.co.uk",
+                "localhost",
+                "localhost:5001",
+                "localhost:5000"
+            };
+
+            builder.Host.UseSerilog();
+
+            builder.Services.AddHostFiltering(options => {
+                options.AllowedHosts = trustedDomains;
+                options.AllowEmptyHosts = true;
+                options.IncludeFailureMessage = true;
+            });
+
+            Log.Information("Host filtering configured with allowed hosts: {AllowedHosts}", string.Join(", ", trustedDomains));
+
+            builder.Services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+                options.KnownNetworks.Clear();
+                options.KnownProxies.Clear();
+                options.ForwardLimit = null;
+            });
+
+            builder.Services.Configure<CookiePolicyOptions>(options =>
+            {
+                options.CheckConsentNeeded = context => true;
+                options.MinimumSameSitePolicy = SameSiteMode.None;
+                options.Secure = CookieSecurePolicy.Always;
+            });
+
+            builder.Services.AddMemoryCache();
+
+            builder.Services.AddSession(options => 
+            {
+                options.IdleTimeout = TimeSpan.FromMinutes(30);
+                options.Cookie.HttpOnly = true;
+                options.Cookie.IsEssential = true;
+                options.Cookie.SameSite = SameSiteMode.Strict;
+                options.Cookie.SecurePolicy = builder.Environment.IsProduction() 
+                    ? CookieSecurePolicy.Always 
+                    : CookieSecurePolicy.SameAsRequest;
+            });
+
+            builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
+            builder.Services.Configure<IpRateLimitPolicies>(builder.Configuration.GetSection("IpRateLimitPolicies"));
+            builder.Services.AddInMemoryRateLimiting();
+            builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+            builder.Services.AddDbContext<ApplicationDbContext>(options =>
+                options.UseSqlServer(connectionString));
+            builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+            builder.Services.AddLoggingServices();
+            builder.Services.AddHostedService<WorkoutTrackerWeb.Services.Logging.LogLevelConfigurationHostedService>();
+
+            builder.Services.AddHttpClient();
+
+            // Configure Redis
+            builder.Services.AddRedisConfiguration(builder.Configuration);
+
+            // Add output caching services
+            builder.Services.AddOutputCache(options => {
+                options.AddPolicy("Default", builder => builder.Expire(TimeSpan.FromMinutes(10)));
+                options.AddPolicy("Short", builder => builder.Expire(TimeSpan.FromMinutes(1)));
+                options.AddPolicy("Medium", builder => builder.Expire(TimeSpan.FromMinutes(30)));
+                options.AddPolicy("Long", builder => builder.Expire(TimeSpan.FromHours(1)));
+            });
+
+            // Configure Hangfire
+            builder.Services.AddSingleton<WorkoutTrackerWeb.Services.Hangfire.HangfireServerConfiguration>();
+
+            builder.Services.AddHangfire((sp, config) =>
+            {
+                var hangfireConfig = sp.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.HangfireServerConfiguration>();
+                hangfireConfig.ConfigureHangfire(config);
+                
+                // Add explicit SQL Server storage options to fix query hints errors
+                var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+                if (connectionString != null)
+                {
+                    config.UseSqlServerStorage(connectionString, new Hangfire.SqlServer.SqlServerStorageOptions
                     {
-                        var server = connection.GetServer(endpoint);
-                        if (!server.IsReplica)
-                        {
-                            logger.LogInformation("Connected to master Redis server at {Endpoint}", endpoint);
-                            hasWritableEndpoint = true;
-                            break;
-                        }
-                    }
-                    
-                    // Set up event handlers for connection management
-                    connection.ConnectionFailed += (_, e) => {
-                        logger.LogWarning("Redis connection failed: {EndPoint}, {FailureType}", e.EndPoint, e.FailureType);
-                    };
-                    connection.ConnectionRestored += (_, e) => {
-                        logger.LogInformation("Redis connection restored: {EndPoint}", e.EndPoint);
-                    };
-                    connection.ErrorMessage += (_, e) => {
-                        logger.LogWarning("Redis error: {Message}", e.Message);
-                    };
-                    
-                    return connection;
-                } catch (Exception ex) {
-                    logger.LogError(ex, "Failed to create Redis connection");
-                    throw;
+                        CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+                        SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+                        QueuePollInterval = TimeSpan.FromSeconds(15),
+                        UseRecommendedIsolationLevel = true,
+                        DisableGlobalLocks = false,
+                        SchemaName = "HangFire",
+                        EnableHeavyMigrations = false,
+                        DashboardJobListLimit = 1000
+                    });
                 }
             });
-            
-            builder.Services.AddStackExchangeRedisCache(options =>
-            {
-                options.ConfigurationOptions = redisOptions;
-                options.InstanceName = "WorkoutTracker:";
+
+            // Register Hangfire jobs registration services
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsRegistration>();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.WorkoutSchedulingJobsRegistration>();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsRegistration>();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsService>();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsService>();
+
+            // Register job services
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Scheduling.WorkoutReminderService>();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Scheduling.ScheduledWorkoutProcessorService>();
+
+            // Add server after everything is configured
+            builder.Services.AddHangfireServer((provider, options) => {
+                var serverConfig = provider.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.HangfireServerConfiguration>();
+                if (serverConfig.IsProcessingEnabled)
+                {
+                    Log.Information("Configuring Hangfire server with {WorkerCount} workers", serverConfig.WorkerCount);
+                    serverConfig.ConfigureServerOptions(options);
+                }
+                else 
+                {
+                    Log.Information("Hangfire processing is disabled for this instance");
+                }
             });
-            
-            // Register the shared storage service
-            builder.Services.AddScoped<ISharedStorageService, RedisSharedStorageService>();
-            
-            Log.Information("Configured Redis distributed cache for production using {ConnectionString} with enhanced resilience", redisConfigString);
-        } catch (Exception ex) {
-            // Fallback to in-memory cache if Redis configuration fails
-            Log.Error(ex, "Failed to configure Redis distributed cache, falling back to in-memory cache");
-            builder.Services.AddDistributedMemoryCache();
-            
-            // Register mock shared storage service for development
-            builder.Services.AddScoped<ISharedStorageService>(sp => {
-                // Create a mock implementation for development that uses local filesystem
-                var logger = sp.GetRequiredService<ILogger<RedisSharedStorageService>>();
-                return new RedisSharedStorageService(null, logger);
-            });
-            
-            Log.Warning("Using in-memory distributed cache in production due to Redis configuration failure");
-        }
-    }
 
-    // Add MVC services for Area support
-    builder.Services.AddMvc();
-
-    // Add HttpContextAccessor for user identity access
-    builder.Services.AddHttpContextAccessor();
-
-    // Register our UserService
-    builder.Services.AddScoped<UserService>();
-
-    // Register WorkoutDataPortabilityService
-    builder.Services.AddScoped<WorkoutDataPortabilityService>();
-
-    // Register TrainAIImportService
-    builder.Services.AddScoped<TrainAIImportService>();
-
-    // Register BackgroundJobService for handling long-running tasks
-    builder.Services.AddScoped<BackgroundJobService>();
-
-    // Register WorkoutDataService
-    builder.Services.AddScoped<WorkoutDataService>();
-    
-    // Register QuickWorkoutService for optimized gym experience
-    builder.Services.AddScoped<QuickWorkoutService>();
-
-    // Register API Ninjas integration services
-    var apiNinjasKey = builder.Configuration["ApiKeys:ApiNinjas"];
-    if (string.IsNullOrEmpty(apiNinjasKey))
-    {
-        Log.Warning("API Ninjas key is not configured. Exercise enrichment functionality will not work correctly.");
-    }
-    else
-    {
-        Log.Information("API Ninjas key is configured successfully.");
-    }
-
-    builder.Services.AddHttpClient("ExerciseApi", client =>
-    {
-        client.BaseAddress = new Uri("https://api.api-ninjas.com/v1/exercises");
-        client.DefaultRequestHeaders.Add("X-Api-Key", apiNinjasKey);
-    });
-    builder.Services.AddScoped<ExerciseApiService>();
-    builder.Services.AddScoped<ExerciseTypeService>();
-    builder.Services.AddScoped<ExerciseSelectionService>();
-
-    // Register our HelpService
-    builder.Services.AddScoped<HelpService>();
-
-    // Register LoginHistoryService for tracking login history
-    builder.Services.AddScoped<LoginHistoryService>();
-
-    // Register ShareTokenService for workout sharing
-    builder.Services.AddScoped<IShareTokenService, ShareTokenService>();
-
-    // Register token validation services
-    builder.Services.AddSingleton<TokenRateLimiter>();
-    builder.Services.AddSingleton<ITokenRateLimiter>(provider => provider.GetRequiredService<TokenRateLimiter>());
-    builder.Services.AddHostedService(provider => provider.GetRequiredService<TokenRateLimiter>());
-    builder.Services.AddScoped<ITokenValidationService, TokenValidationService>();
-
-    // Register VersionService for version management
-    builder.Services.AddScoped<IVersionService, VersionService>();
-
-    // Register HangfireInitializationService
-    builder.Services.AddScoped<IHangfireInitializationService, HangfireInitializationService>();
-
-    // Register DatabaseResilienceService for connection pooling and retry logic
-    builder.Services.AddSingleton<DatabaseResilienceService>();
-
-    // Register alerting services
-    builder.Services.AddScoped<IAlertingService, AlertingService>();
-
-    // Register our alerting background job service
-    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsService>();
-    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsRegistration>();
-    
-    // Register volume and calorie calculation services
-    builder.Services.AddScoped<IVolumeCalculationService, VolumeCalculationService>();
-    builder.Services.AddScoped<ICalorieCalculationService, CalorieCalculationService>();
-
-    // Register coaching services
-    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.ICoachingService, WorkoutTrackerWeb.Services.Coaching.CoachingService>();
-    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.GoalQueryService>();
-    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.GoalProgressService>();
-    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.GoalOperationsService>();
-    
-    // Register validation services
-    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Validation.CoachingValidationService>();
-
-    // Register workout scheduling services
-    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Scheduling.ScheduledWorkoutProcessorService>();
-    builder.Services.Configure<WorkoutTrackerWeb.Services.Scheduling.ScheduledWorkoutProcessorOptions>(builder.Configuration.GetSection("ScheduledWorkoutProcessor"));
-
-    // Register workout scheduling job registration services
-    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.WorkoutSchedulingJobsRegistration>();
-
-    // Register workout reminder services
-    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Scheduling.WorkoutReminderService>();
-    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsService>();
-    builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsRegistration>();
-
-    // Add session state with Redis caching and JSON serialization
-    builder.Services.AddSession(options =>
-    {
-        options.IdleTimeout = TimeSpan.FromMinutes(30); // Session timeout
-        options.Cookie.HttpOnly = true;
-        options.Cookie.IsEssential = true; // Make the session cookie essential
-        
-        // Only require HTTPS in production
-        if (builder.Environment.IsDevelopment())
-        {
-            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        }
-        else
-        {
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        }
-        
-        // Set domain for production environment
-        if (!builder.Environment.IsDevelopment())
-        {
-            // Use the same domain pattern as the auth cookie
-            options.Cookie.Domain = ".workouttracker.online";
-        }
-        
-        // Set a reasonable cookie name
-        options.Cookie.Name = "WorkoutTracker.Session";
-    });
-
-    // Add Output Cache with Redis as the backing store if Redis is configured
-    if (builder.Environment.IsDevelopment())
-    {
-        // Disable output cache in development to ensure it's not impacting testing
-        builder.Services.AddOutputCache(options =>
-        {
-            options.DefaultExpirationTimeSpan = TimeSpan.Zero;
-            options.MaximumBodySize = 0;
-            options.SizeLimit = 0;
-        });
-        Log.Information("Disabled OutputCache in development environment for testing");
-    }
-    else if (builder.Services.Any(s => s.ServiceType == typeof(IConnectionMultiplexer)))
-    {
-        // Use Redis as distributed cache for OutputCache in production
-        builder.Services.AddStackExchangeRedisOutputCache(options =>
-        {
-            options.Configuration = builder.Configuration.GetConnectionString("Redis") ?? 
-                                Environment.GetEnvironmentVariable("ConnectionStrings__Redis") ?? 
-                                "redis-master.web.svc.cluster.local:6379,abortConnect=false";
-            options.InstanceName = "WorkoutTracker:OutputCache:";
-        });
-        Log.Information("Configured OutputCache with Redis backend");
-    }
-    else 
-    {
-        // Use memory cache in other environments
-        builder.Services.AddOutputCache();
-        Log.Information("Configured OutputCache with memory backend");
-    }
-
-    // Configure OutputCache policies
-    builder.Services.AddOutputCache(options =>
-    {
-        // Default policy for static content
-        options.AddPolicy("StaticContent", builder => 
-            builder.Cache()
-                   .Expire(TimeSpan.FromHours(12))
-                   .Tag("static-content"));
-                   
-        // Policy for content that varies by ID
-        options.AddPolicy("StaticContentWithId", builder => 
-            builder.Cache()
-                   .Expire(TimeSpan.FromHours(12))
-                   .SetVaryByRouteValue("id")
-                   .Tag("static-content-with-id"));
-                   
-        // Policy for help articles that change less frequently
-        options.AddPolicy("HelpContent", builder => 
-            builder.Cache()
-                   .Expire(TimeSpan.FromDays(1))
-                   .SetVaryByRouteValue("id")
-                   .SetVaryByRouteValue("category")
-                   .Tag("help-content"));
-                   
-        // Policy for glossary content
-        options.AddPolicy("GlossaryContent", builder => 
-            builder.Cache()
-                   .Expire(TimeSpan.FromDays(1))
-                   .Tag("glossary-content"));
-                   
-        // Policy for exercise library content with shorter expiration
-        options.AddPolicy("ExerciseLibrary", builder => 
-            builder.Cache()
-                   .Expire(TimeSpan.FromHours(6))
-                   .SetVaryByQuery("category", "search")
-                   .Tag("exercise-library"));
-        
-        // Policy for shared workout reports
-        options.AddPolicy("SharedWorkoutReports", builder => 
-            builder.Cache()
-                   .Expire(TimeSpan.FromHours(6))
-                   .SetVaryByQuery("token", "period")
-                   .Tag("shared-workout-reports"));
-        
-        // Policy for shared workout pages
-        options.AddPolicy("SharedWorkout", builder => 
-            builder.Cache()
-                   .Expire(TimeSpan.FromHours(3))
-                   .SetVaryByQuery("token")
-                   .Tag("shared-workout"));
-                   
-        // Policy for home page to prevent redirects from triggering rate limits
-        options.AddPolicy("HomePagePolicy", builder =>
-            builder.Cache()
-                   .Expire(TimeSpan.FromHours(1))
-                   .Tag("home-page"));
-                   
-        // Policy for login page to prevent rate limit triggers
-        options.AddPolicy("LoginPagePolicy", builder =>
-            builder.Cache()
-                   .Expire(TimeSpan.FromMinutes(15))
-                   .Tag("login-page")
-                   .SetVaryByQuery("ReturnUrl"));
-    });
-
-    // Add custom session serialization to use System.Text.Json for better performance
-    builder.Services.AddOptions<SessionOptions>()
-        .Configure<IDistributedCache>((options, cache) => 
-        {
-            // Configure the session options to use our distributed cache implementation
-            options.IOTimeout = TimeSpan.FromSeconds(5);
-        });
-
-    // Add custom session serialization middleware (reuse Redis connection)
-    builder.Services.AddSingleton<ISessionStore, WorkoutTrackerWeb.Services.Session.DistributedSessionStore>();
-    builder.Services.AddSingleton<ISessionSerializer, JsonSessionSerializer>();
-
-    // Configure custom options for session serialization
-    builder.Services.Configure<JsonSessionSerializerOptions>(options => 
-    {
-        options.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-        options.WriteIndented = false; // Keep session state compact
-        options.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
-    });
-
-    // Add custom TempData type conversion to handle Guid to string conversion
-    builder.Services.AddTempDataTypeConverter();
-
-    // Add CORS policy for production domains
-    builder.Services.AddCors(options =>
-    {
-        options.AddPolicy("ProductionDomainPolicy", policy =>
-        {
-            policy.WithOrigins(
-                    "https://wot.ninjatec.co.uk", 
-                    "https://workouttracker.online", 
-                    "https://www.workouttracker.online")
-                  .AllowAnyMethod()
-                  .AllowAnyHeader()
-                  .AllowCredentials(); // Required for SignalR
-        });
-    });
-
-    // Configure Antiforgery options for AJAX requests with X-CSRF-TOKEN header
-    builder.Services.AddAntiforgery(options => 
-    {
-        options.HeaderName = "X-CSRF-TOKEN";
-        options.Cookie.Name = "CSRF-TOKEN";
-        options.Cookie.HttpOnly = false; // Must be accessible via JavaScript
-        
-        // For production, we need to handle Cloudflare and Kubernetes ingress properly
-        if (builder.Environment.IsProduction())
-        {
-            // When behind Cloudflare, we need to set this to Always
-            // Cloudflare will terminate SSL but expects secure cookies
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        }
-        else if (builder.Environment.IsDevelopment())
-        {
-            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        }
-        else
-        {
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        }
-        
-        options.Cookie.SameSite = SameSiteMode.Strict;
-    });
-
-    // Enhanced health checks
-    var healthChecksBuilder = builder.Services.AddHealthChecks()
-        // Database connectivity checks
-        .AddDbContextCheck<ApplicationDbContext>("database_health_check", 
-            tags: new[] { "ready", "db" },
-            customTestQuery: async (db, ct) => await db.Database.CanConnectAsync(ct))
-        .AddDbContextCheck<DataProtectionKeysDbContext>("data_protection_health_check", 
-            tags: new[] { "ready", "db" })
-        // SQL Server dedicated health check with more detailed diagnostics
-        .AddSqlServer(
-            connectionString,
-            healthQuery: "SELECT 1;",
-            name: "sql_health_check",
-            failureStatus: HealthStatus.Degraded,
-            tags: new[] { "ready", "db", "sql" })
-        // System checks
-        .AddDiskStorageHealthCheck(
-            setup => setup.AddDrive("/", 512), // Reduced to 512MB minimum free space
-            name: "disk_storage",
-            failureStatus: HealthStatus.Degraded,
-            tags: new[] { "ready", "system" })
-        .AddPrivateMemoryHealthCheck(
-            1024 * 1024 * 1024, // Increased to 1GB max memory
-            name: "private_memory_check",
-            tags: new[] { "ready", "system" })
-        // Simple liveness check
-        .AddCheck("self", () => HealthCheckResult.Healthy(), tags: new[] { "live" })
-        // Register the database connection pool health check
-        .AddCheck<WorkoutTrackerWeb.HealthChecks.DatabaseConnectionPoolHealthCheck>(
-            "database_connection_pool", 
-            failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded,
-            tags: new[] { "ready", "db", "connection-pool" })
-        // Register the SMTP health check for email service
-        .AddCheck<WorkoutTrackerWeb.HealthChecks.SmtpHealthCheck>(
-            "email_smtp_health", 
-            failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Degraded,
-            tags: new[] { "ready", "email", "smtp" });
-
-    // Add Redis health check only in production
-    if (!builder.Environment.IsDevelopment())
-    {
-        var redisHealthConnectionString = builder.Configuration.GetConnectionString("Redis") ?? 
-                                    Environment.GetEnvironmentVariable("ConnectionStrings__Redis") ?? 
-                                    "redis-master.web.svc.cluster.local:6379,abortConnect=false";
-        
-        // Register RedisOptions for our custom health check
-        builder.Services.Configure<RedisOptions>(options => 
-        {
-            options.ConnectionString = redisHealthConnectionString;
-        });
-        
-        // Register our custom Redis metrics health check
-        healthChecksBuilder.AddCheck<RedisMetricsHealthCheck>(
-            "redis_metrics_health_check",
-            failureStatus: HealthStatus.Degraded,
-            tags: new[] { "ready", "cache", "redis" });
-    }
-
-    builder.Services.AddDbContext<WorkoutTrackerWebContext>(options =>
-    {
-        var connectionString = builder.Configuration.GetConnectionString("WorkoutTrackerWebContext") ?? 
-                               throw new InvalidOperationException("Connection string 'WorkoutTrackerWebContext' not found.");
-        
-        // Get connection pooling settings from configuration
-        var poolingConfig = builder.Configuration.GetSection("DatabaseConnectionPooling");
-        int maxPoolSize = poolingConfig.GetValue<int>("MaxPoolSize", 200);
-        int minPoolSize = poolingConfig.GetValue<int>("MinPoolSize", 10);
-        int connectionLifetime = poolingConfig.GetValue<int>("ConnectionLifetime", 300);
-        bool connectionResetEnabled = poolingConfig.GetValue<bool>("ConnectionResetEnabled", true);
-        int loadBalanceTimeout = poolingConfig.GetValue<int>("LoadBalanceTimeout", 30);
-        int retryCount = poolingConfig.GetValue<int>("RetryCount", 5);
-        int retryInterval = poolingConfig.GetValue<int>("RetryInterval", 10);
-        
-        // Build connection string with additional connection pooling parameters
-        var sqlConnectionBuilder = new SqlConnectionStringBuilder(connectionString)
-        {
-            MaxPoolSize = maxPoolSize,
-            MinPoolSize = minPoolSize,
-            ConnectTimeout = loadBalanceTimeout,
-            LoadBalanceTimeout = loadBalanceTimeout,
-            ConnectRetryCount = retryCount,
-            ConnectRetryInterval = retryInterval
-        };
-
-        // Add additional parameters to connection string directly since SqlConnectionStringBuilder 
-        // doesn't expose all pooling properties
-        string enhancedConnectionString = sqlConnectionBuilder.ConnectionString;
-        if (connectionLifetime > 0)
-        {
-            enhancedConnectionString += $";Connection Lifetime={connectionLifetime}";
-        }
-        
-        // Add connection reset parameter directly to connection string - only on Windows
-        // This parameter is not supported on macOS and Linux
-        if (connectionResetEnabled && OperatingSystem.IsWindows())
-        {
-            enhancedConnectionString += $";Connection Reset=true";
-        }
-        
-        // Use the enhanced connection string with all the pooling settings
-        options.UseSqlServer(enhancedConnectionString, sqlOptions => 
-        {
-            // Enhanced retry logic for transient SQL errors
-            sqlOptions.EnableRetryOnFailure(
-                maxRetryCount: retryCount,
-                maxRetryDelay: TimeSpan.FromSeconds(retryInterval),
-                errorNumbersToAdd: new[] { 4060, 40197, 40501, 40613, 49918, 4221, 1205, 233, 64, -2 });
-                
-            // Connection resiliency settings
-            sqlOptions.CommandTimeout(30); // Set reasonable command timeout
-            sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "dbo");
-            
-            // Connection pooling optimizations
-            sqlOptions.MinBatchSize(5);      // Minimum number of operations to batch
-            sqlOptions.MaxBatchSize(100);    // Maximum number of operations to batch
-        })
-        .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking) // Set default behavior to NoTracking
-        .EnableSensitiveDataLogging(builder.Environment.IsDevelopment()); // Only in development
-    });
-
-    // Update DbContextFactory registration to avoid scoped service from singleton
-    builder.Services.AddSingleton<IDbContextFactory<WorkoutTrackerWebContext>>(serviceProvider =>
-    {
-        var connectionString = builder.Configuration.GetConnectionString("WorkoutTrackerWebContext") ?? 
-                               throw new InvalidOperationException("Connection string 'WorkoutTrackerWebContext' not found.");
-        
-        // Get connection pooling settings from configuration
-        var poolingConfig = builder.Configuration.GetSection("DatabaseConnectionPooling");
-        int maxPoolSize = poolingConfig.GetValue<int>("MaxPoolSize", 200);
-        int minPoolSize = poolingConfig.GetValue<int>("MinPoolSize", 10);
-        int connectionLifetime = poolingConfig.GetValue<int>("ConnectionLifetime", 300);
-        bool connectionResetEnabled = poolingConfig.GetValue<bool>("ConnectionResetEnabled", true);
-        int loadBalanceTimeout = poolingConfig.GetValue<int>("LoadBalanceTimeout", 30);
-        int retryCount = poolingConfig.GetValue<int>("RetryCount", 5);
-        int retryInterval = poolingConfig.GetValue<int>("RetryInterval", 10);
-        
-        // Build connection string with additional connection pooling parameters
-        var sqlConnectionBuilder = new SqlConnectionStringBuilder(connectionString)
-        {
-            MaxPoolSize = maxPoolSize,
-            MinPoolSize = minPoolSize,
-            ConnectTimeout = loadBalanceTimeout,
-            LoadBalanceTimeout = loadBalanceTimeout,
-            ConnectRetryCount = retryCount,
-            ConnectRetryInterval = retryInterval
-        };
-
-        // Add additional parameters to connection string directly
-        string enhancedConnectionString = sqlConnectionBuilder.ConnectionString;
-        if (connectionLifetime > 0)
-        {
-            enhancedConnectionString += $";Connection Lifetime={connectionLifetime}";
-        }
-        
-        // Add connection reset parameter directly to connection string - only on Windows
-        if (connectionResetEnabled && OperatingSystem.IsWindows())
-        {
-            enhancedConnectionString += $";Connection Reset=true";
-        }
-        
-        // Create factory options that will be used to create context instances
-        var optionsBuilder = new DbContextOptionsBuilder<WorkoutTrackerWebContext>();
-        optionsBuilder.UseSqlServer(enhancedConnectionString, sqlOptions => 
-        {
-            // Enhanced retry logic for transient SQL errors
-            sqlOptions.EnableRetryOnFailure(
-                maxRetryCount: retryCount,
-                maxRetryDelay: TimeSpan.FromSeconds(retryInterval),
-                errorNumbersToAdd: new[] { 4060, 40197, 40501, 40613, 49918, 4221, 1205, 233, 64, -2 });
-                
-            // Connection resiliency settings
-            sqlOptions.CommandTimeout(30); // Set reasonable command timeout
-            sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "dbo");
-            
-            // Connection pooling optimizations
-            sqlOptions.MinBatchSize(5);
-            sqlOptions.MaxBatchSize(100);
-        })
-        .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking) 
-        .EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
-        
-        // Create and return a factory instead of using PooledDbContextFactory
-        return new DbContextFactory<WorkoutTrackerWebContext>(optionsBuilder.Options);
-    });
-
-    // Configure application cookie settings for authentication
-    builder.Services.ConfigureApplicationCookie(options =>
-    {
-        options.Cookie.Name = "WorkoutTracker.Auth";
-        options.Cookie.HttpOnly = true;
-        options.Cookie.SameSite = SameSiteMode.Strict;
-        
-        // Only require HTTPS in production
-        if (builder.Environment.IsDevelopment())
-        {
-            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        }
-        else
-        {
-            options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        }
-        
-        options.ExpireTimeSpan = TimeSpan.FromDays(14);
-        options.SlidingExpiration = true;
-        
-        // Set domain for production environment
-        if (!builder.Environment.IsDevelopment())
-        {
-            // Use a domain that works for both apex and www subdomains
-            // The leading dot allows cookies to work across all subdomains
-            options.Cookie.Domain = ".workouttracker.online";
-        }
-        
-        options.Events.OnSignedIn = async context =>
-        {
-            var userManager = context.HttpContext.RequestServices
-                .GetRequiredService<UserManager<WorkoutTrackerWeb.Models.Identity.AppUser>>();
-            var loginHistoryService = context.HttpContext.RequestServices
-                .GetRequiredService<LoginHistoryService>();
-            
-            var user = await userManager.GetUserAsync(context.Principal);
-            if (user != null)
+            Func<string, Action<SqlServerDbContextOptionsBuilder>, DbContextOptionsBuilder> getSqlOptions = (connString, sqlOptionsAction) =>
             {
-                await loginHistoryService.RecordSuccessfulLoginAsync(user.Id);
+                var poolingConfig = builder.Configuration.GetSection("DatabaseConnectionPooling");
+                int maxPoolSize = poolingConfig.GetValue<int>("MaxPoolSize", 200);
+                int minPoolSize = poolingConfig.GetValue<int>("MinPoolSize", 10);
+                int connectionLifetime = poolingConfig.GetValue<int>("ConnectionLifetime", 300);
+                bool connectionResetEnabled = poolingConfig.GetValue<bool>("ConnectionResetEnabled", true);
+                int loadBalanceTimeout = poolingConfig.GetValue<int>("LoadBalanceTimeout", 30);
+                int retryCount = poolingConfig.GetValue<int>("RetryCount", 5);
+                int retryInterval = poolingConfig.GetValue<int>("RetryInterval", 10);
+                
+                var sqlConnectionBuilder = new SqlConnectionStringBuilder(connString)
+                {
+                    MaxPoolSize = maxPoolSize,
+                    MinPoolSize = minPoolSize,
+                    ConnectTimeout = loadBalanceTimeout,
+                    LoadBalanceTimeout = loadBalanceTimeout,
+                    ConnectRetryCount = retryCount,
+                    ConnectRetryInterval = retryInterval
+                };
+
+                string enhancedConnectionString = sqlConnectionBuilder.ConnectionString;
+                if (connectionLifetime > 0)
+                {
+                    enhancedConnectionString += $";Connection Lifetime={connectionLifetime}";
+                }
+                
+                if (connectionResetEnabled && OperatingSystem.IsWindows())
+                {
+                    enhancedConnectionString += $";Connection Reset=true";
+                }
+                
+                var optionsBuilder = new DbContextOptionsBuilder<WorkoutTrackerWebContext>();
+                optionsBuilder.UseSqlServer(enhancedConnectionString, sqlOptionsAction)
+                    .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
+                    .EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
+                    
+                return optionsBuilder;
+            };
+
+            builder.Services.AddDbContext<DataProtectionKeysDbContext>(options =>
+                options.UseSqlServer(connectionString));
+
+            builder.Services.AddDataProtection()
+                .PersistKeysToDbContext<DataProtectionKeysDbContext>()
+                .SetApplicationName("WorkoutTracker")
+                .SetDefaultKeyLifetime(TimeSpan.FromDays(90));
+
+            builder.Services.AddDefaultIdentity<WorkoutTrackerWeb.Models.Identity.AppUser>(options => 
+            {
+                options.SignIn.RequireConfirmedAccount = true;
+                options.SignIn.RequireConfirmedEmail = true;
+                options.Password.RequireDigit = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireNonAlphanumeric = true;
+                options.Password.RequiredLength = 8;
+                options.User.RequireUniqueEmail = true;
+                options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
+            })
+                .AddRoles<IdentityRole>()
+                .AddEntityFrameworkStores<ApplicationDbContext>()
+                .AddUserValidator<CustomUserValidator>();
+
+            builder.Services.AddScoped<CustomUsernameManager>();
+
+            builder.Services.AddAuthorization(options =>
+            {
+                options.AddPolicy("RequireAdminRole", policy => policy.RequireRole("Admin"));
+                options.AddPolicy("RequireCoachRole", policy => policy.RequireRole("Coach"));
+            });
+
+            builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+            builder.Services.AddTransient<IEmailService, WorkoutTrackerWeb.Services.Email.EmailService>();
+            builder.Services.AddTransient<IEmailSender, EmailSenderAdapter>();
+
+            try
+            {
+                if (builder.Environment.IsDevelopment())
+                {
+                    builder.Services.AddSignalR(options => {
+                        options.EnableDetailedErrors = true;
+                        options.MaximumReceiveMessageSize = 102400;
+                        options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+                        options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+                    });
+                    Log.Information("Configured SignalR with in-memory backplane for development");
+                }
+                else
+                {
+                    try
+                    {
+                        builder.Services.ConfigureRedis(builder.Configuration);
+
+                        // Configure SignalR with Redis backplane if Redis is enabled
+                        var redisSettings = builder.Configuration.GetSection("Redis").Get<WorkoutTrackerWeb.Services.Redis.RedisConfiguration>();
+                        if (redisSettings?.Enabled == true)
+                        {
+                            builder.Services.AddSignalR(options =>
+                            {
+                                options.EnableDetailedErrors = true;
+                                options.MaximumReceiveMessageSize = 102400;
+                                options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+                                options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+                                options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+                            }).AddStackExchangeRedis(options =>
+                            {
+                                options.Configuration = redisSettings.ToConfigurationOptions();
+                            });
+                        }
+                        else
+                        {
+                            builder.Services.AddSignalR(options => {
+                                options.EnableDetailedErrors = true;
+                                options.MaximumReceiveMessageSize = 102400;
+                                options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+                                options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+                            });
+                            Log.Warning("Using in-memory SignalR backplane due to Redis being disabled");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Error(ex, "Failed to configure SignalR with Redis backplane, falling back to in-memory");
+                        builder.Services.AddSignalR(options => {
+                            options.EnableDetailedErrors = true;
+                            options.MaximumReceiveMessageSize = 102400;
+                            options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
+                            options.HandshakeTimeout = TimeSpan.FromSeconds(15);
+                        });
+                        Log.Warning("Using in-memory SignalR backplane in production due to Redis configuration failure");
+                    }
+                }
             }
-        };
-    });
-
-    var app = builder.Build();
-
-    // Explicitly initialize Hangfire database schema BEFORE configuring any middleware
-    try
-    {
-        using (var scope = app.Services.CreateScope())
-        {
-            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-            logger.LogInformation("Running early Hangfire schema initialization");
-            
-            var hangfireInitService = scope.ServiceProvider.GetRequiredService<IHangfireInitializationService>();
-            var success = hangfireInitService.InitializeHangfireSchema();
-            
-            if (success)
+            catch (Exception ex)
             {
-                logger.LogInformation("Early Hangfire schema initialization successful");
+                Log.Error(ex, "Error configuring SignalR services");
+                throw;
+            }
+
+            // Configure health checks
+            var healthChecksBuilder = builder.Services.AddHealthChecks()
+                .AddDbContextCheck<ApplicationDbContext>("database_health_check", 
+                    tags: new[] { "ready", "db" },
+                    customTestQuery: async (db, ct) => await db.Database.CanConnectAsync(ct))
+                .AddDbContextCheck<DataProtectionKeysDbContext>("data_protection_health_check", 
+                    tags: new[] { "ready", "db" });
+
+            // Add Redis health checks if Redis is enabled
+            var redisConfig = builder.Configuration.GetSection("Redis").Get<WorkoutTrackerWeb.Services.Redis.RedisConfiguration>();
+            if (redisConfig?.Enabled == true && !string.IsNullOrEmpty(redisConfig.ConnectionString))
+            {
+                healthChecksBuilder
+                    .AddRedis(
+                        redisConfig.ConnectionString,
+                        name: "redis_connection",
+                        tags: new[] { "ready", "redis" },
+                        timeout: TimeSpan.FromSeconds(5))
+                    .AddCheck<RedisMetricsHealthCheck>(
+                        "redis_metrics",
+                        tags: new[] { "ready", "redis" },
+                        timeout: TimeSpan.FromSeconds(5));
+            }
+
+            builder.Services.AddMvc();
+
+            builder.Services.AddHttpContextAccessor();
+
+            builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<UserService>();
+
+            builder.Services.AddScoped<WorkoutDataPortabilityService>();
+
+            builder.Services.AddScoped<TrainAIImportService>();
+
+            builder.Services.AddScoped<BackgroundJobService>();
+
+            builder.Services.AddScoped<WorkoutDataService>();
+            
+            builder.Services.AddScoped<QuickWorkoutService>();
+
+            var apiNinjasKey = builder.Configuration["ApiKeys:ApiNinjas"];
+            if (string.IsNullOrEmpty(apiNinjasKey))
+            {
+                Log.Warning("API Ninjas key is not configured. Exercise enrichment functionality will not work correctly.");
             }
             else
             {
-                logger.LogWarning("Early Hangfire schema initialization failed - dashboard may not be accessible");
+                Log.Information("API Ninjas key is configured successfully.");
             }
-        }
-    }
-    catch (Exception ex)
-    {
-        // Log but don't fail startup
-        using (var scope = app.Services.CreateScope())
-        {
-            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-            logger.LogError(ex, "Error during early Hangfire schema initialization");
-        }
-    }
 
-    // Configure the HTTP request pipeline.
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseMigrationsEndPoint();
-    }
-    else
-    {
-        app.UseExceptionHandler("/Errors/Error");
-        app.UseStatusCodePagesWithReExecute("/Errors/Error", "?statusCode={0}");
-        // Configure HSTS for production
-        app.UseHsts();
-    }
-
-    // Use ForwardedHeaders middleware early in the pipeline to handle proxy headers
-    app.UseForwardedHeaders();
-
-    // Add InvitationRedirectMiddleware early in the pipeline, right after ForwardedHeaders
-    app.UseInvitationRedirect();
-
-    // Add Content Security Policy middleware
-    app.Use(async (context, next) =>
-    {
-        // Define CSP policy
-        context.Response.Headers["Content-Security-Policy"] = 
-            "default-src 'self'; " +
-            "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net 'unsafe-inline'; " + 
-            "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css 'unsafe-inline'; " + 
-            "img-src 'self' data: https://cdn.jsdelivr.net; " + 
-            "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
-            "connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online " +
-                             "wss://wot.ninjatec.co.uk wss://workouttracker.online wss://www.workouttracker.online " +
-                             "ws://wot.ninjatec.co.uk ws://workouttracker.online ws://www.workouttracker.online wss://* ws://*; " +
-            "frame-src 'self'; " +
-            "frame-ancestors 'self' https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online; " + 
-            "form-action 'self' https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online; " +
-            "base-uri 'self'; " +
-            "object-src 'none'";
-        
-        // Add Feature-Policy header (now called Permissions-Policy)
-        context.Response.Headers["Permissions-Policy"] = 
-            "camera=(), microphone=(), geolocation=()";
-        
-        // Add X-Content-Type-Options to prevent MIME type sniffing
-        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-        
-        // Add X-Frame-Options to prevent clickjacking
-        context.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
-        
-        // Add Referrer-Policy to control what information is sent in the Referer header
-        context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-        
-        await next();
-    });
-
-    // Use our dedicated Redis resilience middleware
-    app.UseRedisResilience();
-
-    // Use our database connection resilience middleware
-    app.UseDbConnectionResilience();
-
-    // Initialize Hangfire database using HangfireInitializationService
-    Log.Information("Attempting to initialize Hangfire schema");
-    try
-    {
-        using (var scope = app.Services.CreateScope())
-        {
-            var hangfireInitializationService = scope.ServiceProvider.GetRequiredService<IHangfireInitializationService>();
-            bool success = hangfireInitializationService.InitializeHangfireSchema();
-            if (success)
+            builder.Services.AddHttpClient("ExerciseApi", client =>
             {
-                Log.Information("Hangfire schema initialized successfully");
-            }
-            else 
+                client.BaseAddress = new Uri("https://api.api-ninjas.com/v1/exercises");
+                client.DefaultRequestHeaders.Add("X-Api-Key", apiNinjasKey);
+            });
+            builder.Services.AddScoped<ExerciseApiService>();
+            builder.Services.AddScoped<ExerciseTypeService>();
+            builder.Services.AddScoped<ExerciseSelectionService>();
+
+            builder.Services.AddScoped<HelpService>();
+
+            builder.Services.AddScoped<LoginHistoryService>();
+
+            builder.Services.AddScoped<IShareTokenService, ShareTokenService>();
+
+            builder.Services.AddSingleton<TokenRateLimiter>();
+            builder.Services.AddSingleton<ITokenRateLimiter>(provider => provider.GetRequiredService<TokenRateLimiter>());
+            builder.Services.AddHostedService(provider => provider.GetRequiredService<TokenRateLimiter>());
+            builder.Services.AddScoped<ITokenValidationService, TokenValidationService>();
+
+            builder.Services.AddScoped<IVersionService, VersionService>();
+
+            builder.Services.AddScoped<IHangfireInitializationService, HangfireInitializationService>();
+
+            builder.Services.AddSingleton<DatabaseResilienceService>();
+
+            // Register RedisSharedStorageService based on whether Redis is enabled
+            if (redisConfig?.Enabled == true)
             {
-                Log.Warning("Hangfire schema initialization returned false - tables may not have been created");
+                // Redis is enabled, normal registration happens in AddRedisConfiguration
+                builder.Services.AddScoped<ISharedStorageService, RedisSharedStorageService>();
             }
-            
-            // Verify the schema was created
-            bool schemaExists = hangfireInitializationService.VerifyHangfireSchema();
-            Log.Information("Hangfire schema verification: {Result}", schemaExists ? "Success" : "Failed");
-        }
-    }
-    catch (Exception ex)
-    {
-        Log.Error(ex, "Error initializing Hangfire schema");
-    }
-
-    // Register Hangfire background jobs using the service-based API
-    try {
-        using (var scope = app.Services.CreateScope())
-        {
-            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-            logger.LogInformation("Registering alerting jobs through service-based API");
-            
-            var alertingJobsRegistration = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsRegistration>();
-            alertingJobsRegistration.RegisterAlertingJobs();
-            
-            logger.LogInformation("Alerting jobs registered successfully");
-        }
-    }
-    catch (Exception ex)
-    {
-        Log.Error(ex, "Error registering alerting jobs");
-    }
-
-    // Register Workout Scheduling jobs
-    try {
-        using (var scope = app.Services.CreateScope())
-        {
-            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-            logger.LogInformation("Registering workout scheduling jobs");
-            
-            var workoutSchedulingJobsRegistration = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.WorkoutSchedulingJobsRegistration>();
-            workoutSchedulingJobsRegistration.RegisterWorkoutSchedulingJobs();
-            
-            logger.LogInformation("Workout scheduling jobs registered successfully");
-        }
-    }
-    catch (Exception ex)
-    {
-        Log.Error(ex, "Error registering workout scheduling jobs");
-    }
-
-    // Register Workout Reminder jobs
-    try {
-        using (var scope = app.Services.CreateScope())
-        {
-            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-            logger.LogInformation("Registering workout reminder jobs");
-            
-            var workoutReminderJobsRegistration = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsRegistration>();
-            workoutReminderJobsRegistration.RegisterWorkoutReminderJobs();
-            
-            logger.LogInformation("Workout reminder jobs registered successfully");
-        }
-    }
-    catch (Exception ex)
-    {
-        Log.Error(ex, "Error registering workout reminder jobs");
-    }
-
-    // Add request metrics middleware before routing
-    app.UseHttpMetrics();
-
-    app.UseHttpsRedirection();
-
-    // Configure static files with proper MIME types
-    app.UseStaticFiles(new StaticFileOptions
-    {
-        ContentTypeProvider = new FileExtensionContentTypeProvider
-        {
-            Mappings = 
+            else
             {
-                [".js"] = "application/javascript",
-                [".min.js"] = "application/javascript"
+                // Redis is disabled, register a version with null redis connection
+                builder.Services.AddScoped<ISharedStorageService>(sp => {
+                    var logger = sp.GetRequiredService<ILogger<RedisSharedStorageService>>();
+                    return new RedisSharedStorageService(null, logger);
+                });
+                Log.Information("Redis is disabled. Using local filesystem fallback for shared storage.");
             }
-        }
-    });
 
-    // Apply IP rate limiting
-    app.UseIpRateLimiting();
-    
-    // Register our Rate Limit Bypass middleware AFTER IP rate limiting
-    app.UseRateLimitBypass();
+            builder.Services.AddScoped<IAlertingService, AlertingService>();
+            
+            builder.Services.AddScoped<IVolumeCalculationService, VolumeCalculationService>();
+            builder.Services.AddScoped<ICalorieCalculationService, CalorieCalculationService>();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Reports.IReportsService, WorkoutTrackerWeb.Services.Reports.ReportsService>();
+            
+            builder.Services.AddScoped<IWorkoutIterationService, WorkoutIterationService>();
 
-    // Use CORS with our production domain policy
-    app.UseCors("ProductionDomainPolicy");
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.ICoachingService, WorkoutTrackerWeb.Services.Coaching.CoachingService>();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.GoalQueryService>();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.GoalProgressService>();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Coaching.GoalOperationsService>();
+            
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Validation.CoachingValidationService>();
 
-    app.UseRouting();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Scheduling.ScheduledWorkoutProcessorService>();
+            builder.Services.Configure<WorkoutTrackerWeb.Services.Scheduling.ScheduledWorkoutProcessorOptions>(builder.Configuration.GetSection("ScheduledWorkoutProcessor"));
 
-    // Use OutputCache middleware after routing but before session and auth
-    app.UseOutputCache();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Scheduling.WorkoutReminderService>();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsService>();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsRegistration>();
 
-    // Enable session - only register once
-    app.UseSession();
+            builder.Services.AddTempDataTypeConverter();
 
-    // Add VersionLoggingMiddleware to the pipeline
-    app.UseVersionLogging();
-
-    // Add request logging middleware right before authentication in the pipeline
-    app.UseRequestLogging(app.Environment.IsProduction());
-
-    app.UseAuthentication();
-    app.UseAuthorization();
-
-    // Map health check endpoints BEFORE applying global auth policy to Razor Pages
-    // These need to be configured first so they won't require authentication
-
-    // Map health check endpoints with improved response format using HealthCheck UI client
-    app.MapHealthChecks("/health", new HealthCheckOptions
-    {
-        Predicate = _ => true,
-        ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-    }).AllowAnonymous()
-      .WithMetadata(new EndpointNameMetadata("Health_Root"));
-
-    // Specific health check endpoints for Kubernetes with improved responses
-    app.MapHealthChecks("/health/live", new HealthCheckOptions
-    {
-        Predicate = check => check.Tags.Contains("live"),
-        ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-    }).AllowAnonymous()
-      .WithMetadata(new EndpointNameMetadata("Health_Live"));
-
-    // Special minimal endpoint for Kubernetes probes with direct response
-    app.MapGet("/health/ready", async context =>
-    {
-        // This is a super simple endpoint that always returns OK 
-        // to make Kubernetes probes happy
-        context.Response.StatusCode = StatusCodes.Status200OK;
-        await context.Response.WriteAsync("OK");
-    }).AllowAnonymous();
-
-    // Specific database health check endpoint
-    app.MapHealthChecks("/health/database", new HealthCheckOptions
-    {
-        Predicate = check => check.Tags.Contains("db"),
-        ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-    }).AllowAnonymous();
-
-    // Specific Redis health check endpoint
-    app.MapHealthChecks("/health/redis", new HealthCheckOptions
-    {
-        Predicate = check => check.Tags.Contains("redis"),
-        ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-    }).AllowAnonymous();
-
-    // Specific Email health check endpoint
-    app.MapHealthChecks("/health/email", new HealthCheckOptions
-    {
-        Predicate = check => check.Tags.Contains("email"),
-        ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-    }).AllowAnonymous();
-
-    // Configure Hangfire dashboard AFTER authentication and authorization
-    app.UseHangfireDashboard("/hangfire", new DashboardOptions {
-        Authorization = new[] { new HangfireAuthorizationFilter() }
-    });
-
-    // Map area routes before regular routes
-    app.MapControllerRoute(
-        name: "areas",
-        pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
-
-    // Map default controller route
-    app.MapControllerRoute(
-        name: "default",
-        pattern: "{controller=Home}/{action=Index}/{id?}");
-
-    // Add redirect from old MVC routes to new Razor Pages implementations for shared workout views
-    app.UseEndpoints(endpoints =>
-    {
-        endpoints.MapGet("Shared/{action=Index}/{id?}", async context =>
-        {
-            var action = context.Request.RouteValues["action"]?.ToString() ?? "Index";
-            var id = context.Request.RouteValues["id"]?.ToString();
-            var token = context.Request.Query["token"].ToString();
-
-            string redirectUrl;
-            switch (action.ToLower())
+            builder.Services.AddCors(options =>
             {
-                case "index":
-                    redirectUrl = "/Shared/Index";
-                    break;
-                case "session":
-                    redirectUrl = $"/Shared/Session/{id}";
-                    break;
-                case "reports":
-                    redirectUrl = "/Shared/Reports";
-                    break;
-                case "calculator":
-                    redirectUrl = "/Shared/Calculator";
-                    break;
-                default:
-                    redirectUrl = "/Shared/Index";
-                    break;
-            }
+                options.AddPolicy("ProductionDomainPolicy", policy =>
+                {
+                    policy.WithOrigins(
+                            "https://wot.ninjatec.co.uk", 
+                            "https://workouttracker.online", 
+                            "https://www.workouttracker.online")
+                          .AllowAnyMethod()
+                          .AllowAnyHeader()
+                          .AllowCredentials();
+                });
+            });
 
-            // Keep the token parameter if it exists
-            if (!string.IsNullOrEmpty(token))
+            builder.Services.AddRedisConfiguration(builder.Configuration);
+
+            builder.Services.AddAntiforgery(options => 
             {
-                redirectUrl += (redirectUrl.Contains('?') ? "&" : "?") + $"token={token}";
+                options.HeaderName = "X-CSRF-TOKEN";
+                options.Cookie.Name = "CSRF-TOKEN";
+                options.Cookie.HttpOnly = false;
+                
+                if (builder.Environment.IsProduction())
+                {
+                    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                }
+                else if (builder.Environment.IsDevelopment())
+                {
+                    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                }
+                else
+                {
+                    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                }
+                
+                options.Cookie.SameSite = SameSiteMode.Strict;
+            });
+
+            builder.Services.AddDbContext<WorkoutTrackerWebContext>(options =>
+            {
+                var connectionString = builder.Configuration.GetConnectionString("WorkoutTrackerWebContext") ?? 
+                                       throw new InvalidOperationException("Connection string 'WorkoutTrackerWebContext' not found.");
+                
+                var poolingConfig = builder.Configuration.GetSection("DatabaseConnectionPooling");
+                int maxPoolSize = poolingConfig.GetValue<int>("MaxPoolSize", 200);
+                int minPoolSize = poolingConfig.GetValue<int>("MinPoolSize", 10);
+                int connectionLifetime = poolingConfig.GetValue<int>("ConnectionLifetime", 300);
+                bool connectionResetEnabled = poolingConfig.GetValue<bool>("ConnectionResetEnabled", true);
+                int loadBalanceTimeout = poolingConfig.GetValue<int>("LoadBalanceTimeout", 30);
+                int retryCount = poolingConfig.GetValue<int>("RetryCount", 5);
+                int retryInterval = poolingConfig.GetValue<int>("RetryInterval", 10);
+                
+                var sqlConnectionBuilder = new SqlConnectionStringBuilder(connectionString)
+                {
+                    MaxPoolSize = maxPoolSize,
+                    MinPoolSize = minPoolSize,
+                    ConnectTimeout = loadBalanceTimeout,
+                    LoadBalanceTimeout = loadBalanceTimeout,
+                    ConnectRetryCount = retryCount,
+                    ConnectRetryInterval = retryInterval
+                };
+
+                string enhancedConnectionString = sqlConnectionBuilder.ConnectionString;
+                if (connectionLifetime > 0)
+                {
+                    enhancedConnectionString += $";Connection Lifetime={connectionLifetime}";
+                }
+                
+                if (connectionResetEnabled && OperatingSystem.IsWindows())
+                {
+                    enhancedConnectionString += $";Connection Reset=true";
+                }
+                
+                options.UseSqlServer(enhancedConnectionString, sqlOptions => 
+                {
+                    sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: retryCount,
+                        maxRetryDelay: TimeSpan.FromSeconds(retryInterval),
+                        errorNumbersToAdd: new[] { 4060, 40197, 40501, 40613, 49918, 4221, 1205, 233, 64, -2 });
+                        
+                    sqlOptions.CommandTimeout(30);
+                    sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "dbo");
+                    
+                    sqlOptions.MinBatchSize(5);
+                    sqlOptions.MaxBatchSize(100);
+                })
+                .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
+                .EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
+            });
+
+            builder.Services.AddSingleton<IDbContextFactory<WorkoutTrackerWebContext>>(serviceProvider =>
+            {
+                var connectionString = builder.Configuration.GetConnectionString("WorkoutTrackerWebContext") ?? 
+                                       throw new InvalidOperationException("Connection string 'WorkoutTrackerWebContext' not found.");
+                
+                var poolingConfig = builder.Configuration.GetSection("DatabaseConnectionPooling");
+                int maxPoolSize = poolingConfig.GetValue<int>("MaxPoolSize", 200);
+                int minPoolSize = poolingConfig.GetValue<int>("MinPoolSize", 10);
+                int connectionLifetime = poolingConfig.GetValue<int>("ConnectionLifetime", 300);
+                bool connectionResetEnabled = poolingConfig.GetValue<bool>("ConnectionResetEnabled", true);
+                int loadBalanceTimeout = poolingConfig.GetValue<int>("LoadBalanceTimeout", 30);
+                int retryCount = poolingConfig.GetValue<int>("RetryCount", 5);
+                int retryInterval = poolingConfig.GetValue<int>("RetryInterval", 10);
+                
+                var sqlConnectionBuilder = new SqlConnectionStringBuilder(connectionString)
+                {
+                    MaxPoolSize = maxPoolSize,
+                    MinPoolSize = minPoolSize,
+                    ConnectTimeout = loadBalanceTimeout,
+                    LoadBalanceTimeout = loadBalanceTimeout,
+                    ConnectRetryCount = retryCount,
+                    ConnectRetryInterval = retryInterval
+                };
+
+                string enhancedConnectionString = sqlConnectionBuilder.ConnectionString;
+                if (connectionLifetime > 0)
+                {
+                    enhancedConnectionString += $";Connection Lifetime={connectionLifetime}";
+                }
+                
+                if (connectionResetEnabled && OperatingSystem.IsWindows())
+                {
+                    enhancedConnectionString += $";Connection Reset=true";
+                }
+                
+                var optionsBuilder = new DbContextOptionsBuilder<WorkoutTrackerWebContext>();
+                optionsBuilder.UseSqlServer(enhancedConnectionString, sqlOptions => 
+                {
+                    sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: retryCount,
+                        maxRetryDelay: TimeSpan.FromSeconds(retryInterval),
+                        errorNumbersToAdd: new[] { 4060, 40197, 40501, 40613, 49918, 4221, 1205, 233, 64, -2 });
+                        
+                    sqlOptions.CommandTimeout(30);
+                    sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "dbo");
+                    
+                    sqlOptions.MinBatchSize(5);
+                    sqlOptions.MaxBatchSize(100);
+                })
+                .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking) 
+                .EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
+                
+                return new DbContextFactory<WorkoutTrackerWebContext>(optionsBuilder.Options);
+            });
+
+            builder.Services.ConfigureApplicationCookie(options =>
+            {
+                options.Cookie.Name = "WorkoutTracker.Auth";
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SameSite = SameSiteMode.Strict;
+                
+                if (builder.Environment.IsDevelopment())
+                {
+                    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                }
+                else
+                {
+                    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                }
+                
+                options.ExpireTimeSpan = TimeSpan.FromDays(14);
+                options.SlidingExpiration = true;
+                
+                if (!builder.Environment.IsDevelopment())
+                {
+                    options.Cookie.Domain = ".workouttracker.online";
+                }
+                
+                options.Events.OnSignedIn = async context =>
+                {
+                    var userManager = context.HttpContext.RequestServices
+                        .GetRequiredService<UserManager<WorkoutTrackerWeb.Models.Identity.AppUser>>();
+                    var loginHistoryService = context.HttpContext.RequestServices
+                        .GetRequiredService<LoginHistoryService>();
+                    
+                    var user = await userManager.GetUserAsync(context.Principal);
+                    if (user != null)
+                    {
+                        await loginHistoryService.RecordSuccessfulLoginAsync(user.Id);
+                    }
+                };
+            });
+
+            var app = builder.Build();
+
+            // Initialize database
+            using (var scope = app.Services.CreateScope())
+            {
+                var services = scope.ServiceProvider;
+                var context = services.GetRequiredService<ApplicationDbContext>();
+                context.Database.Migrate();
+
+                var logger = services.GetRequiredService<ILogger<Program>>();
+                try
+                {
+                    await SeedData.InitializeAsync(services);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "An error occurred while seeding the database.");
+                }
             }
 
-            context.Response.Redirect(redirectUrl);
-        });
-    });
+            // Configure the HTTP request pipeline.
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseMigrationsEndPoint();
+            }
+            else
+            {
+                app.UseExceptionHandler("/Error");
+                app.UseHsts();
+            }
 
-    // Expose Prometheus metrics at the /metrics endpoint
-    app.MapMetrics();
+            app.UseForwardedHeaders();
 
-    // Map SignalR hub
-    app.MapHub<ImportProgressHub>("/importProgressHub");
+            app.UseMaintenanceMode();
 
-    // Map Razor Pages (routes are automatically registered)
-    app.MapRazorPages();
+            app.UseInvitationRedirect();
 
-    // Initialize seed data
-    using (var scope = app.Services.CreateScope())
-    {
-        var services = scope.ServiceProvider;
-        try
-        {
-            // Seed the database with initial data
-            WorkoutTrackerWeb.Data.SeedData.InitializeAsync(services).Wait();
-            Log.Information("Seed data initialization completed successfully");
+            app.Use(async (context, next) =>
+            {
+                context.Response.Headers["Content-Security-Policy"] = 
+                    "default-src 'self'; " +
+                    "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net 'unsafe-inline'; " + 
+                    "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css 'unsafe-inline'; " + 
+                    "img-src 'self' data: https://cdn.jsdelivr.net; " + 
+                    "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
+                    "connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online " +
+                                     "wss://wot.ninjatec.co.uk wss://workouttracker.online wss://www.workouttracker.online " +
+                                     "ws://wot.ninjatec.co.uk ws://workouttracker.online ws://www.workouttracker.online wss://* ws://*; " +
+                    "frame-src 'self'; " +
+                    "frame-ancestors 'self' https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online; " + 
+                    "form-action 'self' https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online; " +
+                    "base-uri 'self'; " +
+                    "object-src 'none'";
+                
+                context.Response.Headers["Permissions-Policy"] = 
+                    "camera=(), microphone=(), geolocation=()";
+                
+                context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+                
+                context.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
+                
+                context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+                
+                await next();
+            });
+
+            app.UseRedisResilience();
+
+            app.UseDbConnectionResilience();
+
+            Log.Information("Attempting to initialize Hangfire schema");
+            try
+            {
+                using (var scope = app.Services.CreateScope())
+                {
+                    var hangfireInitializationService = scope.ServiceProvider.GetRequiredService<IHangfireInitializationService>();
+                    bool success = hangfireInitializationService.InitializeHangfireSchema();
+                    if (success)
+                    {
+                        Log.Information("Hangfire schema initialized successfully");
+                        
+                        bool schemaExists = hangfireInitializationService.VerifyHangfireSchema();
+                        Log.Information("Hangfire schema verification: {Result}", schemaExists ? "Success" : "Failed");
+
+                        if (schemaExists)
+                        {
+                            // Initialize AlertingJobsService static service provider
+                            WorkoutTrackerWeb.Services.Hangfire.AlertingJobsService.SetServiceProvider(scope.ServiceProvider);
+                            
+                            // Register all background jobs only after schema is verified
+                            Log.Information("Registering alerting jobs");
+                            var alertingJobsRegistration = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsRegistration>();
+                            alertingJobsRegistration.RegisterAlertingJobs();
+                            
+                            Log.Information("Registering workout scheduling jobs");
+                            var workoutSchedulingJobsRegistration = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.WorkoutSchedulingJobsRegistration>();
+                            workoutSchedulingJobsRegistration.RegisterWorkoutSchedulingJobs();
+                            
+                            Log.Information("Registering workout reminder jobs");
+                            var workoutReminderJobsRegistration = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsRegistration>();
+                            workoutReminderJobsRegistration.RegisterWorkoutReminderJobs();
+                            
+                            Log.Information("All background jobs registered successfully");
+                        }
+                        else
+                        {
+                            Log.Error("Failed to verify Hangfire schema after initialization");
+                        }
+                    }
+                    else 
+                    {
+                        Log.Error("Hangfire schema initialization failed");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error initializing Hangfire schema and registering jobs");
+            }
+
+            app.UseHttpMetrics();
+
+            app.UseHttpsRedirection();
+
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                ContentTypeProvider = new FileExtensionContentTypeProvider
+                {
+                    Mappings = 
+                    {
+                        [".js"] = "application/javascript",
+                        [".min.js"] = "application/javascript"
+                    }
+                }
+            });
+
+            app.UseIpRateLimiting();
+            
+            app.UseRateLimitBypass();
+
+            app.UseCors("ProductionDomainPolicy");
+
+            app.UseRouting();
+
+            app.UseOutputCache();
+
+            app.UseSession();
+
+            app.UseVersionLogging();
+
+            app.UseRequestLogging(app.Environment.IsProduction());
+
+            app.UseAuthentication();
+            app.UseAuthorization();
+
+            app.MapHealthChecks("/health", new HealthCheckOptions
+            {
+                Predicate = _ => true,
+                ResponseWriter = async (context, report) =>
+                {
+                    var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+                    await UIResponseWriter.WriteHealthCheckUIResponse(context, report);
+                }
+            }).AllowAnonymous()
+              .WithMetadata(new EndpointNameMetadata("Health_Root"));
+
+            app.MapHealthChecks("/health/live", new HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("live"),
+                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+            }).AllowAnonymous()
+              .WithMetadata(new EndpointNameMetadata("Health_Live"));
+
+            app.MapGet("/health/ready", async context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status200OK;
+                await context.Response.WriteAsync("OK");
+            }).AllowAnonymous();
+
+            app.MapHealthChecks("/health/database", new HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("db"),
+                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+            }).AllowAnonymous();
+
+            app.MapHealthChecks("/health/redis", new HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("redis")
+            });
+
+            app.MapHealthChecks("/health/email", new HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("email"),
+                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+            }).AllowAnonymous();
+
+            app.UseHangfireDashboard("/hangfire", new DashboardOptions {
+                Authorization = new[] { new HangfireAuthorizationFilter() }
+            });
+
+            app.MapControllerRoute(
+                name: "areas",
+                pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}");
+
+            app.MapControllerRoute(
+                name: "default",
+                pattern: "{controller=Home}/{action=Index}/{id?}");
+
+            app.UseEndpoints(endpoints =>
+            {
+                endpoints.MapGet("Shared/{action=Index}/{id?}", context =>
+                {
+                    var action = context.Request.RouteValues["action"]?.ToString() ?? "Index";
+                    var id = context.Request.RouteValues["id"]?.ToString();
+                    var token = context.Request.Query["token"].ToString();
+
+                    string redirectUrl;
+                    switch (action.ToLower())
+                    {
+                        case "index":
+                            redirectUrl = "/Shared/Index";
+                            break;
+                        case "session":
+                            redirectUrl = $"/Shared/Session/{id}";
+                            break;
+                        case "reports":
+                            redirectUrl = "/Shared/Reports";
+                            break;
+                        case "calculator":
+                            redirectUrl = "/Shared/Calculator";
+                            break;
+                        default:
+                            redirectUrl = "/Shared/Index";
+                            break;
+                    }
+
+                    if (!string.IsNullOrEmpty(token))
+                    {
+                        redirectUrl += (redirectUrl.Contains('?') ? "&" : "?") + $"token={token}";
+                    }
+
+                    context.Response.Redirect(redirectUrl);
+                    return Task.CompletedTask;
+                });
+            });
+
+            app.MapMetrics();
+
+            app.MapHub<ImportProgressHub>("/importProgressHub");
+
+            app.MapRazorPages();
+
+            app.Run();
         }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "An error occurred while seeding the database");
-        }
-    }
-
-    app.Run();
-}
-catch (Exception ex)
-{
-    Log.Fatal(ex, "Application startup failed");
-}
-finally
-{
-    Log.CloseAndFlush();
-}
-
-// Configure Redis options with proper master/replica handling
-static ConfigurationOptions ConfigureRedisOptions(string connectionString)
-{
-    var options = ConfigurationOptions.Parse(connectionString);
-    
-    // Basic connection settings
-    options.KeepAlive = 180;
-    options.ConnectTimeout = 10000; // 10 seconds
-    options.SyncTimeout = 10000;    // 10 seconds
-    options.AbortOnConnectFail = false; // Don't fail if Redis is temporarily unavailable
-    options.ReconnectRetryPolicy = new ExponentialRetry(5000);
-    options.ConnectRetry = 5;
-    
-    // Critical settings for handling master/replica scenarios
-    options.AllowAdmin = true; // Needed to query node types
-    options.TieBreaker = ""; // Don't use tiebreakers which can be problematic
-    
-    // Configure write operations to only go to master nodes
-    options.ConfigCheckSeconds = 5; // Check for configuration changes frequently
-    options.ConfigurationChannel = ""; // Don't use pub/sub for config
-    
-    // Set client name for diagnostics
-    options.ClientName = "WorkoutTrackerCache";
-    
-    return options;
-}
-
-// Monitoring metrics class - moved to end of file to fix build error
-public static class WorkoutTrackerMetrics
-{
-    public static readonly Counter SessionsCreated = Metrics.CreateCounter(
-        "workout_tracker_sessions_created_total", "Number of workout sessions created");
-    
-    public static readonly Counter SetsCreated = Metrics.CreateCounter(
-        "workout_tracker_sets_created_total", "Number of exercise sets created");
-        
-    public static readonly Counter RepsCreated = Metrics.CreateCounter(
-        "workout_tracker_reps_created_total", "Number of exercise reps created");
-
-    public static readonly Gauge ActiveUsers = Metrics.CreateGauge(
-        "workout_tracker_active_users", "Number of currently active users");
-        
-    public static readonly Histogram HttpRequestDuration = Metrics.CreateHistogram(
-        "workout_tracker_http_request_duration_seconds", 
-        "Duration of HTTP requests in seconds",
-        new HistogramConfiguration
-        {
-            Buckets = Histogram.ExponentialBuckets(0.01, 2, 10)
-        });
-}
-
-// Hangfire authorization filter to restrict access to admins
-public class HangfireAuthorizationFilter : IDashboardAuthorizationFilter
-{
-    public bool Authorize(DashboardContext context)
-    {
-        var httpContext = context.GetHttpContext();
-        
-        // Allow local requests during development
-        if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" &&
-           (httpContext.Request.Host.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || 
-            httpContext.Request.Host.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)))
-        {
-            return true;
-        }
-        
-        // Check if user is authenticated and in Admin role
-        return httpContext.User.Identity?.IsAuthenticated == true && 
-               httpContext.User.IsInRole("Admin");
     }
 }

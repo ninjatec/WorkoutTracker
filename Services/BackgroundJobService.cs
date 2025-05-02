@@ -54,7 +54,7 @@ namespace WorkoutTrackerWeb.Services
         }
 
         // This method will be called by Hangfire in the background
-        public async Task DeleteAllWorkoutDataAsync(string identityUserId, string connectionId)
+        public async Task DeleteAllWorkoutDataAsync(string userId, string connectionId)
         {
             // Get job ID from context
             string jobId = "unknown";
@@ -73,8 +73,8 @@ namespace WorkoutTrackerWeb.Services
                 _logger.LogWarning(ex, "Failed to get job ID from context");
             }
             
-            _logger.LogInformation("Starting background delete operation for user {IdentityUserId}, job {JobId}, connectionId {ConnectionId}", 
-                identityUserId, jobId, connectionId);
+            _logger.LogInformation("Starting background delete operation for user {UserId}, job {JobId}, connectionId {ConnectionId}", 
+                userId, jobId, connectionId);
             
             try
             {
@@ -96,14 +96,27 @@ namespace WorkoutTrackerWeb.Services
                     await SendJobUpdateWithRetriesAsync(connectionId, jobId, initProgress);
                     
                     // Validate user before proceeding
-                    var user = await context.User.FirstOrDefaultAsync(u => u.IdentityUserId == identityUserId);
+                    int numericUserId;
+                    if (!int.TryParse(userId, out numericUserId))
+                    {
+                        _logger.LogWarning("Could not parse userId '{UserId}' to int", userId);
+                        var errorProgress = new JobProgress { 
+                            Status = "Error", 
+                            PercentComplete = 0,
+                            ErrorMessage = $"Invalid user ID format. Please contact support with reference: {jobId}"
+                        };
+                        await SendJobUpdateWithRetriesAsync(connectionId, jobId, errorProgress);
+                        throw new Exception($"Invalid user ID format: {userId}");
+                    }
+                    
+                    var user = await context.User.FirstOrDefaultAsync(u => u.UserId == numericUserId);
                     
                     if (user == null)
                     {
-                        _logger.LogWarning("User with IdentityUserId {IdentityUserId} not found directly. Attempting alternative lookup methods.", identityUserId);
+                        _logger.LogWarning("User with UserId {UserId} not found directly. Attempting alternative lookup methods.", userId);
                         
                         // Try to find the identity user first to make sure it exists
-                        var identityUser = await userManager.FindByIdAsync(identityUserId);
+                        var identityUser = await userManager.FindByIdAsync(userId);
                         if (identityUser == null)
                         {
                             var errorProgress = new JobProgress { 
@@ -112,36 +125,43 @@ namespace WorkoutTrackerWeb.Services
                                 ErrorMessage = $"Identity user not found. Please contact support with reference: {jobId}"
                             };
                             await SendJobUpdateWithRetriesAsync(connectionId, jobId, errorProgress);
-                            throw new Exception($"Identity user not found for ID: {identityUserId}");
+                            throw new Exception($"Identity user not found for ID: {userId}");
                         }
                         
                         // Create a new application user record
-                        _logger.LogInformation("Creating new application user for identity user {IdentityUserId}", identityUserId);
+                        _logger.LogInformation("Creating new application user for identity user {UserId}", userId);
                         user = new Models.User
                         {
-                            IdentityUserId = identityUserId,
+                            UserId = numericUserId,
                             Name = identityUser.UserName ?? "User" // Use username or fallback
                         };
                         
                         context.User.Add(user);
                         await context.SaveChangesAsync();
                         
-                        _logger.LogInformation("Created new user {UserId} for identity user {IdentityUserId}", 
-                            user.UserId, identityUserId);
+                        _logger.LogInformation("Created new user {UserId} for identity user {UserId}", 
+                            user.UserId, userId);
                     }
                     
                     // Set up the progress callback
-                    workoutDataService.OnProgressUpdate = async (jobProgress) => {
+                    workoutDataService.OnProgressUpdate += async (sender, e) => {
                         // Add the job ID to the progress data for logging
                         _logger.LogDebug("Job {JobId} progress: {Status} {PercentComplete}%", 
-                            jobId, jobProgress.Status, jobProgress.PercentComplete);
+                            jobId, e.Message, e.PercentComplete);
                             
+                        var jobProgress = new JobProgress
+                        {
+                            Status = e.Message,
+                            PercentComplete = e.PercentComplete,
+                            Details = e.Message
+                        };
+                        
                         await SendJobUpdateWithRetriesAsync(connectionId, jobId, jobProgress);
                     };
                     
                     // Execute the actual delete operation
                     var startTime = DateTime.UtcNow;
-                    await workoutDataService.DeleteAllWorkoutDataAsync(identityUserId);
+                    await workoutDataService.DeleteAllWorkoutDataAsync(numericUserId);
                     var duration = DateTime.UtcNow - startTime;
                     
                     _logger.LogInformation("Delete operation completed in {Duration} seconds", duration.TotalSeconds);
@@ -155,13 +175,13 @@ namespace WorkoutTrackerWeb.Services
                     await SendJobUpdateWithRetriesAsync(connectionId, jobId, finalProgress);
                 }
                 
-                _logger.LogInformation("Successfully completed delete operation for user {IdentityUserId}, job {JobId}", 
-                    identityUserId, jobId);
+                _logger.LogInformation("Successfully completed delete operation for user {UserId}, job {JobId}", 
+                    userId, jobId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during background delete operation for user {IdentityUserId}, job {JobId}", 
-                    identityUserId, jobId);
+                _logger.LogError(ex, "Error during background delete operation for user {UserId}, job {JobId}", 
+                    userId, jobId);
                 
                 // Report error
                 var errorProgress = new JobProgress { 
@@ -656,11 +676,17 @@ namespace WorkoutTrackerWeb.Services
                     await SendJobUpdateWithRetriesAsync(connectionId, jobId, initProgress);
                     
                     // Set up the progress callback with more detail
-                    dataPortabilityService.OnProgressUpdate = async (jobProgress) => {
+                    dataPortabilityService.OnProgressUpdate += async (sender, e) => {
                         // Add the job ID to the progress data for logging
                         _logger.LogDebug("Job {JobId} progress: {Status} {PercentComplete}%", 
-                            jobId, jobProgress.Status, jobProgress.PercentComplete);
+                            jobId, e.Message, e.PercentComplete);
                             
+                        var jobProgress = new JobProgress { 
+                            Status = e.Message,
+                            PercentComplete = e.PercentComplete,
+                            Details = e.Message
+                        };
+                        
                         await SendJobUpdateWithRetriesAsync(connectionId, jobId, jobProgress);
                     };
                     
@@ -979,11 +1005,17 @@ namespace WorkoutTrackerWeb.Services
                     await SendJobUpdateWithRetriesAsync(connectionId, jobId, initProgress);
                     
                     // Set up the progress callback with more detail
-                    dataPortabilityService.OnProgressUpdate = async (jobProgress) => {
+                    dataPortabilityService.OnProgressUpdate += async (sender, e) => {
                         // Add the job ID to the progress data for logging
                         _logger.LogDebug("Job {JobId} progress: {Status} {PercentComplete}%", 
-                            jobId, jobProgress.Status, jobProgress.PercentComplete);
+                            jobId, e.Message, e.PercentComplete);
                             
+                        var jobProgress = new JobProgress { 
+                            Status = e.Message,
+                            PercentComplete = e.PercentComplete,
+                            Details = e.Message
+                        };
+                        
                         await SendJobUpdateWithRetriesAsync(connectionId, jobId, jobProgress);
                     };
                     

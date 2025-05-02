@@ -11,19 +11,25 @@ namespace WorkoutTrackerWeb.Pages.Shared
     public class PrivacyModel : SharedPageModel
     {
         public PrivacyModel(
-            IShareTokenService shareTokenService,
+            ITokenValidationService tokenValidationService,
             ILogger<PrivacyModel> logger)
-            : base(shareTokenService, logger)
+            : base(tokenValidationService, logger)
         {
         }
 
         public async Task<IActionResult> OnGetAsync(string token = null)
         {
-            // Privacy page is accessible without a valid token
-            // But if a token is provided, validate and set the username for display
-            if (!string.IsNullOrEmpty(token) || HttpContext.Request.Cookies.ContainsKey("share_token"))
+            // Update request token
+            Token = token;
+            
+            // If token is provided, validate it
+            if (!string.IsNullOrEmpty(token))
             {
-                await ValidateTokenAsync(token, null);
+                var isValid = await ValidateShareTokenAsync();
+                if (isValid)
+                {
+                    ViewData["TokenIsValid"] = true;
+                }
             }
 
             return Page();

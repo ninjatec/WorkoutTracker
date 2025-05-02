@@ -94,6 +94,12 @@ namespace WorkoutTrackerWeb.Pages.Reports
             public List<double> Calories { get; set; } = new List<double>();
         }
 
+        public class TrendPoint
+        {
+            public DateTime Date { get; set; }
+            public decimal Value { get; set; }
+        }
+
         public RepStatusData OverallStatus { get; set; }
         public List<ExerciseStatusData> ExerciseStatusList { get; set; }
         public List<ExerciseStatusData> RecentExerciseStatusList { get; set; }
@@ -106,6 +112,17 @@ namespace WorkoutTrackerWeb.Pages.Reports
         public int CurrentPage { get; set; }
         public int TotalPages { get; set; }
         public int ReportPeriod { get; set; } = 90; // Default to 90 days
+        public Dictionary<string, decimal> TopExercisesByVolume { get; set; }
+        public decimal TotalVolume { get; set; }
+        public decimal TotalCalories { get; set; }
+        public int TotalWorkouts { get; set; }
+        public double AverageWorkoutDuration { get; set; }
+        public double CompletionRate { get; set; }
+        public Dictionary<string, int> ExerciseFrequencies { get; set; }
+        public List<TrendPoint> VolumeTrends { get; set; }
+        public DateTime PeriodStart => DateTime.Now.AddDays(-ReportPeriod);
+        public DateTime PeriodEnd => DateTime.Now;
+        public int UserId { get; set; }
 
         private string GetCacheKey(string key, int userId) => $"Reports:{key}:{userId}";
 
@@ -150,6 +167,99 @@ namespace WorkoutTrackerWeb.Pages.Reports
             }
         }
 
+        private async Task LoadUserMetricsAsync()
+        {
+            var sessions = await _context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.ExerciseType)
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.WorkoutSets)
+                .Where(ws => ws.UserId == UserId)
+                .OrderByDescending(ws => ws.StartDateTime)
+                .ToListAsync();
+
+            // Calculate exercise metrics
+            var exerciseVolumes = new Dictionary<string, decimal>();
+            var exerciseCalories = new Dictionary<string, decimal>();
+
+            foreach (var session in sessions)
+            {
+                // Get volume data for this session
+                var sessionVolumes = _volumeCalculationService.CalculateSessionVolume(session);
+                var sessionCalories = await _calorieCalculationService.CalculateSessionCaloriesByExercise(session.WorkoutSessionId);
+
+                // Aggregate volumes
+                foreach (var kvp in sessionVolumes)
+                {
+                    string exercise = kvp.Key;
+                    decimal volume = kvp.Value;
+                    if (!exerciseVolumes.ContainsKey(exercise))
+                        exerciseVolumes[exercise] = 0;
+                    exerciseVolumes[exercise] += volume;
+                }
+
+                // Aggregate calories
+                foreach (var kvp in sessionCalories)
+                {
+                    string exercise = kvp.Key;
+                    decimal calories = kvp.Value;
+                    if (!exerciseCalories.ContainsKey(exercise))
+                        exerciseCalories[exercise] = 0;
+                    exerciseCalories[exercise] += calories;
+                }
+            }
+
+            // Get top exercises by volume
+            TopExercisesByVolume = exerciseVolumes
+                .OrderByDescending(kv => kv.Value)
+                .Take(5)
+                .ToDictionary(kv => kv.Key, kv => kv.Value);
+
+            // Get total volume and calories
+            TotalVolume = exerciseVolumes.Values.Sum();
+            TotalCalories = exerciseCalories.Values.Sum();
+
+            // Calculate workout trends over the selected period
+            var periodWorkouts = sessions
+                .Where(ws => ws.StartDateTime >= PeriodStart && ws.StartDateTime <= PeriodEnd)
+                .OrderBy(ws => ws.StartDateTime)
+                .ToList();
+
+            TotalWorkouts = periodWorkouts.Count;
+            AverageWorkoutDuration = periodWorkouts.Any() 
+                ? periodWorkouts.Average(ws => ws.Duration) 
+                : 0;
+
+            // Calculate completion rate
+            var completedWorkouts = periodWorkouts.Count(ws => ws.IsCompleted);
+            CompletionRate = TotalWorkouts > 0 
+                ? (completedWorkouts * 100.0) / TotalWorkouts 
+                : 0;
+
+            // Get exercise frequencies
+            ExerciseFrequencies = periodWorkouts
+                .SelectMany(ws => ws.WorkoutExercises
+                    .Select(we => we.ExerciseType.Name))
+                .GroupBy(name => name)
+                .OrderByDescending(g => g.Count())
+                .Take(10)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            // Calculate volume trends
+            VolumeTrends = periodWorkouts
+                .GroupBy(ws => ws.StartDateTime.Date)
+                .OrderBy(g => g.Key)
+                .Select(g => new TrendPoint 
+                {
+                    Date = g.Key,
+                    Value = g.Sum(ws => 
+                        ws.WorkoutExercises.Sum(we => 
+                            we.WorkoutSets.Sum(s => 
+                                (s.Weight ?? 0) * (s.Reps ?? 0))))
+                })
+                .ToList();
+        }
+
         public async Task<IActionResult> OnGetAsync(int? pageNumber = 1, int? period = 90)
         {
             var user = await _context.GetCurrentUserAsync();
@@ -192,29 +302,32 @@ namespace WorkoutTrackerWeb.Pages.Reports
                 VolumeDataList == null || CalorieDataList == null)
             {
                 // Optimize queries by combining related data fetching
-                var allSetsWithReps = await _context.Set
-                    .Include(s => s.Session)
-                    .Include(s => s.ExerciseType)
-                    .Include(s => s.Reps)
-                    .Where(s => s.Session.UserId == user.UserId && s.Session.datetime >= reportPeriodDate)
+                var allWorkoutSets = await _context.WorkoutSets
+                    .Include(ws => ws.WorkoutExercise)
+                        .ThenInclude(we => we.WorkoutSession)
+                    .Include(ws => ws.WorkoutExercise)
+                        .ThenInclude(we => we.ExerciseType)
+                    .Where(ws => ws.WorkoutExercise.WorkoutSession.UserId == user.UserId && 
+                                ws.WorkoutExercise.WorkoutSession.StartDateTime >= reportPeriodDate &&
+                                ws.WorkoutExercise.ExerciseType != null)
                     .AsNoTracking()
                     .ToListAsync();
 
-                // Get all sessions in the period
-                var allSessions = await _context.Session
-                    .Where(s => s.UserId == user.UserId && s.datetime >= reportPeriodDate)
-                    .OrderBy(s => s.datetime)
+                // Get all workout sessions in the period
+                var allWorkoutSessions = await _context.WorkoutSessions
+                    .Where(ws => ws.UserId == user.UserId && ws.StartDateTime >= reportPeriodDate)
+                    .OrderBy(ws => ws.StartDateTime)
                     .AsNoTracking()
                     .ToListAsync();
 
                 // Calculate overall status if not in cache
                 if (OverallStatus == null)
                 {
-                    var allReps = allSetsWithReps.SelectMany(s => s.Reps).ToList();
+                    // Since we don't have direct rep success tracking in WorkoutSet, we'll use completed sets as successful
                     OverallStatus = new RepStatusData
                     {
-                        SuccessfulReps = allReps.Count(r => r.success),
-                        FailedReps = allReps.Count(r => !r.success)
+                        SuccessfulReps = allWorkoutSets.Where(ws => ws.IsCompleted).Sum(ws => ws.Reps ?? 0),
+                        FailedReps = allWorkoutSets.Where(ws => !ws.IsCompleted).Sum(ws => ws.Reps ?? 0)
                     };
                     SetCache(overallStatusCacheKey, OverallStatus);
                 }
@@ -222,13 +335,14 @@ namespace WorkoutTrackerWeb.Pages.Reports
                 // Calculate exercise status if not in cache
                 if (ExerciseStatusList == null)
                 {
-                    ExerciseStatusList = allSetsWithReps
-                        .GroupBy(s => s.ExerciseType.Name)
+                    ExerciseStatusList = allWorkoutSets
+                        .Where(ws => ws.WorkoutExercise?.ExerciseType?.Name != null)
+                        .GroupBy(ws => ws.WorkoutExercise.ExerciseType.Name)
                         .Select(g => new ExerciseStatusData
                         {
                             ExerciseName = g.Key,
-                            SuccessfulReps = g.SelectMany(s => s.Reps).Count(r => r.success),
-                            FailedReps = g.SelectMany(s => s.Reps).Count(r => !r.success)
+                            SuccessfulReps = g.Where(ws => ws.IsCompleted).Sum(ws => ws.Reps ?? 0),
+                            FailedReps = g.Where(ws => !ws.IsCompleted).Sum(ws => ws.Reps ?? 0)
                         })
                         .Where(data => data.SuccessfulReps > 0 || data.FailedReps > 0)
                         .ToList();
@@ -239,13 +353,14 @@ namespace WorkoutTrackerWeb.Pages.Reports
                 // Calculate recent exercise status - uses the same period for consistency
                 if (RecentExerciseStatusList == null)
                 {
-                    RecentExerciseStatusList = allSetsWithReps
-                        .GroupBy(s => s.ExerciseType.Name)
+                    RecentExerciseStatusList = allWorkoutSets
+                        .Where(ws => ws.WorkoutExercise?.ExerciseType?.Name != null)
+                        .GroupBy(ws => ws.WorkoutExercise.ExerciseType.Name)
                         .Select(g => new ExerciseStatusData
                         {
                             ExerciseName = g.Key,
-                            SuccessfulReps = g.SelectMany(s => s.Reps).Count(r => r.success),
-                            FailedReps = g.SelectMany(s => s.Reps).Count(r => !r.success)
+                            SuccessfulReps = g.Where(ws => ws.IsCompleted).Sum(ws => ws.Reps ?? 0),
+                            FailedReps = g.Where(ws => !ws.IsCompleted).Sum(ws => ws.Reps ?? 0)
                         })
                         .Where(data => data.SuccessfulReps > 0 || data.FailedReps > 0)
                         .ToList();
@@ -256,18 +371,18 @@ namespace WorkoutTrackerWeb.Pages.Reports
                 // Calculate weight progress if not in cache
                 if (WeightProgressList == null)
                 {
-                    WeightProgressList = allSetsWithReps
-                        .Where(s => s.Weight > 0)
-                        .GroupBy(s => s.ExerciseType.Name)
+                    WeightProgressList = allWorkoutSets
+                        .Where(ws => ws.Weight > 0 && ws.WorkoutExercise?.ExerciseType?.Name != null)
+                        .GroupBy(ws => ws.WorkoutExercise.ExerciseType.Name)
                         .Select(g => new WeightProgressData
                         {
                             ExerciseName = g.Key,
-                            Dates = g.GroupBy(s => s.Session.datetime.Date)
+                            Dates = g.GroupBy(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime.Date)
                                 .Select(d => d.Key)
                                 .OrderBy(d => d)
                                 .ToList(),
-                            Weights = g.GroupBy(s => s.Session.datetime.Date)
-                                .Select(d => d.Max(s => s.Weight))
+                            Weights = g.GroupBy(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime.Date)
+                                .Select(d => d.Max(ws => ws.Weight ?? 0))
                                 .OrderBy(d => d)
                                 .ToList()
                         })
@@ -280,22 +395,23 @@ namespace WorkoutTrackerWeb.Pages.Reports
                 // Calculate volume data if not in cache
                 if (VolumeDataList == null)
                 {
-                    var exerciseData = allSetsWithReps
-                        .GroupBy(s => s.ExerciseType.Name)
+                    var exerciseData = allWorkoutSets
+                        .Where(ws => ws.WorkoutExercise?.ExerciseType?.Name != null)
+                        .GroupBy(ws => ws.WorkoutExercise.ExerciseType.Name)
                         .ToDictionary(
                             g => g.Key,
                             g => g.ToList()
                         );
 
-                    var sessionData = allSetsWithReps
-                        .GroupBy(s => s.Session.datetime.Date)
+                    var sessionData = allWorkoutSets
+                        .GroupBy(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime.Date)
                         .OrderBy(g => g.Key)
                         .ToList();
 
                     VolumeDataList = exerciseData.Select(ed => {
                         var volumeData = new VolumeData {
                             ExerciseName = ed.Key,
-                            TotalVolume = ed.Value.Sum(s => _volumeCalculationService.CalculateSetVolume(s))
+                            TotalVolume = ed.Value.Sum(ws => _volumeCalculationService.CalculateSetVolume(ws))
                         };
 
                         // Add data points for each date
@@ -305,11 +421,11 @@ namespace WorkoutTrackerWeb.Pages.Reports
                             
                             // Find sets for this exercise on this date
                             var setsOnDate = dateGroup
-                                .Where(s => s.ExerciseType.Name == ed.Key)
+                                .Where(ws => ws.WorkoutExercise.ExerciseType.Name == ed.Key)
                                 .ToList();
 
                             // Calculate volume for this date
-                            double volumeOnDate = setsOnDate.Sum(s => _volumeCalculationService.CalculateSetVolume(s));
+                            double volumeOnDate = setsOnDate.Sum(ws => _volumeCalculationService.CalculateSetVolume(ws));
                             volumeData.Volumes.Add(volumeOnDate);
                         }
 
@@ -332,21 +448,22 @@ namespace WorkoutTrackerWeb.Pages.Reports
                 {
                     // Get all sessions with their total calories
                     var sessionCalories = new Dictionary<int, double>();
-                    foreach (var session in allSessions)
+                    foreach (var session in allWorkoutSessions)
                     {
-                        double calories = await _calorieCalculationService.CalculateSessionCaloriesAsync(session.SessionId);
-                        sessionCalories[session.SessionId] = calories;
+                        var calories = await _calorieCalculationService.CalculateSessionCaloriesAsync(session.WorkoutSessionId);
+                        sessionCalories[session.WorkoutSessionId] = (double)calories;
                     }
 
-                    var exerciseData = allSetsWithReps
-                        .GroupBy(s => s.ExerciseType.Name)
+                    var exerciseData = allWorkoutSets
+                        .Where(ws => ws.WorkoutExercise?.ExerciseType?.Name != null)
+                        .GroupBy(ws => ws.WorkoutExercise.ExerciseType.Name)
                         .ToDictionary(
                             g => g.Key,
                             g => g.ToList()
                         );
 
-                    var sessionDates = allSessions
-                        .GroupBy(s => s.datetime.Date)
+                    var sessionDates = allWorkoutSessions
+                        .GroupBy(ws => ws.StartDateTime.Date)
                         .OrderBy(g => g.Key)
                         .ToDictionary(
                             g => g.Key,
@@ -368,12 +485,13 @@ namespace WorkoutTrackerWeb.Pages.Reports
                         {
                             // Create a weighted distribution of calories based on volume proportion
                             double setVolume = _volumeCalculationService.CalculateSetVolume(set);
-                            double sessionVolume = allSetsWithReps
-                                .Where(s => s.SessionId == set.SessionId)
-                                .Sum(s => _volumeCalculationService.CalculateSetVolume(s));
+                            double sessionVolume = allWorkoutSets
+                                .Where(ws => ws.WorkoutExercise.WorkoutSessionId == set.WorkoutExercise.WorkoutSessionId)
+                                .Sum(ws => _volumeCalculationService.CalculateSetVolume(ws));
                             
                             double proportion = sessionVolume > 0 ? setVolume / sessionVolume : 0;
-                            double sessionCalorie = sessionCalories.ContainsKey(set.SessionId) ? sessionCalories[set.SessionId] : 0;
+                            int sessionId = set.WorkoutExercise.WorkoutSessionId;
+                            double sessionCalorie = sessionCalories.ContainsKey(sessionId) ? sessionCalories[sessionId] : 0;
                             double caloriesForSet = proportion * sessionCalorie;
                             
                             totalCalories += caloriesForSet;
@@ -395,18 +513,20 @@ namespace WorkoutTrackerWeb.Pages.Reports
                             foreach (var session in sessionsOnDate)
                             {
                                 // Get sets for this exercise in this session
-                                var setsInSession = allSetsWithReps
-                                    .Where(s => s.SessionId == session.SessionId && s.ExerciseType.Name == ed.Key)
+                                var setsInSession = allWorkoutSets
+                                    .Where(ws => ws.WorkoutExercise.WorkoutSessionId == session.WorkoutSessionId && 
+                                               ws.WorkoutExercise.ExerciseType.Name == ed.Key)
                                     .ToList();
                                 
                                 // Calculate proportion of volume for this exercise
-                                double exerciseVolume = setsInSession.Sum(s => _volumeCalculationService.CalculateSetVolume(s));
-                                double totalSessionVolume = allSetsWithReps
-                                    .Where(s => s.SessionId == session.SessionId)
-                                    .Sum(s => _volumeCalculationService.CalculateSetVolume(s));
+                                double exerciseVolume = setsInSession.Sum(ws => _volumeCalculationService.CalculateSetVolume(ws));
+                                double totalSessionVolume = allWorkoutSets
+                                    .Where(ws => ws.WorkoutExercise.WorkoutSessionId == session.WorkoutSessionId)
+                                    .Sum(ws => _volumeCalculationService.CalculateSetVolume(ws));
                                 
                                 double proportion = totalSessionVolume > 0 ? exerciseVolume / totalSessionVolume : 0;
-                                double sessionCalorie = sessionCalories.ContainsKey(session.SessionId) ? sessionCalories[session.SessionId] : 0;
+                                double sessionCalorie = sessionCalories.ContainsKey(session.WorkoutSessionId) ? 
+                                    sessionCalories[session.WorkoutSessionId] : 0;
                                 
                                 caloriesOnDate += proportion * sessionCalorie;
                             }
@@ -449,22 +569,27 @@ namespace WorkoutTrackerWeb.Pages.Reports
             // If not in cache or different page, fetch from database
             if (PersonalRecords == null || (paginationInfo != null && paginationInfo.CurrentPage != pageNumber))
             {
-                var query = _context.Set
-                    .Include(s => s.Session)
-                    .Include(s => s.ExerciseType)
-                    .Where(s => s.Session.UserId == user.UserId && s.Weight > 0)
-                    .GroupBy(s => new { s.ExerciseTypeId, s.ExerciseType.Name })
+                var query = _context.WorkoutSets
+                    .Include(ws => ws.WorkoutExercise)
+                        .ThenInclude(we => we.WorkoutSession)
+                    .Include(ws => ws.WorkoutExercise)
+                        .ThenInclude(we => we.ExerciseType)
+                    .Where(ws => ws.WorkoutExercise.WorkoutSession.UserId == user.UserId && 
+                               ws.WorkoutExercise.ExerciseType != null && 
+                               ws.Weight > 0)
+                    .GroupBy(ws => new { ws.WorkoutExercise.ExerciseTypeId, ws.WorkoutExercise.ExerciseType.Name })
+                    .Where(g => g.Key.Name != null)
                     .Select(g => new PersonalRecordData
                     {
                         ExerciseName = g.Key.Name,
-                        MaxWeight = g.Max(s => s.Weight),
-                        RecordDate = g.OrderByDescending(s => s.Weight)
-                            .ThenByDescending(s => s.Session.datetime)
-                            .Select(s => s.Session.datetime)
+                        MaxWeight = g.Max(ws => ws.Weight ?? 0),
+                        RecordDate = g.OrderByDescending(ws => ws.Weight)
+                            .ThenByDescending(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime)
+                            .Select(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime)
                             .First(),
-                        SessionName = g.OrderByDescending(s => s.Weight)
-                            .ThenByDescending(s => s.Session.datetime)
-                            .Select(s => s.Session.Name)
+                        SessionName = g.OrderByDescending(ws => ws.Weight)
+                            .ThenByDescending(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime)
+                            .Select(ws => ws.WorkoutExercise.WorkoutSession.Name ?? "Unnamed Session")
                             .First()
                     })
                     .OrderByDescending(pr => pr.MaxWeight);

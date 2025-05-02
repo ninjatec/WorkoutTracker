@@ -1,12 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Hosting;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 
@@ -16,142 +14,166 @@ namespace WorkoutTrackerWeb.Pages.Templates
     public class StartWorkoutModel : PageModel
     {
         private readonly WorkoutTrackerWebContext _context;
-        private readonly IWebHostEnvironment _environment;
 
-        public StartWorkoutModel(WorkoutTrackerWebContext context, IWebHostEnvironment environment)
+        public StartWorkoutModel(WorkoutTrackerWebContext context)
         {
             _context = context;
-            _environment = environment;
         }
 
-        public WorkoutTemplate WorkoutTemplate { get; set; } = default!;
-        public string DefaultSessionName { get; set; } = string.Empty;
+        public WorkoutSession WorkoutSession { get; set; }
+        public WorkoutTemplate WorkoutTemplate { get; set; }
+        public string DefaultSessionName => $"{WorkoutTemplate?.Name} {DateTime.Now:MMM d, yyyy}";
+        public int? TemplateId { get; set; }
 
-        public async Task<IActionResult> OnGetAsync(int id)
+        public async Task<IActionResult> OnGetAsync(int? id)
         {
-            // Use AsSplitQuery and AsNoTracking for better performance
-            var workoutTemplate = await _context.WorkoutTemplate
-                .Include(t => t.TemplateExercises.OrderBy(e => e.SequenceNum))
-                .ThenInclude(e => e.ExerciseType)
-                .Include(t => t.TemplateExercises)
-                .ThenInclude(e => e.TemplateSets.OrderBy(s => s.SequenceNum))
-                .ThenInclude(s => s.Settype)
-                .AsNoTracking()
-                .AsSplitQuery()
-                .FirstOrDefaultAsync(t => t.WorkoutTemplateId == id);
-
-            if (workoutTemplate == null)
-            {
+            if (id == null)
                 return NotFound();
-            }
 
-            // Generate a default session name based on template name and date
-            DefaultSessionName = $"{workoutTemplate.Name} - {DateTime.Now:yyyy-MM-dd}";
+            TemplateId = id;
 
-            WorkoutTemplate = workoutTemplate;
+            // Modify query to avoid loading problematic columns using a projection approach
+            var template = await _context.WorkoutTemplate
+                .AsNoTracking()
+                .Where(wt => wt.WorkoutTemplateId == id)
+                .Select(wt => new WorkoutTemplate
+                {
+                    WorkoutTemplateId = wt.WorkoutTemplateId,
+                    Name = wt.Name,
+                    Description = wt.Description,
+                    Category = wt.Category,
+                    TemplateExercises = wt.TemplateExercises.OrderBy(te => te.OrderIndex)
+                        .Select(te => new WorkoutTemplateExercise
+                        {
+                            WorkoutTemplateExerciseId = te.WorkoutTemplateExerciseId,
+                            WorkoutTemplateId = te.WorkoutTemplateId,
+                            ExerciseTypeId = te.ExerciseTypeId,
+                            OrderIndex = te.OrderIndex,
+                            Notes = te.Notes,
+                            ExerciseType = new ExerciseType
+                            {
+                                ExerciseTypeId = te.ExerciseType.ExerciseTypeId,
+                                Name = te.ExerciseType.Name,
+                                Description = te.ExerciseType.Description,
+                                Type = te.ExerciseType.Type
+                            },
+                            TemplateSets = te.TemplateSets.OrderBy(ts => ts.SequenceNum)
+                                .Select(ts => new WorkoutTemplateSet
+                                {
+                                    WorkoutTemplateSetId = ts.WorkoutTemplateSetId,
+                                    WorkoutTemplateExerciseId = ts.WorkoutTemplateExerciseId,
+                                    SequenceNum = ts.SequenceNum,
+                                    DefaultReps = ts.DefaultReps,
+                                    DefaultWeight = ts.DefaultWeight,
+                                    Notes = ts.Notes
+                                }).ToList()
+                        }).ToList()
+                })
+                .FirstOrDefaultAsync();
+
+            WorkoutTemplate = template;
+
+            if (WorkoutTemplate == null)
+                return NotFound();
+
             return Page();
         }
 
-        public async Task<IActionResult> OnPostAsync(int templateId, string sessionName, DateTime sessionDate, string sessionNotes)
+        public async Task<IActionResult> OnPostAsync(int templateId, string sessionName, DateTime? sessionDate, string sessionNotes)
         {
-            // Validate template exists - use a more optimized query
+            // Use projection approach to avoid loading problematic columns
             var template = await _context.WorkoutTemplate
-                .Include(t => t.TemplateExercises.OrderBy(e => e.SequenceNum))
-                .ThenInclude(e => e.ExerciseType)
-                .Include(t => t.TemplateExercises)
-                .ThenInclude(e => e.TemplateSets.OrderBy(s => s.SequenceNum))
-                .ThenInclude(s => s.Settype)
-                .FirstOrDefaultAsync(t => t.WorkoutTemplateId == templateId);
+                .AsNoTracking()
+                .Where(wt => wt.WorkoutTemplateId == templateId)
+                .Select(wt => new WorkoutTemplate
+                {
+                    WorkoutTemplateId = wt.WorkoutTemplateId,
+                    Name = wt.Name,
+                    Description = wt.Description,
+                    Category = wt.Category,
+                    TemplateExercises = wt.TemplateExercises.OrderBy(te => te.OrderIndex)
+                        .Select(te => new WorkoutTemplateExercise
+                        {
+                            WorkoutTemplateExerciseId = te.WorkoutTemplateExerciseId,
+                            WorkoutTemplateId = te.WorkoutTemplateId,
+                            ExerciseTypeId = te.ExerciseTypeId,
+                            OrderIndex = te.OrderIndex,
+                            Notes = te.Notes,
+                            ExerciseType = new ExerciseType
+                            {
+                                ExerciseTypeId = te.ExerciseType.ExerciseTypeId,
+                                Name = te.ExerciseType.Name,
+                                Description = te.ExerciseType.Description
+                            },
+                            TemplateSets = te.TemplateSets.OrderBy(ts => ts.SequenceNum)
+                                .Select(ts => new WorkoutTemplateSet
+                                {
+                                    WorkoutTemplateSetId = ts.WorkoutTemplateSetId,
+                                    WorkoutTemplateExerciseId = ts.WorkoutTemplateExerciseId,
+                                    SequenceNum = ts.SequenceNum,
+                                    DefaultReps = ts.DefaultReps,
+                                    DefaultWeight = ts.DefaultWeight,
+                                    Notes = ts.Notes
+                                }).ToList()
+                        }).ToList()
+                })
+                .FirstOrDefaultAsync();
 
             if (template == null)
-            {
                 return NotFound();
-            }
 
-            // Get current user
-            var currentUser = await _context.GetCurrentUserAsync();
-            if (currentUser == null)
-            {
+            // Create new workout session from template
+            var user = await _context.GetCurrentUserAsync();
+            if (user == null)
                 return RedirectToPage("/Account/Login");
-            }
 
-            // Create a new session
-            var session = new Session
+            WorkoutSession = new WorkoutSession
             {
-                Name = sessionName,
-                datetime = sessionDate,
-                UserId = currentUser.UserId,
-                Notes = sessionNotes ?? string.Empty,
-                Sets = new List<Set>(),
-                // Initialize NotMapped properties
-                TotalVolume = 0,
-                EstimatedCalories = 0
+                Name = sessionName ?? $"{template.Name} {DateTime.Now:MMM d, yyyy}",
+                Description = sessionNotes,
+                StartDateTime = sessionDate ?? DateTime.UtcNow,
+                UserId = user.UserId,
+                WorkoutTemplateId = template.WorkoutTemplateId,
+                Status = "In Progress"
             };
 
-            // Create an execution strategy for the transaction
-            var strategy = _context.Database.CreateExecutionStrategy();
+            _context.WorkoutSessions.Add(WorkoutSession);
+            await _context.SaveChangesAsync();
 
-            try
+            // Create exercises and sets from template
+            foreach (var templateExercise in template.TemplateExercises.OrderBy(e => e.OrderIndex))
             {
-                // Execute everything in a resilient transaction
-                await strategy.ExecuteAsync(async () =>
+                var workoutExercise = new WorkoutExercise
                 {
-                    // Start the transaction within the execution strategy
-                    using var transaction = await _context.Database.BeginTransactionAsync();
-                    try
+                    WorkoutSessionId = WorkoutSession.WorkoutSessionId,
+                    ExerciseTypeId = templateExercise.ExerciseTypeId,
+                    SequenceNum = templateExercise.OrderIndex,
+                    OrderIndex = templateExercise.OrderIndex,
+                    Notes = templateExercise.Notes
+                };
+
+                _context.WorkoutExercises.Add(workoutExercise);
+                await _context.SaveChangesAsync();
+
+                foreach (var templateSet in templateExercise.TemplateSets.OrderBy(s => s.SequenceNum))
+                {
+                    var workoutSet = new WorkoutSet
                     {
-                        // First add the session to get a SessionId
-                        _context.Session.Add(session);
-                        await _context.SaveChangesAsync();
+                        WorkoutExerciseId = workoutExercise.WorkoutExerciseId,
+                        SetNumber = templateSet.SequenceNum,
+                        SequenceNum = templateSet.SequenceNum,
+                        Reps = templateSet.DefaultReps,
+                        Weight = templateSet.DefaultWeight,
+                        Notes = templateSet.Notes
+                    };
 
-                        // Create sets from template exercises in batch instead of one by one
-                        var newSets = new List<Set>();
-                        
-                        foreach (var templateExercise in template.TemplateExercises.OrderBy(e => e.SequenceNum))
-                        {
-                            // For each template set in this exercise, create a real set
-                            foreach (var templateSet in templateExercise.TemplateSets.OrderBy(s => s.SequenceNum))
-                            {
-                                var set = new Set
-                                {
-                                    SessionId = session.SessionId,
-                                    ExerciseTypeId = templateExercise.ExerciseTypeId,
-                                    SettypeId = templateSet.SettypeId,
-                                    Description = templateSet.Description,
-                                    Notes = templateSet.Notes,
-                                    NumberReps = templateSet.DefaultReps,
-                                    Weight = templateSet.DefaultWeight,
-                                    SequenceNum = templateSet.SequenceNum,
-                                    // Initialize NotMapped properties
-                                    Volume = templateSet.DefaultWeight * templateSet.DefaultReps,
-                                    EstimatedCalories = 0
-                                };
-
-                                newSets.Add(set);
-                            }
-                        }
-                        
-                        // Add all sets at once
-                        _context.Set.AddRange(newSets);
-                        await _context.SaveChangesAsync();
-                        await transaction.CommitAsync();
-                    }
-                    catch
-                    {
-                        await transaction.RollbackAsync();
-                        throw;
-                    }
-                });
-
-                // Redirect to the new session
-                return RedirectToPage("/Sessions/Details", new { id = session.SessionId });
+                    _context.WorkoutSets.Add(workoutSet);
+                }
             }
-            catch (Exception ex)
-            {
-                // Log the exception for debugging
-                Console.WriteLine($"Error creating workout from template: {ex.Message}");
-                throw;
-            }
+
+            await _context.SaveChangesAsync();
+
+            return RedirectToPage("/WorkoutSessions/Edit", new { id = WorkoutSession.WorkoutSessionId });
         }
     }
 }

@@ -45,5 +45,9 @@ namespace WorkoutTrackerWeb.Models
         
         // Navigation property to WorkoutTemplateExercises
         public ICollection<WorkoutTemplateExercise> TemplateExercises { get; set; } = new List<WorkoutTemplateExercise>();
+
+        // Navigation property to Exercises
+        [NotMapped]
+        public virtual ICollection<WorkoutExercise> Exercises { get; set; } = new HashSet<WorkoutExercise>();
     }
 }

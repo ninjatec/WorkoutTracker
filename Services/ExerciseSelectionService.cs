@@ -400,6 +400,35 @@ namespace WorkoutTrackerWeb.Services
                 .CountAsync(p => !p.IsResolved);
         }
 
+        private async Task<int> GetExerciseUsageCountAsync(int exerciseTypeId, int userId)
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
+
+            return await context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                .Where(ws => ws.UserId == userId)
+                .SelectMany(ws => ws.WorkoutExercises)
+                .CountAsync(we => we.ExerciseTypeId == exerciseTypeId);
+        }
+
+        public async Task<List<ExerciseType>> GetRecentExercisesAsync(int userId, int count = 10)
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
+
+            return await context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.ExerciseType)
+                .Where(ws => ws.UserId == userId)
+                .OrderByDescending(ws => ws.StartDateTime)
+                .SelectMany(ws => ws.WorkoutExercises)
+                .Select(we => we.ExerciseType)
+                .Distinct()
+                .Take(count)
+                .ToListAsync();
+        }
+
         public async Task<List<ExerciseTypeWithUseCount>> GetRecentlyUsedExercisesAsync(int userId, int numberOfResults = 10)
         {
             using var scope = _serviceProvider.CreateScope();
@@ -408,9 +437,11 @@ namespace WorkoutTrackerWeb.Services
             var currentTime = DateTime.UtcNow;
             var pastMonth = currentTime.AddMonths(-1);
 
-            var exerciseUsages = await context.Set
-                .Where(s => s.Session.UserId == userId && s.Session.datetime >= pastMonth)
-                .GroupBy(s => s.ExerciseTypeId)
+            var exerciseUsages = await context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                .Where(ws => ws.UserId == userId && ws.StartDateTime >= pastMonth)
+                .SelectMany(ws => ws.WorkoutExercises)
+                .GroupBy(we => we.ExerciseTypeId)
                 .Select(g => new { ExerciseTypeId = g.Key, Count = g.Count() })
                 .OrderByDescending(g => g.Count)
                 .Take(numberOfResults)
@@ -445,8 +476,10 @@ namespace WorkoutTrackerWeb.Services
             using var scope = _serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
 
-            var popularExerciseIds = await context.Set
-                .GroupBy(s => s.ExerciseTypeId)
+            var popularExerciseIds = await context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                .SelectMany(ws => ws.WorkoutExercises)
+                .GroupBy(we => we.ExerciseTypeId)
                 .Select(g => new { ExerciseTypeId = g.Key, Count = g.Count() })
                 .OrderByDescending(g => g.Count)
                 .Take(numberOfResults)
@@ -501,6 +534,44 @@ namespace WorkoutTrackerWeb.Services
             return result;
         }
 
+        public async Task<List<string>> GetAllMuscleGroupsAsync()
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
+
+            try
+            {
+                // Use explicit NULL check and materialize the query results in memory first
+                // This helps prevent SQL NULL values from causing exceptions during string operations
+                var allDescriptions = await context.ExerciseType
+                    .Where(e => e.Description != null)
+                    .Select(e => e.Description)
+                    .ToListAsync();
+
+                var allMuscleGroups = new HashSet<string>();
+                foreach (var description in allDescriptions)
+                {
+                    // Double-check for null values that might have slipped through
+                    if (!string.IsNullOrEmpty(description))
+                    {
+                        var muscleGroups = ExtractMuscleGroups(description);
+                        foreach (var group in muscleGroups)
+                        {
+                            allMuscleGroups.Add(group);
+                        }
+                    }
+                }
+
+                return allMuscleGroups.OrderBy(m => m).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving muscle groups from database");
+                // Return an empty list instead of propagating the exception
+                return new List<string>();
+            }
+        }
+
         private List<string> ExtractMuscleGroups(string description)
         {
             if (string.IsNullOrEmpty(description))
@@ -518,6 +589,58 @@ namespace WorkoutTrackerWeb.Services
             return commonMuscleGroups
                 .Where(muscle => description.Contains(muscle))
                 .ToList();
+        }
+
+        public async Task<Dictionary<string, int>> GetExerciseCountByMuscleGroupAsync(int userId)
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
+
+            try
+            {
+                // First, load the data into memory to avoid SQL null handling issues
+                var workoutExercises = await context.WorkoutSessions
+                    .Where(ws => ws.UserId == userId)
+                    .SelectMany(ws => ws.WorkoutExercises)
+                    .Select(we => new
+                    {
+                        we.ExerciseTypeId,
+                        // Use null-safe projection with default value
+                        MuscleGroup = we.ExerciseType != null ? 
+                            (string.IsNullOrEmpty(we.ExerciseType.PrimaryMuscleGroup) ? "Unknown" : we.ExerciseType.PrimaryMuscleGroup) : 
+                            "Unknown"
+                    })
+                    .ToListAsync();
+
+                // Process the data in memory
+                var muscleGroupCounts = workoutExercises
+                    .GroupBy(we => we.MuscleGroup)
+                    .ToDictionary(g => g.Key, g => g.Count());
+
+                return muscleGroupCounts;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting exercise count by muscle group for user {UserId}", userId);
+                // Return empty dictionary on error to avoid crashing the application
+                return new Dictionary<string, int>();
+            }
+        }
+
+        public async Task<Dictionary<ExerciseType, int>> GetExerciseFrequencyAsync(int userId)
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
+
+            var exerciseFrequency = await context.WorkoutSessions
+                .Include(ws => ws.WorkoutExercises)
+                .Where(ws => ws.UserId == userId)
+                .SelectMany(ws => ws.WorkoutExercises)
+                .GroupBy(we => we.ExerciseType)
+                .Select(g => new { Exercise = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Exercise, x => x.Count);
+
+            return exerciseFrequency;
         }
     }
 

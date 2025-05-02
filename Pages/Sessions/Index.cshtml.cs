@@ -13,7 +13,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace WorkoutTrackerWeb.Pages.Sessions
 {
-    [Authorize] // Require authentication
+    [Authorize]
     public class IndexModel : PageModel
     {
         private readonly WorkoutTrackerWebContext _context;
@@ -27,7 +27,7 @@ namespace WorkoutTrackerWeb.Pages.Sessions
             _userService = userService;
         }
 
-        public PaginatedList<Session> Session { get; set; }
+        public PaginatedList<WorkoutSession> WorkoutSessions { get; set; }
         public string DateSort { get; set; }
         public string NameSort { get; set; }
         public string CurrentFilter { get; set; }
@@ -50,63 +50,36 @@ namespace WorkoutTrackerWeb.Pages.Sessions
 
             CurrentFilter = searchString;
 
-            // Get the current user's ID
             var currentUserId = await _userService.GetCurrentUserIdAsync();
             
             if (currentUserId != null)
             {
-                // Get current user's sessions
-                var userSessions = await _context.Session
-                    .Include(s => s.User)
-                    .Where(s => s.UserId == currentUserId)
-                    .OrderByDescending(s => s.datetime)
-                    .ToListAsync();
+                var query = _context.WorkoutSessions
+                    .Include(ws => ws.User)
+                    .Where(ws => ws.UserId == currentUserId);
 
                 // Apply search filter if any
                 if (!String.IsNullOrEmpty(searchString))
                 {
-                    userSessions = userSessions.Where(s => 
-                        s.Name.Contains(searchString)).ToList();
+                    query = query.Where(ws => ws.Name.Contains(searchString));
                 }
 
                 // Apply sorting
-                switch (sortOrder)
+                query = sortOrder switch
                 {
-                    case "name":
-                        userSessions = userSessions.OrderBy(s => s.Name).ToList();
-                        break;
-                    case "name_desc":
-                        userSessions = userSessions.OrderByDescending(s => s.Name).ToList();
-                        break;
-                    case "date_asc":
-                        userSessions = userSessions.OrderBy(s => s.datetime).ToList();
-                        break;
-                    default:
-                        userSessions = userSessions.OrderByDescending(s => s.datetime).ToList(); // Default to newest first
-                        break;
-                }
+                    "name" => query.OrderBy(ws => ws.Name),
+                    "name_desc" => query.OrderByDescending(ws => ws.Name),
+                    "date_asc" => query.OrderBy(ws => ws.StartDateTime),
+                    _ => query.OrderByDescending(ws => ws.StartDateTime)
+                };
 
                 int pageSize = 10;
-                var sessionsQuery = userSessions.AsQueryable();
-                Session = await PaginatedList<Session>.CreateAsync(
-                    sessionsQuery, pageIndex ?? 1, pageSize);
-                
-                // After getting the paginated sessions, load the associated workout session statuses
-                foreach (var session in Session)
-                {
-                    var workoutSession = await _context.WorkoutSessions
-                        .FirstOrDefaultAsync(ws => ws.UserId == session.UserId && 
-                                             ws.StartDateTime == session.StartDateTime);
-                    if (workoutSession != null)
-                    {
-                        session.WorkoutSessionStatus = workoutSession.Status;
-                    }
-                }
+                WorkoutSessions = await PaginatedList<WorkoutSession>.CreateAsync(
+                    query, pageIndex ?? 1, pageSize);
             }
             else
             {
-                // Fallback if no current user (shouldn't happen with [Authorize] attribute)
-                Session = new PaginatedList<Session>(new List<Session>(), 0, 1, 1);
+                WorkoutSessions = new PaginatedList<WorkoutSession>(new List<WorkoutSession>(), 0, 1, 1);
             }
         }
     }

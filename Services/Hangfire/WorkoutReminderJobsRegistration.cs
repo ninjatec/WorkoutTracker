@@ -1,6 +1,7 @@
 using System;
 using Hangfire;
 using Microsoft.Extensions.Logging;
+using WorkoutTrackerWeb.Services.Scheduling;
 
 namespace WorkoutTrackerWeb.Services.Hangfire
 {
@@ -37,15 +38,23 @@ namespace WorkoutTrackerWeb.Services.Hangfire
             _logger.LogInformation("Registering workout reminder jobs with server role: {ProcessingRole}", 
                 _serverConfig.IsProcessingEnabled ? "Worker" : "Web");
 
-            // Register the workout reminder processing job to run every 15 minutes
-            _recurringJobManager.AddOrUpdate(
-                "workout-reminder-processing",
-                () => _reminderJobsService.ProcessWorkoutRemindersAsync(),
-                "*/15 * * * *", // Every 15 minutes
-                TimeZoneInfo.Local,
-                "default");
+            try
+            {
+                // Register the workout reminder processing job to run every 15 minutes
+                _recurringJobManager.AddOrUpdate(
+                    "workout-reminder-processing",
+                    () => _reminderJobsService.ProcessWorkoutRemindersAsync(),
+                    "*/15 * * * *", // Every 15 minutes
+                    TimeZoneInfo.Local,
+                    "default");
 
-            _logger.LogInformation("Successfully registered workout reminder jobs");
+                _logger.LogInformation("Successfully registered workout reminder jobs");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error registering workout reminder jobs");
+                throw; // Rethrow to alert the application that job registration failed
+            }
         }
     }
 }

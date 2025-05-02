@@ -25,6 +25,8 @@ namespace WorkoutTrackerWeb.Models
         [StringLength(450)]
         public string? IdentityUserId { get; set; }
         
-        public ICollection<Session> Sessions { get; set; } = new List<Session>();
+        // Use InverseProperty to correctly define the relationship
+        [InverseProperty("User")]
+        public ICollection<WorkoutSession> WorkoutSessions { get; set; } = new List<WorkoutSession>();
     }
 }

@@ -85,12 +85,23 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
         public double OverallSla { get; set; }
         public DateTime? LastOutage { get; set; }
 
+        // Dashboard metrics
+        public int DailyActiveUsers { get; set; }
+        public int YesterdayActiveUsers { get; set; }
+        public int WeeklyActiveUsers { get; set; }
+        public int MonthlyActiveUsers { get; set; }
+        public Dictionary<DateTime, int> DailySessionCounts { get; set; } = new Dictionary<DateTime, int>();
+        public Dictionary<DateTime, int> DailyUserCounts { get; set; } = new Dictionary<DateTime, int>();
+        public Dictionary<DateTime, int> DailySetCounts { get; set; } = new Dictionary<DateTime, int>();
+        public Dictionary<DateTime, int> DailyRepCounts { get; set; } = new Dictionary<DateTime, int>();
+
         public async Task<IActionResult> OnGetAsync()
         {
             try
             {
                 // Load basic metrics data
                 await LoadMetricsDataAsync();
+                await LoadDashboardDataAsync();
                 return Page();
             }
             catch (Exception ex)
@@ -104,6 +115,7 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
         public async Task<IActionResult> OnGetRefreshDataAsync()
         {
             await LoadMetricsDataAsync();
+            await LoadDashboardDataAsync();
             return new JsonResult(new
             {
                 systemMetrics = new
@@ -154,6 +166,17 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
                     CircuitBreakers,
                     OverallSla,
                     LastOutage
+                },
+                dashboardMetrics = new
+                {
+                    DailyActiveUsers,
+                    YesterdayActiveUsers,
+                    WeeklyActiveUsers,
+                    MonthlyActiveUsers,
+                    DailySessionCounts,
+                    DailyUserCounts,
+                    DailySetCounts,
+                    DailyRepCounts
                 }
             });
         }
@@ -251,20 +274,20 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
             var lastMonth = today.AddDays(-30);
 
             // Active users based on session creation (in a real app, would be more complex)
-            ActiveUsersToday = await _context.Session
-                .Where(s => s.datetime >= today)
+            ActiveUsersToday = await _context.WorkoutSessions
+                .Where(s => s.StartDateTime >= today)
                 .Select(s => s.UserId)
                 .Distinct()
                 .CountAsync();
 
-            ActiveUsersWeek = await _context.Session
-                .Where(s => s.datetime >= lastWeek)
+            ActiveUsersWeek = await _context.WorkoutSessions
+                .Where(s => s.StartDateTime >= lastWeek)
                 .Select(s => s.UserId)
                 .Distinct()
                 .CountAsync();
 
-            ActiveUsersMonth = await _context.Session
-                .Where(s => s.datetime >= lastMonth)
+            ActiveUsersMonth = await _context.WorkoutSessions
+                .Where(s => s.StartDateTime >= lastMonth)
                 .Select(s => s.UserId)
                 .Distinct()
                 .CountAsync();
@@ -275,9 +298,11 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
             NewUsers30Days = random.Next(5, 25);
 
             // Workout metrics (fetch actual counts)
-            TotalSessions = await _context.Session.CountAsync();
-            TotalSets = await _context.Set.CountAsync();
-            TotalReps = await _context.Rep.CountAsync();
+            TotalSessions = await _context.WorkoutSessions.CountAsync();
+            TotalSets = await _context.WorkoutSets.CountAsync();
+            TotalReps = await _context.WorkoutSets
+                .Where(s => s.Reps.HasValue)
+                .SumAsync(s => s.Reps.Value);
 
             // Average session duration - simulated
             AvgSessionDuration = random.Next(30, 90);
@@ -577,6 +602,75 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Metrics
             {
                 LastOutage = DateTime.Now.AddDays(-random.Next(10, 60));
             }
+        }
+
+        private async Task LoadDashboardDataAsync()
+        {
+            var now = DateTime.UtcNow;
+            var todayStart = DateTime.UtcNow.Date;
+            var yesterdayStart = todayStart.AddDays(-1);
+            var lastWeekStart = todayStart.AddDays(-7);
+            var lastMonthStart = todayStart.AddMonths(-1);
+
+            // Daily Active Users
+            DailyActiveUsers = await _context.WorkoutSessions
+                .Where(s => s.StartDateTime >= todayStart)
+                .Select(s => s.UserId)
+                .Distinct()
+                .CountAsync();
+
+            // Yesterday's Active Users
+            YesterdayActiveUsers = await _context.WorkoutSessions
+                .Where(s => s.StartDateTime >= yesterdayStart && s.StartDateTime < todayStart)
+                .Select(s => s.UserId)
+                .Distinct()
+                .CountAsync();
+
+            // Weekly Active Users
+            WeeklyActiveUsers = await _context.WorkoutSessions
+                .Where(s => s.StartDateTime >= lastWeekStart)
+                .Select(s => s.UserId)
+                .Distinct()
+                .CountAsync();
+
+            // Monthly Active Users
+            MonthlyActiveUsers = await _context.WorkoutSessions
+                .Where(s => s.StartDateTime >= lastMonthStart)
+                .Select(s => s.UserId)
+                .Distinct()
+                .CountAsync();
+
+            // Workout Statistics
+            var workoutStats = await _context.WorkoutSessions
+                .Where(s => s.StartDateTime >= lastMonthStart)
+                .GroupBy(s => s.StartDateTime.Date)
+                .Select(g => new
+                {
+                    Date = g.Key,
+                    SessionCount = g.Count(),
+                    UserCount = g.Select(s => s.UserId).Distinct().Count(),
+                    SetCount = g.SelectMany(s => s.WorkoutExercises)
+                               .SelectMany(e => e.WorkoutSets)
+                               .Count(),
+                    RepCount = g.SelectMany(s => s.WorkoutExercises)
+                               .SelectMany(e => e.WorkoutSets)
+                               .Where(set => set.Reps.HasValue)
+                               .Sum(set => set.Reps.Value)
+                })
+                .OrderBy(x => x.Date)
+                .ToListAsync();
+
+            DailySessionCounts = workoutStats
+                .ToDictionary(x => x.Date, x => x.SessionCount);
+
+            DailyUserCounts = workoutStats
+                .ToDictionary(x => x.Date, x => x.UserCount);
+
+            DailySetCounts = workoutStats
+                .ToDictionary(x => x.Date, x => x.SetCount);
+
+            DailyRepCounts = workoutStats
+                .ToDictionary(x => x.Date, x => x.RepCount);
         }
 
         // Model classes for various metrics data

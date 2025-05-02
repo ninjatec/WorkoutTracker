@@ -821,9 +821,6 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Property<int>("RPE")
                         .HasColumnType("int");
 
-                    b.Property<int>("SetId")
-                        .HasColumnType("int");
-
                     b.Property<bool>("TooHeavy")
                         .HasColumnType("bit");
 
@@ -833,11 +830,14 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Property<int>("WorkoutFeedbackId")
                         .HasColumnType("int");
 
+                    b.Property<int>("WorkoutSetId")
+                        .HasColumnType("int");
+
                     b.HasKey("ExerciseFeedbackId");
 
-                    b.HasIndex("SetId");
-
                     b.HasIndex("WorkoutFeedbackId");
+
+                    b.HasIndex("WorkoutSetId");
 
                     b.ToTable("ExerciseFeedbacks");
                 });
@@ -1020,7 +1020,7 @@ namespace WorkoutTrackerWeb.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<int?>("SessionId")
+                    b.Property<int?>("WorkoutSessionId")
                         .HasColumnType("int");
 
                     b.HasKey("ProgressionHistoryId");
@@ -1029,7 +1029,7 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("ProgressionRuleId");
 
-                    b.HasIndex("SessionId");
+                    b.HasIndex("WorkoutSessionId");
 
                     b.ToTable("ProgressionHistories");
                 });
@@ -1224,7 +1224,10 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Property<int>("OverallRating")
                         .HasColumnType("int");
 
-                    b.Property<int>("SessionId")
+                    b.Property<int>("WorkoutSessionId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("WorkoutSessionId1")
                         .HasColumnType("int");
 
                     b.HasKey("WorkoutFeedbackId");
@@ -1235,7 +1238,12 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("CoachViewed");
 
-                    b.HasIndex("SessionId");
+                    b.HasIndex("WorkoutSessionId")
+                        .IsUnique();
+
+                    b.HasIndex("WorkoutSessionId1")
+                        .IsUnique()
+                        .HasFilter("[WorkoutSessionId1] IS NOT NULL");
 
                     b.ToTable("WorkoutFeedbacks");
                 });
@@ -1375,11 +1383,16 @@ namespace WorkoutTrackerWeb.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ExerciseTypeId"));
 
+                    b.Property<decimal?>("CaloriesPerMinute")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("Category")
+                        .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("Description")
+                        .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
@@ -1409,6 +1422,10 @@ namespace WorkoutTrackerWeb.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PrimaryMuscleGroup")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("PrimaryMuscles")
                         .HasMaxLength(100)
@@ -1779,102 +1796,26 @@ namespace WorkoutTrackerWeb.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RepId"));
 
-                    b.Property<int?>("SetsSetId")
+                    b.Property<int>("RepNumber")
                         .HasColumnType("int");
 
-                    b.Property<int>("repnumber")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("success")
+                    b.Property<bool>("Success")
                         .HasColumnType("bit");
 
-                    b.Property<decimal>("weight")
-                        .HasColumnType("decimal(6, 2)");
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("Weight")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("WorkoutSetId")
+                        .HasColumnType("int");
 
                     b.HasKey("RepId");
 
-                    b.HasIndex("SetsSetId");
+                    b.HasIndex("WorkoutSetId");
 
                     b.ToTable("Rep");
-                });
-
-            modelBuilder.Entity("WorkoutTrackerWeb.Models.Session", b =>
-                {
-                    b.Property<int>("SessionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SessionId"));
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime>("StartDateTime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("datetime")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("endtime")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("SessionId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("Session");
-                });
-
-            modelBuilder.Entity("WorkoutTrackerWeb.Models.Set", b =>
-                {
-                    b.Property<int>("SetId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("SetId"));
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("ExerciseTypeId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("NumberReps")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SequenceNum")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SessionId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SettypeId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("Weight")
-                        .HasColumnType("decimal(5,2)");
-
-                    b.HasKey("SetId");
-
-                    b.HasIndex("ExerciseTypeId");
-
-                    b.HasIndex("SessionId");
-
-                    b.HasIndex("SettypeId");
-
-                    b.ToTable("Set");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Settype", b =>
@@ -1936,9 +1877,6 @@ namespace WorkoutTrackerWeb.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int?>("SessionId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Token")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -1947,11 +1885,14 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("WorkoutSessionId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("SessionId");
-
                     b.HasIndex("UserId");
+
+                    b.HasIndex("WorkoutSessionId");
 
                     b.ToTable("ShareToken");
                 });
@@ -1995,6 +1936,9 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Property<int>("ExerciseTypeId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("ExerciseTypeId1")
+                        .HasColumnType("int");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -2019,6 +1963,8 @@ namespace WorkoutTrackerWeb.Migrations
                     b.HasIndex("EquipmentId");
 
                     b.HasIndex("ExerciseTypeId");
+
+                    b.HasIndex("ExerciseTypeId1");
 
                     b.HasIndex("WorkoutSessionId");
 
@@ -2052,10 +1998,19 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Property<bool>("IsFromCoach")
                         .HasColumnType("bit");
 
+                    b.Property<int>("IterationNumber")
+                        .HasColumnType("int");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("NextIterationId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PreviousIterationId")
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("StartDateTime")
                         .HasColumnType("datetime2");
@@ -2077,17 +2032,18 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("WorkoutFeedbackId")
-                        .HasColumnType("int");
-
                     b.Property<int?>("WorkoutTemplateId")
                         .HasColumnType("int");
 
                     b.HasKey("WorkoutSessionId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("NextIterationId");
 
-                    b.HasIndex("WorkoutFeedbackId");
+                    b.HasIndex("PreviousIterationId");
+
+                    b.HasIndex("StartDateTime");
+
+                    b.HasIndex("UserId");
 
                     b.HasIndex("WorkoutTemplateId");
 
@@ -2102,27 +2058,39 @@ namespace WorkoutTrackerWeb.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("WorkoutSetId"));
 
-                    b.Property<decimal?>("DistanceMeters")
+                    b.Property<decimal?>("Distance")
                         .HasColumnType("decimal(10, 2)");
 
                     b.Property<int?>("DurationSeconds")
                         .HasColumnType("int");
 
+                    b.Property<decimal?>("EstimatedOneRM")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("Intensity")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsWarmup")
                         .HasColumnType("bit");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int?>("RPE")
-                        .HasColumnType("int");
+                    b.Property<decimal?>("RPE")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int?>("Reps")
                         .HasColumnType("int");
 
                     b.Property<int?>("RestSeconds")
                         .HasColumnType("int");
+
+                    b.Property<TimeSpan?>("RestTime")
+                        .HasColumnType("time");
 
                     b.Property<int>("SequenceNum")
                         .HasColumnType("int");
@@ -2133,17 +2101,27 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Property<int?>("SettypeId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Status")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.Property<int?>("TargetMaxReps")
                         .HasColumnType("int");
 
                     b.Property<int?>("TargetMinReps")
                         .HasColumnType("int");
 
+                    b.Property<int?>("TargetReps")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("TargetWeight")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTime>("Timestamp")
                         .HasColumnType("datetime2");
 
                     b.Property<decimal?>("Weight")
-                        .HasColumnType("decimal(10, 2)");
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("WorkoutExerciseId")
                         .HasColumnType("int");
@@ -2217,6 +2195,9 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Property<int>("ExerciseTypeId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("ExerciseTypeId1")
+                        .HasColumnType("int");
+
                     b.Property<int>("MaxReps")
                         .HasColumnType("int");
 
@@ -2247,6 +2228,8 @@ namespace WorkoutTrackerWeb.Migrations
                     b.HasIndex("EquipmentId");
 
                     b.HasIndex("ExerciseTypeId");
+
+                    b.HasIndex("ExerciseTypeId1");
 
                     b.HasIndex("SequenceNum");
 
@@ -2466,11 +2449,11 @@ namespace WorkoutTrackerWeb.Migrations
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship", b =>
                 {
                     b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", null)
-                        .WithMany("ClientRelationships")
+                        .WithMany("CoachRelationships")
                         .HasForeignKey("AppUserId");
 
                     b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", null)
-                        .WithMany("CoachRelationships")
+                        .WithMany("ClientRelationships")
                         .HasForeignKey("AppUserId1");
 
                     b.HasOne("WorkoutTrackerWeb.Models.Coaching.ClientGroup", "ClientGroup")
@@ -2509,21 +2492,21 @@ namespace WorkoutTrackerWeb.Migrations
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ExerciseFeedback", b =>
                 {
-                    b.HasOne("WorkoutTrackerWeb.Models.Set", "Set")
-                        .WithMany()
-                        .HasForeignKey("SetId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.HasOne("WorkoutTrackerWeb.Models.Coaching.WorkoutFeedback", "WorkoutFeedback")
                         .WithMany("ExerciseFeedbacks")
                         .HasForeignKey("WorkoutFeedbackId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Set");
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutSet", "WorkoutSet")
+                        .WithMany()
+                        .HasForeignKey("WorkoutSetId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("WorkoutFeedback");
+
+                    b.Navigation("WorkoutSet");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ExerciseSubstitution", b =>
@@ -2590,13 +2573,14 @@ namespace WorkoutTrackerWeb.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("WorkoutTrackerWeb.Models.Session", "Session")
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutSession", "WorkoutSession")
                         .WithMany()
-                        .HasForeignKey("SessionId");
+                        .HasForeignKey("WorkoutSessionId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("ProgressionRule");
 
-                    b.Navigation("Session");
+                    b.Navigation("WorkoutSession");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ProgressionRule", b =>
@@ -2667,18 +2651,22 @@ namespace WorkoutTrackerWeb.Migrations
                     b.HasOne("WorkoutTrackerWeb.Models.User", "Client")
                         .WithMany()
                         .HasForeignKey("ClientUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("WorkoutTrackerWeb.Models.Session", "Session")
-                        .WithMany()
-                        .HasForeignKey("SessionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutSession", "WorkoutSession")
+                        .WithMany()
+                        .HasForeignKey("WorkoutSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutSession", null)
+                        .WithOne("WorkoutFeedback")
+                        .HasForeignKey("WorkoutTrackerWeb.Models.Coaching.WorkoutFeedback", "WorkoutSessionId1");
+
                     b.Navigation("Client");
 
-                    b.Navigation("Session");
+                    b.Navigation("WorkoutSession");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.WorkoutSchedule", b =>
@@ -2695,7 +2683,7 @@ namespace WorkoutTrackerWeb.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("WorkoutTrackerWeb.Models.Session", "LastGeneratedSession")
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutSession", "LastGeneratedSession")
                         .WithMany()
                         .HasForeignKey("LastGeneratedSessionId");
 
@@ -2755,68 +2743,31 @@ namespace WorkoutTrackerWeb.Migrations
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Rep", b =>
                 {
-                    b.HasOne("WorkoutTrackerWeb.Models.Set", "Set")
-                        .WithMany("Reps")
-                        .HasForeignKey("SetsSetId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.Navigation("Set");
-                });
-
-            modelBuilder.Entity("WorkoutTrackerWeb.Models.Session", b =>
-                {
-                    b.HasOne("WorkoutTrackerWeb.Models.User", "User")
-                        .WithMany("Sessions")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("WorkoutTrackerWeb.Models.Set", b =>
-                {
-                    b.HasOne("WorkoutTrackerWeb.Models.ExerciseType", "ExerciseType")
-                        .WithMany("Sets")
-                        .HasForeignKey("ExerciseTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("WorkoutTrackerWeb.Models.Session", "Session")
-                        .WithMany("Sets")
-                        .HasForeignKey("SessionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("WorkoutTrackerWeb.Models.Settype", "Settype")
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutSet", "WorkoutSet")
                         .WithMany()
-                        .HasForeignKey("SettypeId")
+                        .HasForeignKey("WorkoutSetId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("ExerciseType");
-
-                    b.Navigation("Session");
-
-                    b.Navigation("Settype");
+                    b.Navigation("WorkoutSet");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.ShareToken", b =>
                 {
-                    b.HasOne("WorkoutTrackerWeb.Models.Session", "Session")
-                        .WithMany()
-                        .HasForeignKey("SessionId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("WorkoutTrackerWeb.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.Navigation("Session");
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutSession", "WorkoutSession")
+                        .WithMany()
+                        .HasForeignKey("WorkoutSessionId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("User");
+
+                    b.Navigation("WorkoutSession");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutExercise", b =>
@@ -2828,8 +2779,12 @@ namespace WorkoutTrackerWeb.Migrations
                     b.HasOne("WorkoutTrackerWeb.Models.ExerciseType", "ExerciseType")
                         .WithMany()
                         .HasForeignKey("ExerciseTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.ExerciseType", null)
+                        .WithMany("WorkoutExercises")
+                        .HasForeignKey("ExerciseTypeId1");
 
                     b.HasOne("WorkoutTrackerWeb.Models.WorkoutSession", "WorkoutSession")
                         .WithMany("WorkoutExercises")
@@ -2846,23 +2801,29 @@ namespace WorkoutTrackerWeb.Migrations
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutSession", b =>
                 {
-                    b.HasOne("WorkoutTrackerWeb.Models.User", "User")
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutSession", "NextIteration")
                         .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("NextIterationId");
 
-                    b.HasOne("WorkoutTrackerWeb.Models.Coaching.WorkoutFeedback", "WorkoutFeedback")
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutSession", "PreviousIteration")
                         .WithMany()
-                        .HasForeignKey("WorkoutFeedbackId");
+                        .HasForeignKey("PreviousIterationId");
+
+                    b.HasOne("WorkoutTrackerWeb.Models.User", "User")
+                        .WithMany("WorkoutSessions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.HasOne("WorkoutTrackerWeb.Models.WorkoutTemplate", "WorkoutTemplate")
                         .WithMany()
                         .HasForeignKey("WorkoutTemplateId");
 
-                    b.Navigation("User");
+                    b.Navigation("NextIteration");
 
-                    b.Navigation("WorkoutFeedback");
+                    b.Navigation("PreviousIteration");
+
+                    b.Navigation("User");
 
                     b.Navigation("WorkoutTemplate");
                 });
@@ -2906,6 +2867,10 @@ namespace WorkoutTrackerWeb.Migrations
                         .HasForeignKey("ExerciseTypeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.ExerciseType", null)
+                        .WithMany("TemplateExercises")
+                        .HasForeignKey("ExerciseTypeId1");
 
                     b.HasOne("WorkoutTrackerWeb.Models.WorkoutTemplate", "WorkoutTemplate")
                         .WithMany("TemplateExercises")
@@ -2968,7 +2933,9 @@ namespace WorkoutTrackerWeb.Migrations
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.ExerciseType", b =>
                 {
-                    b.Navigation("Sets");
+                    b.Navigation("TemplateExercises");
+
+                    b.Navigation("WorkoutExercises");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.HelpCategory", b =>
@@ -2985,19 +2952,9 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Navigation("CoachRelationships");
                 });
 
-            modelBuilder.Entity("WorkoutTrackerWeb.Models.Session", b =>
-                {
-                    b.Navigation("Sets");
-                });
-
-            modelBuilder.Entity("WorkoutTrackerWeb.Models.Set", b =>
-                {
-                    b.Navigation("Reps");
-                });
-
             modelBuilder.Entity("WorkoutTrackerWeb.Models.User", b =>
                 {
-                    b.Navigation("Sessions");
+                    b.Navigation("WorkoutSessions");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutExercise", b =>
@@ -3008,6 +2965,8 @@ namespace WorkoutTrackerWeb.Migrations
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutSession", b =>
                 {
                     b.Navigation("WorkoutExercises");
+
+                    b.Navigation("WorkoutFeedback");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.WorkoutTemplate", b =>
