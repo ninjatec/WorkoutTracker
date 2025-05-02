@@ -30,12 +30,18 @@ namespace WorkoutTrackerWeb.Data.Migrations
                 oldClrType: typeof(string),
                 oldType: "nvarchar(450)");
 
-            migrationBuilder.AddColumn<string>(
-                name: "InvitedEmail",
-                table: "CoachClientRelationships",
-                type: "nvarchar(256)",
-                maxLength: 256,
-                nullable: true);
+            // Check if the column exists before trying to add it
+            migrationBuilder.Sql(@"
+                IF NOT EXISTS (
+                    SELECT 1 FROM sys.columns 
+                    WHERE object_id = OBJECT_ID(N'[dbo].[CoachClientRelationships]') 
+                    AND name = 'InvitedEmail'
+                )
+                BEGIN
+                    ALTER TABLE [CoachClientRelationships] 
+                    ADD [InvitedEmail] nvarchar(256) NULL
+                END
+            ");
 
             migrationBuilder.CreateIndex(
                 name: "IX_CoachClientRelationships_CoachId_ClientId",
@@ -85,9 +91,18 @@ namespace WorkoutTrackerWeb.Data.Migrations
                 name: "IX_AspNetUsers_UserName",
                 table: "AspNetUsers");
 
-            migrationBuilder.DropColumn(
-                name: "InvitedEmail",
-                table: "CoachClientRelationships");
+            // Check if the column exists before dropping it in the down migration
+            migrationBuilder.Sql(@"
+                IF EXISTS (
+                    SELECT 1 FROM sys.columns 
+                    WHERE object_id = OBJECT_ID(N'[dbo].[CoachClientRelationships]') 
+                    AND name = 'InvitedEmail'
+                ) 
+                BEGIN
+                    ALTER TABLE [CoachClientRelationships] 
+                    DROP COLUMN [InvitedEmail]
+                END
+            ");
 
             migrationBuilder.AlterColumn<string>(
                 name: "ClientId",

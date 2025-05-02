@@ -121,6 +121,17 @@ namespace WorkoutTrackerWeb
 
             builder.Services.AddMemoryCache();
 
+            builder.Services.AddSession(options => 
+            {
+                options.IdleTimeout = TimeSpan.FromMinutes(30);
+                options.Cookie.HttpOnly = true;
+                options.Cookie.IsEssential = true;
+                options.Cookie.SameSite = SameSiteMode.Strict;
+                options.Cookie.SecurePolicy = builder.Environment.IsProduction() 
+                    ? CookieSecurePolicy.Always 
+                    : CookieSecurePolicy.SameAsRequest;
+            });
+
             builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
             builder.Services.Configure<IpRateLimitPolicies>(builder.Configuration.GetSection("IpRateLimitPolicies"));
             builder.Services.AddInMemoryRateLimiting();
@@ -138,6 +149,14 @@ namespace WorkoutTrackerWeb
 
             // Configure Redis
             builder.Services.AddRedisConfiguration(builder.Configuration);
+
+            // Add output caching services
+            builder.Services.AddOutputCache(options => {
+                options.AddPolicy("Default", builder => builder.Expire(TimeSpan.FromMinutes(10)));
+                options.AddPolicy("Short", builder => builder.Expire(TimeSpan.FromMinutes(1)));
+                options.AddPolicy("Medium", builder => builder.Expire(TimeSpan.FromMinutes(30)));
+                options.AddPolicy("Long", builder => builder.Expire(TimeSpan.FromHours(1)));
+            });
 
             // Configure Hangfire
             builder.Services.AddSingleton<WorkoutTrackerWeb.Services.Hangfire.HangfireServerConfiguration>();
