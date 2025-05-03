@@ -124,8 +124,11 @@ namespace WorkoutTrackerWeb.Pages.Calculator
                 .Include(s => s.WorkoutExercise)
                     .ThenInclude(we => we.WorkoutSession)
                 .Where(s => s.WorkoutExercise.WorkoutSession.UserId == user.UserId)
-                .Where(s => s.Weight.HasValue && s.Reps.HasValue && s.WorkoutExercise.ExerciseType != null)
-                .Where(s => s.WorkoutExercise.ExerciseType.Name != null) // Explicitly filter out entries with null names
+                .Where(s => s.Weight.HasValue && s.Reps.HasValue)
+                .Where(s => s.WorkoutExercise.ExerciseType != null)
+                .Where(s => s.WorkoutExercise.ExerciseType.ExerciseTypeId > 0)  // Ensure valid ExerciseType
+                .Where(s => s.WorkoutExercise.ExerciseType.Name != null)        // Filter out null names
+                .Where(s => !string.IsNullOrEmpty(s.WorkoutExercise.ExerciseType.Name)) // Additional null check
                 .OrderByDescending(s => s.WorkoutExercise.WorkoutSession.StartDateTime)
                 .Take(1000)
                 .ToListAsync();

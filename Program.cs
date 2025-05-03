@@ -198,8 +198,8 @@ namespace WorkoutTrackerWeb
                     DisableGlobalLocks = true,
                     PrepareSchemaIfNecessary = true
                 })
-                .UseActivator(new HangfireActivator(builder.Services.BuildServiceProvider())));
-                
+                .UseActivator(new HangfireActivator(builder.Services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>())));
+
             // Register background job services
             builder.Services.AddTransient<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsService>();
             builder.Services.AddTransient<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsService>();

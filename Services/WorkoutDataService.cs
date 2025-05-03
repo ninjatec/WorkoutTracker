@@ -157,92 +157,105 @@ namespace WorkoutTrackerWeb.Services
         {
             _logger.LogInformation($"Starting deletion of all workout data for user {userId}");
             
-            using (var transaction = await _context.Database.BeginTransactionAsync())
+            // Report initial progress
+            ReportProgress(0, "Started workout data deletion");
+            
+            try
             {
-                try
+                // Use the execution strategy provided by the context to handle retries properly
+                return await _context.Database.CreateExecutionStrategy().ExecuteAsync(async () => 
                 {
-                    // Report initial progress
-                    ReportProgress(0, "Started workout data deletion");
-                    
-                    // Step 1: Delete WorkoutSets
-                    var workoutSessions = await _context.WorkoutSessions
-                        .Where(ws => ws.UserId == userId)
-                        .Select(ws => ws.WorkoutSessionId)
-                        .ToListAsync();
-                    
-                    if (workoutSessions.Count == 0)
+                    using (var transaction = await _context.Database.BeginTransactionAsync())
                     {
-                        ReportProgress(100, "No workout data found to delete");
-                        await transaction.CommitAsync();
-                        return true;
+                        try
+                        {
+                            // Step 1: Delete WorkoutSets
+                            var workoutSessions = await _context.WorkoutSessions
+                                .Where(ws => ws.UserId == userId)
+                                .Select(ws => ws.WorkoutSessionId)
+                                .ToListAsync();
+                            
+                            if (workoutSessions.Count == 0)
+                            {
+                                ReportProgress(100, "No workout data found to delete");
+                                await transaction.CommitAsync();
+                                return true;
+                            }
+                            
+                            ReportProgress(10, $"Found {workoutSessions.Count} workout sessions to delete");
+                            
+                            // Get associated workout exercises
+                            var exerciseIds = await _context.WorkoutExercises
+                                .Where(we => workoutSessions.Contains(we.WorkoutSessionId))
+                                .Select(we => we.WorkoutExerciseId)
+                                .ToListAsync();
+                            
+                            // Delete workout sets
+                            var sets = await _context.WorkoutSets
+                                .Where(ws => exerciseIds.Contains(ws.WorkoutExerciseId))
+                                .ToListAsync();
+                            
+                            _context.WorkoutSets.RemoveRange(sets);
+                            await _context.SaveChangesAsync();
+                            
+                            ReportProgress(40, $"Deleted {sets.Count} workout sets");
+                            
+                            // Step 2: Delete WorkoutExercises
+                            var exercises = await _context.WorkoutExercises
+                                .Where(we => workoutSessions.Contains(we.WorkoutSessionId))
+                                .ToListAsync();
+                            
+                            _context.WorkoutExercises.RemoveRange(exercises);
+                            await _context.SaveChangesAsync();
+                            
+                            ReportProgress(70, $"Deleted {exercises.Count} workout exercises");
+                            
+                            // Step 3: Delete WorkoutSessions
+                            var sessions = await _context.WorkoutSessions
+                                .Where(ws => ws.UserId == userId)
+                                .ToListAsync();
+                            
+                            _context.WorkoutSessions.RemoveRange(sessions);
+                            await _context.SaveChangesAsync();
+                            
+                            ReportProgress(90, $"Deleted {sessions.Count} workout sessions");
+                            
+                            // Delete legacy session data if any exists
+                            try
+                            {
+                                // Use raw SQL to avoid compilation issues when Session is removed
+                                var legacyCount = await _context.Database.ExecuteSqlRawAsync(
+                                    "DELETE FROM Set WHERE SessionId IN (SELECT SessionId FROM Session WHERE UserId = {0})", userId);
+                                await _context.Database.ExecuteSqlRawAsync(
+                                    "DELETE FROM Session WHERE UserId = {0}", userId);
+                                
+                                ReportProgress(95, "Deleted legacy session data");
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "Error deleting legacy session data - this may be normal if the tables no longer exist");
+                            }
+                            
+                            await transaction.CommitAsync();
+                            
+                            ReportProgress(100, "Successfully deleted all workout data");
+                            return true;
+                        }
+                        catch (Exception ex)
+                        {
+                            await transaction.RollbackAsync();
+                            _logger.LogError(ex, $"Error deleting workout data for user {userId}");
+                            ReportProgress(100, $"Error: {ex.Message}");
+                            return false;
+                        }
                     }
-                    
-                    ReportProgress(10, $"Found {workoutSessions.Count} workout sessions to delete");
-                    
-                    // Get associated workout exercises
-                    var exerciseIds = await _context.WorkoutExercises
-                        .Where(we => workoutSessions.Contains(we.WorkoutSessionId))
-                        .Select(we => we.WorkoutExerciseId)
-                        .ToListAsync();
-                    
-                    // Delete workout sets
-                    var sets = await _context.WorkoutSets
-                        .Where(ws => exerciseIds.Contains(ws.WorkoutExerciseId))
-                        .ToListAsync();
-                    
-                    _context.WorkoutSets.RemoveRange(sets);
-                    await _context.SaveChangesAsync();
-                    
-                    ReportProgress(40, $"Deleted {sets.Count} workout sets");
-                    
-                    // Step 2: Delete WorkoutExercises
-                    var exercises = await _context.WorkoutExercises
-                        .Where(we => workoutSessions.Contains(we.WorkoutSessionId))
-                        .ToListAsync();
-                    
-                    _context.WorkoutExercises.RemoveRange(exercises);
-                    await _context.SaveChangesAsync();
-                    
-                    ReportProgress(70, $"Deleted {exercises.Count} workout exercises");
-                    
-                    // Step 3: Delete WorkoutSessions
-                    var sessions = await _context.WorkoutSessions
-                        .Where(ws => ws.UserId == userId)
-                        .ToListAsync();
-                    
-                    _context.WorkoutSessions.RemoveRange(sessions);
-                    await _context.SaveChangesAsync();
-                    
-                    ReportProgress(90, $"Deleted {sessions.Count} workout sessions");
-                    
-                    // Delete legacy session data if any exists
-                    try
-                    {
-                        // Use raw SQL to avoid compilation issues when Session is removed
-                        var legacyCount = await _context.Database.ExecuteSqlRawAsync(
-                            "DELETE FROM Set WHERE SessionId IN (SELECT SessionId FROM Session WHERE UserId = {0})", userId);
-                        await _context.Database.ExecuteSqlRawAsync(
-                            "DELETE FROM Session WHERE UserId = {0}", userId);
-                        
-                        ReportProgress(95, "Deleted legacy session data");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Error deleting legacy session data - this may be normal if the tables no longer exist");
-                    }
-                    
-                    await transaction.CommitAsync();
-                    
-                    ReportProgress(100, "Successfully deleted all workout data");
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    _logger.LogError(ex, $"Error deleting workout data for user {userId}");
-                    ReportProgress(100, $"Error: {ex.Message}");
-                    return false;
-                }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error executing delete strategy for user {userId}");
+                ReportProgress(100, $"Error: {ex.Message}");
+                return false;
             }
         }
 

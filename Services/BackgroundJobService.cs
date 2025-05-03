@@ -83,7 +83,6 @@ namespace WorkoutTrackerWeb.Services
                 {
                     var workoutDataService = scope.ServiceProvider.GetRequiredService<WorkoutDataService>();
                     var context = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWeb.Data.WorkoutTrackerWebContext>();
-                    var userManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<Microsoft.AspNetCore.Identity.IdentityUser>>();
                     
                     // Initialize progress reporting with retries for connection issues
                     var initProgress = new JobProgress { 
@@ -99,48 +98,85 @@ namespace WorkoutTrackerWeb.Services
                     int numericUserId;
                     if (!int.TryParse(userId, out numericUserId))
                     {
-                        _logger.LogWarning("Could not parse userId '{UserId}' to int", userId);
-                        var errorProgress = new JobProgress { 
-                            Status = "Error", 
-                            PercentComplete = 0,
-                            ErrorMessage = $"Invalid user ID format. Please contact support with reference: {jobId}"
-                        };
-                        await SendJobUpdateWithRetriesAsync(connectionId, jobId, errorProgress);
-                        throw new Exception($"Invalid user ID format: {userId}");
-                    }
-                    
-                    var user = await context.User.FirstOrDefaultAsync(u => u.UserId == numericUserId);
-                    
-                    if (user == null)
-                    {
-                        _logger.LogWarning("User with UserId {UserId} not found directly. Attempting alternative lookup methods.", userId);
+                        _logger.LogWarning("User ID '{UserId}' appears to be a GUID. This likely indicates an Identity user rather than a numeric ID", userId);
                         
-                        // Try to find the identity user first to make sure it exists
-                        var identityUser = await userManager.FindByIdAsync(userId);
-                        if (identityUser == null)
+                        // Try to find the user record by alternate means
+                        var user = await TryFindUserWithoutUserManagerAsync(context, userId);
+                        
+                        if (user != null)
                         {
-                            var errorProgress = new JobProgress { 
-                                Status = "Error", 
-                                PercentComplete = 0,
-                                ErrorMessage = $"Identity user not found. Please contact support with reference: {jobId}"
-                            };
-                            await SendJobUpdateWithRetriesAsync(connectionId, jobId, errorProgress);
-                            throw new Exception($"Identity user not found for ID: {userId}");
+                            numericUserId = user.UserId;
+                            _logger.LogInformation("Found user record with ID {UserId} for identity user {IdentityUserId}", 
+                                numericUserId, userId);
                         }
-                        
-                        // Create a new application user record
-                        _logger.LogInformation("Creating new application user for identity user {UserId}", userId);
-                        user = new Models.User
+                        else
                         {
-                            UserId = numericUserId,
-                            Name = identityUser.UserName ?? "User" // Use username or fallback
-                        };
+                            // We couldn't find a user - this might be a new user without workout data
+                            _logger.LogWarning("Could not find existing user record for identity ID {IdentityUserId}", userId);
+                            
+                            // Try to generate a numeric ID from the GUID
+                            unchecked
+                            {
+                                // Create a stable numeric ID from the GUID
+                                if (Guid.TryParse(userId, out Guid userGuid))
+                                {
+                                    byte[] guidBytes = userGuid.ToByteArray();
+                                    numericUserId = BitConverter.ToInt32(guidBytes, 0);
+                                    if (numericUserId <= 0)
+                                    {
+                                        numericUserId = Math.Abs(numericUserId);
+                                        if (numericUserId <= 0) numericUserId = 1; // Handle edge case of Int32.MinValue
+                                    }
+                                    
+                                    _logger.LogInformation("Generated numeric ID {NumericId} from GUID {Guid} for new user", 
+                                        numericUserId, userGuid);
+                                        
+                                    // Create a new user with the generated ID
+                                    var newUser = new Models.User
+                                    {
+                                        UserId = numericUserId,
+                                        Name = "User" // Default name since we don't have access to the identity user
+                                    };
+                                    
+                                    context.User.Add(newUser);
+                                    await context.SaveChangesAsync();
+                                    
+                                    _logger.LogInformation("Created new user record with ID {UserId}", numericUserId);
+                                }
+                                else
+                                {
+                                    var errorProgress = new JobProgress { 
+                                        Status = "Error", 
+                                        PercentComplete = 0,
+                                        ErrorMessage = $"Invalid user ID format. Please contact support with reference: {jobId}"
+                                    };
+                                    await SendJobUpdateWithRetriesAsync(connectionId, jobId, errorProgress);
+                                    throw new Exception($"Invalid user ID format: {userId}");
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // User ID is already numeric
+                        var user = await context.User.FirstOrDefaultAsync(u => u.UserId == numericUserId);
                         
-                        context.User.Add(user);
-                        await context.SaveChangesAsync();
-                        
-                        _logger.LogInformation("Created new user {UserId} for identity user {UserId}", 
-                            user.UserId, userId);
+                        if (user == null)
+                        {
+                            _logger.LogWarning("User with numeric ID {UserId} not found directly. Will create new record.", numericUserId);
+                            
+                            // Create a new user record
+                            var newUser = new Models.User
+                            {
+                                UserId = numericUserId,
+                                Name = "User" // Default name
+                            };
+                            
+                            context.User.Add(newUser);
+                            await context.SaveChangesAsync();
+                            
+                            _logger.LogInformation("Created new user record with ID {UserId}", numericUserId);
+                        }
                     }
                     
                     // Set up the progress callback
@@ -193,6 +229,36 @@ namespace WorkoutTrackerWeb.Services
                 
                 // Re-throw to ensure Hangfire marks the job as failed
                 throw;
+            }
+        }
+
+        // Helper method to find a user without relying on UserManager
+        private async Task<Models.User> TryFindUserWithoutUserManagerAsync(WorkoutTrackerWeb.Data.WorkoutTrackerWebContext context, string identityUserId)
+        {
+            try
+            {
+                // First try to find by direct relationship if we have one
+                var user = await context.User
+                    .FirstOrDefaultAsync(u => u.IdentityUserId == identityUserId);
+                
+                if (user != null)
+                {
+                    return user;
+                }
+                
+                // If we couldn't find by direct relationship, we need fallback strategies
+                
+                // If there's a mapping table between identity users and application users, we would check that here
+                
+                // Last resort - look for any custom profile or other tables that might have the connection
+                // This is very application-specific and might need adjustment based on your data model
+                
+                return null; // Return null if we couldn't find the user
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error trying to find user without UserManager for identity ID {IdentityUserId}", identityUserId);
+                return null;
             }
         }
 

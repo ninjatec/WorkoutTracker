@@ -1,5 +1,6 @@
 using System;
 using Hangfire;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace WorkoutTrackerWeb.Services.Hangfire
 {
@@ -8,16 +9,47 @@ namespace WorkoutTrackerWeb.Services.Hangfire
     /// </summary>
     public class HangfireActivator : JobActivator
     {
-        private readonly IServiceProvider _serviceProvider;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
 
-        public HangfireActivator(IServiceProvider serviceProvider)
+        public HangfireActivator(IServiceScopeFactory serviceScopeFactory)
         {
-            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+            _serviceScopeFactory = serviceScopeFactory ?? throw new ArgumentNullException(nameof(serviceScopeFactory));
         }
 
         public override object ActivateJob(Type jobType)
         {
-            return _serviceProvider.GetService(jobType) ?? base.ActivateJob(jobType);
+            // Create a new scope for each job activation
+            var scope = _serviceScopeFactory.CreateScope();
+            
+            // Try to resolve the job type from the scoped service provider
+            return scope.ServiceProvider.GetService(jobType) ?? base.ActivateJob(jobType);
+        }
+        
+        // Enable proper disposal of job scopes
+        public override JobActivatorScope BeginScope(JobActivatorContext context)
+        {
+            return new HangfireActivatorScope(_serviceScopeFactory.CreateScope());
+        }
+    }
+    
+    // Add a scope class to handle disposing of the service scope
+    public class HangfireActivatorScope : JobActivatorScope
+    {
+        private readonly IServiceScope _serviceScope;
+        
+        public HangfireActivatorScope(IServiceScope serviceScope)
+        {
+            _serviceScope = serviceScope;
+        }
+        
+        public override object Resolve(Type type)
+        {
+            return _serviceScope.ServiceProvider.GetService(type);
+        }
+        
+        public override void DisposeScope()
+        {
+            _serviceScope.Dispose();
         }
     }
 }
