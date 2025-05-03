@@ -22,19 +22,19 @@ namespace WorkoutTrackerWeb.Models.Coaching
         /// </summary>
         [Required]
         [MaxLength(100)]
-        public string Name { get; set; }
+        public string Name { get; set; } = "";
 
         /// <summary>
         /// Gets or sets the description of the client group
         /// </summary>
         [MaxLength(500)]
-        public string Description { get; set; }
+        public string Description { get; set; } = "";
 
         /// <summary>
         /// Gets or sets the ID of the coach who owns this group
         /// </summary>
         [Required]
-        public string CoachId { get; set; }
+        public string CoachId { get; set; } = "";
 
         /// <summary>
         /// Gets or sets the coach who owns this group
@@ -56,7 +56,7 @@ namespace WorkoutTrackerWeb.Models.Coaching
         /// Gets or sets the color code for the group (for UI display)
         /// </summary>
         [MaxLength(10)]
-        public string ColorCode { get; set; }
+        public string ColorCode { get; set; } = "";
 
         /// <summary>
         /// Gets or sets the client relationships in this group

@@ -63,7 +63,7 @@ namespace WorkoutTrackerWeb.Models
         
         [StringLength(100)]
         [Display(Name = "Notes")]
-        public string Notes { get; set; }
+        public string Notes { get; set; } = "";
         
         [StringLength(50)]
         [Display(Name = "Status")]

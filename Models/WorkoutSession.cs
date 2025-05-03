@@ -18,11 +18,11 @@ namespace WorkoutTrackerWeb.Models
         [Required]
         [StringLength(100)]
         [Display(Name = "Session Name")]
-        public string Name { get; set; }
+        public string Name { get; set; } = "";
         
         [StringLength(500)]
         [Display(Name = "Description")]
-        public string Description { get; set; }
+        public string Description { get; set; } = "";
         
         [Display(Name = "Start Date/Time")]
         public DateTime StartDateTime { get; set; } = DateTime.Now;
@@ -44,7 +44,7 @@ namespace WorkoutTrackerWeb.Models
         
         [Display(Name = "Templates Used")]
         [StringLength(200)]
-        public string TemplatesUsed { get; set; }
+        public string TemplatesUsed { get; set; } = "";
         
         // Foreign key for workout template (optional)
         public int? WorkoutTemplateId { get; set; }
@@ -60,7 +60,7 @@ namespace WorkoutTrackerWeb.Models
         
         [StringLength(50)]
         [Display(Name = "Status")]
-        public string Status { get; set; }
+        public string Status { get; set; } = "";
         
         [Display(Name = "Iteration Number")]
         public int IterationNumber { get; set; } = 1;

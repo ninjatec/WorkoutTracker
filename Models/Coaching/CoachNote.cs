@@ -31,7 +31,7 @@ namespace WorkoutTrackerWeb.Models.Coaching
         /// Gets or sets the content of the note
         /// </summary>
         [Required]
-        public string Content { get; set; }
+        public string Content { get; set; } = "";
 
         /// <summary>
         /// Gets or sets the date when the note was created
@@ -52,6 +52,6 @@ namespace WorkoutTrackerWeb.Models.Coaching
         /// Gets or sets the category or tag for the note
         /// </summary>
         [MaxLength(50)]
-        public string Category { get; set; }
+        public string Category { get; set; } = "";
     }
 }

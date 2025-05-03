@@ -10,28 +10,28 @@ namespace WorkoutTrackerWeb.Models
         [Required]
         [StringLength(50)]
         [Display(Name = "Category Name")]
-        public string Name { get; set; }
+        public string Name { get; set; } = "";
 
         [StringLength(200)]
         [Display(Name = "Description")]
-        public string Description { get; set; }
+        public string Description { get; set; } = "";
 
         [Display(Name = "Order")]
         public int DisplayOrder { get; set; }
 
         [Display(Name = "Icon Class")]
         [StringLength(50)]
-        public string IconClass { get; set; }
+        public string IconClass { get; set; } = "";
 
         public string Slug => Name?.ToLower().Replace(" ", "-");
 
-        public ICollection<HelpArticle> Articles { get; set; }
+        public ICollection<HelpArticle> Articles { get; set; } = new List<HelpArticle>();
 
         [Display(Name = "Parent Category")]
         public int? ParentCategoryId { get; set; }
         public HelpCategory ParentCategory { get; set; }
 
-        public ICollection<HelpCategory> ChildCategories { get; set; }
+        public ICollection<HelpCategory> ChildCategories { get; set; } = new List<HelpCategory>();
 
         public bool IsRootCategory => ParentCategoryId == null;
     }

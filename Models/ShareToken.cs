@@ -11,7 +11,7 @@ namespace WorkoutTrackerWeb.Models
         
         [Required]
         [StringLength(100)]
-        public string Token { get; set; }
+        public string Token { get; set; } = "";
         
         [Required]
         public DateTime CreatedAt { get; set; }
@@ -40,10 +40,10 @@ namespace WorkoutTrackerWeb.Models
         public WorkoutSession WorkoutSession { get; set; }
         
         [StringLength(100)]
-        public string Name { get; set; }
+        public string Name { get; set; } = "";
         
         [StringLength(500)]
-        public string Description { get; set; }
+        public string Description { get; set; } = "";
         
         [NotMapped]
         public bool IsValid => 

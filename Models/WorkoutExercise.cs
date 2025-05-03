@@ -29,7 +29,7 @@ namespace WorkoutTrackerWeb.Models
         
         [StringLength(100)]
         [Display(Name = "Notes")]
-        public string Notes { get; set; }
+        public string Notes { get; set; } = "";
         
         [Display(Name = "Start Time")]
         public DateTime? StartTime { get; set; }
@@ -68,11 +68,11 @@ namespace WorkoutTrackerWeb.Models
         [Required]
         [StringLength(100)]
         [Display(Name = "Name")]
-        public string Name { get; set; }
+        public string Name { get; set; } = "";
         
         [StringLength(200)]
         [Display(Name = "Description")]
-        public string Description { get; set; }
+        public string Description { get; set; } = "";
         
         [Display(Name = "Is Active")]
         public bool IsActive { get; set; } = true;

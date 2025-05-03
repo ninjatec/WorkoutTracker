@@ -26,11 +26,11 @@ namespace WorkoutTrackerWeb.Models.Coaching
         [Required]
         [StringLength(100)]
         [Display(Name = "Schedule Name")]
-        public string Name { get; set; }
+        public string Name { get; set; } = "";
         
         [StringLength(500)]
         [Display(Name = "Description")]
-        public string Description { get; set; }
+        public string Description { get; set; } = "";
         
         [Display(Name = "Start Date")]
         public DateTime StartDate { get; set; }
@@ -58,7 +58,7 @@ namespace WorkoutTrackerWeb.Models.Coaching
         [Display(Name = "Recurrence Pattern")]
         public string RecurrencePattern 
         { 
-            get => _recurrencePattern; 
+            get => _recurrencePattern ?? ""; 
             set 
             { 
                 _recurrencePattern = value;
@@ -74,7 +74,7 @@ namespace WorkoutTrackerWeb.Models.Coaching
         
         [StringLength(100)]
         [Display(Name = "Multiple Days Of Week")]
-        public string MultipleDaysOfWeek { get; set; } // Store as comma-separated integers
+        public string MultipleDaysOfWeek { get; set; } = "";
         
         [Display(Name = "Recurrence Day Of Month")]
         public int? RecurrenceDayOfMonth { get; set; }
@@ -104,7 +104,7 @@ namespace WorkoutTrackerWeb.Models.Coaching
         
         [StringLength(100)]
         [Display(Name = "Last Generation Status")]
-        public string LastGenerationStatus { get; set; }
+        public string LastGenerationStatus { get; set; } = "";
         
         /// <summary>
         /// Indicates if this workout was missed (created after its scheduled time)

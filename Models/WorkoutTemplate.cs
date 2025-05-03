@@ -13,7 +13,7 @@ namespace WorkoutTrackerWeb.Models
         [Required]
         [StringLength(100)]
         [Display(Name = "Template Name")]
-        public string Name { get; set; }
+        public string Name { get; set; } = "";
         
         [StringLength(500)]
         [Display(Name = "Description")]

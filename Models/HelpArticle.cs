@@ -11,16 +11,16 @@ namespace WorkoutTrackerWeb.Models
         [Required]
         [StringLength(100)]
         [Display(Name = "Title")]
-        public string Title { get; set; }
+        public string Title { get; set; } = "";
 
         [Required]
         [StringLength(200)]
         [Display(Name = "Short Description")]
-        public string ShortDescription { get; set; }
+        public string ShortDescription { get; set; } = "";
 
         [Required]
         [Display(Name = "Content")]
-        public string Content { get; set; }
+        public string Content { get; set; } = "";
 
         [Required]
         [Display(Name = "Category")]
@@ -28,10 +28,10 @@ namespace WorkoutTrackerWeb.Models
         public HelpCategory Category { get; set; }
 
         [Display(Name = "Related Articles")]
-        public ICollection<HelpArticle> RelatedArticles { get; set; }
+        public ICollection<HelpArticle> RelatedArticles { get; set; } = new List<HelpArticle>();
 
         [Display(Name = "Tags")]
-        public string Tags { get; set; }
+        public string Tags { get; set; } = "";
 
         [Display(Name = "Created Date")]
         public DateTime CreatedDate { get; set; } = DateTime.Now;
@@ -41,7 +41,7 @@ namespace WorkoutTrackerWeb.Models
 
         [Display(Name = "Version")]
         [StringLength(20)]
-        public string Version { get; set; }
+        public string Version { get; set; } = "";
 
         [Display(Name = "Order")]
         public int DisplayOrder { get; set; }
@@ -55,7 +55,7 @@ namespace WorkoutTrackerWeb.Models
         public string Slug => Title?.ToLower().Replace(" ", "-").Replace("?", "").Replace("&", "and");
 
         public bool HasVideo { get; set; }
-        public string VideoUrl { get; set; }
+        public string VideoUrl { get; set; } = "";
 
         public bool IsPrintable { get; set; } = true;
     }

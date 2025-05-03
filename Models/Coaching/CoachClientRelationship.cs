@@ -52,18 +52,18 @@ namespace WorkoutTrackerWeb.Models.Coaching
         /// Gets or sets the ID of the coach user
         /// </summary>
         [Required]
-        public string CoachId { get; set; }
+        public string CoachId { get; set; } = "";
         
         /// <summary>
         /// Gets or sets the ID of the client user
         /// </summary>
-        public string ClientId { get; set; }
+        public string ClientId { get; set; } = "";
         
         /// <summary>
         /// Gets or sets the email of the invited user who is not yet registered
         /// </summary>
         [MaxLength(256)]
-        public string InvitedEmail { get; set; }
+        public string InvitedEmail { get; set; } = "";
         
         /// <summary>
         /// Gets or sets the coach user
@@ -107,7 +107,7 @@ namespace WorkoutTrackerWeb.Models.Coaching
         /// <summary>
         /// Gets or sets the optional invitation token for pending relationships
         /// </summary>
-        public string InvitationToken { get; set; }
+        public string InvitationToken { get; set; } = "";
         
         /// <summary>
         /// Gets or sets the expiry date for the invitation token

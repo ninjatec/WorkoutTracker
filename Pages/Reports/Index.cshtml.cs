@@ -330,15 +330,15 @@ namespace WorkoutTrackerWeb.Pages.Reports
                         .ThenInclude(we => we.ExerciseType)
                     .Where(ws => ws.WorkoutExercise != null &&
                                 ws.WorkoutExercise.WorkoutSession != null && 
-                                ws.WorkoutExercise.WorkoutSession.UserId == user.UserId && 
-                                ws.WorkoutExercise.WorkoutSession.StartDateTime >= reportPeriodDate &&
-                                ws.WorkoutExercise.ExerciseType != null)
+                                ws.WorkoutExercise.ExerciseType != null &&
+                                ws.WorkoutExercise.ExerciseType.Name != null)
                     .AsNoTracking()
                     .ToListAsync();
 
-                // Filter out records with null exercise names in memory to avoid SQL null issues
+                // Filter out records with null exercise types or names in memory to avoid SQL null issues
                 allWorkoutSets = allWorkoutSets
-                    .Where(ws => ws.WorkoutExercise?.ExerciseType?.Name != null)
+                    .Where(ws => ws.WorkoutExercise?.ExerciseType != null && 
+                                !string.IsNullOrEmpty(ws.WorkoutExercise.ExerciseType.Name))
                     .ToList();
 
                 // Get all workout sessions in the period
@@ -615,7 +615,8 @@ namespace WorkoutTrackerWeb.Pages.Reports
                             .ThenInclude(we => we.ExerciseType)
                         .Where(ws => ws.WorkoutExercise != null && 
                                    ws.WorkoutExercise.WorkoutSession != null &&
-                                   ws.WorkoutExercise.WorkoutSession.UserId == user.UserId && 
+                                   ws.WorkoutExercise.ExerciseType != null &&
+                                   ws.WorkoutExercise.ExerciseType.Name != null &&
                                    ws.Weight.HasValue && ws.Weight > 0)
                         .AsNoTracking()
                         .ToListAsync();
