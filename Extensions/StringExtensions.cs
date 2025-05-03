@@ -31,6 +31,17 @@ namespace WorkoutTrackerWeb.Extensions
             return value ?? defaultValue;
         }
 
+        /// <summary>
+        /// Extension method for EF Core queries to safely handle potentially null string values.
+        /// This is specifically useful for preventing SqlNullValueException when accessing string properties.
+        /// </summary>
+        /// <param name="value">The string value to check for null</param>
+        /// <returns>The original string or empty string if null</returns>
+        public static string SqlSafe(this string value)
+        {
+            return value ?? string.Empty;
+        }
+
         public static string ToTitleCase(this string text)
         {
             if (string.IsNullOrEmpty(text))

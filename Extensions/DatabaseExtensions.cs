@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -133,8 +134,19 @@ namespace WorkoutTrackerWeb.Extensions
         /// <returns>The string value or empty string if null</returns>
         public static string SafeGetString(this Microsoft.Data.SqlClient.SqlDataReader reader, string columnName)
         {
-            int ordinal = reader.GetOrdinal(columnName);
-            return reader.IsDBNull(ordinal) ? string.Empty : reader.GetString(ordinal);
+            try
+            {
+                int ordinal = reader.GetOrdinal(columnName);
+                if (reader.IsDBNull(ordinal))
+                    return string.Empty;
+                    
+                return reader.GetString(ordinal);
+            }
+            catch
+            {
+                // If anything goes wrong (column doesn't exist, etc.), return empty string
+                return string.Empty;
+            }
         }
         
         /// <summary>
@@ -146,6 +158,32 @@ namespace WorkoutTrackerWeb.Extensions
         public static string SafeGetString(this Microsoft.Data.SqlClient.SqlDataReader reader, int ordinal)
         {
             return reader.IsDBNull(ordinal) ? string.Empty : reader.GetString(ordinal);
+        }
+
+        /// <summary>
+        /// Get the current user with safe string handling to prevent SqlNullValueException
+        /// </summary>
+        public static async Task<Models.AppUser> GetCurrentUserAsync(this WorkoutTrackerWebContext context, System.Security.Claims.ClaimsPrincipal user)
+        {
+            if (user == null || !user.Identity.IsAuthenticated)
+                return null;
+                
+            string userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId))
+                return null;
+                
+            return await context.Users
+                .Select(u => new Models.AppUser
+                {
+                    Id = u.Id,
+                    UserId = u.UserId,
+                    UserName = u.UserName ?? string.Empty,
+                    Email = u.Email ?? string.Empty,
+                    FirstName = u.FirstName ?? string.Empty,
+                    LastName = u.LastName ?? string.Empty,
+                    DisplayName = u.DisplayName ?? string.Empty
+                })
+                .FirstOrDefaultAsync(u => u.Id == userId);
         }
     }
 }
