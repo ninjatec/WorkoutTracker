@@ -295,7 +295,8 @@ namespace WorkoutTrackerWeb.Services
                             SequenceNum = setSequence++,
                             Weight = trainAiSet.Weight,
                             Reps = trainAiSet.Reps,
-                            Notes = trainAiSet.RestTime > 0 ? $"Rest: {trainAiSet.RestTime}s" : null
+                            Notes = trainAiSet.RestTime > 0 ? $"Rest: {trainAiSet.RestTime}s" : null,
+                            IsCompleted = true // Explicitly set to true to indicate successful completion
                         };
 
                         _context.WorkoutSets.Add(workoutSet);
