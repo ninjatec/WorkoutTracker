@@ -130,7 +130,8 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
                 {
                     // Get ALL upcoming workouts for all clients of this coach (scheduled in the future)
                     var upcomingSchedules = await _context.WorkoutSchedules
-                        .Where(s => s.CoachUserId == user.UserId &&
+                        .Where(s => s.CoachUserId == user.UserId && 
+                                   s.ClientUserId != user.UserId && // Exclude coach's own schedules
                                    (s.ScheduledDateTime > currentDate || 
                                    (s.IsRecurring && (!s.EndDate.HasValue || s.EndDate.Value > currentDate.Date))))
                         .Include(s => s.TemplateAssignment)
@@ -148,6 +149,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
                     // Get ALL completed workouts (in the past, not recurring or past end date)
                     var completedSchedules = await _context.WorkoutSchedules
                         .Where(s => s.CoachUserId == user.UserId &&
+                                   s.ClientUserId != user.UserId && // Exclude coach's own schedules
                                    s.ScheduledDateTime <= currentDate &&
                                    (!s.IsRecurring || (s.EndDate.HasValue && s.EndDate.Value <= currentDate.Date)))
                         .Include(s => s.TemplateAssignment)

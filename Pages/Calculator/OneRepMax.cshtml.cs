@@ -154,6 +154,8 @@ namespace WorkoutTrackerWeb.Pages.Calculator
                 MaxReps = Math.Max(MaxReps, set.Reps.Value);
             }
 
+            // Load the user's 1RM data for the selected time period
+            await LoadUserDataAsync();
             await PopulateExerciseTypesAsync();
             return Page();
         }

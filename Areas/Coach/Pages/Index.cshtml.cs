@@ -203,9 +203,10 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages
                 // Get current date for comparison
                 var currentDate = DateTime.Now;
                 
-                // Fetch upcoming scheduled workouts for this coach
+                // Fetch upcoming scheduled workouts for this coach's clients, excluding the coach's own schedules
                 var upcomingWorkouts = await _context.WorkoutSchedules
                     .Where(s => s.CoachUserId == coachUser.UserId && 
+                                s.ClientUserId != coachUser.UserId && // Exclude coach's own schedules
                                 s.IsActive && 
                                 (s.ScheduledDateTime > currentDate || 
                                 (s.IsRecurring && (!s.EndDate.HasValue || s.EndDate.Value > currentDate.Date))))

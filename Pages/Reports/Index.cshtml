@@ -418,7 +418,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.0/dist/chartjs-adapter-moment.min.js"></script>
-    <script src="~/js/reports.js"></script>
     
     <script>
         // Store chart instances for proper cleanup
@@ -433,66 +432,19 @@
 
         // Initialize all charts when DOM content is loaded
         document.addEventListener('DOMContentLoaded', function() {
-            // Create charts when their respective accordion sections are opened
-            document.getElementById('collapsePersonalRecords').addEventListener('shown.bs.collapse', function() {
-                // Personal records section is just a table, no charts to initialize
-            });
-            
-            document.getElementById('collapseWeightProgress').addEventListener('shown.bs.collapse', function() {
-                if (window.createWeightProgressChart) createWeightProgressChart();
-            });
-            
-            document.getElementById('collapseExercisePerformance').addEventListener('shown.bs.collapse', function() {
-                if (window.createOverallChart) createOverallChart();
-                if (window.createExerciseChart) createExerciseChart();
-            });
-            
-            document.getElementById('collapseVolume').addEventListener('shown.bs.collapse', function() {
-                if (window.createVolumeChart) createVolumeChart();
-            });
-            
-            document.getElementById('collapseCalories').addEventListener('shown.bs.collapse', function() {
-                if (window.createCaloriesChart) createCaloriesChart();
-                if (window.createCaloriesPieChart) createCaloriesPieChart();
-            });
-
-            // Handle accordion hiding events to update charts when sections are reopened
-            const accordionItems = document.querySelectorAll('.accordion-collapse');
-            accordionItems.forEach(item => {
-                item.addEventListener('hidden.bs.collapse', function() {
-                    // This event fires when the accordion section is completely hidden
-                    // We'll destroy related charts when a section is closed
-                    if (item.id === 'collapseWeightProgress' && chartInstances.weightProgressChart) {
-                        chartInstances.weightProgressChart.destroy();
-                        chartInstances.weightProgressChart = null;
-                    } else if (item.id === 'collapseExercisePerformance') {
-                        if (chartInstances.overallChart) {
-                            chartInstances.overallChart.destroy();
-                            chartInstances.overallChart = null;
-                        }
-                        if (chartInstances.exerciseChart) {
-                            chartInstances.exerciseChart.destroy();
-                            chartInstances.exerciseChart = null;
-                        }
-                    } else if (item.id === 'collapseVolume' && chartInstances.volumeChart) {
-                        chartInstances.volumeChart.destroy();
-                        chartInstances.volumeChart = null;
-                    } else if (item.id === 'collapseCalories') {
-                        if (chartInstances.caloriesChart) {
-                            chartInstances.caloriesChart.destroy();
-                            chartInstances.caloriesChart = null;
-                        }
-                        if (chartInstances.caloriesPieChart) {
-                            chartInstances.caloriesPieChart.destroy();
-                            chartInstances.caloriesPieChart = null;
-                        }
-                    }
-                });
-            });
+            // Initialize charts immediately rather than waiting for accordion sections
+            createWeightProgressChart();
+            createOverallChart();
+            createExerciseChart();
+            createVolumeChart();
+            createCaloriesChart();
+            createCaloriesPieChart();
         });
 
-        window.createWeightProgressChart = function() {
+        function createWeightProgressChart() {
             const ctx = document.getElementById('weightProgressChart');
+            if (!ctx) return; // Safety check
+            
             const spinner = ctx.parentElement.querySelector('.loading-spinner');
             
             // If chart instance already exists, destroy it
@@ -590,8 +542,10 @@
             ctx.style.display = 'block';
         }
 
-        window.createOverallChart = function() {
+        function createOverallChart() {
             const ctx = document.getElementById('overallChart');
+            if (!ctx) return; // Safety check
+            
             const spinner = ctx.parentElement.querySelector('.loading-spinner');
             
             // If chart instance already exists, destroy it
@@ -645,8 +599,10 @@
             ctx.style.display = 'block';
         }
 
-        window.createExerciseChart = function() {
+        function createExerciseChart() {
             const ctx = document.getElementById('exerciseChart');
+            if (!ctx) return; // Safety check
+            
             const spinner = ctx.parentElement.querySelector('.loading-spinner');
             
             // If chart instance already exists, destroy it
@@ -710,8 +666,10 @@
             ctx.style.display = 'block';
         }
 
-        window.createVolumeChart = function() {
+        function createVolumeChart() {
             const ctx = document.getElementById('volumeChart');
+            if (!ctx) return; // Safety check
+            
             const spinner = ctx.parentElement.querySelector('.loading-spinner');
             
             // If chart instance already exists, destroy it
@@ -736,39 +694,37 @@
                 var volumeData = Model.VolumeDataList[i];
                 var colorIndex = i % 10;
                 
-                // Skip placeholder entries that have no real data
-                @:if ('@volumeData.ExerciseName' === 'No workout data available' || '@volumeData.ExerciseName' === 'No workout data yet') {
-                @:    continue;
+                // Skip placeholder entries that have no real data - FIX: Use if-else instead of continue
+                @:if ('@volumeData.ExerciseName' !== 'No workout data available' && '@volumeData.ExerciseName' !== 'No workout data yet') {
+                @:    hasValidData = true;
+                @:    const volumeDates@(i) = [@Html.Raw(string.Join(",", volumeData.Dates.Select(d => $"'{d.ToString("yyyy-MM-dd")}'")))]
+                @:    const volumes@(i) = [@string.Join(",", volumeData.Volumes)]
+                
+                @:    // Create proper data points for chart display
+                @:    let chartData@(i) = volumes@(i).map((volume, index) => ({ x: volumeDates@(i)[index], y: volume }));
+                
+                @:    // Handle case with only one data point by adding appropriate visualization context
+                @:    if (chartData@(i).length === 1) {
+                @:        const dataPoint = chartData@(i)[0];
+                @:        // Add a starting point 7 days before with value 0 for better visualization
+                @:        const startDate = moment(dataPoint.x).subtract(7, 'days').format('YYYY-MM-DD');
+                @:        chartData@(i).unshift({ x: startDate, y: 0 });
+                @:        // Add an ending point 7 days in the future with the same value
+                @:        const endDate = moment(dataPoint.x).add(7, 'days').format('YYYY-MM-DD');
+                @:        chartData@(i).push({ x: endDate, y: dataPoint.y });
+                @:    }
+                
+                @:    datasets.push({
+                @:        label: '@Html.Raw(volumeData.ExerciseName)',
+                @:        data: chartData@(i),
+                @:        borderColor: colors[@colorIndex],
+                @:        backgroundColor: colors[@colorIndex] + '33',
+                @:        fill: false,
+                @:        borderWidth: 2,
+                @:        tension: 0.1,
+                @:        pointRadius: 4
+                @:    });
                 @:}
-                
-                @:hasValidData = true;
-                @:const volumeDates@(i) = [@Html.Raw(string.Join(",", volumeData.Dates.Select(d => $"'{d.ToString("yyyy-MM-dd")}'")))]
-                @:const volumes@(i) = [@string.Join(",", volumeData.Volumes)]
-                
-                // Create proper data points for chart display
-                @:let chartData@(i) = volumes@(i).map((volume, index) => ({ x: volumeDates@(i)[index], y: volume }));
-                
-                // Handle case with only one data point by adding appropriate visualization context
-                @:if (chartData@(i).length === 1) {
-                @:    const dataPoint = chartData@(i)[0];
-                @:    // Add a starting point 7 days before with value 0 for better visualization
-                @:    const startDate = moment(dataPoint.x).subtract(7, 'days').format('YYYY-MM-DD');
-                @:    chartData@(i).unshift({ x: startDate, y: 0 });
-                @:    // Add an ending point 7 days in the future with the same value
-                @:    const endDate = moment(dataPoint.x).add(7, 'days').format('YYYY-MM-DD');
-                @:    chartData@(i).push({ x: endDate, y: dataPoint.y });
-                @:}
-                
-                @:datasets.push({
-                @:    label: '@Html.Raw(volumeData.ExerciseName)',
-                @:    data: chartData@(i),
-                @:    borderColor: colors[@colorIndex],
-                @:    backgroundColor: colors[@colorIndex] + '33',
-                @:    fill: false,
-                @:    borderWidth: 2,
-                @:    tension: 0.1,
-                @:    pointRadius: 4
-                @:});
             }
             
             // If no valid data was found, add a placeholder dataset
@@ -850,8 +806,10 @@
             ctx.style.display = 'block';
         }
 
-        window.createCaloriesChart = function() {
+        function createCaloriesChart() {
             const ctx = document.getElementById('caloriesChart');
+            if (!ctx) return; // Safety check
+            
             const spinner = ctx.parentElement.querySelector('.loading-spinner');
             
             // If chart instance already exists, destroy it
@@ -879,10 +837,20 @@
                 @:const calories@(i) = [@string.Join(",", calorieData.Calories)]
                 
                 // Create proper data points for chart display
-                @:let chartData@(i) = calories@(i).map((calories, index) => ({ x: calorieDates@(i)[index], y: calories }));
-                
-                // Handle case with single data point by adding appropriate context
-                @:if (chartData@(i).length === 1) {
+                @:let chartData@(i) = [];
+                @:// Handle empty arrays to avoid errors
+                @:if (calorieDates@(i).length > 0 && calories@(i).length > 0) {
+                @:    chartData@(i) = calories@(i).map((calories, index) => ({ x: calorieDates@(i)[index], y: calories }));
+                @:}
+                @:// Handle case with no data points
+                @:if (chartData@(i).length === 0) {
+                @:    chartData@(i) = [
+                @:        { x: moment().subtract(7, 'days').format('YYYY-MM-DD'), y: 0 },
+                @:        { x: moment().format('YYYY-MM-DD'), y: 0 }
+                @:    ];
+                @:}
+                @:// Handle case with single data point by adding appropriate context
+                @:else if (chartData@(i).length === 1) {
                 @:    const dataPoint = chartData@(i)[0];
                 @:    // Add a starting point 7 days before with 0 calories
                 @:    const startDate = moment(dataPoint.x).subtract(7, 'days').format('YYYY-MM-DD');
@@ -965,8 +933,9 @@
             ctx.style.display = 'block';
         }
 
-        window.createCaloriesPieChart = function() {
+        function createCaloriesPieChart() {
             const ctx = document.getElementById('caloriesPieChart');
+            if (!ctx) return; // Safety check
             
             // If chart instance already exists, destroy it
             if (chartInstances.caloriesPieChart) {
