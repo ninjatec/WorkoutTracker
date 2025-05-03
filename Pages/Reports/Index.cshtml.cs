@@ -18,6 +18,7 @@ using ILogger = Serilog.ILogger;
 using WorkoutTrackerWeb.Services.Calculations;
 using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
+using System.Data.SqlTypes;
 
 namespace WorkoutTrackerWeb.Pages.Reports
 {
@@ -569,6 +570,10 @@ namespace WorkoutTrackerWeb.Pages.Reports
                 ReportPeriod = 90; // Default if invalid value provided
             }
 
+            // Invalidate volume data cache to ensure we always get fresh data
+            InvalidateVolumeDataCache();
+            InvalidatePersonalRecordsCache();
+            
             var reportPeriodDate = DateTime.Now.AddDays(-ReportPeriod);
 
             // Performance optimization: Create a separate connection with timeout
@@ -582,227 +587,145 @@ namespace WorkoutTrackerWeb.Pages.Reports
                 {
                     try
                     {
-                        // Try to get cached data for each report component separately
-                        var overallStatusCacheKey = GetCacheKey($"OverallStatus_{ReportPeriod}", UserId);
-                        var exerciseStatusCacheKey = GetCacheKey($"ExerciseStatus_{ReportPeriod}", UserId);
-                        var recentExerciseStatusCacheKey = GetCacheKey($"RecentExerciseStatus_{ReportPeriod}", UserId);
-                        var weightProgressCacheKey = GetCacheKey($"WeightProgress_{ReportPeriod}", UserId);
-                        var volumeDataCacheKey = GetCacheKey($"VolumeData_{ReportPeriod}", UserId);
-                        var calorieDataCacheKey = GetCacheKey($"CalorieData_{ReportPeriod}", UserId);
-
-                        // Check and retrieve from cache or compute each report component
-                        OverallStatus = GetFromCache<RepStatusData>(overallStatusCacheKey);
-                        ExerciseStatusList = GetFromCache<List<ExerciseStatusData>>(exerciseStatusCacheKey);
-                        RecentExerciseStatusList = GetFromCache<List<ExerciseStatusData>>(recentExerciseStatusCacheKey);
-                        WeightProgressList = GetFromCache<List<WeightProgressData>>(weightProgressCacheKey);
-                        VolumeDataList = GetFromCache<List<VolumeData>>(volumeDataCacheKey);
-                        CalorieDataList = GetFromCache<List<CalorieData>>(calorieDataCacheKey);
-
-                        // If any of the cached items are missing, we need to query the database
-                        if (OverallStatus == null || ExerciseStatusList == null || 
-                            RecentExerciseStatusList == null || WeightProgressList == null ||
-                            VolumeDataList == null || CalorieDataList == null)
+                        // Force a full reload of workout data to avoid cache issues
+                        await LoadUserMetricsAsync();
+                        
+                        // Try to get personal records with direct SQL
+                        try
                         {
-                            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(QueryTimeoutSeconds)))
+                            _logger.Information("Fetching fresh personal record data for user {UserId}", UserId);
+                            
+                            // Direct SQL approach that guarantees we get the maximum weight for each exercise
+                            var sql = @"
+                                WITH MaxWeights AS (
+                                    SELECT 
+                                        et.ExerciseTypeId,
+                                        et.Name AS ExerciseName,
+                                        MAX(ws.Weight) AS MaxWeight
+                                    FROM WorkoutSets ws
+                                    JOIN WorkoutExercises we ON we.WorkoutExerciseId = ws.WorkoutExerciseId
+                                    JOIN WorkoutSessions sess ON sess.WorkoutSessionId = we.WorkoutSessionId
+                                    JOIN ExerciseType et ON et.ExerciseTypeId = we.ExerciseTypeId
+                                    WHERE sess.UserId = @UserId 
+                                        AND ws.Weight IS NOT NULL 
+                                        AND ws.Weight > 0
+                                        AND (@ReportPeriodDate IS NULL OR sess.StartDateTime >= @ReportPeriodDate)
+                                    GROUP BY et.ExerciseTypeId, et.Name
+                                ),
+                                PRDetails AS (
+                                    SELECT 
+                                        mw.ExerciseTypeId,
+                                        mw.ExerciseName,
+                                        mw.MaxWeight,
+                                        sess.StartDateTime AS RecordDate,
+                                        sess.Name AS SessionName,
+                                        ROW_NUMBER() OVER (PARTITION BY mw.ExerciseTypeId ORDER BY ws.Weight DESC, sess.StartDateTime DESC) as RowNum
+                                    FROM MaxWeights mw
+                                    JOIN WorkoutSets ws ON ws.Weight = mw.MaxWeight
+                                    JOIN WorkoutExercises we ON we.WorkoutExerciseId = ws.WorkoutExerciseId
+                                    JOIN WorkoutSessions sess ON sess.WorkoutSessionId = we.WorkoutSessionId
+                                    JOIN ExerciseType et ON et.ExerciseTypeId = we.ExerciseTypeId AND et.ExerciseTypeId = mw.ExerciseTypeId
+                                    WHERE sess.UserId = @UserId
+                                )
+                                SELECT 
+                                    ExerciseName,
+                                    MaxWeight,
+                                    RecordDate,
+                                    ISNULL(SessionName, 'Unnamed Session') AS SessionName
+                                FROM PRDetails
+                                WHERE RowNum = 1
+                                ORDER BY MaxWeight DESC";
+
+                            var personalRecords = new List<PersonalRecordData>();
+                            
+                            using (var command = timeoutContext.Database.GetDbConnection().CreateCommand())
                             {
-                                // Optimize queries by combining related data fetching
-                                // Break down into smaller chunks with pagination to prevent timeouts
-                                var allWorkoutSets = new List<WorkoutSet>();
-                                var pageSize = 500;
-                                var page = 0;
-                                bool hasMoreData = true;
-
-                                while (hasMoreData)
-                                {
-                                    var pagedSets = await timeoutContext.WorkoutSets
-                                        .Include(ws => ws.WorkoutExercise)
-                                            .ThenInclude(we => we.WorkoutSession)
-                                        .Include(ws => ws.WorkoutExercise)
-                                            .ThenInclude(we => we.ExerciseType)
-                                        .Where(ws => ws.WorkoutExercise != null &&
-                                                  ws.WorkoutExercise.WorkoutSession != null &&
-                                                  ws.WorkoutExercise.WorkoutSession.UserId == UserId &&
-                                                  ws.WorkoutExercise.WorkoutSession.StartDateTime >= reportPeriodDate)
-                                        .OrderBy(ws => ws.WorkoutSetId) // For pagination consistency
-                                        .Skip(page * pageSize)
-                                        .Take(pageSize)
-                                        .AsNoTracking()
-                                        .ToListAsync(cts.Token);
-
-                                    allWorkoutSets.AddRange(pagedSets);
-                                    
-                                    if (pagedSets.Count < pageSize)
-                                    {
-                                        hasMoreData = false;
-                                    }
-                                    page++;
-                                }
-
-                                // Filter out records with null exercise types or names in memory
-                                allWorkoutSets = allWorkoutSets
-                                    .Where(ws => ws.WorkoutExercise?.ExerciseType != null && 
-                                              !string.IsNullOrEmpty(ws.WorkoutExercise.ExerciseType.Name))
-                                    .ToList();
-
-                                // Get all workout sessions in the period with pagination
-                                var allWorkoutSessions = new List<WorkoutSession>();
-                                page = 0;
-                                hasMoreData = true;
-
-                                while (hasMoreData)
-                                {
-                                    var pagedSessions = await timeoutContext.WorkoutSessions
-                                        .Where(ws => ws.UserId == UserId && ws.StartDateTime >= reportPeriodDate)
-                                        .OrderBy(ws => ws.WorkoutSessionId)
-                                        .Skip(page * pageSize)
-                                        .Take(pageSize)
-                                        .AsNoTracking()
-                                        .ToListAsync(cts.Token);
-
-                                    allWorkoutSessions.AddRange(pagedSessions);
-                                    
-                                    if (pagedSessions.Count < pageSize)
-                                    {
-                                        hasMoreData = false;
-                                    }
-                                    page++;
-                                }
-
-                                // Calculate required data and cache it
-                                // Processing logic remains the same but uses our optimized data retrieval
-                                OverallStatus = GetFromCache<RepStatusData>(overallStatusCacheKey);
-                                ExerciseStatusList = GetFromCache<List<ExerciseStatusData>>(exerciseStatusCacheKey);
-                                RecentExerciseStatusList = GetFromCache<List<ExerciseStatusData>>(recentExerciseStatusCacheKey);
-                                WeightProgressList = GetFromCache<List<WeightProgressData>>(weightProgressCacheKey);
-                                VolumeDataList = GetFromCache<List<VolumeData>>(volumeDataCacheKey);
-                                CalorieDataList = GetFromCache<List<CalorieData>>(calorieDataCacheKey);
-
-                                // Personal records are paginated and should be fetched fresh
-                                var personalRecordsCacheKey = GetCacheKey($"PersonalRecords_Page{pageNumber}", UserId);
-                                var paginationInfoCacheKey = GetCacheKey("PaginationInfo", UserId);
+                                command.CommandText = sql;
+                                command.CommandTimeout = QueryTimeoutSeconds;
                                 
-                                // Try to get pagination info from cache
-                                var paginationInfo = GetFromCache<PaginationInfo>(paginationInfoCacheKey);
-                                if (paginationInfo != null)
-                                {
-                                    CurrentPage = paginationInfo.CurrentPage;
-                                    TotalPages = paginationInfo.TotalPages;
-                                }
+                                var userIdParam = command.CreateParameter();
+                                userIdParam.ParameterName = "@UserId";
+                                userIdParam.Value = UserId;
+                                command.Parameters.Add(userIdParam);
                                 
-                                // Try to get personal records from cache
-                                PersonalRecords = GetFromCache<List<PersonalRecordData>>(personalRecordsCacheKey);
+                                var periodParam = command.CreateParameter();
+                                periodParam.ParameterName = "@ReportPeriodDate";
+                                periodParam.Value = (ReportPeriod < int.MaxValue) ? (object)reportPeriodDate : DBNull.Value;
+                                command.Parameters.Add(periodParam);
                                 
-                                // If not in cache or different page, fetch from database
-                                if (PersonalRecords == null || (paginationInfo != null && paginationInfo.CurrentPage != pageNumber))
+                                if (command.Connection.State != System.Data.ConnectionState.Open)
+                                    await command.Connection.OpenAsync();
+                                
+                                _logger.Information("Executing SQL query for personal records");
+                                
+                                using (var reader = await command.ExecuteReaderAsync())
                                 {
-                                    try
+                                    while (await reader.ReadAsync())
                                     {
-                                        _logger.Information("Fetching personal record data from database for user {UserId}", UserId);
-                                        
-                                        // Force a reload if the cache isn't invalidating properly
-                                        _isCacheAvailable = true;
-                                        var forceReload = true;
-                                        
-                                        if (forceReload || allWorkoutSets.Count == 0)
+                                        try
                                         {
-                                            // If we don't have workout sets data loaded yet, query them directly
-                                            using (var innerCts = new CancellationTokenSource(TimeSpan.FromSeconds(QueryTimeoutSeconds)))
+                                            var exerciseName = !reader.IsDBNull(0) ? reader.GetString(0) : "Unknown Exercise";
+                                            var maxWeight = !reader.IsDBNull(1) ? reader.GetDecimal(1) : 0m;
+                                            var recordDate = !reader.IsDBNull(2) ? reader.GetDateTime(2) : DateTime.Now;
+                                            var sessionName = !reader.IsDBNull(3) ? reader.GetString(3) : "Unnamed Session";
+                                            
+                                            _logger.Information("Found PR: {Exercise} - {Weight}kg on {Date}", exerciseName, maxWeight, recordDate);
+                                            
+                                            personalRecords.Add(new PersonalRecordData
                                             {
-                                                allWorkoutSets = await timeoutContext.WorkoutSets
-                                                    .Include(ws => ws.WorkoutExercise)
-                                                        .ThenInclude(we => we.WorkoutSession)
-                                                    .Include(ws => ws.WorkoutExercise)
-                                                        .ThenInclude(we => we.ExerciseType)
-                                                    .Where(ws => ws.WorkoutExercise != null &&
-                                                                ws.WorkoutExercise.WorkoutSession != null &&
-                                                                ws.WorkoutExercise.WorkoutSession.UserId == UserId)
-                                                    .AsNoTracking()
-                                                    .ToListAsync(innerCts.Token);
-                                            }
-                                        }
-                                        
-                                        // Process workout sets to get personal records
-                                        var groupedSets = allWorkoutSets
-                                            .Where(ws => ws.Weight.HasValue && ws.Weight > 0)
-                                            .GroupBy(ws => new { 
-                                                ExerciseTypeId = ws.WorkoutExercise.ExerciseTypeId, 
-                                                ExerciseName = ws.WorkoutExercise.ExerciseType?.Name ?? "Unknown Exercise" 
-                                            })
-                                            .Select(g => {
-                                                // Get the workout set with maximum weight
-                                                var maxWeightSet = g.OrderByDescending(ws => ws.Weight)
-                                                    .ThenByDescending(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime)
-                                                    .FirstOrDefault();
-
-                                                // Safely retrieve session name
-                                                string sessionName = "Unnamed Session";
-                                                if (maxWeightSet?.WorkoutExercise?.WorkoutSession != null) {
-                                                    sessionName = maxWeightSet.WorkoutExercise.WorkoutSession.Name ?? "Unnamed Session";
-                                                }
-
-                                                return new PersonalRecordData {
-                                                    ExerciseName = g.Key.ExerciseName,
-                                                    MaxWeight = g.Max(ws => ws.Weight ?? 0),
-                                                    RecordDate = maxWeightSet?.WorkoutExercise?.WorkoutSession?.StartDateTime ?? DateTime.Now,
-                                                    SessionName = sessionName
-                                                };
-                                            })
-                                            .OrderByDescending(pr => pr.MaxWeight)
-                                            .ToList();
-
-                                        // Always show at least one record for UI display purposes (even if empty)
-                                        if (!groupedSets.Any())
-                                        {
-                                            groupedSets.Add(new PersonalRecordData
-                                            {
-                                                ExerciseName = "No personal records found",
-                                                MaxWeight = 0,
-                                                RecordDate = DateTime.Now,
-                                                SessionName = "N/A"
+                                                ExerciseName = exerciseName,
+                                                MaxWeight = maxWeight,
+                                                RecordDate = recordDate,
+                                                SessionName = sessionName
                                             });
                                         }
-
-                                        // Handle pagination
-                                        var count = groupedSets.Count;
-                                        CurrentPage = pageNumber ?? 1;
-                                        TotalPages = (int)Math.Ceiling(count / (double)PageSize);
-                                        TotalPages = Math.Max(1, TotalPages); // At least 1 page
-                                        
-                                        // Store pagination info in cache
-                                        var newPaginationInfo = new PaginationInfo
+                                        catch (Exception ex)
                                         {
-                                            CurrentPage = CurrentPage,
-                                            TotalPages = TotalPages
-                                        };
-                                        SetCache(paginationInfoCacheKey, newPaginationInfo);
-
-                                        // Apply pagination
-                                        PersonalRecords = groupedSets
-                                            .Skip((CurrentPage - 1) * PageSize)
-                                            .Take(PageSize)
-                                            .ToList();
-                                            
-                                        // Store personal records in cache
-                                        SetCache(personalRecordsCacheKey, PersonalRecords);
-                                        _logger.Information("Successfully retrieved and cached {Count} personal records", PersonalRecords.Count());
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        _logger.Error(ex, "Error retrieving personal records for user {UserId}", UserId);
-                                        // Provide empty results rather than crashing
-                                        PersonalRecords = new List<PersonalRecordData> {
-                                            new PersonalRecordData {
-                                                ExerciseName = "No personal records found",
-                                                MaxWeight = 0,
-                                                RecordDate = DateTime.Now,
-                                                SessionName = "N/A"
-                                            }
-                                        };
-                                        CurrentPage = pageNumber ?? 1;
-                                        TotalPages = 1;
+                                            _logger.Error(ex, "Error reading a personal record row");
+                                        }
                                     }
                                 }
                             }
+                            
+                            // If no records found, add an empty placeholder
+                            if (!personalRecords.Any())
+                            {
+                                _logger.Warning("No personal records found for user {UserId}", UserId);
+                                personalRecords.Add(new PersonalRecordData
+                                {
+                                    ExerciseName = "No personal records found",
+                                    MaxWeight = 0,
+                                    RecordDate = DateTime.Now,
+                                    SessionName = "N/A"
+                                });
+                            }
+
+                            // Handle pagination
+                            var count = personalRecords.Count;
+                            CurrentPage = pageNumber ?? 1;
+                            TotalPages = (int)Math.Ceiling(count / (double)PageSize);
+                            TotalPages = Math.Max(1, TotalPages); // At least 1 page
+                            
+                            // Apply pagination
+                            PersonalRecords = personalRecords
+                                .Skip((CurrentPage - 1) * PageSize)
+                                .Take(PageSize)
+                                .ToList();
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Error(ex, "Error retrieving personal records for user {UserId}", UserId);
+                            // Provide empty results rather than crashing
+                            PersonalRecords = new List<PersonalRecordData> {
+                                new PersonalRecordData {
+                                    ExerciseName = "No personal records found",
+                                    MaxWeight = 0,
+                                    RecordDate = DateTime.Now,
+                                    SessionName = "N/A"
+                                }
+                            };
+                            CurrentPage = pageNumber ?? 1;
+                            TotalPages = 1;
                         }
                     }
                     catch (OperationCanceledException)
@@ -821,9 +744,114 @@ namespace WorkoutTrackerWeb.Pages.Reports
                     }
                 }
             }
-
-            // Ensure we have user metrics data even if there's no data
-            await EnsureUserMetricsDataAsync();
+            
+            // Final check for volume data - ensure we always have something to display
+            if (VolumeDataList == null || !VolumeDataList.Any() || 
+                (VolumeDataList.Count == 1 && VolumeDataList[0].ExerciseName == "No workout data yet" && VolumeDataList[0].TotalVolume == 0))
+            {
+                // Try one more direct approach to get volume data
+                try
+                {
+                    var sql = @"
+                        SELECT 
+                            et.Name AS ExerciseName,
+                            SUM(ws.Weight * ws.Reps) AS TotalVolume
+                        FROM WorkoutSets ws
+                        JOIN WorkoutExercises we ON we.WorkoutExerciseId = ws.WorkoutExerciseId
+                        JOIN WorkoutSessions sess ON sess.WorkoutSessionId = we.WorkoutSessionId
+                        JOIN ExerciseType et ON et.ExerciseTypeId = we.ExerciseTypeId
+                        WHERE sess.UserId = @UserId 
+                            AND ws.Weight IS NOT NULL 
+                            AND ws.Weight > 0
+                            AND ws.Reps IS NOT NULL
+                            AND ws.Reps > 0
+                            AND sess.StartDateTime >= @ReportPeriodDate
+                        GROUP BY et.Name
+                        ORDER BY SUM(ws.Weight * ws.Reps) DESC";
+                        
+                    var volumeData = new List<VolumeData>();
+                    
+                    using (var connection = _context.Database.GetDbConnection())
+                    {
+                        using (var command = connection.CreateCommand())
+                        {
+                            command.CommandText = sql;
+                            command.CommandTimeout = QueryTimeoutSeconds;
+                            
+                            var userIdParam = command.CreateParameter();
+                            userIdParam.ParameterName = "@UserId";
+                            userIdParam.Value = UserId;
+                            command.Parameters.Add(userIdParam);
+                            
+                            var periodParam = command.CreateParameter();
+                            periodParam.ParameterName = "@ReportPeriodDate";
+                            periodParam.Value = reportPeriodDate;
+                            command.Parameters.Add(periodParam);
+                            
+                            if (connection.State != System.Data.ConnectionState.Open)
+                                await connection.OpenAsync();
+                            
+                            using (var reader = await command.ExecuteReaderAsync())
+                            {
+                                while (await reader.ReadAsync())
+                                {
+                                    try
+                                    {
+                                        var exerciseName = !reader.IsDBNull(0) ? reader.GetString(0) : "Unknown Exercise";
+                                        var totalVolume = !reader.IsDBNull(1) ? Convert.ToDouble(reader.GetValue(1)) : 0;
+                                        
+                                        var data = new VolumeData
+                                        {
+                                            ExerciseName = exerciseName,
+                                            TotalVolume = totalVolume,
+                                            // Add at least two data points for charting
+                                            Dates = new List<DateTime> { DateTime.Now.AddDays(-ReportPeriod), DateTime.Now },
+                                            Volumes = new List<double> { 0, totalVolume }
+                                        };
+                                        
+                                        volumeData.Add(data);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        _logger.Error(ex, "Error reading volume data row");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (volumeData.Any())
+                    {
+                        VolumeDataList = volumeData;
+                        TotalWorkoutVolume = volumeData.Sum(v => v.TotalVolume);
+                    }
+                    else
+                    {
+                        // If still no data, use fallback placeholder
+                        VolumeDataList = new List<VolumeData> { 
+                            new VolumeData { 
+                                ExerciseName = "No workout data available", 
+                                TotalVolume = 0,
+                                Dates = new List<DateTime> { DateTime.Now.AddDays(-7), DateTime.Now },
+                                Volumes = new List<double> { 0, 0 }
+                            }
+                        };
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Error retrieving volume data directly");
+                    // Final fallback
+                    VolumeDataList = new List<VolumeData> { 
+                        new VolumeData { 
+                            ExerciseName = "No workout data available", 
+                            TotalVolume = 0,
+                            Dates = new List<DateTime> { DateTime.Now.AddDays(-7), DateTime.Now },
+                            Volumes = new List<double> { 0, 0 }
+                        }
+                    };
+                }
+            }
 
             return Page();
         }
@@ -834,7 +862,19 @@ namespace WorkoutTrackerWeb.Pages.Reports
             ExerciseStatusList = new List<ExerciseStatusData>();
             RecentExerciseStatusList = new List<ExerciseStatusData>();
             WeightProgressList = new List<WeightProgressData>();
-            VolumeDataList = new List<VolumeData>();
+            
+            // Initialize volume data with a placeholder exercise
+            VolumeDataList = new List<VolumeData> 
+            { 
+                new VolumeData 
+                { 
+                    ExerciseName = "No workout data yet", 
+                    TotalVolume = 0,
+                    Dates = new List<DateTime> { DateTime.Now.AddDays(-7), DateTime.Now },
+                    Volumes = new List<double> { 0, 0 }
+                }
+            };
+            
             CalorieDataList = new List<CalorieData>();
             PersonalRecords = new List<PersonalRecordData>();
             CurrentPage = 1;
@@ -875,6 +915,21 @@ namespace WorkoutTrackerWeb.Pages.Reports
             CompletionRate = 0;
             ExerciseFrequencies = new Dictionary<string, int>();
             VolumeTrends = new List<TrendPoint>();
+            
+            // Ensure VolumeDataList has placeholder data for empty states
+            if (VolumeDataList == null || !VolumeDataList.Any())
+            {
+                VolumeDataList = new List<VolumeData> 
+                { 
+                    new VolumeData 
+                    { 
+                        ExerciseName = "No workout data yet", 
+                        TotalVolume = 0,
+                        Dates = new List<DateTime> { DateTime.Now.AddDays(-7), DateTime.Now },
+                        Volumes = new List<double> { 0, 0 }
+                    }
+                };
+            }
         }
 
         // Method to invalidate cache when data changes
@@ -906,6 +961,39 @@ namespace WorkoutTrackerWeb.Pages.Reports
             {
                 // Log but don't crash if cache is unavailable
                 Log.ForContext<IndexModel>().Warning(ex, "Failed to invalidate cache for user {UserId}", userId);
+            }
+        }
+
+        private void InvalidatePersonalRecordsCache()
+        {
+            try
+            {
+                // Remove cached personal records for all pages
+                for (int i = 1; i <= 5; i++)
+                {
+                    _cache.Remove($"Reports:PersonalRecords_Page{i}:{UserId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning(ex, "Failed to invalidate personal records cache for user {UserId}", UserId);
+            }
+        }
+
+        private void InvalidateVolumeDataCache()
+        {
+            try
+            {
+                // Remove cached volume data for all periods
+                int[] periods = new[] { 30, 60, 90, 120 };
+                foreach (var period in periods)
+                {
+                    _cache.Remove($"Reports:VolumeData_{period}:{UserId}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warning(ex, "Failed to invalidate volume data cache for user {UserId}", UserId);
             }
         }
     }

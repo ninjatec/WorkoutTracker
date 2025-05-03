@@ -288,15 +288,24 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                @foreach (var volume in Model.VolumeDataList)
+                                                @if (Model.VolumeDataList != null && Model.VolumeDataList.Any())
                                                 {
-                                                    var percentage = Model.TotalWorkoutVolume > 0 
-                                                        ? (volume.TotalVolume / Model.TotalWorkoutVolume * 100) 
-                                                        : 0;
+                                                    @foreach (var volume in Model.VolumeDataList)
+                                                    {
+                                                        var percentage = Model.TotalWorkoutVolume > 0 
+                                                            ? (volume.TotalVolume / Model.TotalWorkoutVolume * 100) 
+                                                            : 0;
+                                                        <tr>
+                                                            <td>@volume.ExerciseName</td>
+                                                            <td>@volume.TotalVolume.ToString("N0")</td>
+                                                            <td>@percentage.ToString("F1")%</td>
+                                                        </tr>
+                                                    }
+                                                }
+                                                else
+                                                {
                                                     <tr>
-                                                        <td>@volume.ExerciseName</td>
-                                                        <td>@volume.TotalVolume.ToString("N0")</td>
-                                                        <td>@percentage.ToString("F1")%</td>
+                                                        <td colspan="3" class="text-center">No volume data available. Complete a workout to see your volume breakdown.</td>
                                                     </tr>
                                                 }
                                             </tbody>
@@ -720,15 +729,39 @@
                 '#795548', '#607D8B', '#E91E63', '#FFEB3B', '#009688'
             ];
             
+            let hasValidData = false;
+
             @for (int i = 0; i < Math.Min(Model.VolumeDataList.Count, 10); i++)
             {
                 var volumeData = Model.VolumeDataList[i];
                 var colorIndex = i % 10;
+                
+                // Skip placeholder entries that have no real data
+                @:if ('@volumeData.ExerciseName' === 'No workout data available' || '@volumeData.ExerciseName' === 'No workout data yet') {
+                @:    continue;
+                @:}
+                
+                @:hasValidData = true;
                 @:const volumeDates@(i) = [@Html.Raw(string.Join(",", volumeData.Dates.Select(d => $"'{d.ToString("yyyy-MM-dd")}'")))]
                 @:const volumes@(i) = [@string.Join(",", volumeData.Volumes)]
+                
+                // Create proper data points for chart display
+                @:let chartData@(i) = volumes@(i).map((volume, index) => ({ x: volumeDates@(i)[index], y: volume }));
+                
+                // Handle case with only one data point by adding appropriate visualization context
+                @:if (chartData@(i).length === 1) {
+                @:    const dataPoint = chartData@(i)[0];
+                @:    // Add a starting point 7 days before with value 0 for better visualization
+                @:    const startDate = moment(dataPoint.x).subtract(7, 'days').format('YYYY-MM-DD');
+                @:    chartData@(i).unshift({ x: startDate, y: 0 });
+                @:    // Add an ending point 7 days in the future with the same value
+                @:    const endDate = moment(dataPoint.x).add(7, 'days').format('YYYY-MM-DD');
+                @:    chartData@(i).push({ x: endDate, y: dataPoint.y });
+                @:}
+                
                 @:datasets.push({
                 @:    label: '@Html.Raw(volumeData.ExerciseName)',
-                @:    data: volumes@(i).map((volume, index) => ({ x: volumeDates@(i)[index], y: volume })),
+                @:    data: chartData@(i),
                 @:    borderColor: colors[@colorIndex],
                 @:    backgroundColor: colors[@colorIndex] + '33',
                 @:    fill: false,
@@ -736,6 +769,23 @@
                 @:    tension: 0.1,
                 @:    pointRadius: 4
                 @:});
+            }
+            
+            // If no valid data was found, add a placeholder dataset
+            if (!hasValidData) {
+                datasets.push({
+                    label: 'No Workout Data',
+                    data: [
+                        { x: moment().subtract(30, 'days').format('YYYY-MM-DD'), y: 0 },
+                        { x: moment().format('YYYY-MM-DD'), y: 0 }
+                    ],
+                    borderColor: '#cccccc',
+                    backgroundColor: '#cccccc33',
+                    fill: false,
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointRadius: 0
+                });
             }
 
             chartInstances.volumeChart = new Chart(ctx, {
@@ -820,19 +870,6 @@
                 '#795548', '#607D8B', '#E91E63', '#FFEB3B', '#009688'
             ];
             
-            // Get unique dates across all exercises
-            const allDates = [];
-            @foreach (var calorieData in Model.CalorieDataList.Take(10))
-            {
-                foreach (var date in calorieData.Dates)
-                {
-                    @:if (!allDates.includes('@date.ToString("yyyy-MM-dd")')) {
-                    @:    allDates.push('@date.ToString("yyyy-MM-dd")');
-                    @:}
-                }
-            }
-            allDates.sort();
-            
             // Create datasets for stacked area chart
             @for (int i = 0; i < Math.Min(Model.CalorieDataList.Count, 10); i++)
             {
@@ -840,9 +877,24 @@
                 var colorIndex = i % 10;
                 @:const calorieDates@(i) = [@Html.Raw(string.Join(",", calorieData.Dates.Select(d => $"'{d.ToString("yyyy-MM-dd")}'")))]
                 @:const calories@(i) = [@string.Join(",", calorieData.Calories)]
+                
+                // Create proper data points for chart display
+                @:let chartData@(i) = calories@(i).map((calories, index) => ({ x: calorieDates@(i)[index], y: calories }));
+                
+                // Handle case with single data point by adding appropriate context
+                @:if (chartData@(i).length === 1) {
+                @:    const dataPoint = chartData@(i)[0];
+                @:    // Add a starting point 7 days before with 0 calories
+                @:    const startDate = moment(dataPoint.x).subtract(7, 'days').format('YYYY-MM-DD');
+                @:    chartData@(i).unshift({ x: startDate, y: 0 });
+                @:    // Add a point in the future to show ongoing calories
+                @:    const futureDate = moment(dataPoint.x).add(7, 'days').format('YYYY-MM-DD');
+                @:    chartData@(i).push({ x: futureDate, y: dataPoint.y });
+                @:}
+                
                 @:datasets.push({
                 @:    label: '@Html.Raw(calorieData.ExerciseName)',
-                @:    data: calories@(i).map((calories, index) => ({ x: calorieDates@(i)[index], y: calories })),
+                @:    data: chartData@(i),
                 @:    borderColor: colors[@colorIndex],
                 @:    backgroundColor: colors[@colorIndex] + '80',
                 @:    fill: true,
