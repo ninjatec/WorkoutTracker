@@ -10,6 +10,16 @@ using WorkoutTrackerWeb.ViewModels;
 
 namespace WorkoutTrackerWeb.Services.Reports
 {
+    // Add this missing extension class
+    internal static class DateTimeExtensions
+    {
+        public static DateTime GetStartOfWeek(DateTime dt)
+        {
+            int diff = (7 + (dt.DayOfWeek - DayOfWeek.Monday)) % 7;
+            return dt.Date.AddDays(-1 * diff);
+        }
+    }
+
     public class ReportsService : IReportsService
     {
         private readonly WorkoutTrackerWebContext _context;
@@ -184,21 +194,113 @@ namespace WorkoutTrackerWeb.Services.Reports
         {
             try
             {
-                var volumeByDay = await _context.WorkoutSessions
+                _logger.LogDebug("Getting volume over time for user {UserId} from {StartDate} to {EndDate}", 
+                    userId, startDate, endDate);
+                
+                // Calculate date span to determine appropriate aggregation
+                var dateSpan = (endDate - startDate).TotalDays;
+                _logger.LogDebug("Date span for volume data is {DateSpan} days", dateSpan);
+                
+                // For large date ranges, aggregate data by week instead of by day
+                if (dateSpan > 90)
+                {
+                    _logger.LogDebug("Large date range detected ({DateSpan} days), aggregating by week", dateSpan);
+                    
+                    // Add a limit to the query for better performance with large datasets
+                    var maxRecords = 1000; // Reasonable limit for weekly aggregation
+                    _logger.LogDebug("Limiting query to {MaxRecords} workout sessions", maxRecords);
+                    
+                    var sessions = await _context.WorkoutSessions
+                        .Where(s => s.UserId == userId && 
+                                    s.StartDateTime >= startDate &&
+                                    s.StartDateTime <= endDate)
+                        .OrderByDescending(s => s.StartDateTime)
+                        .Take(maxRecords)
+                        .ToListAsync();
+                        
+                    _logger.LogDebug("Retrieved {Count} workout sessions for weekly aggregation", sessions.Count);
+                    
+                    // Perform weekly grouping in memory
+                    var volumeByWeek = sessions
+                        .GroupBy(s => DateTimeExtensions.GetStartOfWeek(s.StartDateTime))
+                        .Select(g => new
+                        {
+                            Date = g.Key,
+                            Volume = g.SelectMany(s => s.WorkoutExercises ?? new List<WorkoutExercise>())
+                                     .SelectMany(e => e.WorkoutSets ?? new List<WorkoutSet>())
+                                     .Sum(s => (s.Weight ?? 0) * (s.Reps ?? 0))
+                        })
+                        .OrderBy(x => x.Date)
+                        .ToDictionary(x => x.Date, x => x.Volume);
+                    
+                    _logger.LogDebug("Weekly aggregation complete. Generated {Count} data points", volumeByWeek.Count);
+                    return volumeByWeek;
+                }
+                else if (dateSpan > 30)
+                {
+                    _logger.LogDebug("Medium date range detected ({DateSpan} days), aggregating by 3 days", dateSpan);
+                    
+                    // For medium range, limit records and group by 3-day periods in memory
+                    var maxRecords = 2000; // Higher limit for 3-day periods
+                    _logger.LogDebug("Limiting query to {MaxRecords} workout sessions", maxRecords);
+                    
+                    var sessions = await _context.WorkoutSessions
+                        .Where(s => s.UserId == userId && 
+                                    s.StartDateTime >= startDate &&
+                                    s.StartDateTime <= endDate)
+                        .OrderByDescending(s => s.StartDateTime)
+                        .Take(maxRecords)
+                        .ToListAsync();
+                        
+                    _logger.LogDebug("Retrieved {Count} workout sessions for 3-day aggregation", sessions.Count);
+                    
+                    // Group by 3-day periods in memory
+                    var volumeByPeriod = sessions
+                        .GroupBy(s => s.StartDateTime.Date.AddDays(-(s.StartDateTime.Date.Subtract(startDate.Date).Days % 3)))
+                        .Select(g => new
+                        {
+                            Date = g.Key,
+                            Volume = g.SelectMany(s => s.WorkoutExercises ?? new List<WorkoutExercise>())
+                                     .SelectMany(e => e.WorkoutSets ?? new List<WorkoutSet>())
+                                     .Sum(s => (s.Weight ?? 0) * (s.Reps ?? 0))
+                        })
+                        .OrderBy(x => x.Date)
+                        .ToDictionary(x => x.Date, x => x.Volume);
+                    
+                    _logger.LogDebug("3-day aggregation complete. Generated {Count} data points", volumeByPeriod.Count);
+                    return volumeByPeriod;
+                }
+                
+                // Default case - show daily data for shorter periods with a limit
+                _logger.LogDebug("Standard date range detected ({DateSpan} days), showing daily data", dateSpan);
+                
+                var dailyMaxRecords = 3000; // Higher limit for daily data within reasonable range
+                _logger.LogDebug("Limiting query to {MaxRecords} workout sessions for daily data", dailyMaxRecords);
+                
+                var dailySessions = await _context.WorkoutSessions
                     .Where(s => s.UserId == userId && 
                                 s.StartDateTime >= startDate &&
                                 s.StartDateTime <= endDate)
+                    .OrderByDescending(s => s.StartDateTime)
+                    .Take(dailyMaxRecords)
+                    .ToListAsync();
+                    
+                _logger.LogDebug("Retrieved {Count} workout sessions for daily data", dailySessions.Count);
+                
+                // Group by day in memory
+                var volumeByDay = dailySessions
                     .GroupBy(s => s.StartDateTime.Date)
                     .Select(g => new
                     {
                         Date = g.Key,
-                        Volume = g.SelectMany(s => s.WorkoutExercises)
-                                  .SelectMany(e => e.WorkoutSets)
-                                  .Sum(s => (s.Weight ?? 0) * (s.Reps ?? 0))
+                        Volume = g.SelectMany(s => s.WorkoutExercises ?? new List<WorkoutExercise>())
+                                 .SelectMany(e => e.WorkoutSets ?? new List<WorkoutSet>())
+                                 .Sum(s => (s.Weight ?? 0) * (s.Reps ?? 0))
                     })
                     .OrderBy(x => x.Date)
-                    .ToDictionaryAsync(x => x.Date, x => x.Volume);
+                    .ToDictionary(x => x.Date, x => x.Volume);
                 
+                _logger.LogDebug("Daily aggregation complete. Generated {Count} data points", volumeByDay.Count);
                 return volumeByDay;
             }
             catch (Exception ex)
@@ -386,144 +488,163 @@ namespace WorkoutTrackerWeb.Services.Reports
             return result;
         }
         
-        public async Task<List<ExerciseWeightProgress>> GetWeightProgressAsync(int userId, int days)
-        {
-            var result = new List<ExerciseWeightProgress>();
-            
-            try
-            {
-                var startDate = DateTime.UtcNow.AddDays(-days);
-                
-                var exerciseTypeIds = await _context.WorkoutExercises
-                    .Where(e => e.WorkoutSession != null && 
-                           e.WorkoutSession.UserId == userId && 
-                           e.WorkoutSession.StartDateTime >= startDate &&
-                           e.ExerciseTypeId > 0 &&
-                           e.ExerciseType != null)
-                    .Select(e => e.ExerciseTypeId)
-                    .Distinct()
-                    .ToListAsync();
-                
-                foreach (var exerciseTypeId in exerciseTypeIds)
-                {
-                    var exerciseType = await _context.ExerciseType.FindAsync(exerciseTypeId);
-                    
-                    if (exerciseType == null || string.IsNullOrEmpty(exerciseType.Name)) continue;
-                    
-                    var sets = await _context.WorkoutSets
-                        .Where(s => s.WorkoutExercise != null &&
-                                   s.WorkoutExercise.ExerciseType != null &&
-                                   s.WorkoutExercise.ExerciseTypeId == exerciseTypeId && 
-                                   s.WorkoutExercise.WorkoutSession != null &&
-                                   s.WorkoutExercise.WorkoutSession.UserId == userId &&
-                                   s.WorkoutExercise.WorkoutSession.StartDateTime >= startDate &&
-                                   s.Weight.HasValue)
-                        .OrderBy(s => s.WorkoutExercise.WorkoutSession.StartDateTime)
-                        .Select(s => new
-                        {
-                            Date = s.WorkoutExercise.WorkoutSession.StartDateTime,
-                            Weight = s.Weight ?? 0,
-                            Reps = s.Reps ?? 0,
-                            WorkoutSessionId = s.WorkoutExercise.WorkoutSessionId
-                        })
-                        .ToListAsync();
-                    
-                    if (!sets.Any()) continue;
-                    
-                    var progressPoints = sets.Select(s => new WeightProgressPoint
-                    {
-                        Date = s.Date,
-                        Weight = s.Weight,
-                        Reps = s.Reps,
-                        WorkoutSessionId = s.WorkoutSessionId
-                    }).ToList();
-                    
-                    var weightProgress = new ExerciseWeightProgress
-                    {
-                        ExerciseId = exerciseTypeId,
-                        ExerciseName = exerciseType.Name,
-                        ProgressPoints = progressPoints,
-                        MaxWeight = progressPoints.Any() ? progressPoints.Max(p => p.Weight) : 0,
-                        MinWeight = progressPoints.Any() ? progressPoints.Min(p => p.Weight) : 0
-                    };
-                    
-                    result.Add(weightProgress);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting weight progress for user {UserId}", userId);
-            }
-            
-            return result;
-        }
-        
         public async Task<List<ExerciseWeightProgress>> GetWeightProgressAsync(int userId, int days, int limit = 5)
         {
             var result = new List<ExerciseWeightProgress>();
             
             try
             {
+                _logger.LogDebug("Getting weight progress for user {UserId} for the last {Days} days with limit {Limit}", 
+                    userId, days, limit);
+                
                 var startDate = DateTime.UtcNow.AddDays(-days);
                 
-                var topExerciseIds = await _context.WorkoutExercises
-                    .Where(e => e.WorkoutSession != null && 
-                           e.WorkoutSession.UserId == userId && 
-                           e.WorkoutSession.StartDateTime >= startDate)
-                    .GroupBy(e => e.ExerciseTypeId)
-                    .OrderByDescending(g => g.Count())
-                    .Take(limit)
-                    .Select(g => g.Key)
-                    .ToListAsync();
-                
-                foreach (var exerciseTypeId in topExerciseIds)
+                // Use command timeout and direct SQL for better performance
+                using (var command = _context.Database.GetDbConnection().CreateCommand())
                 {
-                    var exerciseType = await _context.ExerciseType.FindAsync(exerciseTypeId);
+                    command.CommandTimeout = 30; // 30 seconds timeout
                     
-                    if (exerciseType == null || string.IsNullOrEmpty(exerciseType.Name)) continue;
+                    if (_context.Database.GetDbConnection().State != System.Data.ConnectionState.Open)
+                    {
+                        await _context.Database.GetDbConnection().OpenAsync();
+                    }
                     
-                    var weightDataPoints = await _context.WorkoutSets
-                        .Where(s => s.WorkoutExercise != null &&
-                                   s.WorkoutExercise.ExerciseTypeId == exerciseTypeId && 
-                                   s.WorkoutExercise.WorkoutSession != null &&
-                                   s.WorkoutExercise.WorkoutSession.UserId == userId &&
-                                   s.WorkoutExercise.WorkoutSession.StartDateTime >= startDate &&
-                                   s.Weight.HasValue)
-                        .GroupBy(s => s.WorkoutExercise.WorkoutSession.StartDateTime.Date)
-                        .OrderBy(g => g.Key)
-                        .Select(g => new
+                    // First get top exercises by frequency
+                    command.CommandText = @"
+                        SELECT TOP (@Limit)
+                            we.ExerciseTypeId,
+                            et.Name
+                        FROM WorkoutExercises we
+                        JOIN WorkoutSessions sess ON sess.WorkoutSessionId = we.WorkoutSessionId
+                        JOIN ExerciseType et ON et.ExerciseTypeId = we.ExerciseTypeId
+                        WHERE sess.UserId = @UserId
+                          AND sess.StartDateTime >= @StartDate
+                          AND et.Name IS NOT NULL
+                        GROUP BY we.ExerciseTypeId, et.Name
+                        ORDER BY COUNT(*) DESC";
+                    
+                    var paramUserId = command.CreateParameter();
+                    paramUserId.ParameterName = "@UserId";
+                    paramUserId.Value = userId;
+                    command.Parameters.Add(paramUserId);
+                    
+                    var paramStartDate = command.CreateParameter();
+                    paramStartDate.ParameterName = "@StartDate";
+                    paramStartDate.Value = startDate;
+                    command.Parameters.Add(paramStartDate);
+                    
+                    var paramLimit = command.CreateParameter();
+                    paramLimit.ParameterName = "@Limit";
+                    paramLimit.Value = limit;
+                    command.Parameters.Add(paramLimit);
+                    
+                    _logger.LogDebug("Executing optimized top exercises query for weight progress");
+                    
+                    var topExercises = new List<(int id, string name)>();
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
                         {
-                            Date = g.Key,
-                            MaxWeight = g.Max(s => s.Weight.Value),
-                            MaxReps = g.Where(s => s.Weight == g.Max(s2 => s2.Weight)).Max(s => s.Reps ?? 0)
-                        })
-                        .ToListAsync();
+                            int exerciseId = reader.GetInt32(0);
+                            string exerciseName = reader.IsDBNull(1) ? "Unknown Exercise" : reader.GetString(1);
+                            topExercises.Add((exerciseId, exerciseName));
+                        }
+                    }
                     
-                    if (!weightDataPoints.Any()) continue;
+                    _logger.LogDebug("Retrieved {Count} top exercises", topExercises.Count);
                     
-                    var progressPoints = weightDataPoints.Select(dp => new WeightProgressPoint
+                    // Clear parameters for next command
+                    command.Parameters.Clear();
+                    
+                    // For each top exercise, get weight progress data
+                    foreach (var (exerciseId, exerciseName) in topExercises)
                     {
-                        Date = dp.Date,
-                        Weight = dp.MaxWeight,
-                        Reps = dp.MaxReps,
-                        WorkoutSessionId = 0
-                    }).ToList();
-                    
-                    var weightProgress = new ExerciseWeightProgress
-                    {
-                        ExerciseId = exerciseTypeId,
-                        ExerciseName = exerciseType.Name,
-                        ProgressPoints = progressPoints,
-                        MaxWeight = progressPoints.Any() ? progressPoints.Max(p => p.Weight) : 0,
-                        MinWeight = progressPoints.Any() ? progressPoints.Min(p => p.Weight) : 0
-                    };
-                    
-                    result.Add(weightProgress);
+                        _logger.LogDebug("Getting weight progress data for exercise {ExerciseId} ({ExerciseName})", 
+                            exerciseId, exerciseName);
+                            
+                        command.CommandText = @"
+                            SELECT 
+                                CAST(sess.StartDateTime AS DATE) AS WorkoutDate,
+                                MAX(ws.Weight) AS MaxWeight,
+                                MAX(CASE WHEN ws.Weight = (
+                                        SELECT MAX(ws2.Weight) 
+                                        FROM WorkoutSets ws2 
+                                        JOIN WorkoutExercises we2 ON we2.WorkoutExerciseId = ws2.WorkoutExerciseId
+                                        JOIN WorkoutSessions sess2 ON sess2.WorkoutSessionId = we2.WorkoutSessionId
+                                        WHERE we2.ExerciseTypeId = @ExerciseId
+                                          AND CAST(sess2.StartDateTime AS DATE) = CAST(sess.StartDateTime AS DATE)
+                                          AND sess2.UserId = @UserId
+                                    ) THEN ws.Reps ELSE 0 END) AS MaxReps,
+                                MIN(sess.WorkoutSessionId) AS SessionId
+                            FROM WorkoutSets ws
+                            JOIN WorkoutExercises we ON we.WorkoutExerciseId = ws.WorkoutExerciseId
+                            JOIN WorkoutSessions sess ON sess.WorkoutSessionId = we.WorkoutSessionId
+                            WHERE we.ExerciseTypeId = @ExerciseId
+                              AND sess.UserId = @UserId
+                              AND sess.StartDateTime >= @StartDate
+                              AND ws.Weight IS NOT NULL AND ws.Weight > 0
+                            GROUP BY CAST(sess.StartDateTime AS DATE)
+                            ORDER BY CAST(sess.StartDateTime AS DATE)";
+                        
+                        paramUserId = command.CreateParameter();
+                        paramUserId.ParameterName = "@UserId";
+                        paramUserId.Value = userId;
+                        command.Parameters.Add(paramUserId);
+                        
+                        paramStartDate = command.CreateParameter();
+                        paramStartDate.ParameterName = "@StartDate";
+                        paramStartDate.Value = startDate;
+                        command.Parameters.Add(paramStartDate);
+                        
+                        var paramExerciseId = command.CreateParameter();
+                        paramExerciseId.ParameterName = "@ExerciseId";
+                        paramExerciseId.Value = exerciseId;
+                        command.Parameters.Add(paramExerciseId);
+                        
+                        var progressPoints = new List<WeightProgressPoint>();
+                        
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            while (await reader.ReadAsync())
+                            {
+                                var date = reader.GetDateTime(0);
+                                var maxWeight = reader.IsDBNull(1) ? 0m : reader.GetDecimal(1);
+                                var maxReps = reader.IsDBNull(2) ? 0 : Convert.ToInt32(reader.GetValue(2));
+                                var sessionId = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
+                                
+                                progressPoints.Add(new WeightProgressPoint
+                                {
+                                    Date = date,
+                                    Weight = maxWeight,
+                                    Reps = maxReps,
+                                    WorkoutSessionId = sessionId
+                                });
+                            }
+                        }
+                        
+                        _logger.LogDebug("Retrieved {Count} weight progress points for exercise {ExerciseId}", 
+                            progressPoints.Count, exerciseId);
+                        
+                        if (progressPoints.Any())
+                        {
+                            result.Add(new ExerciseWeightProgress
+                            {
+                                ExerciseId = exerciseId,
+                                ExerciseName = exerciseName,
+                                ProgressPoints = progressPoints,
+                                MaxWeight = progressPoints.Max(p => p.Weight),
+                                MinWeight = progressPoints.Min(p => p.Weight)
+                            });
+                        }
+                        
+                        // Clear parameters for next iteration
+                        command.Parameters.Clear();
+                    }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting optimized weight progress for user {UserId}", userId);
+                _logger.LogError(ex, "Error getting weight progress for user {UserId}", userId);
             }
             
             return result;
@@ -535,60 +656,106 @@ namespace WorkoutTrackerWeb.Services.Reports
             
             try
             {
+                _logger.LogDebug("Getting exercise status for user {UserId} for the last {Days} days with limit {Limit}",
+                    userId, days, limit);
+                
                 var startDate = DateTime.UtcNow.AddDays(-days);
                 
-                var exerciseStats = await _context.WorkoutSets
-                    .Where(s => s.WorkoutExercise != null && 
-                                s.WorkoutExercise.WorkoutSession != null &&
-                                s.WorkoutExercise.WorkoutSession.UserId == userId && 
-                                s.WorkoutExercise.WorkoutSession.StartDateTime >= startDate &&
-                                s.WorkoutExercise.ExerciseType != null &&
-                                !string.IsNullOrEmpty(s.WorkoutExercise.ExerciseType.Name))
-                    .GroupBy(s => new
-                    {
-                        ExerciseId = s.WorkoutExercise.ExerciseTypeId,
-                        ExerciseName = s.WorkoutExercise.ExerciseType.Name
-                    })
-                    .Select(g => new
-                    {
-                        ExerciseId = g.Key.ExerciseId,
-                        ExerciseName = g.Key.ExerciseName,
-                        SuccessReps = g.Count(s => s.IsCompleted), 
-                        FailedReps = g.Count(s => !s.IsCompleted),
-                        LastPerformed = g.Max(s => s.WorkoutExercise.WorkoutSession.StartDateTime)
-                    })
-                    .OrderByDescending(e => e.SuccessReps + e.FailedReps)
-                    .Take(limit)
-                    .ToListAsync();
-                
-                result.AllExercises = exerciseStats.Select(e => new ExerciseStatusViewModel
+                // Use a command timeout to handle large datasets
+                using (var command = _context.Database.GetDbConnection().CreateCommand())
                 {
-                    ExerciseId = e.ExerciseId,
-                    ExerciseName = e.ExerciseName ?? "Unknown Exercise",
-                    SuccessReps = e.SuccessReps,
-                    FailedReps = e.FailedReps,
-                    LastPerformed = e.LastPerformed
-                }).ToList();
-                
-                result.TopExercises = exerciseStats
-                    .OrderByDescending(e => e.LastPerformed)
-                    .Take(5)
-                    .Select(e => new ExerciseStatusViewModel
+                    command.CommandTimeout = 30; // 30 seconds timeout
+                    
+                    if (_context.Database.GetDbConnection().State != System.Data.ConnectionState.Open)
                     {
-                        ExerciseId = e.ExerciseId,
-                        ExerciseName = e.ExerciseName ?? "Unknown Exercise",
-                        SuccessReps = e.SuccessReps,
-                        FailedReps = e.FailedReps,
-                        LastPerformed = e.LastPerformed
-                    })
-                    .ToList();
-                
-                result.TotalSuccess = result.AllExercises.Sum(e => e.SuccessReps);
-                result.TotalFailed = result.AllExercises.Sum(e => e.FailedReps);
+                        await _context.Database.GetDbConnection().OpenAsync();
+                    }
+                    
+                    // Optimize the query by executing it directly with SQL
+                    command.CommandText = @"
+                        SELECT TOP (@Limit)
+                            we.ExerciseTypeId AS ExerciseId,
+                            et.Name AS ExerciseName,
+                            SUM(CASE WHEN ws.IsCompleted = 1 THEN 1 ELSE 0 END) AS SuccessReps,
+                            SUM(CASE WHEN ws.IsCompleted = 0 THEN 1 ELSE 0 END) AS FailedReps,
+                            MAX(sess.StartDateTime) AS LastPerformed
+                        FROM WorkoutSets ws
+                        JOIN WorkoutExercises we ON we.WorkoutExerciseId = ws.WorkoutExerciseId
+                        JOIN WorkoutSessions sess ON sess.WorkoutSessionId = we.WorkoutSessionId
+                        JOIN ExerciseType et ON et.ExerciseTypeId = we.ExerciseTypeId
+                        WHERE sess.UserId = @UserId
+                          AND sess.StartDateTime >= @StartDate
+                          AND et.Name IS NOT NULL
+                        GROUP BY we.ExerciseTypeId, et.Name
+                        ORDER BY SUM(CASE WHEN ws.IsCompleted = 1 THEN 1 ELSE 0 END) + SUM(CASE WHEN ws.IsCompleted = 0 THEN 1 ELSE 0 END) DESC";
+                    
+                    var paramUserId = command.CreateParameter();
+                    paramUserId.ParameterName = "@UserId";
+                    paramUserId.Value = userId;
+                    command.Parameters.Add(paramUserId);
+                    
+                    var paramStartDate = command.CreateParameter();
+                    paramStartDate.ParameterName = "@StartDate";
+                    paramStartDate.Value = startDate;
+                    command.Parameters.Add(paramStartDate);
+                    
+                    var paramLimit = command.CreateParameter();
+                    paramLimit.ParameterName = "@Limit";
+                    paramLimit.Value = limit;
+                    command.Parameters.Add(paramLimit);
+                    
+                    _logger.LogDebug("Executing optimized exercise status query");
+                    var exerciseStats = new List<ExerciseStatusViewModel>();
+                    int totalSuccess = 0;
+                    int totalFailed = 0;
+                    
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            var exerciseId = reader.GetInt32(0);
+                            var exerciseName = reader.IsDBNull(1) ? "Unknown Exercise" : reader.GetString(1);
+                            var successReps = reader.IsDBNull(2) ? 0 : Convert.ToInt32(reader.GetValue(2));
+                            var failedReps = reader.IsDBNull(3) ? 0 : Convert.ToInt32(reader.GetValue(3));
+                            var lastPerformed = reader.IsDBNull(4) ? DateTime.MinValue : reader.GetDateTime(4);
+                            
+                            totalSuccess += successReps;
+                            totalFailed += failedReps;
+                            
+                            exerciseStats.Add(new ExerciseStatusViewModel
+                            {
+                                ExerciseId = exerciseId,
+                                ExerciseName = exerciseName,
+                                SuccessReps = successReps,
+                                FailedReps = failedReps,
+                                LastPerformed = lastPerformed
+                            });
+                        }
+                    }
+                    
+                    _logger.LogDebug("Retrieved {Count} exercise status records with {Success} successful reps and {Failed} failed reps",
+                        exerciseStats.Count, totalSuccess, totalFailed);
+                    
+                    result.AllExercises = exerciseStats;
+                    
+                    // Get top 5 most recently performed exercises
+                    result.TopExercises = exerciseStats
+                        .OrderByDescending(e => e.LastPerformed)
+                        .Take(5)
+                        .ToList();
+                    
+                    result.TotalSuccess = totalSuccess;
+                    result.TotalFailed = totalFailed;
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting optimized exercise status for user {UserId}", userId);
+                _logger.LogError(ex, "Error getting exercise status for user {UserId} with limit {Limit}", userId, limit);
+                // Initialize with empty data rather than failing
+                result.AllExercises = new List<ExerciseStatusViewModel>();
+                result.TopExercises = new List<ExerciseStatusViewModel>();
+                result.TotalSuccess = 0;
+                result.TotalFailed = 0;
             }
             
             return result;
