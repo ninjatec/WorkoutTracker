@@ -101,8 +101,8 @@ namespace WorkoutTrackerWeb.Models
         [NotMapped]
         public ICollection<WorkoutExercise> Exercises => WorkoutExercises;
         
-        // Collection navigation properties
-        public ICollection<WorkoutExercise> WorkoutExercises { get; set; } = new List<WorkoutExercise>();
+        // Collection navigation properties - making this virtual for better lazy loading and query filters
+        public virtual ICollection<WorkoutExercise> WorkoutExercises { get; set; } = new List<WorkoutExercise>();
         
         // Navigation to workout feedback
         public WorkoutTrackerWeb.Models.Coaching.WorkoutFeedback WorkoutFeedback { get; set; }

@@ -58,7 +58,8 @@ namespace WorkoutTrackerWeb.Models.Coaching
         public User Client { get; set; }
         
         // Navigation to per-exercise feedback
-        public ICollection<ExerciseFeedback> ExerciseFeedbacks { get; set; } = new List<ExerciseFeedback>();
+        // Making this virtual to optimize lazy loading behavior
+        public virtual ICollection<ExerciseFeedback> ExerciseFeedbacks { get; set; } = new List<ExerciseFeedback>();
     }
     
     /// <summary>
@@ -93,7 +94,10 @@ namespace WorkoutTrackerWeb.Models.Coaching
         public string Comments { get; set; }
         
         // Navigation properties
-        public WorkoutFeedback WorkoutFeedback { get; set; }
+        [ForeignKey("WorkoutFeedbackId")]
+        public virtual WorkoutFeedback WorkoutFeedback { get; set; }
+        
+        [ForeignKey("WorkoutSetId")]
         public WorkoutSet WorkoutSet { get; set; }
     }
 }

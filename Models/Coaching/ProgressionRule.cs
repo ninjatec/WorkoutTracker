@@ -71,7 +71,10 @@ namespace WorkoutTrackerWeb.Models.Coaching
         public DateTime LastModifiedDate { get; set; } = DateTime.Now;
         
         // Navigation properties
+        [ForeignKey("WorkoutTemplateExerciseId")]
         public WorkoutTemplateExercise WorkoutTemplateExercise { get; set; }
+        
+        [ForeignKey("WorkoutTemplateSetId")]
         public WorkoutTemplateSet WorkoutTemplateSet { get; set; }
         
         [ForeignKey("ClientUserId")]
@@ -80,8 +83,8 @@ namespace WorkoutTrackerWeb.Models.Coaching
         [ForeignKey("CoachUserId")]
         public User Coach { get; set; }
         
-        // Navigation to progression history
-        public ICollection<ProgressionHistory> ProgressionHistory { get; set; } = new List<ProgressionHistory>();
+        // Navigation to progression history - making this virtual for better lazy loading
+        public virtual ICollection<ProgressionHistory> ProgressionHistory { get; set; } = new List<ProgressionHistory>();
 
         public bool CanApplyToWorkout(WorkoutSession session)
         {
@@ -144,7 +147,8 @@ namespace WorkoutTrackerWeb.Models.Coaching
         public bool CoachOverride { get; set; } = false;
         
         // Navigation properties
-        public ProgressionRule ProgressionRule { get; set; }
+        [ForeignKey("ProgressionRuleId")]
+        public virtual ProgressionRule ProgressionRule { get; set; }
         
         [ForeignKey("WorkoutSessionId")]
         public WorkoutSession WorkoutSession { get; set; }

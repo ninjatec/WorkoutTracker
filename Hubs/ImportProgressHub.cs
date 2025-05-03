@@ -73,8 +73,8 @@ namespace WorkoutTrackerWeb.Hubs
             string groupName = $"job_{jobId}";
             await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
             
-            // Acknowledge registration success
-            await Clients.Caller.SendAsync("jobRegistrationStatus", new { success = true, jobId, message = "Successfully registered for job updates" });
+            // Acknowledge registration success - FIXED: match casing with client-side handler
+            await Clients.Caller.SendAsync("jobregistrationstatus", new { success = true, jobId, message = "Successfully registered for job updates" });
         }
         
         // Method to leave all job groups (called during reconnection to clean up)
@@ -102,8 +102,8 @@ namespace WorkoutTrackerWeb.Hubs
             _logger.LogInformation("Client connected: {ConnectionId}", Context.ConnectionId);
             
             // Notify the client that the connection is established
-            // Use exactly this casing for consistency with client-side handlers
-            await Clients.Caller.SendAsync("connectionStatus", new { isConnected = true, connectionId = Context.ConnectionId });
+            // FIXED: match casing with client-side handler
+            await Clients.Caller.SendAsync("connectionstatus", new { isConnected = true, connectionId = Context.ConnectionId });
             
             await base.OnConnectedAsync();
         }
