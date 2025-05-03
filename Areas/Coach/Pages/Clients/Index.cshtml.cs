@@ -253,15 +253,15 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                     .Join(_context.ClientGroups,
                         m => m.ClientGroupId,
                         g => g.Id,
-                        (m, g) => g.Name)
+                        (m, g) => g.Name ?? "Unnamed Group") // Handle nulls with default value
                     .FirstOrDefaultAsync();
 
-                return groupMembership;
+                return groupMembership ?? string.Empty; // Ensure we return empty string not null
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting group name for relationship {RelationshipId}", relationshipId);
-                return null;
+                return string.Empty; // Return empty string instead of null
             }
         }
 

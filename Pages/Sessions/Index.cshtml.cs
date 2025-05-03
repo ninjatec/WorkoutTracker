@@ -61,14 +61,14 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 // Apply search filter if any
                 if (!String.IsNullOrEmpty(searchString))
                 {
-                    query = query.Where(ws => ws.Name.Contains(searchString));
+                    query = query.Where(ws => ws.Name != null && ws.Name.Contains(searchString));
                 }
 
                 // Apply sorting
                 query = sortOrder switch
                 {
-                    "name" => query.OrderBy(ws => ws.Name),
-                    "name_desc" => query.OrderByDescending(ws => ws.Name),
+                    "name" => query.OrderBy(ws => ws.Name == null ? string.Empty : ws.Name),
+                    "name_desc" => query.OrderByDescending(ws => ws.Name == null ? string.Empty : ws.Name),
                     "date_asc" => query.OrderBy(ws => ws.StartDateTime),
                     _ => query.OrderByDescending(ws => ws.StartDateTime)
                 };

@@ -311,17 +311,27 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Users
             };
 
             // Get the user's workout session count
-            // Use string comparison for UserId
-            SessionCount = await _context.WorkoutSessions
-                .CountAsync(s => s.UserId.ToString().Equals(user.Id));
-
-            // Get the user's last active time (last session date)
-            var lastSession = await _context.WorkoutSessions
-                .Where(s => s.UserId.ToString().Equals(user.Id))
-                .OrderByDescending(s => s.StartDateTime)
-                .FirstOrDefaultAsync();
+            // Get the User record for this identity user first
+            var userRecord = await _context.User.FirstOrDefaultAsync(u => u.IdentityUserId == user.Id);
+            
+            if (userRecord != null)
+            {
+                SessionCount = await _context.WorkoutSessions
+                    .CountAsync(s => s.UserId == userRecord.UserId);
                 
-            LastActive = lastSession?.StartDateTime;
+                // Get the user's last active time (last session date)
+                var lastSession = await _context.WorkoutSessions
+                    .Where(s => s.UserId == userRecord.UserId)
+                    .OrderByDescending(s => s.StartDateTime)
+                    .FirstOrDefaultAsync();
+                    
+                LastActive = lastSession?.StartDateTime;
+            }
+            else
+            {
+                SessionCount = 0;
+                LastActive = null;
+            }
         }
 
         private async Task LoadAvailableRolesAsync()
