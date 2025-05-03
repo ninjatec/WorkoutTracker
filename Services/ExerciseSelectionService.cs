@@ -509,8 +509,8 @@ namespace WorkoutTrackerWeb.Services
             searchTerm = searchTerm.Trim().ToLower();
 
             return await context.ExerciseType
-                .Where(e => e.Name.ToLower().Contains(searchTerm) || 
-                           (e.Description != null && e.Description.ToLower().Contains(searchTerm)))
+                .Where(e => e.Name != null && e.Name.ToLower().Contains(searchTerm) || 
+                           e.Description != null && e.Description.ToLower().Contains(searchTerm))
                 .Take(20)
                 .ToListAsync();
         }

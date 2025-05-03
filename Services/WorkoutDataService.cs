@@ -25,14 +25,57 @@ namespace WorkoutTrackerWeb.Services
 
         public async Task<List<WorkoutSession>> GetUserSessionsAsync(int userId)
         {
-            return await _context.WorkoutSessions
+            var workoutSessions = await _context.WorkoutSessions
+                .Where(ws => ws.UserId == userId)
+                .OrderByDescending(ws => ws.StartDateTime)
                 .Include(ws => ws.WorkoutExercises)
                     .ThenInclude(we => we.ExerciseType)
                 .Include(ws => ws.WorkoutExercises)
                     .ThenInclude(we => we.WorkoutSets)
-                .Where(ws => ws.UserId == userId)
-                .OrderByDescending(ws => ws.StartDateTime)
-                .ToListAsync();
+                .AsNoTracking()
+                .ToListAsync();  // Load data into memory first
+
+            // Process in memory to avoid SQL null issues
+            var processedSessions = workoutSessions
+                .Select(ws => new WorkoutSession
+                {
+                    WorkoutSessionId = ws.WorkoutSessionId,
+                    Name = ws.Name ?? "Unnamed Session",
+                    UserId = ws.UserId,
+                    StartDateTime = ws.StartDateTime,
+                    Duration = ws.Duration,
+                    CaloriesBurned = ws.CaloriesBurned,
+                    Notes = ws.Notes ?? string.Empty,
+                    WorkoutExercises = ws.WorkoutExercises?
+                        .Where(we => we.ExerciseType?.Name != null)
+                        .Select(we => new WorkoutExercise
+                        {
+                            WorkoutExerciseId = we.WorkoutExerciseId,
+                            ExerciseTypeId = we.ExerciseTypeId,
+                            WorkoutSessionId = we.WorkoutSessionId,
+                            ExerciseType = we.ExerciseType != null ? new ExerciseType
+                            {
+                                ExerciseTypeId = we.ExerciseType.ExerciseTypeId,
+                                Name = we.ExerciseType.Name ?? "Unknown Exercise",
+                                Description = we.ExerciseType.Description ?? string.Empty,
+                                Type = we.ExerciseType.Type ?? string.Empty,
+                                Muscle = we.ExerciseType.Muscle ?? string.Empty,
+                                Equipment = we.ExerciseType.Equipment ?? string.Empty,
+                                Difficulty = we.ExerciseType.Difficulty ?? string.Empty
+                            } : null,
+                            WorkoutSets = we.WorkoutSets?.Select(s => new WorkoutSet
+                            {
+                                WorkoutSetId = s.WorkoutSetId,
+                                WorkoutExerciseId = s.WorkoutExerciseId,
+                                Reps = s.Reps,
+                                Weight = s.Weight,
+                                IsCompleted = s.IsCompleted
+                            }).ToList() ?? new List<WorkoutSet>()
+                        }).ToList() ?? new List<WorkoutExercise>()
+                })
+                .ToList();
+
+            return processedSessions;
         }
 
         public async Task<Dictionary<string, int>> GetUserMetricsAsync(int userId, DateTime startDate)

@@ -60,16 +60,52 @@ namespace WorkoutTrackerWeb.Controllers
             }
 
             // Get all sessions for the user
-            var sessions = await _context.WorkoutSessions
-                .Include(ws => ws.WorkoutExercises)
-                    .ThenInclude(we => we.WorkoutSets)
+            var workoutSessions = await _context.WorkoutSessions
                 .Include(ws => ws.WorkoutExercises)
                     .ThenInclude(we => we.ExerciseType)
+                .Include(ws => ws.WorkoutExercises)
+                    .ThenInclude(we => we.WorkoutSets)
                 .Where(ws => ws.UserId == validationResponse.ShareToken.UserId)
-                .OrderByDescending(ws => ws.StartDateTime)
+                .AsNoTracking()
                 .ToListAsync();
 
-            return Ok(sessions);
+            // Process in memory to avoid SQL null issues
+            var safeWorkoutSessions = workoutSessions
+                .Select(ws => new WorkoutSession
+                {
+                    WorkoutSessionId = ws.WorkoutSessionId,
+                    Name = ws.Name ?? "Unnamed Session",
+                    UserId = ws.UserId,
+                    StartDateTime = ws.StartDateTime,
+                    Duration = ws.Duration,
+                    CaloriesBurned = ws.CaloriesBurned,
+                    Notes = ws.Notes ?? string.Empty,
+                    WorkoutExercises = ws.WorkoutExercises?
+                        .Where(we => we.ExerciseType?.Name != null)
+                        .Select(we => new WorkoutExercise
+                        {
+                            WorkoutExerciseId = we.WorkoutExerciseId,
+                            ExerciseTypeId = we.ExerciseTypeId,
+                            WorkoutSessionId = we.WorkoutSessionId,
+                            ExerciseType = we.ExerciseType != null ? new ExerciseType
+                            {
+                                ExerciseTypeId = we.ExerciseType.ExerciseTypeId,
+                                Name = we.ExerciseType.Name ?? "Unknown Exercise",
+                                Description = we.ExerciseType.Description ?? string.Empty
+                            } : null,
+                            WorkoutSets = we.WorkoutSets?.Select(ws => new WorkoutSet
+                            {
+                                WorkoutSetId = ws.WorkoutSetId,
+                                WorkoutExerciseId = ws.WorkoutExerciseId,
+                                Reps = ws.Reps,
+                                Weight = ws.Weight,
+                                IsCompleted = ws.IsCompleted
+                            }).ToList() ?? new List<WorkoutSet>()
+                        }).ToList() ?? new List<WorkoutExercise>()
+                })
+                .ToList();
+
+            return Ok(safeWorkoutSessions);
         }
 
         [HttpGet("sessions/{id}")]

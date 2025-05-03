@@ -36,6 +36,9 @@ namespace WorkoutTrackerWeb.Models
         [Display(Name = "Duration (minutes)")]
         public int Duration { get; set; }
         
+        [Display(Name = "Calories Burned")]
+        public decimal? CaloriesBurned { get; set; }
+        
         [Display(Name = "Is Completed")]
         public bool IsCompleted { get; set; }
         

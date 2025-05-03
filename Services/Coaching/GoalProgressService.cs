@@ -214,14 +214,18 @@ namespace WorkoutTrackerWeb.Services.Coaching
             {
                 var workouts = await _context.WorkoutSessions
                     .Include(ws => ws.WorkoutExercises)
-                        .ThenInclude(we => we.WorkoutSets)
-                    .Where(ws => ws.UserId == userId && 
-                               ws.StartDateTime >= startDate && 
-                               ws.StartDateTime <= endDate)
-                    .ToListAsync();
+                    .Where(ws => ws.UserId == userId && ws.StartDateTime >= startDate && 
+                                 ws.StartDateTime <= endDate)
+                    .AsNoTracking()
+                    .ToListAsync();  // Load into memory first to avoid SQL null issues
+                
+                // Process in-memory to avoid SQL null issues
+                var validWorkouts = workouts
+                    .Where(ws => ws.WorkoutExercises != null && ws.WorkoutExercises.Any())
+                    .ToList();
 
                 decimal totalVolume = 0;
-                foreach (var workout in workouts)
+                foreach (var workout in validWorkouts)
                 {
                     foreach (var exercise in workout.WorkoutExercises)
                     {
@@ -254,18 +258,25 @@ namespace WorkoutTrackerWeb.Services.Coaching
                     .Where(ws => ws.UserId == userId && 
                                ws.StartDateTime >= startDate && 
                                ws.StartDateTime <= endDate)
+                    .AsNoTracking()
+                    .ToListAsync(); // Get data first to avoid SQL null issues
+
+                // Process in memory
+                var validSets = sets
+                    .Where(ws => ws.WorkoutExercises != null && ws.WorkoutExercises.Any(we => 
+                        we.ExerciseType != null && we.ExerciseType.Name != null && 
+                        we.ExerciseType.Name.Equals(exerciseTypeId.ToString(), StringComparison.OrdinalIgnoreCase)))
                     .SelectMany(ws => ws.WorkoutExercises)
-                    .Where(we => we.ExerciseTypeId == exerciseTypeId)
                     .SelectMany(we => we.WorkoutSets)
                     .Where(s => s.Weight.HasValue)
-                    .ToListAsync();
+                    .ToList();
 
-                if (!sets.Any())
+                if (!validSets.Any())
                 {
                     return 0;
                 }
 
-                return sets.Average(s => s.Weight.Value);
+                return validSets.Average(s => s.Weight.Value);
             }
             catch (Exception ex)
             {
@@ -300,13 +311,20 @@ namespace WorkoutTrackerWeb.Services.Coaching
                     .Where(ws => ws.UserId == userId && 
                                ws.StartDateTime >= startDate && 
                                ws.StartDateTime <= endDate)
+                    .AsNoTracking()
+                    .ToListAsync(); // Get data first to avoid SQL null issues
+
+                // Process in memory
+                var validSets = maxWeight
+                    .Where(ws => ws.WorkoutExercises != null && ws.WorkoutExercises.Any(we => 
+                        we.ExerciseType != null && we.ExerciseType.Name != null && 
+                        we.ExerciseType.Name.Equals(exerciseTypeId.ToString(), StringComparison.OrdinalIgnoreCase)))
                     .SelectMany(ws => ws.WorkoutExercises)
-                    .Where(we => we.ExerciseTypeId == exerciseTypeId)
                     .SelectMany(we => we.WorkoutSets)
                     .Where(s => s.Weight.HasValue)
-                    .MaxAsync(s => (decimal?)s.Weight) ?? 0;
+                    .Max(s => (decimal?)s.Weight) ?? 0;
 
-                return maxWeight;
+                return validSets;
             }
             catch (Exception ex)
             {
@@ -319,20 +337,23 @@ namespace WorkoutTrackerWeb.Services.Coaching
         {
             try
             {
-                var query = _context.WorkoutSessions
+                var workouts = await _context.WorkoutSessions
                     .Include(ws => ws.WorkoutExercises)
                         .ThenInclude(we => we.WorkoutSets)
                     .Where(ws => ws.UserId == userId && 
                                ws.StartDateTime >= startDate && 
                                ws.StartDateTime <= endDate)
-                    .SelectMany(ws => ws.WorkoutExercises);
+                    .AsNoTracking()
+                    .ToListAsync(); // Get data first to avoid SQL null issues
 
-                if (exerciseTypeId.HasValue)
-                {
-                    query = query.Where(we => we.ExerciseTypeId == exerciseTypeId.Value);
-                }
-
-                return await query.SelectMany(we => we.WorkoutSets).CountAsync();
+                // Process in memory
+                return workouts
+                    .Where(ws => ws.WorkoutExercises != null && ws.WorkoutExercises.Any(we => 
+                        exerciseTypeId == null || (we.ExerciseType != null && we.ExerciseType.Name != null && 
+                        we.ExerciseType.Name.Equals(exerciseTypeId.ToString(), StringComparison.OrdinalIgnoreCase))))
+                    .SelectMany(ws => ws.WorkoutExercises)
+                    .SelectMany(we => we.WorkoutSets)
+                    .Count();
             }
             catch (Exception ex)
             {
@@ -345,25 +366,24 @@ namespace WorkoutTrackerWeb.Services.Coaching
         {
             try
             {
-                var query = _context.WorkoutSessions
+                var workouts = await _context.WorkoutSessions
                     .Include(ws => ws.WorkoutExercises)
                         .ThenInclude(we => we.WorkoutSets)
                     .Where(ws => ws.UserId == userId && 
                                ws.StartDateTime >= startDate && 
                                ws.StartDateTime <= endDate)
-                    .SelectMany(ws => ws.WorkoutExercises);
+                    .AsNoTracking()
+                    .ToListAsync(); // Get data first to avoid SQL null issues
 
-                if (exerciseTypeId.HasValue)
-                {
-                    query = query.Where(we => we.ExerciseTypeId == exerciseTypeId.Value);
-                }
-
-                var totalReps = await query
+                // Process in memory
+                return workouts
+                    .Where(ws => ws.WorkoutExercises != null && ws.WorkoutExercises.Any(we => 
+                        exerciseTypeId == null || (we.ExerciseType != null && we.ExerciseType.Name != null && 
+                        we.ExerciseType.Name.Equals(exerciseTypeId.ToString(), StringComparison.OrdinalIgnoreCase))))
+                    .SelectMany(ws => ws.WorkoutExercises)
                     .SelectMany(we => we.WorkoutSets)
                     .Where(s => s.Reps.HasValue)
-                    .SumAsync(s => s.Reps.Value);
-
-                return totalReps;
+                    .Sum(s => s.Reps.Value);
             }
             catch (Exception ex)
             {

@@ -312,7 +312,8 @@ namespace WorkoutTrackerWeb.Pages.Reports
                                 ws.WorkoutExercise.WorkoutSession != null && 
                                 ws.WorkoutExercise.WorkoutSession.UserId == user.UserId && 
                                 ws.WorkoutExercise.WorkoutSession.StartDateTime >= reportPeriodDate &&
-                                ws.WorkoutExercise.ExerciseType != null)
+                                ws.WorkoutExercise.ExerciseType != null &&
+                                ws.WorkoutExercise.ExerciseType.Name != null) // Added null check for Name
                     .AsNoTracking()
                     .ToListAsync();
 
