@@ -71,19 +71,24 @@ namespace WorkoutTrackerWeb.Services.Reports
         Task<PagedResult<PersonalRecord>> GetPersonalRecordsAsync(int userId, int page, int pageSize);
 
         /// <summary>
-        /// Gets weight progress for exercises
+        /// Gets weight progress for exercises with optimized performance for large datasets
         /// </summary>
-        Task<List<ExerciseWeightProgress>> GetWeightProgressAsync(int userId, int days);
+        Task<List<ExerciseWeightProgress>> GetWeightProgressAsync(int userId, int days, int limit = 5);
 
         /// <summary>
-        /// Gets exercise status for a user
+        /// Gets exercise status for a user with optimized performance for large datasets
         /// </summary>
-        Task<ExerciseStatusResult> GetExerciseStatusAsync(int userId, int days);
+        Task<ExerciseStatusResult> GetExerciseStatusAsync(int userId, int days, int limit = 10);
 
         /// <summary>
         /// Gets all exercise types
         /// </summary>
         Task<List<string>> GetExerciseTypesAsync();
+
+        /// <summary>
+        /// Gets key user metrics for dashboard with optimized performance
+        /// </summary>
+        Task<object> GetUserMetricsAsync(int userId, int days);
     }
 
     /// <summary>
@@ -110,10 +115,10 @@ namespace WorkoutTrackerWeb.Services.Reports
     /// </summary>
     public class PagedResult<T>
     {
-        public List<T> Records { get; set; } = new List<T>();
-        public int TotalPages { get; set; }
         public int CurrentPage { get; set; }
+        public int TotalPages { get; set; }
         public int TotalItems { get; set; }
+        public List<T> Records { get; set; } = new List<T>();
     }
 
     /// <summary>

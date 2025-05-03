@@ -25,7 +25,6 @@ namespace WorkoutTrackerWeb.Services.Reports
 
         public async Task<ReportsData> GetReportsDataAsync(int userId, int period = 90, int pageNumber = 1)
         {
-            // This is the legacy method - now we'll call the new methods
             var result = new ReportsData
             {
                 CurrentPage = pageNumber
@@ -33,12 +32,10 @@ namespace WorkoutTrackerWeb.Services.Reports
 
             try
             {
-                // Get personal records
                 var prData = await GetPersonalRecordsAsync(userId, pageNumber, 10);
                 result.PersonalRecords = prData.Records;
                 result.TotalPages = prData.TotalPages;
 
-                // Get exercise status
                 var statusData = await GetExerciseStatusAsync(userId, period);
                 result.ExerciseStatusList = statusData.AllExercises.Select(e => new ExerciseStatus
                 {
@@ -57,16 +54,13 @@ namespace WorkoutTrackerWeb.Services.Reports
                 result.SuccessReps = statusData.TotalSuccess;
                 result.FailedReps = statusData.TotalFailed;
                 
-                // Calculate totals
                 result.TotalReps = result.SuccessReps + result.FailedReps;
                 
-                // Get the total workout sessions in the period
                 var startDate = DateTime.UtcNow.AddDays(-period);
                 result.TotalSessions = await _context.WorkoutSessions
                     .Where(s => s.UserId == userId && s.StartDateTime >= startDate)
                     .CountAsync();
                 
-                // Get the total sets in the period
                 result.TotalSets = await _context.WorkoutExercises
                     .Where(e => e.WorkoutSession.UserId == userId && e.WorkoutSession.StartDateTime >= startDate)
                     .SelectMany(e => e.WorkoutSets)
@@ -84,7 +78,6 @@ namespace WorkoutTrackerWeb.Services.Reports
         {
             try
             {
-                // Using PrimaryMuscleGroup instead of MuscleGroup based on updated model
                 var distribution = await _context.WorkoutExercises
                     .Where(e => e.WorkoutSession != null && 
                                 e.WorkoutSession.UserId == userId && 
@@ -139,7 +132,6 @@ namespace WorkoutTrackerWeb.Services.Reports
         {
             try
             {
-                // Load the data first to handle null values in memory rather than in SQL
                 var exercises = await _context.WorkoutExercises
                     .Where(e => e.WorkoutSession != null && 
                                 e.WorkoutSession.UserId == userId && 
@@ -152,7 +144,6 @@ namespace WorkoutTrackerWeb.Services.Reports
                     })
                     .ToListAsync();
                     
-                // Process in memory to avoid SQL NULL exceptions
                 return exercises
                     .Where(x => !string.IsNullOrEmpty(x.ExerciseName))
                     .GroupBy(x => x.ExerciseName)
@@ -193,7 +184,6 @@ namespace WorkoutTrackerWeb.Services.Reports
         {
             try
             {
-                // Calculate volume for each workout session since TotalVolume property doesn't exist
                 var volumeByDay = await _context.WorkoutSessions
                     .Where(s => s.UserId == userId && 
                                 s.StartDateTime >= startDate &&
@@ -202,7 +192,6 @@ namespace WorkoutTrackerWeb.Services.Reports
                     .Select(g => new
                     {
                         Date = g.Key,
-                        // Calculate volume as sum of weight * reps across all exercises and sets
                         Volume = g.SelectMany(s => s.WorkoutExercises)
                                   .SelectMany(e => e.WorkoutSets)
                                   .Sum(s => (s.Weight ?? 0) * (s.Reps ?? 0))
@@ -233,7 +222,6 @@ namespace WorkoutTrackerWeb.Services.Reports
                     .Select(g => new
                     {
                         MuscleGroup = g.Key,
-                        // Calculate volume as sum of weight * reps across all sets
                         Volume = g.SelectMany(e => e.WorkoutSets)
                                  .Sum(s => (s.Weight ?? 0) * (s.Reps ?? 0))
                     })
@@ -304,7 +292,6 @@ namespace WorkoutTrackerWeb.Services.Reports
                     })
                     .ToDictionaryAsync(x => (int)x.DayOfWeek, x => x.Count);
                 
-                // Convert day numbers to day names
                 var result = new Dictionary<string, int>();
                 foreach (var kvp in workoutsByDay)
                 {
@@ -354,11 +341,8 @@ namespace WorkoutTrackerWeb.Services.Reports
             
             try
             {
-                // Calculate skip for pagination
                 var skip = (page - 1) * pageSize;
                 
-                // Query for personal records from workout sets with explicit null checks
-                // Since there's no IsPersonalRecord property, get the max weight for each exercise
                 var personalRecords = await _context.WorkoutSets
                     .Where(s => s.WorkoutExercise != null && 
                                s.WorkoutExercise.WorkoutSession != null &&
@@ -383,7 +367,6 @@ namespace WorkoutTrackerWeb.Services.Reports
                     })
                     .ToListAsync();
                 
-                // Get total count for pagination with same null checks
                 var totalCount = await _context.WorkoutSets
                     .Where(s => s.WorkoutExercise != null && 
                                s.WorkoutExercise.WorkoutSession != null &&
@@ -391,7 +374,6 @@ namespace WorkoutTrackerWeb.Services.Reports
                                s.IsCompleted && !s.IsWarmup)
                     .CountAsync();
                 
-                // Calculate total pages
                 result.TotalItems = totalCount;
                 result.TotalPages = (int)Math.Ceiling((double)totalCount / pageSize);
                 result.Records = personalRecords;
@@ -410,10 +392,8 @@ namespace WorkoutTrackerWeb.Services.Reports
             
             try
             {
-                // Calculate the start date based on the number of days
                 var startDate = DateTime.UtcNow.AddDays(-days);
                 
-                // Get exercise types that the user has performed
                 var exerciseTypeIds = await _context.WorkoutExercises
                     .Where(e => e.WorkoutSession != null && 
                            e.WorkoutSession.UserId == userId && 
@@ -424,15 +404,12 @@ namespace WorkoutTrackerWeb.Services.Reports
                     .Distinct()
                     .ToListAsync();
                 
-                // For each exercise type, get the weight progress
                 foreach (var exerciseTypeId in exerciseTypeIds)
                 {
                     var exerciseType = await _context.ExerciseType.FindAsync(exerciseTypeId);
                     
-                    // Skip if no exercise type or name is null
                     if (exerciseType == null || string.IsNullOrEmpty(exerciseType.Name)) continue;
                     
-                    // Get all sets for this exercise type with explicit null checking
                     var sets = await _context.WorkoutSets
                         .Where(s => s.WorkoutExercise != null &&
                                    s.WorkoutExercise.ExerciseType != null &&
@@ -440,7 +417,7 @@ namespace WorkoutTrackerWeb.Services.Reports
                                    s.WorkoutExercise.WorkoutSession != null &&
                                    s.WorkoutExercise.WorkoutSession.UserId == userId &&
                                    s.WorkoutExercise.WorkoutSession.StartDateTime >= startDate &&
-                                   s.Weight.HasValue) // Ensure weight is not null
+                                   s.Weight.HasValue)
                         .OrderBy(s => s.WorkoutExercise.WorkoutSession.StartDateTime)
                         .Select(s => new
                         {
@@ -451,10 +428,8 @@ namespace WorkoutTrackerWeb.Services.Reports
                         })
                         .ToListAsync();
                     
-                    // Skip if no sets
                     if (!sets.Any()) continue;
                     
-                    // Create progress points
                     var progressPoints = sets.Select(s => new WeightProgressPoint
                     {
                         Date = s.Date,
@@ -463,7 +438,6 @@ namespace WorkoutTrackerWeb.Services.Reports
                         WorkoutSessionId = s.WorkoutSessionId
                     }).ToList();
                     
-                    // Create exercise weight progress
                     var weightProgress = new ExerciseWeightProgress
                     {
                         ExerciseId = exerciseTypeId,
@@ -484,16 +458,207 @@ namespace WorkoutTrackerWeb.Services.Reports
             return result;
         }
         
+        public async Task<List<ExerciseWeightProgress>> GetWeightProgressAsync(int userId, int days, int limit = 5)
+        {
+            var result = new List<ExerciseWeightProgress>();
+            
+            try
+            {
+                var startDate = DateTime.UtcNow.AddDays(-days);
+                
+                var topExerciseIds = await _context.WorkoutExercises
+                    .Where(e => e.WorkoutSession != null && 
+                           e.WorkoutSession.UserId == userId && 
+                           e.WorkoutSession.StartDateTime >= startDate)
+                    .GroupBy(e => e.ExerciseTypeId)
+                    .OrderByDescending(g => g.Count())
+                    .Take(limit)
+                    .Select(g => g.Key)
+                    .ToListAsync();
+                
+                foreach (var exerciseTypeId in topExerciseIds)
+                {
+                    var exerciseType = await _context.ExerciseType.FindAsync(exerciseTypeId);
+                    
+                    if (exerciseType == null || string.IsNullOrEmpty(exerciseType.Name)) continue;
+                    
+                    var weightDataPoints = await _context.WorkoutSets
+                        .Where(s => s.WorkoutExercise != null &&
+                                   s.WorkoutExercise.ExerciseTypeId == exerciseTypeId && 
+                                   s.WorkoutExercise.WorkoutSession != null &&
+                                   s.WorkoutExercise.WorkoutSession.UserId == userId &&
+                                   s.WorkoutExercise.WorkoutSession.StartDateTime >= startDate &&
+                                   s.Weight.HasValue)
+                        .GroupBy(s => s.WorkoutExercise.WorkoutSession.StartDateTime.Date)
+                        .OrderBy(g => g.Key)
+                        .Select(g => new
+                        {
+                            Date = g.Key,
+                            MaxWeight = g.Max(s => s.Weight.Value),
+                            MaxReps = g.Where(s => s.Weight == g.Max(s2 => s2.Weight)).Max(s => s.Reps ?? 0)
+                        })
+                        .ToListAsync();
+                    
+                    if (!weightDataPoints.Any()) continue;
+                    
+                    var progressPoints = weightDataPoints.Select(dp => new WeightProgressPoint
+                    {
+                        Date = dp.Date,
+                        Weight = dp.MaxWeight,
+                        Reps = dp.MaxReps,
+                        WorkoutSessionId = 0
+                    }).ToList();
+                    
+                    var weightProgress = new ExerciseWeightProgress
+                    {
+                        ExerciseId = exerciseTypeId,
+                        ExerciseName = exerciseType.Name,
+                        ProgressPoints = progressPoints,
+                        MaxWeight = progressPoints.Any() ? progressPoints.Max(p => p.Weight) : 0,
+                        MinWeight = progressPoints.Any() ? progressPoints.Min(p => p.Weight) : 0
+                    };
+                    
+                    result.Add(weightProgress);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting optimized weight progress for user {UserId}", userId);
+            }
+            
+            return result;
+        }
+
+        public async Task<ExerciseStatusResult> GetExerciseStatusAsync(int userId, int days, int limit = 10)
+        {
+            var result = new ExerciseStatusResult();
+            
+            try
+            {
+                var startDate = DateTime.UtcNow.AddDays(-days);
+                
+                var exerciseStats = await _context.WorkoutSets
+                    .Where(s => s.WorkoutExercise != null && 
+                                s.WorkoutExercise.WorkoutSession != null &&
+                                s.WorkoutExercise.WorkoutSession.UserId == userId && 
+                                s.WorkoutExercise.WorkoutSession.StartDateTime >= startDate &&
+                                s.WorkoutExercise.ExerciseType != null &&
+                                !string.IsNullOrEmpty(s.WorkoutExercise.ExerciseType.Name))
+                    .GroupBy(s => new
+                    {
+                        ExerciseId = s.WorkoutExercise.ExerciseTypeId,
+                        ExerciseName = s.WorkoutExercise.ExerciseType.Name
+                    })
+                    .Select(g => new
+                    {
+                        ExerciseId = g.Key.ExerciseId,
+                        ExerciseName = g.Key.ExerciseName,
+                        SuccessReps = g.Count(s => s.IsCompleted), 
+                        FailedReps = g.Count(s => !s.IsCompleted),
+                        LastPerformed = g.Max(s => s.WorkoutExercise.WorkoutSession.StartDateTime)
+                    })
+                    .OrderByDescending(e => e.SuccessReps + e.FailedReps)
+                    .Take(limit)
+                    .ToListAsync();
+                
+                result.AllExercises = exerciseStats.Select(e => new ExerciseStatusViewModel
+                {
+                    ExerciseId = e.ExerciseId,
+                    ExerciseName = e.ExerciseName ?? "Unknown Exercise",
+                    SuccessReps = e.SuccessReps,
+                    FailedReps = e.FailedReps,
+                    LastPerformed = e.LastPerformed
+                }).ToList();
+                
+                result.TopExercises = exerciseStats
+                    .OrderByDescending(e => e.LastPerformed)
+                    .Take(5)
+                    .Select(e => new ExerciseStatusViewModel
+                    {
+                        ExerciseId = e.ExerciseId,
+                        ExerciseName = e.ExerciseName ?? "Unknown Exercise",
+                        SuccessReps = e.SuccessReps,
+                        FailedReps = e.FailedReps,
+                        LastPerformed = e.LastPerformed
+                    })
+                    .ToList();
+                
+                result.TotalSuccess = result.AllExercises.Sum(e => e.SuccessReps);
+                result.TotalFailed = result.AllExercises.Sum(e => e.FailedReps);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting optimized exercise status for user {UserId}", userId);
+            }
+            
+            return result;
+        }
+
+        public async Task<object> GetUserMetricsAsync(int userId, int days)
+        {
+            try
+            {
+                var startDate = DateTime.UtcNow.AddDays(-days);
+                
+                var sessionCount = await _context.WorkoutSessions
+                    .Where(s => s.UserId == userId && s.StartDateTime >= startDate)
+                    .CountAsync();
+                    
+                var totalStats = await _context.WorkoutSets
+                    .Where(s => s.WorkoutExercise != null &&
+                               s.WorkoutExercise.WorkoutSession != null &&
+                               s.WorkoutExercise.WorkoutSession.UserId == userId && 
+                               s.WorkoutExercise.WorkoutSession.StartDateTime >= startDate)
+                    .GroupBy(_ => 1)
+                    .Select(g => new
+                    {
+                        TotalSets = g.Count(),
+                        TotalReps = g.Sum(s => s.Reps ?? 0),
+                        SuccessReps = g.Count(s => s.IsCompleted),
+                        FailedReps = g.Count(s => !s.IsCompleted)
+                    })
+                    .FirstOrDefaultAsync() ?? new { TotalSets = 0, TotalReps = 0, SuccessReps = 0, FailedReps = 0 };
+
+                var totalVolume = await _context.WorkoutSets
+                    .Where(s => s.WorkoutExercise != null &&
+                               s.WorkoutExercise.WorkoutSession != null &&
+                               s.WorkoutExercise.WorkoutSession.UserId == userId && 
+                               s.WorkoutExercise.WorkoutSession.StartDateTime >= startDate)
+                    .SumAsync(s => (s.Weight ?? 0) * (s.Reps ?? 0));
+                    
+                return new
+                {
+                    SessionCount = sessionCount,
+                    SetCount = totalStats.TotalSets,
+                    RepCount = totalStats.TotalReps,
+                    SuccessReps = totalStats.SuccessReps,
+                    FailedReps = totalStats.FailedReps,
+                    TotalVolume = totalVolume
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user metrics for user {UserId}", userId);
+                return new
+                {
+                    SessionCount = 0,
+                    SetCount = 0,
+                    RepCount = 0,
+                    SuccessReps = 0,
+                    FailedReps = 0,
+                    TotalVolume = 0m
+                };
+            }
+        }
+
         public async Task<ExerciseStatusResult> GetExerciseStatusAsync(int userId, int days)
         {
             var result = new ExerciseStatusResult();
             
             try
             {
-                // Calculate the start date based on the number of days
                 var startDate = DateTime.UtcNow.AddDays(-days);
                 
-                // Get exercise status by exerciseType with comprehensive null checking
                 var exerciseStats = await _context.WorkoutSets
                     .Where(s => s.WorkoutExercise != null && 
                                 s.WorkoutExercise.WorkoutSession != null &&
@@ -516,7 +681,6 @@ namespace WorkoutTrackerWeb.Services.Reports
                     })
                     .ToListAsync();
                 
-                // Convert to view models
                 result.AllExercises = exerciseStats.Select(e => new ExerciseStatusViewModel
                 {
                     ExerciseId = e.ExerciseId,
@@ -526,13 +690,11 @@ namespace WorkoutTrackerWeb.Services.Reports
                     LastPerformed = e.LastPerformed
                 }).ToList();
                 
-                // Get top 5 most recently used exercises
                 result.TopExercises = result.AllExercises
                     .OrderByDescending(e => e.LastPerformed)
                     .Take(5)
                     .ToList();
                 
-                // Calculate totals
                 result.TotalSuccess = result.AllExercises.Sum(e => e.SuccessReps);
                 result.TotalFailed = result.AllExercises.Sum(e => e.FailedReps);
             }
@@ -561,7 +723,6 @@ namespace WorkoutTrackerWeb.Services.Reports
         }
     }
     
-    // Model classes to support legacy code
     public class ExerciseStatus 
     {
         public int ExerciseId { get; set; }

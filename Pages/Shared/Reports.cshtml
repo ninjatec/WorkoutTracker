@@ -112,7 +112,7 @@
                             <span class="sr-only">Loading...</span>
                         </div>
                     </div>
-                    <canvas id="weightProgressChart"></canvas>
+                    <canvas id="weightProgressChart" style="display: none;"></canvas>
                 </div>
             </div>
         </div>
@@ -130,48 +130,36 @@
                             <span class="sr-only">Loading...</span>
                         </div>
                     </div>
-                    <canvas id="overallChart"></canvas>
+                    <canvas id="overallChart" style="display: none;"></canvas>
                 </div>
             </div>
         </div>
         <div class="col-md-6">
-            <div class="card">
+            <div class="card" id="exerciseStatusContainer" data-loading="true" style="min-height: 450px;">
                 <div class="card-header">
                     <h5>Success Rate by Exercise Type (Last @reportPeriod Days)</h5>
                 </div>
                 <div class="card-body" style="max-height: 400px; overflow-y: auto;">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Exercise</th>
-                                <th>Successful</th>
-                                <th>Failed</th>
-                                <th>Success Rate</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (Model.ExerciseStatusList != null && Model.ExerciseStatusList.Any())
-                            {
-                                @foreach (var exercise in Model.ExerciseStatusList)
-                                {
-                                    var total = exercise.SuccessfulReps + exercise.FailedReps;
-                                    var successRate = total > 0 ? (double)exercise.SuccessfulReps / total * 100 : 0;
-                                    <tr>
-                                        <td>@exercise.ExerciseName</td>
-                                        <td>@exercise.SuccessfulReps</td>
-                                        <td>@exercise.FailedReps</td>
-                                        <td>@successRate.ToString("F1")%</td>
-                                    </tr>
-                                }
-                            }
-                            else
-                            {
+                    <div class="text-center loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                    </div>
+                    <div id="exerciseStatusContent" style="display: none;">
+                        <table class="table table-striped">
+                            <thead>
                                 <tr>
-                                    <td colspan="4" class="text-center">No exercise data available.</td>
+                                    <th>Exercise</th>
+                                    <th>Successful</th>
+                                    <th>Failed</th>
+                                    <th>Success Rate</th>
                                 </tr>
-                            }
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody id="exerciseStatusTable">
+                                <!-- Will be filled asynchronously -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -203,279 +191,404 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.0/dist/chartjs-adapter-moment.min.js"></script>
     
     <script>
+        // Store global charts for reference
+        const charts = {};
+        const chartContainers = {};
+
         document.addEventListener('DOMContentLoaded', function() {
-            createWeightProgressChart();
-            createOverallChart();
-            createExerciseChart();
+            // Initialize containers for all charts
+            chartContainers.weightProgress = document.getElementById('weightProgressContainer');
+            chartContainers.overall = document.getElementById('overallChartContainer');
+            chartContainers.exercise = document.getElementById('exerciseChartContainer');
+            chartContainers.exerciseStatus = document.getElementById('exerciseStatusContainer');
+
+            // Load data asynchronously
+            loadWeightProgressChart();
+            loadExerciseStatusData();
+            loadOverallChartData();
         });
 
-        function createWeightProgressChart() {
-            const ctx = document.getElementById('weightProgressChart');
-            const spinner = ctx.parentElement.querySelector('.loading-spinner');
-            
-            spinner.style.display = 'block';
-            ctx.style.display = 'none';
-
-            const datasets = [];
-            const colors = [
-                '#4CAF50', '#2196F3', '#F44336', '#FF9800', '#9C27B0', 
-                '#795548', '#607D8B', '#E91E63', '#FFEB3B', '#009688'
-            ];
-            
-            @if (Model.WeightProgressList != null)
-            {
-                for (int i = 0; i < Model.WeightProgressList.Count; i++)
-                {
-                    var exercise = Model.WeightProgressList[i];
-                    var colorIndex = i % 10;
-                    
-                    var formattedDates = new List<string>();
-                    var formattedWeights = new List<string>();
-                    
-                    for (int j = 0; j < exercise.Dates.Count; j++)
-                    {
-                        formattedDates.Add("'" + exercise.Dates[j].ToString("yyyy-MM-dd") + "'");
-                        formattedWeights.Add(exercise.Weights[j].ToString());
-                    }
-                    
-                    var datesString = string.Join(",", formattedDates);
-                    var weightsString = string.Join(",", formattedWeights);
-                    
-                    @:const dates@(i) = [@Html.Raw(datesString)];
-                    @:const weights@(i) = [@Html.Raw(weightsString)];
-                    @:datasets.push({
-                    @:    label: '@Html.Raw(exercise.ExerciseName)',
-                    @:    data: weights@(i).map(function(weight, index) { return { x: dates@(i)[index], y: weight }; }),
-                    @:    borderColor: colors[@colorIndex],
-                    @:    backgroundColor: colors[@colorIndex] + '33',
-                    @:    fill: false,
-                    @:    borderWidth: 2,
-                    @:    tension: 0.1,
-                    @:    pointRadius: 4
-                    @:});
-                }
+        // Helper function to show loading spinner
+        function showSpinner(container) {
+            const spinner = container.querySelector('.loading-spinner');
+            if (spinner) {
+                spinner.style.display = 'block';
             }
+        }
 
-            const chart = new Chart(ctx, {
-                type: 'line',
-                data: { datasets },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: {
-                        duration: 0
-                    },
-                    interaction: {
-                        mode: 'nearest',
-                        axis: 'x',
-                        intersect: false
-                    },
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: {
-                                unit: 'day',
-                                tooltipFormat: 'MMM D, YYYY',
-                                displayFormats: {
-                                    day: 'MMM D'
-                                }
-                            },
-                            title: {
-                                display: true,
-                                text: 'Date'
-                            }
+        // Helper function to hide loading spinner
+        function hideSpinner(container) {
+            const spinner = container.querySelector('.loading-spinner');
+            if (spinner) {
+                spinner.style.display = 'none';
+            }
+        }
+
+        // Helper function to show content
+        function showContent(container, contentId) {
+            const content = container.querySelector(contentId);
+            if (content) {
+                content.style.display = 'block';
+            }
+        }
+
+        // Async functions to load data and create charts
+        async function loadWeightProgressChart() {
+            const container = chartContainers.weightProgress;
+            const canvas = document.getElementById('weightProgressChart');
+            const period = @reportPeriod;
+            
+            showSpinner(container);
+            
+            try {
+                // Fetch data from API
+                const response = await fetch(`/api/ReportsApi/weight-progress?days=${period}&limit=5`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch weight progress data');
+                }
+                
+                const data = await response.json();
+                
+                // Prepare chart datasets
+                const datasets = [];
+                const colors = [
+                    '#4CAF50', '#2196F3', '#F44336', '#FF9800', '#9C27B0', 
+                    '#795548', '#607D8B', '#E91E63', '#FFEB3B', '#009688'
+                ];
+
+                data.forEach((exercise, index) => {
+                    const colorIndex = index % colors.length;
+                    const points = exercise.progressPoints.map(point => ({
+                        x: point.date,
+                        y: point.weight
+                    }));
+                    
+                    datasets.push({
+                        label: exercise.exerciseName,
+                        data: points,
+                        borderColor: colors[colorIndex],
+                        backgroundColor: colors[colorIndex] + '33',
+                        fill: false,
+                        borderWidth: 2,
+                        tension: 0.1,
+                        pointRadius: 4
+                    });
+                });
+
+                // Create chart
+                charts.weightProgress = new Chart(canvas, {
+                    type: 'line',
+                    data: { datasets },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 0
                         },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Weight (kg)'
-                            },
-                            beginAtZero: true
-                        }
-                    },
-                    plugins: {
-                        tooltip: {
-                            enabled: true,
+                        interaction: {
                             mode: 'nearest',
-                            intersect: false,
-                            callbacks: {
-                                title: function(context) { return moment(context[0].raw.x).format('MMMM D, YYYY'); },
-                                label: function(context) { return context.dataset.label + ': ' + context.raw.y + ' kg'; }
+                            axis: 'x',
+                            intersect: false
+                        },
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: {
+                                    unit: 'day',
+                                    tooltipFormat: 'MMM D, YYYY',
+                                    displayFormats: {
+                                        day: 'MMM D'
+                                    }
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Date'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Weight (kg)'
+                                },
+                                beginAtZero: true
                             }
                         },
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                boxWidth: 12,
-                                usePointStyle: true
-                            }
-                        }
-                    }
-                }
-            });
-
-            spinner.style.display = 'none';
-            ctx.style.display = 'block';
-        }
-
-        function createOverallChart() {
-            const ctx = document.getElementById('overallChart');
-            const spinner = ctx.parentElement.querySelector('.loading-spinner');
-            
-            spinner.style.display = 'block';
-            ctx.style.display = 'none';
-
-            const chart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Successful Reps', 'Failed Reps'],
-                    datasets: [{
-                        data: [@Model.SuccessReps, @Model.FailedReps],
-                        backgroundColor: ['#4caf50', '#f44336'],
-                        hoverBackgroundColor: ['#45a049', '#e53935']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: {
-                        duration: 0
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                boxWidth: 12,
-                                usePointStyle: true
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    var value = context.raw;
-                                    var total = @(Model.SuccessReps + Model.FailedReps);
-                                    var percentage = Math.round((value / total) * 100);
-                                    return context.label + ': ' + value + ' (' + percentage + '%)';
+                        plugins: {
+                            tooltip: {
+                                enabled: true,
+                                mode: 'nearest',
+                                intersect: false,
+                                callbacks: {
+                                    title: function(context) { return moment(context[0].raw.x).format('MMMM D, YYYY'); },
+                                    label: function(context) { return context.dataset.label + ': ' + context.raw.y + ' kg'; }
+                                }
+                            },
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    boxWidth: 12,
+                                    usePointStyle: true
                                 }
                             }
                         }
                     }
-                }
-            });
-
-            spinner.style.display = 'none';
-            ctx.style.display = 'block';
+                });
+                
+                hideSpinner(container);
+                canvas.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error loading weight progress chart:', error);
+                hideSpinner(container);
+                
+                // Show error message
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'alert alert-danger';
+                errorMsg.textContent = 'Failed to load weight progress data. Please try again later.';
+                canvas.parentNode.appendChild(errorMsg);
+            }
         }
 
-        function createExerciseChart() {
-            const ctx = document.getElementById('exerciseChart');
-            const spinner = ctx.parentElement.querySelector('.loading-spinner');
+        async function loadExerciseStatusData() {
+            const container = chartContainers.exerciseStatus;
+            const tableBody = document.getElementById('exerciseStatusTable');
+            const contentDiv = document.getElementById('exerciseStatusContent');
+            const period = @reportPeriod;
             
-            spinner.style.display = 'block';
-            ctx.style.display = 'none';
-
-            @if (Model.RecentExerciseStatusList != null && Model.RecentExerciseStatusList.Any())
-            {
-                var formattedExerciseNames = new List<string>();
-                var formattedSuccessData = new List<string>();
-                var formattedFailedData = new List<string>();
-                
-                foreach (var e in Model.RecentExerciseStatusList)
-                {
-                    formattedExerciseNames.Add("'" + e.ExerciseName + "'");
-                    formattedSuccessData.Add(e.SuccessfulReps.ToString());
-                    formattedFailedData.Add(e.FailedReps.ToString());
+            showSpinner(container);
+            
+            try {
+                // Fetch data from API
+                const response = await fetch(`/api/ReportsApi/exercise-status?days=${period}&limit=20`);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch exercise status data');
                 }
                 
-                var exerciseNamesString = string.Join(",", formattedExerciseNames);
-                var successDataString = string.Join(",", formattedSuccessData);
-                var failedDataString = string.Join(",", formattedFailedData);
+                const data = await response.json();
                 
-                @:const exerciseNames = [@Html.Raw(exerciseNamesString)];
-                @:const successData = [@Html.Raw(successDataString)];
-                @:const failedData = [@Html.Raw(failedDataString)];
+                // Clear existing table rows
+                tableBody.innerHTML = '';
                 
-                @:const chart = new Chart(ctx, {
-                @:    type: 'bar',
-                @:    data: {
-                @:        labels: exerciseNames,
-                @:        datasets: [
-                @:            {
-                @:                label: 'Successful Reps',
-                @:                data: successData,
-                @:                backgroundColor: '#4caf50',
-                @:            },
-                @:            {
-                @:                label: 'Failed Reps',
-                @:                data: failedData,
-                @:                backgroundColor: '#f44336',
-                @:            }
-                @:        ]
-                @:    },
-                @:    options: {
-                @:        responsive: true,
-                @:        maintainAspectRatio: false,
-                @:        animation: {
-                @:            duration: 0
-                @:        },
-                @:        scales: {
-                @:            x: {
-                @:                stacked: true,
-                @:                ticks: {
-                @:                    maxRotation: 45,
-                @:                    minRotation: 45
-                @:                }
-                @:            },
-                @:            y: {
-                @:                stacked: true,
-                @:                beginAtZero: true
-                @:            }
-                @:        },
-                @:        plugins: {
-                @:            legend: {
-                @:                position: 'top',
-                @:                labels: {
-                @:                    boxWidth: 12,
-                @:                    usePointStyle: true
-                @:                }
-                @:            }
-                @:        }
-                @:    }
-                @:});
+                if (!data.allExercises || data.allExercises.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td colspan="4" class="text-center">No exercise data available.</td>';
+                    tableBody.appendChild(row);
+                } else {
+                    // Create table rows
+                    data.allExercises.forEach(exercise => {
+                        const total = exercise.successReps + exercise.failedReps;
+                        const successRate = total > 0 ? (exercise.successReps / total * 100).toFixed(1) : '0.0';
+                        
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${exercise.exerciseName}</td>
+                            <td>${exercise.successReps}</td>
+                            <td>${exercise.failedReps}</td>
+                            <td>${successRate}%</td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                }
+                
+                // Now load the exercise chart with the same data
+                loadExerciseChart(data);
+                
+                // Create overall chart with the summary data
+                createOverallChart(data.totalSuccess, data.totalFailed);
+                
+                hideSpinner(container);
+                contentDiv.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error loading exercise status data:', error);
+                hideSpinner(container);
+                
+                // Show error message
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'alert alert-danger';
+                errorMsg.textContent = 'Failed to load exercise status data. Please try again later.';
+                contentDiv.parentNode.appendChild(errorMsg);
             }
-            else
-            {
-                @:// No data available, create empty chart
-                @:const chart = new Chart(ctx, {
-                @:    type: 'bar',
-                @:    data: {
-                @:        labels: ['No Data Available'],
-                @:        datasets: [
-                @:            {
-                @:                label: 'Successful Reps',
-                @:                data: [0],
-                @:                backgroundColor: '#4caf50',
-                @:            },
-                @:            {
-                @:                label: 'Failed Reps',
-                @:                data: [0],
-                @:                backgroundColor: '#f44336',
-                @:            }
-                @:        ]
-                @:    },
-                @:    options: {
-                @:        responsive: true,
-                @:        maintainAspectRatio: false,
-                @:        scales: {
-                @:            x: { stacked: true },
-                @:            y: { stacked: true, beginAtZero: true }
-                @:        }
-                @:    }
-                @:});
-            }
+        }
 
-            spinner.style.display = 'none';
-            ctx.style.display = 'block';
+        function createOverallChart(successReps, failedReps) {
+            const container = chartContainers.overall;
+            const canvas = document.getElementById('overallChart');
+            
+            showSpinner(container);
+            
+            try {
+                charts.overall = new Chart(canvas, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Successful Reps', 'Failed Reps'],
+                        datasets: [{
+                            data: [successReps, failedReps],
+                            backgroundColor: ['#4caf50', '#f44336'],
+                            hoverBackgroundColor: ['#45a049', '#e53935']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 0
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    boxWidth: 12,
+                                    usePointStyle: true
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        var value = context.raw;
+                                        var total = successReps + failedReps;
+                                        var percentage = Math.round((value / total) * 100);
+                                        return context.label + ': ' + value + ' (' + percentage + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                hideSpinner(container);
+                canvas.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error creating overall chart:', error);
+                hideSpinner(container);
+                
+                // Show error message
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'alert alert-danger';
+                errorMsg.textContent = 'Failed to load chart. Please try again later.';
+                canvas.parentNode.appendChild(errorMsg);
+            }
+        }
+
+        function loadExerciseChart(data) {
+            const container = chartContainers.exercise;
+            const canvas = document.getElementById('exerciseChart');
+            
+            showSpinner(container);
+            
+            try {
+                // Use only top 10 exercises for the chart
+                const topExercises = data.topExercises || [];
+                
+                if (topExercises.length === 0) {
+                    // No data available, create empty chart
+                    charts.exercise = new Chart(canvas, {
+                        type: 'bar',
+                        data: {
+                            labels: ['No Data Available'],
+                            datasets: [
+                                {
+                                    label: 'Successful Reps',
+                                    data: [0],
+                                    backgroundColor: '#4caf50',
+                                },
+                                {
+                                    label: 'Failed Reps',
+                                    data: [0],
+                                    backgroundColor: '#f44336',
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: { stacked: true },
+                                y: { stacked: true, beginAtZero: true }
+                            }
+                        }
+                    });
+                } else {
+                    // Create chart with real data
+                    const exerciseNames = topExercises.map(e => e.exerciseName);
+                    const successData = topExercises.map(e => e.successReps);
+                    const failedData = topExercises.map(e => e.failedReps);
+                    
+                    charts.exercise = new Chart(canvas, {
+                        type: 'bar',
+                        data: {
+                            labels: exerciseNames,
+                            datasets: [
+                                {
+                                    label: 'Successful Reps',
+                                    data: successData,
+                                    backgroundColor: '#4caf50',
+                                },
+                                {
+                                    label: 'Failed Reps',
+                                    data: failedData,
+                                    backgroundColor: '#f44336',
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: {
+                                duration: 0
+                            },
+                            scales: {
+                                x: {
+                                    stacked: true,
+                                    ticks: {
+                                        maxRotation: 45,
+                                        minRotation: 45
+                                    }
+                                },
+                                y: {
+                                    stacked: true,
+                                    beginAtZero: true
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    position: 'top',
+                                    labels: {
+                                        boxWidth: 12,
+                                        usePointStyle: true
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+                
+                hideSpinner(container);
+                canvas.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error creating exercise chart:', error);
+                hideSpinner(container);
+                
+                // Show error message
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'alert alert-danger';
+                errorMsg.textContent = 'Failed to load exercise chart. Please try again later.';
+                canvas.parentNode.appendChild(errorMsg);
+            }
+        }
+
+        async function loadOverallChartData() {
+            const period = @reportPeriod;
+            
+            try {
+                // We already load this data with exercise status, so this function exists for future needs
+                // such as loading metrics independently
+                console.log('Overall chart data is loaded with exercise status data');
+            } catch (error) {
+                console.error('Error loading overall chart data:', error);
+            }
         }
     </script>
 }
