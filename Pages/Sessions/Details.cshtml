@@ -38,11 +38,20 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var exercise in Model.VolumeByExercise.OrderByDescending(x => x.Value))
+                                @if (Model.VolumeByExercise != null)
+                                {
+                                    foreach (var exercise in Model.VolumeByExercise.OrderByDescending(x => x.Value))
+                                    {
+                                        <tr>
+                                            <td>@exercise.Key</td>
+                                            <td class="text-end">@exercise.Value.ToString("N1")</td>
+                                        </tr>
+                                    }
+                                }
+                                else
                                 {
                                     <tr>
-                                        <td>@exercise.Key</td>
-                                        <td class="text-end">@exercise.Value.ToString("N1")</td>
+                                        <td colspan="2" class="text-center">No volume data available</td>
                                     </tr>
                                 }
                             </tbody>

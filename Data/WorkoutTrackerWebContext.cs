@@ -15,7 +15,12 @@ namespace WorkoutTrackerWeb.Data
     public class WorkoutTrackerWebContext : DbContext
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
-        private string _currentUserId => _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+        
+        // Fixed property to handle null HttpContext scenarios safely
+        private string _currentUserId => 
+            _httpContextAccessor?.HttpContext?.User?.Identity?.IsAuthenticated == true ? 
+            _httpContextAccessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier) : 
+            null;
 
         public WorkoutTrackerWebContext(DbContextOptions<WorkoutTrackerWebContext> options, 
                                        IHttpContextAccessor httpContextAccessor = null)

@@ -5,7 +5,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using System.Data.SqlClient;
+using System.Data;
 using Microsoft.Data.SqlClient;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
@@ -132,7 +132,7 @@ namespace WorkoutTrackerWeb.Extensions
         /// <param name="reader">The data reader</param>
         /// <param name="columnName">The column name</param>
         /// <returns>The string value or empty string if null</returns>
-        public static string SafeGetString(this Microsoft.Data.SqlClient.SqlDataReader reader, string columnName)
+        public static string SafeGetString(this SqlDataReader reader, string columnName)
         {
             try
             {
@@ -155,9 +155,34 @@ namespace WorkoutTrackerWeb.Extensions
         /// <param name="reader">The data reader</param>
         /// <param name="ordinal">The column ordinal position</param>
         /// <returns>The string value or empty string if null</returns>
-        public static string SafeGetString(this Microsoft.Data.SqlClient.SqlDataReader reader, int ordinal)
+        public static string SafeGetString(this SqlDataReader reader, int ordinal)
         {
             return reader.IsDBNull(ordinal) ? string.Empty : reader.GetString(ordinal);
+        }
+
+        /// <summary>
+        /// Generic method to safely get any type of value from SqlDataReader
+        /// </summary>
+        public static T SafeGet<T>(this SqlDataReader reader, int ordinal, T defaultValue = default)
+        {
+            return reader.IsDBNull(ordinal) ? defaultValue : (T)reader.GetValue(ordinal);
+        }
+
+        /// <summary>
+        /// Generic method to safely get any type of value from IDataReader
+        /// </summary>
+        public static T SafeGet<T>(this IDataReader reader, int ordinal, T defaultValue = default)
+        {
+            return reader.IsDBNull(ordinal) ? defaultValue : (T)reader.GetValue(ordinal);
+        }
+
+        /// <summary>
+        /// Ensures a LINQ query doesn't include entities with NULL values in critical string properties
+        /// </summary>
+        public static IQueryable<T> ExcludeNulls<T, TProperty>(this IQueryable<T> query, 
+            System.Linq.Expressions.Expression<Func<T, TProperty>> propertySelector) where TProperty : class
+        {
+            return query.Where(e => propertySelector.Compile()(e) != null);
         }
 
         /// <summary>

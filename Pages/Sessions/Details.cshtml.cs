@@ -56,8 +56,22 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 return NotFound();
             }
 
+            // Initialize volume and calories data
             TotalVolume = _volumeCalculationService.CalculateWorkoutSessionVolume(WorkoutSession);
             TotalCalories = await _calorieCalculationService.CalculateSessionCaloriesAsync(WorkoutSession.WorkoutSessionId);
+            
+            // Initialize VolumeByExercise - this was missing before
+            VolumeByExercise = _volumeCalculationService.CalculateSessionVolume(WorkoutSession);
+            
+            // Initialize sort options
+            SortOptions = new List<SelectListItem>
+            {
+                new SelectListItem { Text = "Default Order", Value = "default", Selected = true },
+                new SelectListItem { Text = "Name (A-Z)", Value = "name_asc" },
+                new SelectListItem { Text = "Name (Z-A)", Value = "name_desc" },
+                new SelectListItem { Text = "Volume (High-Low)", Value = "volume_desc" },
+                new SelectListItem { Text = "Volume (Low-High)", Value = "volume_asc" }
+            };
 
             return Page();
         }

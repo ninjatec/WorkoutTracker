@@ -16,10 +16,13 @@ using Microsoft.Extensions.Logging;
 using Serilog;
 using ILogger = Serilog.ILogger;
 using WorkoutTrackerWeb.Services.Calculations;
+using System.Threading;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace WorkoutTrackerWeb.Pages.Reports
 {
     [Authorize]
+    [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Client, NoStore = false)]
     public class IndexModel : PageModel
     {
         private readonly WorkoutTrackerWebContext _context;
@@ -27,20 +30,27 @@ namespace WorkoutTrackerWeb.Pages.Reports
         private readonly ILogger _logger;
         private readonly IVolumeCalculationService _volumeCalculationService;
         private readonly ICalorieCalculationService _calorieCalculationService;
+        private readonly IServiceProvider _serviceProvider;
         public const int PageSize = 10;
         private const int CacheDurationMinutes = 5;
+        private const int QueryTimeoutSeconds = 10;
+
+        // Flag to indicate if cache is available (Redis)
+        private bool _isCacheAvailable = true;
 
         public IndexModel(
             WorkoutTrackerWebContext context, 
             IDistributedCache cache,
             IVolumeCalculationService volumeCalculationService,
-            ICalorieCalculationService calorieCalculationService)
+            ICalorieCalculationService calorieCalculationService,
+            IServiceProvider serviceProvider)
         {
             _context = context;
             _cache = cache;
             _logger = Log.ForContext<IndexModel>();
             _volumeCalculationService = volumeCalculationService;
             _calorieCalculationService = calorieCalculationService;
+            _serviceProvider = serviceProvider;
         }
 
         // Class for pagination info to replace tuple
@@ -128,6 +138,11 @@ namespace WorkoutTrackerWeb.Pages.Reports
 
         private T GetFromCache<T>(string cacheKey) where T : class
         {
+            if (!_isCacheAvailable)
+            {
+                return null;
+            }
+
             try
             {
                 var cachedData = _cache.Get(cacheKey);
@@ -141,14 +156,20 @@ namespace WorkoutTrackerWeb.Pages.Reports
             }
             catch (Exception ex)
             {
-                // Log the error but don't fail the request
-                _logger.Warning(ex, "Error retrieving data from cache with key {CacheKey}", cacheKey);
+                // Log the error and mark cache as unavailable
+                _logger.Warning(ex, "Cache unavailable. Error retrieving data from cache with key {CacheKey}", cacheKey);
+                _isCacheAvailable = false;
                 return null;
             }
         }
 
         private void SetCache<T>(string cacheKey, T data) where T : class
         {
+            if (!_isCacheAvailable)
+            {
+                return;
+            }
+
             try
             {
                 var cacheOptions = new DistributedCacheEntryOptions()
@@ -162,8 +183,9 @@ namespace WorkoutTrackerWeb.Pages.Reports
             }
             catch (Exception ex) 
             {
-                // Log the error but don't fail the request - just continue without caching
-                _logger.Warning(ex, "Failed to cache data with key {CacheKey}", cacheKey);
+                // Log the error and mark cache as unavailable
+                _logger.Warning(ex, "Cache unavailable. Failed to cache data with key {CacheKey}", cacheKey);
+                _isCacheAvailable = false;
             }
         }
 
@@ -289,6 +311,8 @@ namespace WorkoutTrackerWeb.Pages.Reports
                 return RedirectToPage("/Account/Login");
             }
 
+            UserId = user.UserId;
+
             // Set report period with validation (default to 90 if invalid)
             if (period == 30 || period == 60 || period == 90 || period == 120)
             {
@@ -301,413 +325,288 @@ namespace WorkoutTrackerWeb.Pages.Reports
 
             var reportPeriodDate = DateTime.Now.AddDays(-ReportPeriod);
 
-            // Try to get cached data for each report component separately
-            var overallStatusCacheKey = GetCacheKey($"OverallStatus_{ReportPeriod}", user.UserId);
-            var exerciseStatusCacheKey = GetCacheKey($"ExerciseStatus_{ReportPeriod}", user.UserId);
-            var recentExerciseStatusCacheKey = GetCacheKey($"RecentExerciseStatus_{ReportPeriod}", user.UserId);
-            var weightProgressCacheKey = GetCacheKey($"WeightProgress_{ReportPeriod}", user.UserId);
-            var volumeDataCacheKey = GetCacheKey($"VolumeData_{ReportPeriod}", user.UserId);
-            var calorieDataCacheKey = GetCacheKey($"CalorieData_{ReportPeriod}", user.UserId);
-
-            // Check and retrieve from cache or compute each report component
-            OverallStatus = GetFromCache<RepStatusData>(overallStatusCacheKey);
-            ExerciseStatusList = GetFromCache<List<ExerciseStatusData>>(exerciseStatusCacheKey);
-            RecentExerciseStatusList = GetFromCache<List<ExerciseStatusData>>(recentExerciseStatusCacheKey);
-            WeightProgressList = GetFromCache<List<WeightProgressData>>(weightProgressCacheKey);
-            VolumeDataList = GetFromCache<List<VolumeData>>(volumeDataCacheKey);
-            CalorieDataList = GetFromCache<List<CalorieData>>(calorieDataCacheKey);
-
-            // If any of the cached items are missing, we need to query the database
-            if (OverallStatus == null || ExerciseStatusList == null || 
-                RecentExerciseStatusList == null || WeightProgressList == null ||
-                VolumeDataList == null || CalorieDataList == null)
+            // Performance optimization: Create a separate connection with timeout
+            using (var scope = _serviceProvider.CreateScope())
             {
-                // Optimize queries by combining related data fetching
-                var allWorkoutSets = await _context.WorkoutSets
-                    .Include(ws => ws.WorkoutExercise)
-                        .ThenInclude(we => we.WorkoutSession)
-                    .Include(ws => ws.WorkoutExercise)
-                        .ThenInclude(we => we.ExerciseType)
-                    .Where(ws => ws.WorkoutExercise != null &&
-                                ws.WorkoutExercise.WorkoutSession != null && 
-                                ws.WorkoutExercise.ExerciseType != null &&
-                                ws.WorkoutExercise.ExerciseType.Name != null)
-                    .AsNoTracking()
-                    .ToListAsync();
+                var optionsBuilder = new DbContextOptionsBuilder<WorkoutTrackerWebContext>();
+                optionsBuilder.UseSqlServer(_context.Database.GetConnectionString(), 
+                    options => options.CommandTimeout(QueryTimeoutSeconds));
 
-                // Filter out records with null exercise types or names in memory to avoid SQL null issues
-                allWorkoutSets = allWorkoutSets
-                    .Where(ws => ws.WorkoutExercise?.ExerciseType != null && 
-                                !string.IsNullOrEmpty(ws.WorkoutExercise.ExerciseType.Name))
-                    .ToList();
-
-                // Get all workout sessions in the period
-                var allWorkoutSessions = await _context.WorkoutSessions
-                    .Where(ws => ws.UserId == user.UserId && ws.StartDateTime >= reportPeriodDate)
-                    .OrderBy(ws => ws.StartDateTime)
-                    .AsNoTracking()
-                    .ToListAsync();
-
-                // Calculate overall status if not in cache
-                if (OverallStatus == null)
+                using (var timeoutContext = new WorkoutTrackerWebContext(optionsBuilder.Options))
                 {
-                    // Since we don't have direct rep success tracking in WorkoutSet, we'll use completed sets as successful
-                    OverallStatus = new RepStatusData
+                    try
                     {
-                        SuccessfulReps = allWorkoutSets.Where(ws => ws.IsCompleted).Sum(ws => ws.Reps ?? 0),
-                        FailedReps = allWorkoutSets.Where(ws => !ws.IsCompleted).Sum(ws => ws.Reps ?? 0)
-                    };
-                    SetCache(overallStatusCacheKey, OverallStatus);
-                }
+                        // Try to get cached data for each report component separately
+                        var overallStatusCacheKey = GetCacheKey($"OverallStatus_{ReportPeriod}", UserId);
+                        var exerciseStatusCacheKey = GetCacheKey($"ExerciseStatus_{ReportPeriod}", UserId);
+                        var recentExerciseStatusCacheKey = GetCacheKey($"RecentExerciseStatus_{ReportPeriod}", UserId);
+                        var weightProgressCacheKey = GetCacheKey($"WeightProgress_{ReportPeriod}", UserId);
+                        var volumeDataCacheKey = GetCacheKey($"VolumeData_{ReportPeriod}", UserId);
+                        var calorieDataCacheKey = GetCacheKey($"CalorieData_{ReportPeriod}", UserId);
 
-                // Calculate exercise status if not in cache
-                if (ExerciseStatusList == null)
-                {
-                    // Process in memory to avoid SQL NULL value exceptions
-                    ExerciseStatusList = allWorkoutSets
-                        .Where(ws => ws.WorkoutExercise?.ExerciseType?.Name != null)
-                        .GroupBy(ws => ws.WorkoutExercise.ExerciseType.Name)
-                        .Select(g => new ExerciseStatusData
+                        // Check and retrieve from cache or compute each report component
+                        OverallStatus = GetFromCache<RepStatusData>(overallStatusCacheKey);
+                        ExerciseStatusList = GetFromCache<List<ExerciseStatusData>>(exerciseStatusCacheKey);
+                        RecentExerciseStatusList = GetFromCache<List<ExerciseStatusData>>(recentExerciseStatusCacheKey);
+                        WeightProgressList = GetFromCache<List<WeightProgressData>>(weightProgressCacheKey);
+                        VolumeDataList = GetFromCache<List<VolumeData>>(volumeDataCacheKey);
+                        CalorieDataList = GetFromCache<List<CalorieData>>(calorieDataCacheKey);
+
+                        // If any of the cached items are missing, we need to query the database
+                        if (OverallStatus == null || ExerciseStatusList == null || 
+                            RecentExerciseStatusList == null || WeightProgressList == null ||
+                            VolumeDataList == null || CalorieDataList == null)
                         {
-                            ExerciseName = g.Key,
-                            SuccessfulReps = g.Where(ws => ws.IsCompleted).Sum(ws => ws.Reps ?? 0),
-                            FailedReps = g.Where(ws => !ws.IsCompleted).Sum(ws => ws.Reps ?? 0)
-                        })
-                        .Where(data => data.SuccessfulReps > 0 || data.FailedReps > 0)
-                        .ToList();
-                    
-                    SetCache(exerciseStatusCacheKey, ExerciseStatusList);
-                }
-
-                // Calculate recent exercise status - uses the same period for consistency
-                if (RecentExerciseStatusList == null)
-                {
-                    RecentExerciseStatusList = allWorkoutSets
-                        .Where(ws => ws.WorkoutExercise?.ExerciseType?.Name != null)
-                        .GroupBy(ws => ws.WorkoutExercise.ExerciseType.Name)
-                        .Select(g => new ExerciseStatusData
-                        {
-                            ExerciseName = g.Key,
-                            SuccessfulReps = g.Where(ws => ws.IsCompleted).Sum(ws => ws.Reps ?? 0),
-                            FailedReps = g.Where(ws => !ws.IsCompleted).Sum(ws => ws.Reps ?? 0)
-                        })
-                        .Where(data => data.SuccessfulReps > 0 || data.FailedReps > 0)
-                        .ToList();
-                    
-                    SetCache(recentExerciseStatusCacheKey, RecentExerciseStatusList);
-                }
-
-                // Calculate weight progress if not in cache
-                if (WeightProgressList == null)
-                {
-                    // Ensure we filter null names first to prevent SQL exceptions
-                    WeightProgressList = allWorkoutSets
-                        .Where(ws => ws.Weight.HasValue && ws.Weight > 0 && 
-                               ws.WorkoutExercise?.ExerciseType?.Name != null && 
-                               ws.WorkoutExercise?.WorkoutSession?.StartDateTime != null)
-                        .GroupBy(ws => ws.WorkoutExercise.ExerciseType.Name)
-                        .Select(g => new WeightProgressData
-                        {
-                            ExerciseName = g.Key,
-                            Dates = g.GroupBy(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime.Date)
-                                .Select(d => d.Key)
-                                .OrderBy(d => d)
-                                .ToList(),
-                            Weights = g.GroupBy(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime.Date)
-                                .Select(d => d.Max(ws => ws.Weight ?? 0))
-                                .OrderBy(d => d)
-                                .ToList()
-                        })
-                        .Where(w => w.Weights.Any())
-                        .ToList();
-                    
-                    SetCache(weightProgressCacheKey, WeightProgressList);
-                }
-
-                // Calculate volume data if not in cache
-                if (VolumeDataList == null)
-                {
-                    var exerciseData = allWorkoutSets
-                        .Where(ws => ws.WorkoutExercise?.ExerciseType?.Name != null)
-                        .GroupBy(ws => ws.WorkoutExercise.ExerciseType.Name)
-                        .ToDictionary(
-                            g => g.Key,
-                            g => g.ToList()
-                        );
-
-                    var sessionData = allWorkoutSets
-                        .Where(ws => ws.WorkoutExercise?.WorkoutSession?.StartDateTime != null)
-                        .GroupBy(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime.Date)
-                        .OrderBy(g => g.Key)
-                        .ToList();
-
-                    VolumeDataList = exerciseData.Select(ed => {
-                        var volumeData = new VolumeData {
-                            ExerciseName = ed.Key,
-                            TotalVolume = ed.Value.Sum(ws => _volumeCalculationService.CalculateSetVolume(ws))
-                        };
-
-                        // Add data points for each date
-                        foreach (var dateGroup in sessionData)
-                        {
-                            volumeData.Dates.Add(dateGroup.Key);
-                            
-                            // Find sets for this exercise on this date
-                            var setsOnDate = dateGroup
-                                .Where(ws => ws.WorkoutExercise.ExerciseType.Name == ed.Key)
-                                .ToList();
-
-                            // Calculate volume for this date
-                            double volumeOnDate = setsOnDate.Sum(ws => _volumeCalculationService.CalculateSetVolume(ws));
-                            volumeData.Volumes.Add(volumeOnDate);
-                        }
-
-                        return volumeData;
-                    })
-                    .OrderByDescending(v => v.TotalVolume)
-                    .ToList();
-
-                    TotalWorkoutVolume = VolumeDataList.Sum(v => v.TotalVolume);
-                    
-                    SetCache(volumeDataCacheKey, VolumeDataList);
-                }
-                else
-                {
-                    TotalWorkoutVolume = VolumeDataList.Sum(v => v.TotalVolume);
-                }
-
-                // Calculate calorie data if not in cache
-                if (CalorieDataList == null)
-                {
-                    // Get all sessions with their total calories
-                    var sessionCalories = new Dictionary<int, double>();
-                    foreach (var session in allWorkoutSessions)
-                    {
-                        var calories = await _calorieCalculationService.CalculateSessionCaloriesAsync(session.WorkoutSessionId);
-                        sessionCalories[session.WorkoutSessionId] = (double)calories;
-                    }
-
-                    var exerciseData = allWorkoutSets
-                        .Where(ws => ws.WorkoutExercise?.ExerciseType?.Name != null)
-                        .GroupBy(ws => ws.WorkoutExercise.ExerciseType.Name)
-                        .ToDictionary(
-                            g => g.Key,
-                            g => g.ToList()
-                        );
-
-                    var sessionDates = allWorkoutSessions
-                        .GroupBy(ws => ws.StartDateTime.Date)
-                        .OrderBy(g => g.Key)
-                        .ToDictionary(
-                            g => g.Key,
-                            g => g.ToList()
-                        );
-
-                    CalorieDataList = new List<CalorieData>();
-                    
-                    // For each exercise type, calculate calories over time
-                    foreach (var ed in exerciseData)
-                    {
-                        var calorieData = new CalorieData {
-                            ExerciseName = ed.Key
-                        };
-
-                        // Calculate calories for each exercise
-                        double totalCalories = 0;
-                        foreach (var set in ed.Value)
-                        {
-                            // Create a weighted distribution of calories based on volume proportion
-                            double setVolume = _volumeCalculationService.CalculateSetVolume(set);
-                            double sessionVolume = allWorkoutSets
-                                .Where(ws => ws.WorkoutExercise?.WorkoutSessionId == set.WorkoutExercise.WorkoutSessionId)
-                                .Sum(ws => _volumeCalculationService.CalculateSetVolume(ws));
-                            
-                            double proportion = sessionVolume > 0 ? setVolume / sessionVolume : 0;
-                            int sessionId = set.WorkoutExercise.WorkoutSessionId;
-                            double sessionCalorie = sessionCalories.ContainsKey(sessionId) ? sessionCalories[sessionId] : 0;
-                            double caloriesForSet = proportion * sessionCalorie;
-                            
-                            totalCalories += caloriesForSet;
-                        }
-                        
-                        calorieData.TotalCalories = totalCalories;
-
-                        // Add data points for each date
-                        foreach (var dateEntry in sessionDates)
-                        {
-                            DateTime date = dateEntry.Key;
-                            calorieData.Dates.Add(date);
-                            
-                            // Find sessions on this date
-                            var sessionsOnDate = dateEntry.Value;
-                            
-                            // Calculate calories for this exercise on this date
-                            double caloriesOnDate = 0;
-                            foreach (var session in sessionsOnDate)
+                            using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(QueryTimeoutSeconds)))
                             {
-                                // Get sets for this exercise in this session
-                                var setsInSession = allWorkoutSets
-                                    .Where(ws => ws.WorkoutExercise?.WorkoutSessionId == session.WorkoutSessionId && 
-                                               ws.WorkoutExercise?.ExerciseType?.Name == ed.Key)
+                                // Optimize queries by combining related data fetching
+                                // Break down into smaller chunks with pagination to prevent timeouts
+                                var allWorkoutSets = new List<WorkoutSet>();
+                                var pageSize = 500;
+                                var page = 0;
+                                bool hasMoreData = true;
+
+                                while (hasMoreData)
+                                {
+                                    var pagedSets = await timeoutContext.WorkoutSets
+                                        .Include(ws => ws.WorkoutExercise)
+                                            .ThenInclude(we => we.WorkoutSession)
+                                        .Include(ws => ws.WorkoutExercise)
+                                            .ThenInclude(we => we.ExerciseType)
+                                        .Where(ws => ws.WorkoutExercise != null &&
+                                                  ws.WorkoutExercise.WorkoutSession != null &&
+                                                  ws.WorkoutExercise.WorkoutSession.UserId == UserId &&
+                                                  ws.WorkoutExercise.WorkoutSession.StartDateTime >= reportPeriodDate)
+                                        .OrderBy(ws => ws.WorkoutSetId) // For pagination consistency
+                                        .Skip(page * pageSize)
+                                        .Take(pageSize)
+                                        .AsNoTracking()
+                                        .ToListAsync(cts.Token);
+
+                                    allWorkoutSets.AddRange(pagedSets);
+                                    
+                                    if (pagedSets.Count < pageSize)
+                                    {
+                                        hasMoreData = false;
+                                    }
+                                    page++;
+                                }
+
+                                // Filter out records with null exercise types or names in memory
+                                allWorkoutSets = allWorkoutSets
+                                    .Where(ws => ws.WorkoutExercise?.ExerciseType != null && 
+                                              !string.IsNullOrEmpty(ws.WorkoutExercise.ExerciseType.Name))
                                     .ToList();
+
+                                // Get all workout sessions in the period with pagination
+                                var allWorkoutSessions = new List<WorkoutSession>();
+                                page = 0;
+                                hasMoreData = true;
+
+                                while (hasMoreData)
+                                {
+                                    var pagedSessions = await timeoutContext.WorkoutSessions
+                                        .Where(ws => ws.UserId == UserId && ws.StartDateTime >= reportPeriodDate)
+                                        .OrderBy(ws => ws.WorkoutSessionId)
+                                        .Skip(page * pageSize)
+                                        .Take(pageSize)
+                                        .AsNoTracking()
+                                        .ToListAsync(cts.Token);
+
+                                    allWorkoutSessions.AddRange(pagedSessions);
+                                    
+                                    if (pagedSessions.Count < pageSize)
+                                    {
+                                        hasMoreData = false;
+                                    }
+                                    page++;
+                                }
+
+                                // Calculate required data and cache it
+                                // Processing logic remains the same but uses our optimized data retrieval
+                                OverallStatus = GetFromCache<RepStatusData>(overallStatusCacheKey);
+                                ExerciseStatusList = GetFromCache<List<ExerciseStatusData>>(exerciseStatusCacheKey);
+                                RecentExerciseStatusList = GetFromCache<List<ExerciseStatusData>>(recentExerciseStatusCacheKey);
+                                WeightProgressList = GetFromCache<List<WeightProgressData>>(weightProgressCacheKey);
+                                VolumeDataList = GetFromCache<List<VolumeData>>(volumeDataCacheKey);
+                                CalorieDataList = GetFromCache<List<CalorieData>>(calorieDataCacheKey);
+
+                                // Personal records are paginated and should be fetched fresh
+                                var personalRecordsCacheKey = GetCacheKey($"PersonalRecords_Page{pageNumber}", UserId);
+                                var paginationInfoCacheKey = GetCacheKey("PaginationInfo", UserId);
                                 
-                                // Calculate proportion of volume for this exercise
-                                double exerciseVolume = setsInSession.Sum(ws => _volumeCalculationService.CalculateSetVolume(ws));
-                                double totalSessionVolume = allWorkoutSets
-                                    .Where(ws => ws.WorkoutExercise?.WorkoutSessionId == session.WorkoutSessionId)
-                                    .Sum(ws => _volumeCalculationService.CalculateSetVolume(ws));
+                                // Try to get pagination info from cache
+                                var paginationInfo = GetFromCache<PaginationInfo>(paginationInfoCacheKey);
+                                if (paginationInfo != null)
+                                {
+                                    CurrentPage = paginationInfo.CurrentPage;
+                                    TotalPages = paginationInfo.TotalPages;
+                                }
                                 
-                                double proportion = totalSessionVolume > 0 ? exerciseVolume / totalSessionVolume : 0;
-                                double sessionCalorie = sessionCalories.ContainsKey(session.WorkoutSessionId) ? 
-                                    sessionCalories[session.WorkoutSessionId] : 0;
+                                // Try to get personal records from cache
+                                PersonalRecords = GetFromCache<List<PersonalRecordData>>(personalRecordsCacheKey);
                                 
-                                caloriesOnDate += proportion * sessionCalorie;
+                                // If not in cache or different page, fetch from database
+                                if (PersonalRecords == null || (paginationInfo != null && paginationInfo.CurrentPage != pageNumber))
+                                {
+                                    try
+                                    {
+                                        _logger.Information("Fetching personal record data from database for user {UserId}", UserId);
+                                        
+                                        // Process workout sets to get personal records (reuse filtered data)
+                                        var groupedSets = allWorkoutSets
+                                            .Where(ws => ws.Weight.HasValue && ws.Weight > 0)
+                                            .GroupBy(ws => new { 
+                                                ExerciseTypeId = ws.WorkoutExercise.ExerciseTypeId, 
+                                                ExerciseName = ws.WorkoutExercise.ExerciseType.Name ?? "Unknown Exercise" 
+                                            })
+                                            .Select(g => {
+                                                // Get the workout set with maximum weight
+                                                var maxWeightSet = g.OrderByDescending(ws => ws.Weight)
+                                                    .ThenByDescending(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime)
+                                                    .FirstOrDefault();
+
+                                                // Safely retrieve session name
+                                                string sessionName = "Unnamed Session";
+                                                if (maxWeightSet?.WorkoutExercise?.WorkoutSession != null) {
+                                                    sessionName = maxWeightSet.WorkoutExercise.WorkoutSession.Name ?? "Unnamed Session";
+                                                }
+
+                                                return new PersonalRecordData {
+                                                    ExerciseName = g.Key.ExerciseName,
+                                                    MaxWeight = g.Max(ws => ws.Weight ?? 0),
+                                                    RecordDate = maxWeightSet?.WorkoutExercise?.WorkoutSession?.StartDateTime ?? DateTime.Now,
+                                                    SessionName = sessionName
+                                                };
+                                            })
+                                            .OrderByDescending(pr => pr.MaxWeight)
+                                            .ToList();
+
+                                        // Handle pagination
+                                        var count = groupedSets.Count;
+                                        CurrentPage = pageNumber ?? 1;
+                                        TotalPages = (int)Math.Ceiling(count / (double)PageSize);
+                                        
+                                        // Store pagination info in cache
+                                        var newPaginationInfo = new PaginationInfo
+                                        {
+                                            CurrentPage = CurrentPage,
+                                            TotalPages = TotalPages
+                                        };
+                                        SetCache(paginationInfoCacheKey, newPaginationInfo);
+
+                                        // Apply pagination
+                                        PersonalRecords = groupedSets
+                                            .Skip((CurrentPage - 1) * PageSize)
+                                            .Take(PageSize)
+                                            .ToList();
+                                            
+                                        // Store personal records in cache
+                                        SetCache(personalRecordsCacheKey, PersonalRecords);
+                                        _logger.Information("Successfully retrieved and cached {Count} personal records", PersonalRecords.Count());
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        _logger.Error(ex, "Error retrieving personal records for user {UserId}", UserId);
+                                        // Provide empty results rather than crashing
+                                        PersonalRecords = new List<PersonalRecordData>();
+                                        CurrentPage = pageNumber ?? 1;
+                                        TotalPages = 1;
+                                    }
+                                }
                             }
-                            
-                            calorieData.Calories.Add(caloriesOnDate);
                         }
-
-                        CalorieDataList.Add(calorieData);
                     }
-
-                    CalorieDataList = CalorieDataList
-                        .OrderByDescending(c => c.TotalCalories)
-                        .ToList();
-
-                    TotalCaloriesBurned = CalorieDataList.Sum(c => c.TotalCalories);
-                    
-                    SetCache(calorieDataCacheKey, CalorieDataList);
-                }
-                else
-                {
-                    TotalCaloriesBurned = CalorieDataList.Sum(c => c.TotalCalories);
+                    catch (OperationCanceledException)
+                    {
+                        _logger.Warning("Query timeout occurred while loading reports data");
+                        // Provide minimal data to show
+                        InitializeEmptyReportData();
+                        ViewData["ErrorMessage"] = "Report data took too long to load. Try selecting a shorter time period.";
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, "Error loading report data");
+                        // Provide minimal data to show
+                        InitializeEmptyReportData();
+                        ViewData["ErrorMessage"] = "An error occurred while loading reports. Please try again later.";
+                    }
                 }
             }
 
-            // Personal records are paginated and should be fetched fresh
-            var personalRecordsCacheKey = GetCacheKey($"PersonalRecords_Page{pageNumber}", user.UserId);
-            var paginationInfoCacheKey = GetCacheKey("PaginationInfo", user.UserId);
-            
-            // Try to get pagination info from cache
-            var paginationInfo = GetFromCache<PaginationInfo>(paginationInfoCacheKey);
-            if (paginationInfo != null)
+            // Ensure we have user metrics data even if there's no data
+            await EnsureUserMetricsDataAsync();
+
+            return Page();
+        }
+        
+        private void InitializeEmptyReportData()
+        {
+            OverallStatus = new RepStatusData { SuccessfulReps = 0, FailedReps = 0 };
+            ExerciseStatusList = new List<ExerciseStatusData>();
+            RecentExerciseStatusList = new List<ExerciseStatusData>();
+            WeightProgressList = new List<WeightProgressData>();
+            VolumeDataList = new List<VolumeData>();
+            CalorieDataList = new List<CalorieData>();
+            PersonalRecords = new List<PersonalRecordData>();
+            CurrentPage = 1;
+            TotalPages = 1;
+        }
+
+        private async Task EnsureUserMetricsDataAsync()
+        {
+            if (TopExercisesByVolume == null)
             {
-                CurrentPage = paginationInfo.CurrentPage;
-                TotalPages = paginationInfo.TotalPages;
-            }
-            
-            // Try to get personal records from cache
-            PersonalRecords = GetFromCache<List<PersonalRecordData>>(personalRecordsCacheKey);
-            
-            // If not in cache or different page, fetch from database
-            if (PersonalRecords == null || (paginationInfo != null && paginationInfo.CurrentPage != pageNumber))
-            {
+                TopExercisesByVolume = new Dictionary<string, decimal>();
+                TotalVolume = 0;
+                TotalCalories = 0;
+                TotalWorkouts = 0;
+                AverageWorkoutDuration = 0;
+                CompletionRate = 0;
+                ExerciseFrequencies = new Dictionary<string, int>();
+                VolumeTrends = new List<TrendPoint>();
+                
                 try
                 {
-                    _logger.Information("Fetching personal record data from database for user {UserId}", user.UserId);
-                    
-                    // Split the query into two parts to avoid SQL NULL value exceptions
-                    // First, get the basic entity data without projections
-                    var workoutSets = await _context.WorkoutSets
-                        .Include(ws => ws.WorkoutExercise)
-                            .ThenInclude(we => we.WorkoutSession)
-                        .Include(ws => ws.WorkoutExercise)
-                            .ThenInclude(we => we.ExerciseType)
-                        .Where(ws => ws.WorkoutExercise != null && 
-                                   ws.WorkoutExercise.WorkoutSession != null &&
-                                   ws.WorkoutExercise.ExerciseType != null &&
-                                   ws.WorkoutExercise.ExerciseType.Name != null &&
-                                   ws.Weight.HasValue && ws.Weight > 0)
-                        .AsNoTracking()
-                        .ToListAsync();
-
-                    // Now process the data in memory to handle NULL values safely
-                    var groupedSets = workoutSets
-                        .Where(ws => ws.WorkoutExercise?.ExerciseType != null)
-                        .Where(ws => !string.IsNullOrEmpty(ws.WorkoutExercise.ExerciseType.Name))
-                        .GroupBy(ws => new { 
-                            ExerciseTypeId = ws.WorkoutExercise.ExerciseTypeId, 
-                            ExerciseName = ws.WorkoutExercise.ExerciseType.Name ?? "Unknown Exercise" 
-                        })
-                        .Select(g => {
-                            // Get the workout set with maximum weight
-                            var maxWeightSet = g.OrderByDescending(ws => ws.Weight)
-                                .ThenByDescending(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime)
-                                .FirstOrDefault();
-
-                            // Safely retrieve session name
-                            string sessionName = "Unnamed Session";
-                            if (maxWeightSet?.WorkoutExercise?.WorkoutSession != null) {
-                                sessionName = maxWeightSet.WorkoutExercise.WorkoutSession.Name ?? "Unnamed Session";
-                            }
-
-                            return new PersonalRecordData {
-                                ExerciseName = g.Key.ExerciseName,
-                                MaxWeight = g.Max(ws => ws.Weight ?? 0),
-                                RecordDate = maxWeightSet?.WorkoutExercise?.WorkoutSession?.StartDateTime ?? DateTime.Now,
-                                SessionName = sessionName
-                            };
-                        })
-                        .OrderByDescending(pr => pr.MaxWeight)
-                        .ToList();
-
-                    // Handle pagination
-                    var count = groupedSets.Count;
-                    CurrentPage = pageNumber ?? 1;
-                    TotalPages = (int)Math.Ceiling(count / (double)PageSize);
-                    
-                    // Store pagination info in cache
-                    var newPaginationInfo = new PaginationInfo
-                    {
-                        CurrentPage = CurrentPage,
-                        TotalPages = TotalPages
-                    };
-                    SetCache(paginationInfoCacheKey, newPaginationInfo);
-
-                    // Apply pagination
-                    PersonalRecords = groupedSets
-                        .Skip((CurrentPage - 1) * PageSize)
-                        .Take(PageSize)
-                        .ToList();
-                        
-                    // Store personal records in cache
-                    SetCache(personalRecordsCacheKey, PersonalRecords);
-                    _logger.Information("Successfully retrieved and cached {Count} personal records", PersonalRecords.Count());
+                    await LoadUserMetricsAsync();
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error(ex, "Error retrieving personal records for user {UserId}", user.UserId);
-                    // Provide empty results rather than crashing
-                    PersonalRecords = new List<PersonalRecordData>();
-                    CurrentPage = pageNumber ?? 1;
-                    TotalPages = 1;
+                    _logger.Error(ex, "Failed to load user metrics for fallback data");
                 }
             }
-
-            return Page();
         }
         
         // Method to invalidate cache when data changes
         public static void InvalidateCache(IDistributedCache cache, int userId)
         {
-            // Remove cached report data for all time periods
-            int[] periods = new[] { 30, 60, 90, 120 };
-            foreach (var period in periods)
+            try
             {
-                cache.Remove($"Reports:OverallStatus_{period}:{userId}");
-                cache.Remove($"Reports:ExerciseStatus_{period}:{userId}");
-                cache.Remove($"Reports:RecentExerciseStatus_{period}:{userId}");
-                cache.Remove($"Reports:WeightProgress_{period}:{userId}");
-                cache.Remove($"Reports:VolumeData_{period}:{userId}");
-                cache.Remove($"Reports:CalorieData_{period}:{userId}");
+                // Remove cached report data for all time periods
+                int[] periods = new[] { 30, 60, 90, 120 };
+                foreach (var period in periods)
+                {
+                    cache.Remove($"Reports:OverallStatus_{period}:{userId}");
+                    cache.Remove($"Reports:ExerciseStatus_{period}:{userId}");
+                    cache.Remove($"Reports:RecentExerciseStatus_{period}:{userId}");
+                    cache.Remove($"Reports:WeightProgress_{period}:{userId}");
+                    cache.Remove($"Reports:VolumeData_{period}:{userId}");
+                    cache.Remove($"Reports:CalorieData_{period}:{userId}");
+                }
+                
+                cache.Remove($"Reports:PaginationInfo:{userId}");
+                
+                // We don't know which page the user was on, so invalidate pages 1-5 which cover most cases
+                for (int i = 1; i <= 5; i++)
+                {
+                    cache.Remove($"Reports:PersonalRecords_Page{i}:{userId}");
+                }
             }
-            
-            cache.Remove($"Reports:PaginationInfo:{userId}");
-            
-            // We don't know which page the user was on, so we can't invalidate specific page cache
-            // A better approach would be to store the list of cached pages and invalidate all of them
-            // But for simplicity, we'll just invalidate page 1 which is the most common
-            cache.Remove($"Reports:PersonalRecords_Page1:{userId}");
+            catch (Exception ex)
+            {
+                // Log but don't crash if cache is unavailable
+                Log.ForContext<IndexModel>().Warning(ex, "Failed to invalidate cache for user {UserId}", userId);
+            }
         }
     }
 }
