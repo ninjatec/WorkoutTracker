@@ -838,6 +838,11 @@ namespace WorkoutTrackerWeb.Services
         /// <returns>List of matching API exercises</returns>
         public async Task<List<ExerciseApiResponse>> SearchExercisesByNameAsync(string name, CancellationToken cancellationToken = default)
         {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return new List<ExerciseApiResponse>();
+            }
+
             // Try exact match first
             var searchParams = new ExerciseSearchParams { Name = name };
             var results = await _apiService.SearchExercisesAsync(searchParams);
@@ -853,37 +858,43 @@ namespace WorkoutTrackerWeb.Services
                 {
                     _logger.LogInformation("No exact matches found for '{Name}', trying word permutations", name);
                     
-                    // Generate permutations of the words
-                    var permutations = GenerateWordPermutations(words, 3); // Limit to 3 permutations to avoid API spam
-                    
-                    foreach (var permutation in permutations)
-                    {
-                        // Skip if it's identical to the original (should be caught by exact match)
-                        if (permutation.Equals(name, StringComparison.OrdinalIgnoreCase))
-                            continue;
+                    try {
+                        // Generate permutations of the words
+                        var permutations = GenerateWordPermutations(words, 3); // Limit to 3 permutations to avoid API spam
                         
-                        // Check for cancellation
-                        cancellationToken.ThrowIfCancellationRequested();
-                        
-                        _logger.LogInformation("Trying word permutation: '{Permutation}' for '{Name}'", permutation, name);
-                        
-                        // Try searching with this permutation
-                        var permutationParams = new ExerciseSearchParams { Name = permutation };
-                        var permutationResults = await _apiService.SearchExercisesAsync(permutationParams);
-                        
-                        // If we got results, add them to our list with searchInfo about the permutation
-                        if (permutationResults != null && permutationResults.Count > 0)
+                        foreach (var permutation in permutations)
                         {
-                            foreach (var result in permutationResults)
-                            {
-                                result.SearchInfo = $"Word Order Match: {permutation}";
-                            }
+                            // Skip if it's identical to the original (should be caught by exact match)
+                            if (permutation.Equals(name, StringComparison.OrdinalIgnoreCase))
+                                continue;
                             
-                            if (results == null)
-                                results = new List<ExerciseApiResponse>();
+                            // Check for cancellation
+                            cancellationToken.ThrowIfCancellationRequested();
+                            
+                            _logger.LogInformation("Trying word permutation: '{Permutation}' for '{Name}'", permutation, name);
+                            
+                            // Try searching with this permutation
+                            var permutationParams = new ExerciseSearchParams { Name = permutation };
+                            var permutationResults = await _apiService.SearchExercisesAsync(permutationParams);
+                            
+                            // If we got results, add them to our list with searchInfo about the permutation
+                            if (permutationResults != null && permutationResults.Count > 0)
+                            {
+                                foreach (var result in permutationResults)
+                                {
+                                    if (result != null)
+                                    {
+                                        result.SearchInfo = $"Word Order Match: {permutation}";
+                                    }
+                                }
                                 
-                            results.AddRange(permutationResults);
+                                results ??= new List<ExerciseApiResponse>();
+                                results.AddRange(permutationResults.Where(r => r != null));
+                            }
                         }
+                    }
+                    catch (Exception ex) {
+                        _logger.LogError(ex, "Error while generating word permutations for '{Name}'", name);
                     }
                 }
             }
@@ -891,21 +902,27 @@ namespace WorkoutTrackerWeb.Services
             // If still no results found or we want to try for partial matches regardless
             if ((results == null || results.Count < 3) && !string.IsNullOrWhiteSpace(name))
             {
-                // Try searching for partial word matches
-                var partialMatchResults = await SearchForPartialWordMatchesAsync(name, cancellationToken);
-                
-                if (partialMatchResults.Count > 0)
-                {
-                    results ??= new List<ExerciseApiResponse>();
+                try {
+                    // Try searching for partial word matches
+                    var partialMatchResults = await SearchForPartialWordMatchesAsync(name, cancellationToken);
                     
-                    // Check for duplicates before adding
-                    foreach (var partialMatch in partialMatchResults)
+                    if (partialMatchResults.Count > 0)
                     {
-                        if (!results.Any(r => r.Name.Equals(partialMatch.Name, StringComparison.OrdinalIgnoreCase)))
+                        results ??= new List<ExerciseApiResponse>();
+                        
+                        // Check for duplicates before adding
+                        foreach (var partialMatch in partialMatchResults)
                         {
-                            results.Add(partialMatch);
+                            if (partialMatch != null && !results.Any(r => r != null && r.Name != null && 
+                                r.Name.Equals(partialMatch.Name, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                results.Add(partialMatch);
+                            }
                         }
                     }
+                }
+                catch (Exception ex) {
+                    _logger.LogError(ex, "Error while searching for partial word matches for '{Name}'", name);
                 }
             }
             

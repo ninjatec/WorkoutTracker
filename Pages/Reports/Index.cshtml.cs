@@ -313,14 +313,12 @@ namespace WorkoutTrackerWeb.Pages.Reports
                                 ws.WorkoutExercise.WorkoutSession.UserId == user.UserId && 
                                 ws.WorkoutExercise.WorkoutSession.StartDateTime >= reportPeriodDate &&
                                 ws.WorkoutExercise.ExerciseType != null)
-                    // Removed the Name != null check as it causes SQL null value exception
-                    // Handle null names in-memory after fetching
                     .AsNoTracking()
                     .ToListAsync();
 
                 // Filter out records with null exercise names in memory to avoid SQL null issues
                 allWorkoutSets = allWorkoutSets
-                    .Where(ws => ws.WorkoutExercise.ExerciseType.Name != null)
+                    .Where(ws => ws.WorkoutExercise?.ExerciseType?.Name != null)
                     .ToList();
 
                 // Get all workout sessions in the period
@@ -345,6 +343,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
                 // Calculate exercise status if not in cache
                 if (ExerciseStatusList == null)
                 {
+                    // Process in memory to avoid SQL NULL value exceptions
                     ExerciseStatusList = allWorkoutSets
                         .Where(ws => ws.WorkoutExercise?.ExerciseType?.Name != null)
                         .GroupBy(ws => ws.WorkoutExercise.ExerciseType.Name)
@@ -381,6 +380,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
                 // Calculate weight progress if not in cache
                 if (WeightProgressList == null)
                 {
+                    // Ensure we filter null names first to prevent SQL exceptions
                     WeightProgressList = allWorkoutSets
                         .Where(ws => ws.Weight.HasValue && ws.Weight > 0 && 
                                ws.WorkoutExercise?.ExerciseType?.Name != null && 
@@ -591,16 +591,16 @@ namespace WorkoutTrackerWeb.Pages.Reports
                     .Where(ws => ws.WorkoutExercise != null && 
                                ws.WorkoutExercise.WorkoutSession != null &&
                                ws.WorkoutExercise.WorkoutSession.UserId == user.UserId && 
-                               ws.WorkoutExercise.ExerciseType != null && 
-                               !string.IsNullOrEmpty(ws.WorkoutExercise.ExerciseType.Name) && 
                                ws.Weight.HasValue && ws.Weight > 0)
                     .AsNoTracking();
 
-                // Execute and load data into memory to handle NULL values safely
+                // Execute and load data into memory first to safely handle NULL values
                 var workoutSets = await baseQuery.ToListAsync();
 
                 // Process the data in memory to avoid SQL NULL value exceptions
                 var groupedSets = workoutSets
+                    .Where(ws => ws.WorkoutExercise?.ExerciseType != null && 
+                                !string.IsNullOrEmpty(ws.WorkoutExercise.ExerciseType.Name))
                     .GroupBy(ws => new { 
                         ExerciseTypeId = ws.WorkoutExercise.ExerciseTypeId, 
                         ExerciseName = ws.WorkoutExercise.ExerciseType.Name ?? "Unknown Exercise" 

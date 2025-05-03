@@ -336,7 +336,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                     try
                     {
                         var exercise = await _context.ExerciseType.FindAsync(exerciseId);
-                        if (exercise == null) continue;
+                        if (exercise == null || string.IsNullOrEmpty(exercise.Name)) continue;
 
                         // Get max weight for each exercise over time
                         var weightData = await _context.WorkoutSessions
