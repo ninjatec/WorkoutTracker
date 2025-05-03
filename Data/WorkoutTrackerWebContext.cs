@@ -258,7 +258,7 @@ namespace WorkoutTrackerWeb.Data
                 
             modelBuilder.Entity<WorkoutTemplateExercise>()
                 .HasOne(wte => wte.ExerciseType)
-                .WithMany()
+                .WithMany(et => et.TemplateExercises)
                 .HasForeignKey(wte => wte.ExerciseTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
                 

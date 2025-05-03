@@ -46,6 +46,8 @@ namespace WorkoutTrackerWeb.Models
         
         // Navigation properties
         public WorkoutTemplate WorkoutTemplate { get; set; }
+        
+        [ForeignKey("ExerciseTypeId")]
         public ExerciseType ExerciseType { get; set; }
         
         [ForeignKey("EquipmentId")]
