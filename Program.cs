@@ -337,10 +337,7 @@ namespace WorkoutTrackerWeb
                                 options.ClientTimeoutInterval = TimeSpan.FromSeconds(30);
                                 options.HandshakeTimeout = TimeSpan.FromSeconds(15);
                                 options.KeepAliveInterval = TimeSpan.FromSeconds(15);
-                            }).AddStackExchangeRedis(options =>
-                            {
-                                options.Configuration = redisSettings.ToConfigurationOptions();
-                            });
+                            }).AddStackExchangeRedis(redisSettings.ConnectionString);
                         }
                         else
                         {

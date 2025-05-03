@@ -202,11 +202,6 @@ kubectl apply -f ./k8s/mapping.yaml
 # Apply the Hangfire worker deployment
 kubectl apply -f ./k8s/hangfire-worker.yaml
 
-# 9. Check deployment status for both main app and worker
-echo -e "${YELLOW}Checking deployment status...${NC}"
-kubectl rollout status deployment/workouttracker -n web
-kubectl rollout status deployment/workouttracker-hangfire-worker -n web
-
 echo -e "${GREEN}======================================================${NC}"
 echo -e "${GREEN}  Deployment Complete!                               ${NC}"
 echo -e "${GREEN}  Version: ${VERSION}                                ${NC}"
