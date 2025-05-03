@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.ViewModels;
@@ -43,7 +44,7 @@ namespace WorkoutTrackerWeb.Services.Reports
         /// <summary>
         /// Gets workout volume over time
         /// </summary>
-        Task<Dictionary<DateTime, decimal>> GetVolumeOverTimeAsync(int userId, DateTime startDate, DateTime endDate);
+        Task<Dictionary<DateTime, decimal>> GetVolumeOverTimeAsync(int userId, DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default);
         
         /// <summary>
         /// Gets workout volume by muscle group
@@ -88,7 +89,7 @@ namespace WorkoutTrackerWeb.Services.Reports
         /// <summary>
         /// Gets key user metrics for dashboard with optimized performance
         /// </summary>
-        Task<object> GetUserMetricsAsync(int userId, int days);
+        Task<object> GetUserMetricsAsync(int userId, int days, CancellationToken cancellationToken = default);
     }
 
     /// <summary>

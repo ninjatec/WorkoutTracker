@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using WorkoutTrackerWeb.Services.Redis;
@@ -105,6 +106,58 @@ public static class RedisConfigurationExtensions
     public static IServiceCollection ConfigureRedis(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<RedisConfiguration>(configuration.GetSection("Redis"));
+        return services;
+    }
+
+    public static IServiceCollection AddRedisCacheWithFallback(this IServiceCollection services, IConfiguration configuration)
+    {
+        var redisConnectionString = configuration.GetConnectionString("Redis");
+        var multiplexerOptions = new ConfigurationOptions
+        {
+            AbortOnConnectFail = false,
+            ConnectTimeout = 3000, // 3 seconds timeout
+            SyncTimeout = 3000,
+            ConnectRetry = 3,
+            ReconnectRetryPolicy = new ExponentialRetry(1000, 10000), // Start at 1s, max 10s
+        };
+
+        if (!string.IsNullOrEmpty(redisConnectionString))
+        {
+            multiplexerOptions.EndPoints.Add(redisConnectionString);
+            
+            // Add Redis health check with connection pooling
+            services.AddSingleton<IConnectionMultiplexer>(sp => ConnectionMultiplexer.Connect(multiplexerOptions));
+
+            // Configure cache with sensible options and resilience handling
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = redisConnectionString;
+                options.InstanceName = "WorkoutTracker:";
+                options.ConfigurationOptions = multiplexerOptions;
+            });
+
+            // Add health checks for Redis
+            services.AddHealthChecks()
+                .AddCheck<HealthChecks.RedisHealthCheck>(
+                    "redis-connectivity", 
+                    HealthStatus.Degraded, 
+                    new[] { "redis", "cache" });
+
+            // Register the resilient cache services
+            services.AddSingleton<IResilientCacheService, ResilientCacheService>();
+        }
+        else
+        {
+            // Fall back to memory cache if Redis connection string is not provided
+            services.AddDistributedMemoryCache(options => 
+            {
+                options.SizeLimit = 100 * 1024 * 1024; // 100 MB limit
+            });
+            
+            // Use a memory-based fallback service instead of Redis
+            services.AddSingleton<IResilientCacheService, FallbackCacheService>();
+        }
+
         return services;
     }
 }

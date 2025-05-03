@@ -190,7 +190,7 @@ namespace WorkoutTrackerWeb.Services.Reports
             }
         }
 
-        public async Task<Dictionary<DateTime, decimal>> GetVolumeOverTimeAsync(int userId, DateTime startDate, DateTime endDate)
+        public async Task<Dictionary<DateTime, decimal>> GetVolumeOverTimeAsync(int userId, DateTime startDate, DateTime endDate, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -210,15 +210,19 @@ namespace WorkoutTrackerWeb.Services.Reports
                     var maxRecords = 1000; // Reasonable limit for weekly aggregation
                     _logger.LogDebug("Limiting query to {MaxRecords} workout sessions", maxRecords);
                     
+                    // Use ToListAsync with cancellation token to allow timeouts
                     var sessions = await _context.WorkoutSessions
                         .Where(s => s.UserId == userId && 
                                     s.StartDateTime >= startDate &&
                                     s.StartDateTime <= endDate)
                         .OrderByDescending(s => s.StartDateTime)
                         .Take(maxRecords)
-                        .ToListAsync();
+                        .ToListAsync(cancellationToken);
                         
                     _logger.LogDebug("Retrieved {Count} workout sessions for weekly aggregation", sessions.Count);
+                    
+                    // Check for cancellation
+                    cancellationToken.ThrowIfCancellationRequested();
                     
                     // Perform weekly grouping in memory
                     var volumeByWeek = sessions
@@ -250,9 +254,12 @@ namespace WorkoutTrackerWeb.Services.Reports
                                     s.StartDateTime <= endDate)
                         .OrderByDescending(s => s.StartDateTime)
                         .Take(maxRecords)
-                        .ToListAsync();
+                        .ToListAsync(cancellationToken);
                         
                     _logger.LogDebug("Retrieved {Count} workout sessions for 3-day aggregation", sessions.Count);
+                    
+                    // Check for cancellation before heavy processing
+                    cancellationToken.ThrowIfCancellationRequested();
                     
                     // Group by 3-day periods in memory
                     var volumeByPeriod = sessions
@@ -283,9 +290,12 @@ namespace WorkoutTrackerWeb.Services.Reports
                                 s.StartDateTime <= endDate)
                     .OrderByDescending(s => s.StartDateTime)
                     .Take(dailyMaxRecords)
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
                     
                 _logger.LogDebug("Retrieved {Count} workout sessions for daily data", dailySessions.Count);
+                
+                // Check for cancellation before heavy processing
+                cancellationToken.ThrowIfCancellationRequested();
                 
                 // Group by day in memory
                 var volumeByDay = dailySessions
@@ -302,6 +312,11 @@ namespace WorkoutTrackerWeb.Services.Reports
                 
                 _logger.LogDebug("Daily aggregation complete. Generated {Count} data points", volumeByDay.Count);
                 return volumeByDay;
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("Volume over time query was canceled for user {UserId}", userId);
+                throw; // Let the controller handle the cancellation
             }
             catch (Exception ex)
             {
@@ -761,16 +776,22 @@ namespace WorkoutTrackerWeb.Services.Reports
             return result;
         }
 
-        public async Task<object> GetUserMetricsAsync(int userId, int days)
+        public async Task<object> GetUserMetricsAsync(int userId, int days, CancellationToken cancellationToken = default)
         {
             try
             {
                 var startDate = DateTime.UtcNow.AddDays(-days);
                 
+                // Check cancellation before expensive operations
+                cancellationToken.ThrowIfCancellationRequested();
+                
                 var sessionCount = await _context.WorkoutSessions
                     .Where(s => s.UserId == userId && s.StartDateTime >= startDate)
-                    .CountAsync();
-                    
+                    .CountAsync(cancellationToken);
+                
+                // Check cancellation before next expensive operation
+                cancellationToken.ThrowIfCancellationRequested();   
+                
                 var totalStats = await _context.WorkoutSets
                     .Where(s => s.WorkoutExercise != null &&
                                s.WorkoutExercise.WorkoutSession != null &&
@@ -784,15 +805,73 @@ namespace WorkoutTrackerWeb.Services.Reports
                         SuccessReps = g.Count(s => s.IsCompleted),
                         FailedReps = g.Count(s => !s.IsCompleted)
                     })
-                    .FirstOrDefaultAsync() ?? new { TotalSets = 0, TotalReps = 0, SuccessReps = 0, FailedReps = 0 };
+                    .FirstOrDefaultAsync(cancellationToken) ?? new { TotalSets = 0, TotalReps = 0, SuccessReps = 0, FailedReps = 0 };
 
-                var totalVolume = await _context.WorkoutSets
-                    .Where(s => s.WorkoutExercise != null &&
-                               s.WorkoutExercise.WorkoutSession != null &&
-                               s.WorkoutExercise.WorkoutSession.UserId == userId && 
-                               s.WorkoutExercise.WorkoutSession.StartDateTime >= startDate)
-                    .SumAsync(s => (s.Weight ?? 0) * (s.Reps ?? 0));
+                // Check cancellation before most expensive operation (volume calculation)
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // Optimize the query by using a raw SQL approach for large datasets
+                decimal totalVolume = 0;
+                
+                if (days > 90)
+                {
+                    _logger.LogDebug("Using optimized volume calculation for large date range ({Days} days)", days);
                     
+                    // Use direct SQL command with timeout for large datasets
+                    using (var command = _context.Database.GetDbConnection().CreateCommand())
+                    {
+                        command.CommandTimeout = 20; // 20 seconds timeout
+                        
+                        if (_context.Database.GetDbConnection().State != System.Data.ConnectionState.Open)
+                        {
+                            await _context.Database.GetDbConnection().OpenAsync(cancellationToken);
+                        }
+                        
+                        command.CommandText = @"
+                            SELECT COALESCE(SUM((ws.Weight * ws.Reps)), 0)
+                            FROM WorkoutSets ws
+                            JOIN WorkoutExercises we ON we.WorkoutExerciseId = ws.WorkoutExerciseId
+                            JOIN WorkoutSessions sess ON sess.WorkoutSessionId = we.WorkoutSessionId
+                            WHERE sess.UserId = @UserId
+                              AND sess.StartDateTime >= @StartDate
+                              AND ws.Weight IS NOT NULL AND ws.Reps IS NOT NULL";
+                        
+                        var paramUserId = command.CreateParameter();
+                        paramUserId.ParameterName = "@UserId";
+                        paramUserId.Value = userId;
+                        command.Parameters.Add(paramUserId);
+                        
+                        var paramStartDate = command.CreateParameter();
+                        paramStartDate.ParameterName = "@StartDate";
+                        paramStartDate.Value = startDate;
+                        command.Parameters.Add(paramStartDate);
+                        
+                        // Use ExecuteScalarAsync with cancellation token
+                        var result = await command.ExecuteScalarAsync(cancellationToken);
+                        if (result != null && result != DBNull.Value)
+                        {
+                            totalVolume = Convert.ToDecimal(result);
+                        }
+                    }
+                }
+                else
+                {
+                    // For smaller date ranges, use LINQ
+                    totalVolume = await _context.WorkoutSets
+                        .Where(s => s.WorkoutExercise != null &&
+                                   s.WorkoutExercise.WorkoutSession != null &&
+                                   s.WorkoutExercise.WorkoutSession.UserId == userId && 
+                                   s.WorkoutExercise.WorkoutSession.StartDateTime >= startDate)
+                        .SumAsync(s => (s.Weight ?? 0) * (s.Reps ?? 0), cancellationToken);
+                }
+                
+                // Calculate calories as a function of volume
+                decimal caloriesPerVolumeUnit = 0.15m; // Estimated calories burned per kg of volume
+                decimal totalCalories = totalVolume * caloriesPerVolumeUnit;
+                
+                // Check cancellation before returning result
+                cancellationToken.ThrowIfCancellationRequested();
+                
                 return new
                 {
                     SessionCount = sessionCount,
@@ -800,8 +879,15 @@ namespace WorkoutTrackerWeb.Services.Reports
                     RepCount = totalStats.TotalReps,
                     SuccessReps = totalStats.SuccessReps,
                     FailedReps = totalStats.FailedReps,
-                    TotalVolume = totalVolume
+                    TotalVolume = totalVolume,
+                    TotalCalories = totalCalories,
+                    CaloriesByExerciseType = new List<object>() // This would be expanded in a real implementation
                 };
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("User metrics query was canceled for user {UserId}", userId);
+                throw; // Let the controller handle the cancellation
             }
             catch (Exception ex)
             {
@@ -813,7 +899,9 @@ namespace WorkoutTrackerWeb.Services.Reports
                     RepCount = 0,
                     SuccessReps = 0,
                     FailedReps = 0,
-                    TotalVolume = 0m
+                    TotalVolume = 0m,
+                    TotalCalories = 0m,
+                    CaloriesByExerciseType = new List<object>()
                 };
             }
         }
