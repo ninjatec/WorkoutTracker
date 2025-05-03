@@ -228,11 +228,11 @@
                 <h5 class="modal-title" id="createGoalModalLabel">Create New Goal</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="createGoalForm" method="post" asp-page="./Create">
+            <form id="createGoalForm" method="post" asp-page="./Create" asp-antiforgery="true">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="clientSelect" class="form-label">Client</label>
-                        <select id="clientSelect" name="ClientId" class="form-select" required data-placeholder="Select a client">
+                        <label for="clientId" class="form-label">Client</label>
+                        <select id="clientId" name="clientId" class="form-select" required data-placeholder="Select a client">
                             <option value=""></option>
                             @foreach (var client in Model.ClientSelectList)
                             {
@@ -242,12 +242,12 @@
                     </div>
                     <div class="mb-3">
                         <label for="description" class="form-label">Goal Description</label>
-                        <input type="text" class="form-control" id="description" name="Description" required maxlength="255">
+                        <input type="text" class="form-control" id="description" name="description" required maxlength="255">
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label for="category" class="form-label">Category</label>
-                            <select id="category" name="Category" class="form-select" required>
+                            <select id="category" name="category" class="form-select" required>
                                 @foreach (GoalCategory category in Enum.GetValues(typeof(GoalCategory)))
                                 {
                                     <option value="@((int)category)">@category.ToString()</option>
@@ -256,14 +256,14 @@
                         </div>
                         <div class="col-md-6">
                             <label for="targetDate" class="form-label">Target Date</label>
-                            <input type="date" class="form-control" id="targetDate" name="TargetDate" required
+                            <input type="date" class="form-control" id="targetDate" name="targetDate" required
                                    value="@DateTime.Now.AddDays(30).ToString("yyyy-MM-dd")">
                         </div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label for="measurementType" class="form-label">Measurement Type</label>
-                            <select id="measurementType" name="MeasurementType" class="form-select">
+                            <select id="measurementType" name="measurementType" class="form-select">
                                 <option value="">None (Time-based progress)</option>
                                 <option value="Weight">Weight</option>
                                 <option value="Reps">Repetitions</option>
@@ -274,7 +274,7 @@
                         </div>
                         <div class="col-md-6 d-none" id="unitField">
                             <label for="measurementUnit" class="form-label">Unit</label>
-                            <select id="measurementUnit" name="MeasurementUnit" class="form-select">
+                            <select id="measurementUnit" name="measurementUnit" class="form-select">
                                 <option value="kg">kg</option>
                                 <option value="lbs">lbs</option>
                                 <option value="reps">reps</option>
@@ -289,20 +289,20 @@
                     <div class="row mb-3 d-none" id="valueFields">
                         <div class="col-md-4">
                             <label for="startValue" class="form-label">Start Value</label>
-                            <input type="number" step="0.01" class="form-control" id="startValue" name="StartValue">
+                            <input type="number" step="0.01" class="form-control" id="startValue" name="startValue">
                         </div>
                         <div class="col-md-4">
                             <label for="currentValue" class="form-label">Current Value</label>
-                            <input type="number" step="0.01" class="form-control" id="currentValue" name="CurrentValue">
+                            <input type="number" step="0.01" class="form-control" id="currentValue" name="currentValue">
                         </div>
                         <div class="col-md-4">
                             <label for="targetValue" class="form-label">Target Value</label>
-                            <input type="number" step="0.01" class="form-control" id="targetValue" name="TargetValue">
+                            <input type="number" step="0.01" class="form-control" id="targetValue" name="targetValue">
                         </div>
                     </div>
                     <div class="mb-3">
                         <label for="notes" class="form-label">Notes</label>
-                        <textarea class="form-control" id="notes" name="Notes" rows="3"></textarea>
+                        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -484,7 +484,7 @@
     <script>
         $(document).ready(function() {
             // Initialize Select2 for client dropdowns
-            $('#clientSelect').select2({
+            $('#clientId').select2({
                 dropdownParent: $('#createGoalModal'),
                 placeholder: "Select a client",
                 allowClear: true,
@@ -512,122 +512,10 @@
                 }
             });
             
-            // Edit modal
-            $('#editMeasurementType').on('change', function() {
-                if ($(this).val() === '') {
-                    $('#editUnitField').addClass('d-none');
-                    $('#editValueFields').addClass('d-none');
-                } else {
-                    $('#editUnitField').removeClass('d-none');
-                    $('#editValueFields').removeClass('d-none');
-                    
-                    // Set default unit based on measurement type
-                    var measurementType = $(this).val();
-                    var defaultUnit = getDefaultUnit(measurementType);
-                    $('#editMeasurementUnit').val(defaultUnit);
-                }
-            });
-            
-            // Populate view goal modal
-            $('#viewGoalModal').on('show.bs.modal', function (event) {
-                var button = $(event.relatedTarget);
-                var modal = $(this);
-                
-                modal.find('#viewClient').text(button.data('client'));
-                modal.find('#viewDescription').text(button.data('description'));
-                modal.find('#viewCategory').text(button.data('category'));
-                modal.find('#viewTargetDate').text(button.data('targetdate'));
-                
-                var measurement = button.data('measurement');
-                if (measurement) {
-                    var startValue = button.data('startvalue');
-                    var currentValue = button.data('currentvalue');
-                    var targetValue = button.data('targetvalue');
-                    var unit = button.data('unit');
-                    
-                    modal.find('#viewMeasurement').text(
-                        measurement + ': ' + 
-                        startValue + ' → ' + 
-                        currentValue + ' / ' + 
-                        targetValue + ' ' + unit
-                    );
-                    modal.find('#viewMeasurement-container').show();
-                } else {
-                    modal.find('#viewMeasurement-container').hide();
-                }
-                
-                var progress = button.data('progress');
-                modal.find('#viewProgressBar')
-                    .css('width', progress + '%')
-                    .text(progress + '%')
-                    .attr('aria-valuenow', progress)
-                    .removeClass('bg-success bg-info bg-warning')
-                    .addClass(progress >= 80 ? 'bg-success' : progress >= 40 ? 'bg-info' : 'bg-warning');
-                
-                var completed = button.data('completed');
-                modal.find('#viewStatus').text(completed ? 'Completed' : 'Active')
-                    .removeClass('badge bg-success bg-primary')
-                    .addClass(completed ? 'badge bg-success' : 'badge bg-primary');
-            });
-            
-            // Populate update progress modal
-            $('#updateProgressModal').on('show.bs.modal', function (event) {
-                var button = $(event.relatedTarget);
-                var modal = $(this);
-                
-                modal.find('#updateGoalId').val(button.data('id'));
-                modal.find('#updateClient').text(button.data('client'));
-                modal.find('#updateDescription').text(button.data('description'));
-                
-                var currentValue = button.data('currentvalue');
-                var targetValue = button.data('targetvalue');
-                var unit = button.data('unit');
-                
-                modal.find('#newValue').val(currentValue);
-                modal.find('#updateUnit').text(unit);
-                modal.find('#updateTargetValue').text(targetValue + ' ' + unit);
-            });
-            
-            // Populate edit goal modal
-            $('#editGoalModal').on('show.bs.modal', function (event) {
-                var button = $(event.relatedTarget);
-                var modal = $(this);
-                
-                modal.find('#editGoalId').val(button.data('id'));
-                modal.find('#editDescription').val(button.data('description'));
-                
-                var category = button.data('category');
-                var categoryIndex = Object.keys(GoalCategory).indexOf(category);
-                modal.find('#editCategory').val(categoryIndex);
-                
-                modal.find('#editTargetDate').val(button.data('targetdate'));
-                
-                var measurement = button.data('measurement');
-                modal.find('#editMeasurementType').val(measurement).trigger('change');
-                
-                if (measurement) {
-                    modal.find('#editMeasurementUnit').val(button.data('unit'));
-                    modal.find('#editStartValue').val(button.data('startvalue'));
-                    modal.find('#editTargetValue').val(button.data('targetvalue'));
-                }
-            });
-            
-            // Helper function to get default unit
-            function getDefaultUnit(measurementType) {
-                switch (measurementType) {
-                    case 'Weight': return 'kg';
-                    case 'Reps': return 'reps';
-                    case 'Distance': return 'km';
-                    case 'Time': return 'sec';
-                    case 'Count': return 'count';
-                    default: return '';
-                }
-            }
-            
             // Create validation for the goal form
             $('#createGoalForm').on('submit', function(e) {
                 // Validate client selection
-                if (!$('#clientSelect').val()) {
+                if (!$('#clientId').val()) {
                     e.preventDefault();
                     alert('Please select a client');
                     return false;
@@ -645,32 +533,17 @@
                 return true;
             });
             
-            // Add GoalCategory object for JavaScript use
-            window.GoalCategory = {
-                "Strength": 0,
-                "Cardio": 1,
-                "Hypertrophy": 2,
-                "Weight": 3,
-                "Technique": 4,
-                "Mobility": 5,
-                "Endurance": 6,
-                "Performance": 7,
-                "Wellness": 8,
-                "Other": 9
-            };
-            
-            // Add custom styles for completed goals in accordion
-            $('<style>')
-                .prop('type', 'text/css')
-                .html(`
-                    .bg-light-success {
-                        background-color: rgba(25, 135, 84, 0.1) !important;
-                    }
-                    .border-success {
-                        border-color: rgba(25, 135, 84, 0.3) !important;
-                    }
-                `)
-                .appendTo('head');
+            // Helper function to get default unit
+            function getDefaultUnit(measurementType) {
+                switch (measurementType) {
+                    case 'Weight': return 'kg';
+                    case 'Reps': return 'reps';
+                    case 'Distance': return 'km';
+                    case 'Time': return 'sec';
+                    case 'Count': return 'count';
+                    default: return '';
+                }
+            }
         });
     </script>
 }

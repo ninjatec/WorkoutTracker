@@ -46,6 +46,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Goals
             return RedirectToPage("./Index");
         }
 
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> OnPostAsync(
             string clientId, 
             string description, 
@@ -103,11 +104,26 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Goals
                         return RedirectToPage("./Index");
                     }
 
+                    // Validate value ranges
+                    if (startValue < 0 || targetValue < 0)
+                    {
+                        _validationService.SetError(this, "Values cannot be negative.");
+                        return RedirectToPage("./Index");
+                    }
+
                     // Set current value to start value if not provided
                     if (!currentValue.HasValue)
                     {
                         currentValue = startValue;
                     }
+                }
+                else
+                {
+                    // Clear measurement-related fields if no measurement type is specified
+                    measurementUnit = null;
+                    startValue = null;
+                    currentValue = null;
+                    targetValue = null;
                 }
 
                 // Create new goal
