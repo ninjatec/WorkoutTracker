@@ -11,6 +11,7 @@
 - Remenber User details are stored accross 2 db contexts
 
 ## Development Practices
+- The application is currently in development so dataloss and downtime are acceptable
 - ALWAYS reference SoW, WiP, README, Inventory and Models to build context
 - ALWAYS ensure the codebase compiles without errors before considering a task complete
 - ALWAYS use --context flag on dotnet ef commands

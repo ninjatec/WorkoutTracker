@@ -4,6 +4,7 @@ using Hangfire;
 using Hangfire.Console;
 using Hangfire.Console.Extensions;
 using Hangfire.Server;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Services.Scheduling;
 
@@ -18,17 +19,20 @@ namespace WorkoutTrackerWeb.Services.Hangfire
         private readonly IBackgroundJobClient _backgroundJobClient;
         private readonly IRecurringJobManager _recurringJobManager;
         private readonly HangfireServerConfiguration _serverConfig;
+        private readonly IServiceProvider _serviceProvider;
 
         public WorkoutSchedulingJobsRegistration(
             ILogger<WorkoutSchedulingJobsRegistration> logger,
             IBackgroundJobClient backgroundJobClient,
             IRecurringJobManager recurringJobManager,
-            HangfireServerConfiguration serverConfig)
+            HangfireServerConfiguration serverConfig,
+            IServiceProvider serviceProvider)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _backgroundJobClient = backgroundJobClient ?? throw new ArgumentNullException(nameof(backgroundJobClient));
             _recurringJobManager = recurringJobManager ?? throw new ArgumentNullException(nameof(recurringJobManager));
             _serverConfig = serverConfig ?? throw new ArgumentNullException(nameof(serverConfig));
+            _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         }
 
         /// <summary>
@@ -43,28 +47,28 @@ namespace WorkoutTrackerWeb.Services.Hangfire
                 // Register a recurring job to process scheduled workouts hourly
                 _recurringJobManager.AddOrUpdate(
                     "process-scheduled-workouts-hourly",
-                    () => GetRequiredService().ProcessScheduledWorkoutsAsync(),
+                    () => _serviceProvider.GetRequiredService<ScheduledWorkoutProcessorService>().ProcessScheduledWorkoutsAsync(),
                     "0 * * * *", // Run every hour at minute 0
                     TimeZoneInfo.Local);
                 
                 // Add a more frequent job to handle time-sensitive workouts
                 _recurringJobManager.AddOrUpdate(
                     "process-urgent-workouts",
-                    () => GetRequiredService().ProcessScheduledWorkoutsAsync(),
+                    () => _serviceProvider.GetRequiredService<ScheduledWorkoutProcessorService>().ProcessScheduledWorkoutsAsync(),
                     "*/15 * * * *", // Run every 15 minutes
                     TimeZoneInfo.Local);
                 
                 // Add a daily job to clean up expired scheduled workouts
                 _recurringJobManager.AddOrUpdate(
                     "cleanup-expired-workouts",
-                    () => GetRequiredService().CleanupExpiredWorkoutsAsync(),
+                    () => _serviceProvider.GetRequiredService<ScheduledWorkoutProcessorService>().CleanupExpiredWorkoutsAsync(),
                     Cron.Daily,
                     TimeZoneInfo.Local);
                 
                 // Add a daily job to process missed workouts
                 _recurringJobManager.AddOrUpdate(
                     "process-missed-workouts",
-                    () => GetRequiredService().ProcessMissedWorkoutsAsync(),
+                    () => _serviceProvider.GetRequiredService<ScheduledWorkoutProcessorService>().ProcessMissedWorkoutsAsync(),
                     "0 2 * * *", // Run at 2 AM daily
                     TimeZoneInfo.Local);
                 
@@ -75,15 +79,6 @@ namespace WorkoutTrackerWeb.Services.Hangfire
                 _logger.LogError(ex, "Error registering workout scheduling jobs");
                 throw; // Rethrow to alert the application that job registration failed
             }
-        }
-        
-        /// <summary>
-        /// Helper method for RecurringJob registration to avoid Job.FromExpression issues
-        /// </summary>
-        private static ScheduledWorkoutProcessorService GetRequiredService()
-        {
-            // This method doesn't actually return the service; Hangfire will resolve it at runtime
-            return null;
         }
     }
 }
