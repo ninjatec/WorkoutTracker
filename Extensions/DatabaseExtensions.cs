@@ -163,7 +163,7 @@ namespace WorkoutTrackerWeb.Extensions
         /// <summary>
         /// Get the current user with safe string handling to prevent SqlNullValueException
         /// </summary>
-        public static async Task<Models.AppUser> GetCurrentUserAsync(this WorkoutTrackerWebContext context, System.Security.Claims.ClaimsPrincipal user)
+        public static async Task<Models.Identity.AppUser> GetCurrentUserAsync(this WorkoutTrackerWebContext context, System.Security.Claims.ClaimsPrincipal user)
         {
             if (user == null || !user.Identity.IsAuthenticated)
                 return null;
@@ -172,18 +172,25 @@ namespace WorkoutTrackerWeb.Extensions
             if (string.IsNullOrEmpty(userId))
                 return null;
                 
-            return await context.Users
-                .Select(u => new Models.AppUser
+            // The WorkoutTrackerWebContext contains User records, not Identity users
+            // We need to retrieve the application user from ApplicationDbContext
+            using (var scope = new Microsoft.Extensions.DependencyInjection.ServiceCollection()
+                .AddEntityFrameworkSqlServer()
+                .BuildServiceProvider())
+            {
+                // Get connection info from current context to create a consistent connection
+                string connectionString = context.Database.GetDbConnection().ConnectionString;
+                
+                // Create options for ApplicationDbContext which has the AppUser entities
+                var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
+                optionsBuilder.UseSqlServer(connectionString);
+                
+                using (var identityContext = new ApplicationDbContext(optionsBuilder.Options))
                 {
-                    Id = u.Id,
-                    UserId = u.UserId,
-                    UserName = u.UserName ?? string.Empty,
-                    Email = u.Email ?? string.Empty,
-                    FirstName = u.FirstName ?? string.Empty,
-                    LastName = u.LastName ?? string.Empty,
-                    DisplayName = u.DisplayName ?? string.Empty
-                })
-                .FirstOrDefaultAsync(u => u.Id == userId);
+                    return await identityContext.Users
+                        .FirstOrDefaultAsync(u => u.Id == userId);
+                }
+            }
         }
     }
 }

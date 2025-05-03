@@ -33,24 +33,26 @@ namespace WorkoutTrackerWeb.Services.Hangfire
         /// </summary>
         public AlertingJobsService()
         {
-            // Get services from JobActivator - Fix ambiguous call by explicitly using JobActivatorContext
-            var jobActivatorContext = new JobActivatorContext(null, null, null);
-            var serviceProvider = JobActivator.Current.BeginScope(jobActivatorContext)?.Resolve(typeof(IServiceProvider)) as IServiceProvider;
-            
-            if (serviceProvider != null)
+            // Use the static service provider if available
+            if (_staticServiceProvider != null)
             {
-                _alertingService = serviceProvider.GetService<IAlertingService>();
-                _logger = serviceProvider.GetService<ILogger<AlertingJobsService>>();
-            }
-            else if (_staticServiceProvider != null)
-            {
-                // Fallback to static service provider
                 _alertingService = _staticServiceProvider.GetService<IAlertingService>();
                 _logger = _staticServiceProvider.GetService<ILogger<AlertingJobsService>>();
+                
+                if (_logger != null && _alertingService != null)
+                {
+                    return; // Successfully resolved dependencies
+                }
             }
             
             // Fallback logger if nothing else works
-            _logger ??= new LoggerFactory().CreateLogger<AlertingJobsService>();
+            _logger = new LoggerFactory().CreateLogger<AlertingJobsService>();
+            
+            // Log the missing dependency and provide a placeholder implementation
+            _logger.LogWarning("AlertingJobsService created without proper dependency injection. Some functionality may not work correctly.");
+            
+            // Create a minimal implementation of IAlertingService that logs but doesn't throw exceptions
+            _alertingService = new FallbackAlertingService(_logger);
         }
 
         /// <summary>

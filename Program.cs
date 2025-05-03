@@ -184,6 +184,29 @@ namespace WorkoutTrackerWeb
                 }
             });
 
+            // Register Hangfire services and servers
+            builder.Services.AddHangfire(configuration => configuration
+                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UseSqlServerStorage(connectionString, new SqlServerStorageOptions
+                {
+                    CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+                    SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+                    QueuePollInterval = TimeSpan.FromSeconds(15),
+                    UseRecommendedIsolationLevel = true,
+                    DisableGlobalLocks = true,
+                    PrepareSchemaIfNecessary = true
+                })
+                .UseActivator(new HangfireActivator(builder.Services.BuildServiceProvider())));
+                
+            // Register background job services
+            builder.Services.AddTransient<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsService>();
+            builder.Services.AddTransient<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsService>();
+            
+            // Set the static service provider for Hangfire jobs to handle parameterless constructor scenarios
+            WorkoutTrackerWeb.Services.Hangfire.AlertingJobsService.SetServiceProvider(builder.Services.BuildServiceProvider());
+
             // Register Hangfire jobs registration services
             builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsRegistration>();
             builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.WorkoutSchedulingJobsRegistration>();
