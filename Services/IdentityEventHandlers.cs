@@ -13,10 +13,11 @@ namespace WorkoutTrackerWeb.Services
             _loginHistoryService = loginHistoryService;
         }
         
-        public async Task OnLoginFailure(string username, string failureReason)
+        public Task OnLoginFailure(string username, string failureReason)
         {
             // Since we don't have the user ID at this point (login failed), we'll log it separately
             // This will be handled in the PasswordSignInAsync method
+            return Task.CompletedTask;
         }
     }
 }

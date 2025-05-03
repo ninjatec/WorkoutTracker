@@ -321,14 +321,14 @@ namespace WorkoutTrackerWeb.Services.Alerting
             return alertTriggered;
         }
 
-        public async Task<bool> CheckAllThresholdsAsync()
+        public Task<bool> CheckAllThresholdsAsync()
         {
             // This method would be called by a background job to check all metrics
             // In a real implementation, you would iterate through all metrics and evaluate them
             _logger.LogInformation("Checking all alert thresholds...");
             
             // Mock implementation - in a real app, you would fetch actual metrics and evaluate them
-            return false;
+            return Task.FromResult(false);
         }
 
         // Notification management

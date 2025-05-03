@@ -78,7 +78,8 @@ namespace WorkoutTrackerWeb.Controllers
                     UserId = ws.UserId,
                     StartDateTime = ws.StartDateTime,
                     Duration = ws.Duration,
-                    CaloriesBurned = ws.CaloriesBurned,
+                    // Use null-conditional operator to safely handle the property if it doesn't exist yet
+                    CaloriesBurned = ws.CaloriesBurned ?? 0m,
                     Notes = ws.Notes ?? string.Empty,
                     WorkoutExercises = ws.WorkoutExercises?
                         .Where(we => we.ExerciseType?.Name != null)

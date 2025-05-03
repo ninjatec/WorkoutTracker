@@ -99,7 +99,7 @@ namespace WorkoutTrackerWeb.Controllers
             }
         }
         
-        private async Task<JobProgress> GetProgressForJobAsync(string jobId)
+        private Task<JobProgress> GetProgressForJobAsync(string jobId)
         {
             try
             {
@@ -118,7 +118,7 @@ namespace WorkoutTrackerWeb.Controllers
                             {
                                 if (param is JobProgress progressParam)
                                 {
-                                    return progressParam;
+                                    return Task.FromResult(progressParam);
                                 }
                             }
                         }
@@ -134,7 +134,7 @@ namespace WorkoutTrackerWeb.Controllers
                             {
                                 try
                                 {
-                                    return JsonConvert.DeserializeObject<JobProgress>(progressJson);
+                                    return Task.FromResult(JsonConvert.DeserializeObject<JobProgress>(progressJson));
                                 }
                                 catch
                                 {
@@ -150,23 +150,23 @@ namespace WorkoutTrackerWeb.Controllers
                         {
                             // For jobs that are processing but have no explicit progress data,
                             // return a generic progress object to keep the UI updated
-                            return new JobProgress
+                            return Task.FromResult(new JobProgress
                             {
                                 Status = $"Processing job in {state} state...",
                                 PercentComplete = state == "Processing" ? 30 : 10, // Show some progress to indicate activity
                                 Details = "Please wait while your file is being processed"
-                            };
+                            });
                         }
                     }
                 }
                 
                 // No progress found
-                return null;
+                return Task.FromResult<JobProgress>(null);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving progress data for job {JobId}", jobId);
-                return null;
+                return Task.FromResult<JobProgress>(null);
             }
         }
     }

@@ -53,7 +53,8 @@ namespace WorkoutTrackerWeb.HealthChecks
                         continue;
                     }
 
-                    var info = server.Info();
+                    // Use async operations where possible
+                    var info = await server.InfoAsync();
                     var metrics = new Dictionary<string, string>();
 
                     foreach (var group in info)

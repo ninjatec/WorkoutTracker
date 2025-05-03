@@ -188,9 +188,9 @@ namespace WorkoutTrackerWeb.Pages.ExerciseTypes
         /// This helper method allows the view to access pending selections without
         /// directly accessing services
         /// </summary>
-        public async Task<int> GetAllPendingSelectionsCountAsync()
+        public Task<int> GetAllPendingSelectionsCountAsync()
         {
-            return await _exerciseService.GetAllPendingSelectionsCountAsync();
+            return _exerciseService.GetAllPendingSelectionsCountAsync();
         }
     }
 }

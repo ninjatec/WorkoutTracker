@@ -263,7 +263,7 @@ namespace WorkoutTrackerWeb.Services.Scheduling
         /// <summary>
         /// Get all weekly occurrences that fall within the date range
         /// </summary>
-        private async Task GetWeeklyOccurrencesInRangeAsync(
+        private Task GetWeeklyOccurrencesInRangeAsync(
             WorkoutSchedule workout, 
             DateTime startDate, 
             DateTime endDate, 
@@ -276,7 +276,7 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             if (!daysOfWeek.Any())
             {
                 _logger.LogWarning("Weekly workout {Id} has no days of week specified", workout.WorkoutScheduleId);
-                return;
+                return Task.CompletedTask;
             }
             
             // Start at the beginning of the range and go forward by days
@@ -315,12 +315,14 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                 
                 currentDate = currentDate.AddDays(1);
             }
+            
+            return Task.CompletedTask;
         }
         
         /// <summary>
         /// Get all bi-weekly occurrences that fall within the date range
         /// </summary>
-        private async Task GetBiWeeklyOccurrencesInRangeAsync(
+        private Task GetBiWeeklyOccurrencesInRangeAsync(
             WorkoutSchedule workout, 
             DateTime startDate, 
             DateTime endDate, 
@@ -333,7 +335,7 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             if (!daysOfWeek.Any())
             {
                 _logger.LogWarning("BiWeekly workout {Id} has no days of week specified", workout.WorkoutScheduleId);
-                return;
+                return Task.CompletedTask;
             }
             
             // Start at the beginning of the range and go forward by days
@@ -379,12 +381,14 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                 
                 currentDate = currentDate.AddDays(1);
             }
+            
+            return Task.CompletedTask;
         }
         
         /// <summary>
         /// Get all monthly occurrences that fall within the date range
         /// </summary>
-        private async Task GetMonthlyOccurrencesInRangeAsync(
+        private Task GetMonthlyOccurrencesInRangeAsync(
             WorkoutSchedule workout, 
             DateTime startDate, 
             DateTime endDate, 
@@ -440,6 +444,8 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                 // Move to next month
                 currentMonth = currentMonth.AddMonths(1);
             }
+            
+            return Task.CompletedTask;
         }
 
         /// <summary>

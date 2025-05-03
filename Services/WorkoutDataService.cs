@@ -44,7 +44,7 @@ namespace WorkoutTrackerWeb.Services
                     UserId = ws.UserId,
                     StartDateTime = ws.StartDateTime,
                     Duration = ws.Duration,
-                    CaloriesBurned = ws.CaloriesBurned,
+                    CaloriesBurned = ws.CaloriesBurned ?? 0m,
                     Notes = ws.Notes ?? string.Empty,
                     WorkoutExercises = ws.WorkoutExercises?
                         .Where(we => we.ExerciseType?.Name != null)

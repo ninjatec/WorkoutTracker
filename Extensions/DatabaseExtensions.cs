@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using System.Data.SqlClient;
 using Microsoft.Data.SqlClient;
 using WorkoutTrackerWeb.Data;
+using WorkoutTrackerWeb.Models;
 
 namespace WorkoutTrackerWeb.Extensions
 {
@@ -121,6 +123,29 @@ namespace WorkoutTrackerWeb.Extensions
             }
             
             return builder.ToString();
+        }
+
+        /// <summary>
+        /// Safely get a string value from a potentially null database field
+        /// </summary>
+        /// <param name="reader">The data reader</param>
+        /// <param name="columnName">The column name</param>
+        /// <returns>The string value or empty string if null</returns>
+        public static string SafeGetString(this Microsoft.Data.SqlClient.SqlDataReader reader, string columnName)
+        {
+            int ordinal = reader.GetOrdinal(columnName);
+            return reader.IsDBNull(ordinal) ? string.Empty : reader.GetString(ordinal);
+        }
+        
+        /// <summary>
+        /// Safely get a string value from a potentially null database field by ordinal position
+        /// </summary>
+        /// <param name="reader">The data reader</param>
+        /// <param name="ordinal">The column ordinal position</param>
+        /// <returns>The string value or empty string if null</returns>
+        public static string SafeGetString(this Microsoft.Data.SqlClient.SqlDataReader reader, int ordinal)
+        {
+            return reader.IsDBNull(ordinal) ? string.Empty : reader.GetString(ordinal);
         }
     }
 }

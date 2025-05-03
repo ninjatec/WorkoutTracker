@@ -176,13 +176,33 @@ namespace WorkoutTrackerWeb.Pages.Reports
                     .ThenInclude(we => we.WorkoutSets)
                 .Where(ws => ws.UserId == UserId)
                 .OrderByDescending(ws => ws.StartDateTime)
-                .ToListAsync();
+                .ToListAsync(); // Load data into memory first, then filter
+                
+            // Process data in memory to safely handle null values
+            var processedSessions = sessions
+                .Select(ws => new WorkoutSession
+                {
+                    WorkoutSessionId = ws.WorkoutSessionId,
+                    UserId = ws.UserId,
+                    Name = ws.Name,
+                    Description = ws.Description,
+                    StartDateTime = ws.StartDateTime,
+                    Duration = ws.Duration,
+                    CaloriesBurned = ws.CaloriesBurned ?? 0m,
+                    Notes = ws.Notes ?? string.Empty,
+                    WorkoutExercises = ws.WorkoutExercises != null ?
+                        ws.WorkoutExercises
+                            .Where(we => we.ExerciseType != null && we.ExerciseType.Name != null)
+                            .ToList() : 
+                        new List<WorkoutExercise>()
+                })
+                .ToList();
 
             // Calculate exercise metrics
             var exerciseVolumes = new Dictionary<string, decimal>();
             var exerciseCalories = new Dictionary<string, decimal>();
 
-            foreach (var session in sessions)
+            foreach (var session in processedSessions)
             {
                 // Get volume data for this session
                 var sessionVolumes = _volumeCalculationService.CalculateSessionVolume(session);
@@ -220,7 +240,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
             TotalCalories = exerciseCalories.Values.Sum();
 
             // Calculate workout trends over the selected period
-            var periodWorkouts = sessions
+            var periodWorkouts = processedSessions
                 .Where(ws => ws.StartDateTime >= PeriodStart && ws.StartDateTime <= PeriodEnd)
                 .OrderBy(ws => ws.StartDateTime)
                 .ToList();
@@ -583,72 +603,85 @@ namespace WorkoutTrackerWeb.Pages.Reports
             // If not in cache or different page, fetch from database
             if (PersonalRecords == null || (paginationInfo != null && paginationInfo.CurrentPage != pageNumber))
             {
-                // Get base query with all needed data
-                var baseQuery = _context.WorkoutSets
-                    .Include(ws => ws.WorkoutExercise)
-                        .ThenInclude(we => we.WorkoutSession)
-                    .Include(ws => ws.WorkoutExercise)
-                        .ThenInclude(we => we.ExerciseType)
-                    .Where(ws => ws.WorkoutExercise != null && 
-                               ws.WorkoutExercise.WorkoutSession != null &&
-                               ws.WorkoutExercise.WorkoutSession.UserId == user.UserId && 
-                               ws.Weight.HasValue && ws.Weight > 0)
-                    .AsNoTracking();
-
-                // Execute and load data into memory first to safely handle NULL values
-                var workoutSets = await baseQuery.ToListAsync();
-
-                // Process the data in memory to avoid SQL NULL value exceptions
-                var groupedSets = workoutSets
-                    .Where(ws => ws.WorkoutExercise?.ExerciseType != null && 
-                                !string.IsNullOrEmpty(ws.WorkoutExercise.ExerciseType.Name))
-                    .GroupBy(ws => new { 
-                        ExerciseTypeId = ws.WorkoutExercise.ExerciseTypeId, 
-                        ExerciseName = ws.WorkoutExercise.ExerciseType.Name ?? "Unknown Exercise" 
-                    })
-                    .Select(g => {
-                        // Get the workout set with maximum weight
-                        var maxWeightSet = g.OrderByDescending(ws => ws.Weight)
-                            .ThenByDescending(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime)
-                            .FirstOrDefault();
-
-                        // Safely retrieve session name
-                        string sessionName = "Unnamed Session";
-                        if (maxWeightSet?.WorkoutExercise?.WorkoutSession?.Name != null) {
-                            sessionName = maxWeightSet.WorkoutExercise.WorkoutSession.Name;
-                        }
-
-                        return new PersonalRecordData {
-                            ExerciseName = g.Key.ExerciseName,
-                            MaxWeight = g.Max(ws => ws.Weight ?? 0),
-                            RecordDate = maxWeightSet?.WorkoutExercise?.WorkoutSession?.StartDateTime ?? DateTime.Now,
-                            SessionName = sessionName
-                        };
-                    })
-                    .OrderByDescending(pr => pr.MaxWeight)
-                    .ToList();
-
-                // Handle pagination
-                var count = groupedSets.Count;
-                CurrentPage = pageNumber ?? 1;
-                TotalPages = (int)Math.Ceiling(count / (double)PageSize);
-                
-                // Store pagination info in cache
-                var newPaginationInfo = new PaginationInfo
+                try
                 {
-                    CurrentPage = CurrentPage,
-                    TotalPages = TotalPages
-                };
-                SetCache(paginationInfoCacheKey, newPaginationInfo);
-
-                // Apply pagination
-                PersonalRecords = groupedSets
-                    .Skip((CurrentPage - 1) * PageSize)
-                    .Take(PageSize)
-                    .ToList();
+                    _logger.Information("Fetching personal record data from database for user {UserId}", user.UserId);
                     
-                // Store personal records in cache
-                SetCache(personalRecordsCacheKey, PersonalRecords);
+                    // Split the query into two parts to avoid SQL NULL value exceptions
+                    // First, get the basic entity data without projections
+                    var workoutSets = await _context.WorkoutSets
+                        .Include(ws => ws.WorkoutExercise)
+                            .ThenInclude(we => we.WorkoutSession)
+                        .Include(ws => ws.WorkoutExercise)
+                            .ThenInclude(we => we.ExerciseType)
+                        .Where(ws => ws.WorkoutExercise != null && 
+                                   ws.WorkoutExercise.WorkoutSession != null &&
+                                   ws.WorkoutExercise.WorkoutSession.UserId == user.UserId && 
+                                   ws.Weight.HasValue && ws.Weight > 0)
+                        .AsNoTracking()
+                        .ToListAsync();
+
+                    // Now process the data in memory to handle NULL values safely
+                    var groupedSets = workoutSets
+                        .Where(ws => ws.WorkoutExercise?.ExerciseType != null)
+                        .Where(ws => !string.IsNullOrEmpty(ws.WorkoutExercise.ExerciseType.Name))
+                        .GroupBy(ws => new { 
+                            ExerciseTypeId = ws.WorkoutExercise.ExerciseTypeId, 
+                            ExerciseName = ws.WorkoutExercise.ExerciseType.Name ?? "Unknown Exercise" 
+                        })
+                        .Select(g => {
+                            // Get the workout set with maximum weight
+                            var maxWeightSet = g.OrderByDescending(ws => ws.Weight)
+                                .ThenByDescending(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime)
+                                .FirstOrDefault();
+
+                            // Safely retrieve session name
+                            string sessionName = "Unnamed Session";
+                            if (maxWeightSet?.WorkoutExercise?.WorkoutSession != null) {
+                                sessionName = maxWeightSet.WorkoutExercise.WorkoutSession.Name ?? "Unnamed Session";
+                            }
+
+                            return new PersonalRecordData {
+                                ExerciseName = g.Key.ExerciseName,
+                                MaxWeight = g.Max(ws => ws.Weight ?? 0),
+                                RecordDate = maxWeightSet?.WorkoutExercise?.WorkoutSession?.StartDateTime ?? DateTime.Now,
+                                SessionName = sessionName
+                            };
+                        })
+                        .OrderByDescending(pr => pr.MaxWeight)
+                        .ToList();
+
+                    // Handle pagination
+                    var count = groupedSets.Count;
+                    CurrentPage = pageNumber ?? 1;
+                    TotalPages = (int)Math.Ceiling(count / (double)PageSize);
+                    
+                    // Store pagination info in cache
+                    var newPaginationInfo = new PaginationInfo
+                    {
+                        CurrentPage = CurrentPage,
+                        TotalPages = TotalPages
+                    };
+                    SetCache(paginationInfoCacheKey, newPaginationInfo);
+
+                    // Apply pagination
+                    PersonalRecords = groupedSets
+                        .Skip((CurrentPage - 1) * PageSize)
+                        .Take(PageSize)
+                        .ToList();
+                        
+                    // Store personal records in cache
+                    SetCache(personalRecordsCacheKey, PersonalRecords);
+                    _logger.Information("Successfully retrieved and cached {Count} personal records", PersonalRecords.Count());
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Error retrieving personal records for user {UserId}", user.UserId);
+                    // Provide empty results rather than crashing
+                    PersonalRecords = new List<PersonalRecordData>();
+                    CurrentPage = pageNumber ?? 1;
+                    TotalPages = 1;
+                }
             }
 
             return Page();

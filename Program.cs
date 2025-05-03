@@ -556,6 +556,12 @@ namespace WorkoutTrackerWeb
                 .EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
             });
 
+            // Register SqlNullSafetyService
+            builder.Services.AddScoped<SqlNullSafetyService>();
+
+            // Register DatabaseMigrationService
+            builder.Services.AddScoped<DatabaseMigrationService>();
+
             builder.Services.AddSingleton<IDbContextFactory<WorkoutTrackerWebContext>>(serviceProvider =>
             {
                 var connectionString = builder.Configuration.GetConnectionString("WorkoutTrackerWebContext") ?? 
@@ -661,6 +667,15 @@ namespace WorkoutTrackerWeb
                 var logger = services.GetRequiredService<ILogger<Program>>();
                 try
                 {
+                    // Run database migration service to ensure CaloriesBurned column is added
+                    var migrationService = services.GetRequiredService<DatabaseMigrationService>();
+                    await migrationService.MigrateAsync();
+                    
+                    // Run SqlNullSafetyService to fix NULL string values
+                    var sqlNullSafetyService = services.GetRequiredService<SqlNullSafetyService>();
+                    int rowsFixed = await sqlNullSafetyService.FixNullStringValuesAsync();
+                    logger.LogInformation("Fixed {RowCount} NULL string values in database", rowsFixed);
+                    
                     await SeedData.InitializeAsync(services);
                 }
                 catch (Exception ex)

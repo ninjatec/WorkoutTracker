@@ -77,7 +77,7 @@ namespace WorkoutTrackerWeb.Pages.Account
             return Page();
         }
 
-        public async Task<IActionResult> OnPostAsync()
+        public IActionResult OnPostAsync()
         {
             if (!ModelState.IsValid)
             {
