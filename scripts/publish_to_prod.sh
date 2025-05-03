@@ -201,7 +201,7 @@ kubectl apply -f ./k8s/service.yaml
 kubectl apply -f ./k8s/mapping.yaml
 # Apply the Hangfire worker deployment
 kubectl apply -f ./k8s/hangfire-worker.yaml
-got checkout dev
+git checkout dev
 echo -e "${GREEN}======================================================${NC}"
 echo -e "${GREEN}  Deployment Complete!                               ${NC}"
 echo -e "${GREEN}  Version: ${VERSION}                                ${NC}"
