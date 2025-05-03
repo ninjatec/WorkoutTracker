@@ -31,13 +31,9 @@ namespace WorkoutTrackerWeb.Pages.Shared
             _logger = logger;
         }
 
-        // Reports data
+        // Only load personal records on initial page load
+        // Chart data will be loaded asynchronously via API calls
         public List<PersonalRecord> PersonalRecords { get; set; } = new List<PersonalRecord>();
-        public List<ExerciseWeightProgress> WeightProgressList { get; set; } = new List<ExerciseWeightProgress>();
-        public List<ExerciseStatusViewModel> ExerciseStatusList { get; set; } = new List<ExerciseStatusViewModel>();
-        public List<ExerciseStatusViewModel> RecentExerciseStatusList { get; set; } = new List<ExerciseStatusViewModel>();
-        public int SuccessReps { get; set; }
-        public int FailedReps { get; set; }
         
         // Pagination and filtering
         public int CurrentPage { get; set; } = 1;
@@ -86,13 +82,14 @@ namespace WorkoutTrackerWeb.Pages.Shared
                 ReportPeriod = 90;
             }
 
-            // Load report data
-            await LoadReportDataAsync(SharedTokenData.UserId, ReportPeriod, CurrentPage);
+            // Load only personal records data for initial page load
+            // Charts will load via API calls
+            await LoadPersonalRecordsAsync(SharedTokenData.UserId, CurrentPage);
             
             return Page();
         }
 
-        private async Task LoadReportDataAsync(int userId, int period, int page)
+        private async Task LoadPersonalRecordsAsync(int userId, int page)
         {
             try
             {
@@ -101,25 +98,15 @@ namespace WorkoutTrackerWeb.Pages.Shared
                 PersonalRecords = prData.Records;
                 TotalPages = prData.TotalPages;
                 
-                // Get weight progress
-                WeightProgressList = await _reportsService.GetWeightProgressAsync(userId, period);
-                
-                // Get exercise status statistics
-                var exerciseStats = await _reportsService.GetExerciseStatusAsync(userId, period);
-                ExerciseStatusList = exerciseStats.AllExercises;
-                RecentExerciseStatusList = exerciseStats.TopExercises;
-                SuccessReps = exerciseStats.TotalSuccess;
-                FailedReps = exerciseStats.TotalFailed;
+                // We no longer preload chart data here - it will be loaded asynchronously via API calls
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error loading report data for user {UserId}", userId);
+                _logger.LogError(ex, "Error loading personal records for user {UserId}", userId);
                 
-                // Initialize empty collections to avoid null reference exceptions in the view
+                // Initialize empty personal records collection
                 PersonalRecords = new List<PersonalRecord>();
-                WeightProgressList = new List<ExerciseWeightProgress>();
-                ExerciseStatusList = new List<ExerciseStatusViewModel>();
-                RecentExerciseStatusList = new List<ExerciseStatusViewModel>();
+                TotalPages = 1;
             }
         }
     }
