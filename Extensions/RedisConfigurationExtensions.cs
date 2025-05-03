@@ -57,16 +57,36 @@ public static class RedisConfigurationExtensions
                 throw new InvalidOperationException("Redis connection string is not configured");
             }
             
-            var options = new ConfigurationOptions
-            {
-                EndPoints = { redisConfig.ConnectionString },
-                AbortOnConnectFail = false,
-                ConnectRetry = 5,
-                ReconnectRetryPolicy = new ExponentialRetry(5000)
-            };
-
             try
             {
+                // Parse the connection string properly
+                string connectionString = redisConfig.ConnectionString;
+                
+                // Extract the host:port part
+                string hostPort = connectionString;
+                if (connectionString.Contains(","))
+                {
+                    hostPort = connectionString.Substring(0, connectionString.IndexOf(","));
+                }
+                
+                var options = ConfigurationOptions.Parse(connectionString);
+                
+                // Ensure we have the right endpoint
+                options.EndPoints.Clear();
+                options.EndPoints.Add(hostPort);
+                
+                // Set additional connection options if they're not in the connection string
+                if (!connectionString.Contains("abortConnect="))
+                    options.AbortOnConnectFail = false;
+                
+                if (!connectionString.Contains("connectRetry="))
+                    options.ConnectRetry = 5;
+                
+                options.ReconnectRetryPolicy = new ExponentialRetry(5000);
+                
+                logger.LogInformation("Connecting to Redis at {Endpoints} with options: {Options}", 
+                    string.Join(", ", options.EndPoints), options);
+                
                 return ConnectionMultiplexer.Connect(options);
             }
             catch (Exception ex)
@@ -96,12 +116,36 @@ public class RedisConfiguration
 
     public ConfigurationOptions ToConfigurationOptions()
     {
-        return new ConfigurationOptions
+        try
         {
-            EndPoints = { ConnectionString },
-            AbortOnConnectFail = false,
-            ConnectRetry = 5,
-            ReconnectRetryPolicy = new ExponentialRetry(5000)
-        };
+            // Parse the connection string properly
+            string connectionString = ConnectionString;
+            
+            // Extract the host:port part
+            string hostPort = connectionString;
+            if (connectionString.Contains(","))
+            {
+                hostPort = connectionString.Substring(0, connectionString.IndexOf(","));
+            }
+            
+            var options = ConfigurationOptions.Parse(connectionString);
+            
+            // Ensure we have the right endpoint
+            options.EndPoints.Clear();
+            options.EndPoints.Add(hostPort);
+            
+            return options;
+        }
+        catch
+        {
+            // Fallback to basic configuration
+            return new ConfigurationOptions
+            {
+                EndPoints = { ConnectionString.Split(',')[0] },
+                AbortOnConnectFail = false,
+                ConnectRetry = 5,
+                ReconnectRetryPolicy = new ExponentialRetry(5000)
+            };
+        }
     }
 }

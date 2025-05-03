@@ -14,14 +14,42 @@ namespace WorkoutTrackerWeb.Services.Redis
 
         public ConfigurationOptions ToConfigurationOptions()
         {
-            return new ConfigurationOptions
+            try
             {
-                EndPoints = { ConnectionString },
-                DefaultDatabase = DatabaseId,
-                ConnectTimeout = ConnectTimeout,
-                ConnectRetry = ConnectRetry,
-                AbortOnConnectFail = AbortOnConnectFail
-            };
+                // Extract the host:port part
+                string hostPort = ConnectionString;
+                if (ConnectionString.Contains(","))
+                {
+                    hostPort = ConnectionString.Substring(0, ConnectionString.IndexOf(","));
+                }
+                
+                // Attempt to parse the connection string
+                var options = ConfigurationOptions.Parse(ConnectionString);
+                
+                // Ensure we have the right endpoint
+                options.EndPoints.Clear();
+                options.EndPoints.Add(hostPort);
+                
+                // Set additional parameters
+                options.DefaultDatabase = DatabaseId;
+                options.ConnectTimeout = ConnectTimeout;
+                options.ConnectRetry = ConnectRetry;
+                options.AbortOnConnectFail = AbortOnConnectFail;
+                
+                return options;
+            }
+            catch (Exception)
+            {
+                // Fallback - create a configuration from scratch
+                return new ConfigurationOptions
+                {
+                    EndPoints = { ConnectionString.Split(',')[0] },
+                    DefaultDatabase = DatabaseId,
+                    ConnectTimeout = ConnectTimeout,
+                    ConnectRetry = ConnectRetry,
+                    AbortOnConnectFail = AbortOnConnectFail
+                };
+            }
         }
     }
 }
