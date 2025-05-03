@@ -155,21 +155,55 @@ namespace WorkoutTrackerWeb.Controllers
                         
                         using (var reader = command.ExecuteReader())
                         {
-                            if (reader.Read()) result["Enqueued"] = reader.GetInt32(0);
-                            if (reader.NextResult() && reader.Read()) result["Processing"] = reader.GetInt32(0);
-                            if (reader.NextResult() && reader.Read()) result["Succeeded"] = reader.GetInt32(0);
-                            if (reader.NextResult() && reader.Read()) result["Failed"] = reader.GetInt32(0);
-                            if (reader.NextResult() && reader.Read()) result["Scheduled"] = reader.GetInt32(0);
-                            if (reader.NextResult() && reader.Read()) result["Total"] = reader.GetInt32(0);
+                            // Use GetFieldValue<int> with defaultValue parameter to handle NULL values safely
+                            if (reader.Read()) result["Enqueued"] = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
+                            if (reader.NextResult() && reader.Read()) result["Processing"] = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
+                            if (reader.NextResult() && reader.Read()) result["Succeeded"] = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
+                            if (reader.NextResult() && reader.Read()) result["Failed"] = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
+                            if (reader.NextResult() && reader.Read()) result["Scheduled"] = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
+                            if (reader.NextResult() && reader.Read()) result["Total"] = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
                         }
                     }
                     
                     // Check for active servers
-                    using (var command = connection.CreateCommand())
+                    try 
                     {
-                        command.CommandText = "SELECT COUNT(*) FROM [HangFire].[Server] WHERE Heartbeat > DATEADD(MINUTE, -5, GETUTCDATE())";
-                        var activeServers = (int)command.ExecuteScalar();
-                        result["ActiveServers"] = activeServers;
+                        // Check if the Heartbeat column exists
+                        bool heartbeatExists = false;
+                        using (var checkCmd = connection.CreateCommand())
+                        {
+                            checkCmd.CommandText = @"
+                                SELECT COUNT(*)
+                                FROM INFORMATION_SCHEMA.COLUMNS
+                                WHERE TABLE_SCHEMA = 'HangFire'
+                                  AND TABLE_NAME = 'Server'
+                                  AND COLUMN_NAME = 'Heartbeat'";
+                            
+                            var result_count = checkCmd.ExecuteScalar();
+                            heartbeatExists = result_count != null && Convert.ToInt32(result_count) > 0;
+                        }
+                        
+                        // Use appropriate query based on schema version
+                        using (var command = connection.CreateCommand())
+                        {
+                            if (heartbeatExists)
+                            {
+                                command.CommandText = "SELECT COUNT(*) FROM [HangFire].[Server] WHERE Heartbeat > DATEADD(MINUTE, -5, GETUTCDATE())";
+                            }
+                            else
+                            {
+                                // Older Hangfire versions use LastHeartbeat column
+                                command.CommandText = "SELECT COUNT(*) FROM [HangFire].[Server] WHERE LastHeartbeat > DATEADD(MINUTE, -5, GETUTCDATE())";
+                            }
+                            
+                            var serverCount = command.ExecuteScalar();
+                            result["ActiveServers"] = serverCount != null ? Convert.ToInt32(serverCount) : 0;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error checking active servers: {Message}", ex.Message);
+                        result["ActiveServers"] = -1; // Indicate an error occurred
                     }
                 }
             }

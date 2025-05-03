@@ -88,9 +88,15 @@ namespace WorkoutTrackerWeb.Extensions
                     {
                         if (await reader.ReadAsync())
                         {
-                            stats["TotalConnections"] = reader["connections"].ToString();
-                            stats["IdleConnections"] = reader["idle_connections"].ToString();
-                            stats["ActiveConnections"] = reader["active_connections"].ToString();
+                            // Handle potentially null values safely
+                            stats["TotalConnections"] = !reader.IsDBNull(reader.GetOrdinal("connections")) ? 
+                                reader["connections"].ToString() : "0";
+                                
+                            stats["IdleConnections"] = !reader.IsDBNull(reader.GetOrdinal("idle_connections")) ? 
+                                reader["idle_connections"].ToString() : "0";
+                                
+                            stats["ActiveConnections"] = !reader.IsDBNull(reader.GetOrdinal("active_connections")) ? 
+                                reader["active_connections"].ToString() : "0";
                         }
                     }
                 }

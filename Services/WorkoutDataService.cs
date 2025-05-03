@@ -39,19 +39,47 @@ namespace WorkoutTrackerWeb.Services
         {
             var metrics = new Dictionary<string, int>();
             
-            var workoutSessions = await _context.WorkoutSessions
-                .Include(ws => ws.WorkoutExercises)
-                    .ThenInclude(we => we.WorkoutSets)
-                .Where(ws => ws.UserId == userId && ws.StartDateTime >= startDate)
-                .ToListAsync();
+            try {
+                // Query data with explicit null checks in the LINQ query
+                var workoutSessions = await _context.WorkoutSessions
+                    .Include(ws => ws.WorkoutExercises)
+                        .ThenInclude(we => we.WorkoutSets)
+                    .Where(ws => ws.UserId == userId && ws.StartDateTime >= startDate)
+                    .ToListAsync();
 
-            metrics["TotalWorkouts"] = workoutSessions.Count;
-            metrics["TotalExercises"] = workoutSessions.Sum(ws => ws.WorkoutExercises.Count);
-            metrics["TotalSets"] = workoutSessions.Sum(ws => ws.WorkoutExercises.Sum(we => we.WorkoutSets.Count));
-            metrics["TotalReps"] = workoutSessions.Sum(ws => 
-                ws.WorkoutExercises.Sum(we => 
-                    we.WorkoutSets.Sum(s => s.Reps ?? 0)));
-
+                metrics["TotalWorkouts"] = workoutSessions.Count;
+                metrics["TotalExercises"] = workoutSessions.Sum(ws => ws.WorkoutExercises?.Count ?? 0);
+                
+                // Calculate TotalSets and TotalReps using null-safe aggregate operations
+                var totalSets = 0;
+                var totalReps = 0;
+                
+                foreach (var session in workoutSessions) 
+                {
+                    if (session.WorkoutExercises == null) continue;
+                    
+                    foreach (var exercise in session.WorkoutExercises)
+                    {
+                        if (exercise.WorkoutSets == null) continue;
+                        
+                        totalSets += exercise.WorkoutSets.Count;
+                        totalReps += exercise.WorkoutSets.Sum(s => s.Reps ?? 0);
+                    }
+                }
+                
+                metrics["TotalSets"] = totalSets;
+                metrics["TotalReps"] = totalReps;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting user metrics for user {UserId}", userId);
+                // Provide default values in case of error
+                metrics["TotalWorkouts"] = 0;
+                metrics["TotalExercises"] = 0;
+                metrics["TotalSets"] = 0;
+                metrics["TotalReps"] = 0;
+            }
+            
             return metrics;
         }
 

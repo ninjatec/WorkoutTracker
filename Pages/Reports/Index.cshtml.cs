@@ -312,10 +312,16 @@ namespace WorkoutTrackerWeb.Pages.Reports
                                 ws.WorkoutExercise.WorkoutSession != null && 
                                 ws.WorkoutExercise.WorkoutSession.UserId == user.UserId && 
                                 ws.WorkoutExercise.WorkoutSession.StartDateTime >= reportPeriodDate &&
-                                ws.WorkoutExercise.ExerciseType != null &&
-                                ws.WorkoutExercise.ExerciseType.Name != null) 
+                                ws.WorkoutExercise.ExerciseType != null)
+                    // Removed the Name != null check as it causes SQL null value exception
+                    // Handle null names in-memory after fetching
                     .AsNoTracking()
                     .ToListAsync();
+
+                // Filter out records with null exercise names in memory to avoid SQL null issues
+                allWorkoutSets = allWorkoutSets
+                    .Where(ws => ws.WorkoutExercise.ExerciseType.Name != null)
+                    .ToList();
 
                 // Get all workout sessions in the period
                 var allWorkoutSessions = await _context.WorkoutSessions

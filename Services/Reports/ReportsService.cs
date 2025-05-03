@@ -139,14 +139,23 @@ namespace WorkoutTrackerWeb.Services.Reports
         {
             try
             {
-                var frequency = await _context.WorkoutExercises
+                // Load the data first to handle null values in memory rather than in SQL
+                var exercises = await _context.WorkoutExercises
                     .Where(e => e.WorkoutSession != null && 
                                 e.WorkoutSession.UserId == userId && 
                                 e.WorkoutSession.StartDateTime >= startDate &&
                                 e.WorkoutSession.StartDateTime <= endDate &&
-                                e.ExerciseType != null &&
-                                e.ExerciseType.Name != null)
-                    .GroupBy(e => e.ExerciseType.Name)
+                                e.ExerciseType != null)
+                    .Select(e => new 
+                    {
+                        ExerciseName = e.ExerciseType.Name
+                    })
+                    .ToListAsync();
+                    
+                // Process in memory to avoid SQL NULL exceptions
+                return exercises
+                    .Where(x => !string.IsNullOrEmpty(x.ExerciseName))
+                    .GroupBy(x => x.ExerciseName)
                     .Select(g => new
                     {
                         ExerciseName = g.Key,
@@ -154,9 +163,7 @@ namespace WorkoutTrackerWeb.Services.Reports
                     })
                     .OrderByDescending(x => x.Count)
                     .Take(limit)
-                    .ToDictionaryAsync(x => x.ExerciseName ?? "Unknown", x => x.Count);
-                
-                return frequency;
+                    .ToDictionary(x => x.ExerciseName, x => x.Count);
             }
             catch (Exception ex)
             {
