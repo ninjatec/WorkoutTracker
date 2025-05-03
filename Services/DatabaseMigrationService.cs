@@ -68,7 +68,7 @@ namespace WorkoutTrackerWeb.Services
                     string checkSql = @"
                         SELECT COUNT(1) 
                         FROM INFORMATION_SCHEMA.COLUMNS 
-                        WHERE TABLE_NAME = 'WorkoutSession' 
+                        WHERE TABLE_NAME = 'WorkoutSessions' 
                         AND COLUMN_NAME = 'CaloriesBurned'";
                     
                     using (var command = new SqlCommand(checkSql, connection))
@@ -79,10 +79,10 @@ namespace WorkoutTrackerWeb.Services
                     
                     if (!columnExists)
                     {
-                        _logger.LogInformation("Adding CaloriesBurned column to WorkoutSession table");
+                        _logger.LogInformation("Adding CaloriesBurned column to WorkoutSessions table");
                         
                         string migrationSql = @"
-                            ALTER TABLE WorkoutSession
+                            ALTER TABLE WorkoutSessions
                             ADD CaloriesBurned DECIMAL(18, 2) NULL;";
                         
                         using (var command = new SqlCommand(migrationSql, connection))
