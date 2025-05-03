@@ -58,4 +58,6 @@ if [[ "$CURRENT_BRANCH" != "main" ]]; then
     git checkout "$CURRENT_BRANCH"
 fi
 
+git checkout main
+
 echo "Done."

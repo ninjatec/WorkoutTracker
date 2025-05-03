@@ -36,6 +36,21 @@ namespace WorkoutTrackerWeb.Services
             {
                 _logger.LogInformation("Starting to fix NULL string values in database");
 
+                // Ensure we have a valid connection first
+                if (_context?.Database?.GetDbConnection() == null)
+                {
+                    _logger.LogError("Database connection is not available");
+                    return 0;
+                }
+
+                // Verify the connection string is set
+                var connection = _context.Database.GetDbConnection() as SqlConnection;
+                if (connection == null || string.IsNullOrEmpty(connection.ConnectionString))
+                {
+                    _logger.LogError("SQL Connection string is not initialized");
+                    return 0;
+                }
+
                 // Table-specific fixes for known problematic columns
                 totalRowsAffected += await UpdateNullStringsInTableAsync("WorkoutSession", new[] { "Name", "Description", "Notes" });
                 totalRowsAffected += await UpdateNullStringsInTableAsync("ExerciseType", new[] { "Name", "Description", "Type", "Muscle", "Equipment", "Difficulty" });
@@ -64,35 +79,43 @@ namespace WorkoutTrackerWeb.Services
         {
             int rowsAffected = 0;
             
-            using (var connection = _context.Database.GetDbConnection() as SqlConnection)
+            // Create a new connection to ensure it's properly initialized
+            using (var connection = new SqlConnection(_context.Database.GetConnectionString()))
             {
-                if (connection.State != System.Data.ConnectionState.Open)
+                try
                 {
-                    await connection.OpenAsync();
-                }
-
-                foreach (var column in columnNames)
-                {
-                    string sql = $"UPDATE {tableName} SET {column} = '' WHERE {column} IS NULL";
-                    
-                    using (var command = new SqlCommand(sql, connection))
+                    if (connection.State != System.Data.ConnectionState.Open)
                     {
-                        try
+                        await connection.OpenAsync();
+                    }
+
+                    foreach (var column in columnNames)
+                    {
+                        string sql = $"UPDATE {tableName} SET {column} = '' WHERE {column} IS NULL";
+                        
+                        using (var command = new SqlCommand(sql, connection))
                         {
-                            int affected = await command.ExecuteNonQueryAsync();
-                            rowsAffected += affected;
-                            
-                            if (affected > 0)
+                            try
                             {
-                                _logger.LogInformation("Updated {Count} NULL values in {Table}.{Column}", 
-                                    affected, tableName, column);
+                                int affected = await command.ExecuteNonQueryAsync();
+                                rowsAffected += affected;
+                                
+                                if (affected > 0)
+                                {
+                                    _logger.LogInformation("Updated {Count} NULL values in {Table}.{Column}", 
+                                        affected, tableName, column);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "Error updating NULL values in {Table}.{Column}", tableName, column);
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Error updating NULL values in {Table}.{Column}", tableName, column);
-                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to connect to database or update NULL values");
                 }
             }
             
@@ -108,61 +131,68 @@ namespace WorkoutTrackerWeb.Services
             int rowsAffected = 0;
             
             // Get all tables and string columns in the database
-            using (var connection = _context.Database.GetDbConnection() as SqlConnection)
+            using (var connection = new SqlConnection(_context.Database.GetConnectionString()))
             {
-                if (connection.State != System.Data.ConnectionState.Open)
+                try
                 {
-                    await connection.OpenAsync();
-                }
-
-                // Query to get all string columns in the database that can be NULL
-                string columnQuery = @"
-                    SELECT 
-                        TABLE_NAME, 
-                        COLUMN_NAME
-                    FROM 
-                        INFORMATION_SCHEMA.COLUMNS
-                    WHERE 
-                        DATA_TYPE IN ('varchar', 'nvarchar', 'char', 'nchar', 'text', 'ntext')
-                        AND IS_NULLABLE = 'YES'";
-                
-                var stringColumns = new List<(string TableName, string ColumnName)>();
-                
-                using (var command = new SqlCommand(columnQuery, connection))
-                using (var reader = await command.ExecuteReaderAsync())
-                {
-                    while (await reader.ReadAsync())
+                    if (connection.State != System.Data.ConnectionState.Open)
                     {
-                        string tableName = reader.GetString(0);
-                        string columnName = reader.GetString(1);
-                        stringColumns.Add((tableName, columnName));
+                        await connection.OpenAsync();
                     }
-                }
-                
-                // Update each column
-                foreach (var column in stringColumns)
-                {
-                    string updateSql = $"UPDATE [{column.TableName}] SET [{column.ColumnName}] = '' WHERE [{column.ColumnName}] IS NULL";
+
+                    // Query to get all string columns in the database that can be NULL
+                    string columnQuery = @"
+                        SELECT 
+                            TABLE_NAME, 
+                            COLUMN_NAME
+                        FROM 
+                            INFORMATION_SCHEMA.COLUMNS
+                        WHERE 
+                            DATA_TYPE IN ('varchar', 'nvarchar', 'char', 'nchar', 'text', 'ntext')
+                            AND IS_NULLABLE = 'YES'";
                     
-                    using (var command = new SqlCommand(updateSql, connection))
+                    var stringColumns = new List<(string TableName, string ColumnName)>();
+                    
+                    using (var command = new SqlCommand(columnQuery, connection))
+                    using (var reader = await command.ExecuteReaderAsync())
                     {
-                        try
+                        while (await reader.ReadAsync())
                         {
-                            int affected = await command.ExecuteNonQueryAsync();
-                            rowsAffected += affected;
-                            
-                            if (affected > 0)
+                            string tableName = reader.GetString(0);
+                            string columnName = reader.GetString(1);
+                            stringColumns.Add((tableName, columnName));
+                        }
+                    }
+                    
+                    // Update each column
+                    foreach (var column in stringColumns)
+                    {
+                        string updateSql = $"UPDATE [{column.TableName}] SET [{column.ColumnName}] = '' WHERE [{column.ColumnName}] IS NULL";
+                        
+                        using (var command = new SqlCommand(updateSql, connection))
+                        {
+                            try
                             {
-                                _logger.LogInformation("Automatically updated {Count} NULL values in {Table}.{Column}", 
-                                    affected, column.TableName, column.ColumnName);
+                                int affected = await command.ExecuteNonQueryAsync();
+                                rowsAffected += affected;
+                                
+                                if (affected > 0)
+                                {
+                                    _logger.LogInformation("Automatically updated {Count} NULL values in {Table}.{Column}", 
+                                        affected, column.TableName, column.ColumnName);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogWarning(ex, "Error automatically updating NULL values in {Table}.{Column}", 
+                                    column.TableName, column.ColumnName);
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Error automatically updating NULL values in {Table}.{Column}", 
-                                column.TableName, column.ColumnName);
-                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to connect to database or query string columns");
                 }
             }
             
