@@ -277,19 +277,19 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
         }
         
         // Check the status of a background job
-        private async Task<(bool IsInProgress, string State)> CheckJobStatusAsync(string jobId)
+        private Task<(bool IsInProgress, string State)> CheckJobStatusAsync(string jobId)
         {
             try
             {
                 if (string.IsNullOrEmpty(jobId))
-                    return (false, "Unknown");
+                    return Task.FromResult<(bool, string)>((false, "Unknown"));
                 
                 // First check with our service if it's in progress
                 bool isInProgress = _backgroundJobService.IsJobInProgress(jobId);
                 
                 // If it's in progress, return immediately
                 if (isInProgress)
-                    return (true, "Processing");
+                    return Task.FromResult<(bool, string)>((true, "Processing"));
                 
                 // If not in progress, check more detailed status using Hangfire's API
                 string state = "Unknown";
@@ -300,39 +300,39 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                 // Check failed jobs
                 var failedJobs = monitoringApi.FailedJobs(0, 1000);
                 if (failedJobs.Any(j => j.Key == jobId))
-                    return (false, "Failed");
+                    return Task.FromResult<(bool, string)>((false, "Failed"));
                 
                 // Check succeeded jobs
                 var succeededJobs = monitoringApi.SucceededJobs(0, 1000);
                 if (succeededJobs.Any(j => j.Key == jobId))
-                    return (false, "Succeeded");
+                    return Task.FromResult<(bool, string)>((false, "Succeeded"));
                 
                 // Check scheduled jobs (jobs that will run in the future)
                 var scheduledJobs = monitoringApi.ScheduledJobs(0, 1000);
                 if (scheduledJobs.Any(j => j.Key == jobId))
-                    return (true, "Scheduled");
+                    return Task.FromResult<(bool, string)>((true, "Scheduled"));
                 
                 // Check enqueued jobs
                 var enqueuedJobs = monitoringApi.EnqueuedJobs("default", 0, 1000);
                 if (enqueuedJobs.Any(j => j.Key == jobId))
-                    return (true, "Enqueued");
+                    return Task.FromResult<(bool, string)>((true, "Enqueued"));
                 
-                return (false, state);
+                return Task.FromResult<(bool, string)>((false, state));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error checking job status for {JobId}", jobId);
-                return (false, "Error");
+                return Task.FromResult<(bool, string)>((false, "Error"));
             }
         }
         
         // Get error message for a failed job
-        private async Task<string> GetJobErrorMessageAsync(string jobId)
+        private Task<string> GetJobErrorMessageAsync(string jobId)
         {
             try
             {
                 if (string.IsNullOrEmpty(jobId))
-                    return "Unknown error";
+                    return Task.FromResult("Unknown error");
                 
                 var storage = JobStorage.Current;
                 var monitoringApi = storage.GetMonitoringApi();
@@ -341,15 +341,15 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
                 var job = failedJobs.FirstOrDefault(j => j.Key == jobId);
                 if (job.Value != null)
                 {
-                    return job.Value.ExceptionMessage;
+                    return Task.FromResult(job.Value.ExceptionMessage);
                 }
                 
-                return "No error details available";
+                return Task.FromResult("No error details available");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting job error message for {JobId}", jobId);
-                return "Error retrieving job details";
+                return Task.FromResult("Error retrieving job details");
             }
         }
     }

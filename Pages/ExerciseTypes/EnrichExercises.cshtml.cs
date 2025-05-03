@@ -190,6 +190,7 @@ namespace WorkoutTrackerWeb.Pages.ExerciseTypes
         /// </summary>
         public Task<int> GetAllPendingSelectionsCountAsync()
         {
+            // Pass through to the service
             return _exerciseService.GetAllPendingSelectionsCountAsync();
         }
     }

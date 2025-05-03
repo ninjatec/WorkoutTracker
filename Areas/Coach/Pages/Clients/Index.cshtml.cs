@@ -388,111 +388,120 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             return RedirectToPage();
         }
 
-        public async Task<IActionResult> OnPostCreateGroupAsync(string groupName, string groupDescription, List<int> selectedClients = null)
+        public Task<IActionResult> OnPostCreateGroupAsync(string groupName, string groupDescription, List<int> selectedClients = null)
         {
             selectedClients = selectedClients ?? new List<int>();
             
             var coachId = _userManager.GetUserId(User);
             if (string.IsNullOrEmpty(coachId))
             {
-                return Forbid();
+                return Task.FromResult<IActionResult>(Forbid());
             }
 
             // Validate group name and description using our validation service
             if (!_validationService.ValidateGroupName(groupName, this))
             {
-                return RedirectToPage();
+                return Task.FromResult<IActionResult>(RedirectToPage());
             }
             
             if (!_validationService.ValidateGroupDescription(groupDescription, this))
             {
-                return RedirectToPage();
+                return Task.FromResult<IActionResult>(RedirectToPage());
             }
 
             try
             {
-                // Check for existing group with the same name
-                var existingGroup = await _context.ClientGroups
-                    .Where(g => g.CoachId == coachId && g.Name == groupName)
-                    .FirstOrDefaultAsync();
-                    
-                if (existingGroup != null)
-                {
-                    _validationService.SetError(this, $"A group named '{groupName}' already exists.");
-                    return RedirectToPage();
-                }
-
-                // Use a transaction to ensure all operations succeed or fail together
-                using var transaction = await _context.Database.BeginTransactionAsync();
-                
-                // Create the new group
-                var newGroup = new ClientGroup
-                {
-                    CoachId = coachId,
-                    Name = groupName,
-                    Description = groupDescription,
-                    CreatedDate = DateTime.UtcNow,
-                    LastModifiedDate = DateTime.UtcNow
-                };
-
-                _context.ClientGroups.Add(newGroup);
-                await _context.SaveChangesAsync();
-                
-                _logger.LogInformation("Coach {CoachId} created new client group {GroupId}: {GroupName}", 
-                    coachId, newGroup.Id, newGroup.Name);
-
-                // Add selected clients to the group if any were selected
-                if (selectedClients.Any())
-                {
-                    int addedCount = 0;
-                    
-                    foreach (var relationshipId in selectedClients)
+                // Use RunAsSync to execute async code
+                return Task.FromResult<IActionResult>(RunAsSync(async () => {
+                    // Check for existing group with the same name
+                    var existingGroup = await _context.ClientGroups
+                        .Where(g => g.CoachId == coachId && g.Name == groupName)
+                        .FirstOrDefaultAsync();
+                        
+                    if (existingGroup != null)
                     {
-                        // Verify relationship exists and belongs to this coach
-                        var relationship = await _context.CoachClientRelationships
-                            .Where(r => r.Id == relationshipId && r.CoachId == coachId && r.Status == RelationshipStatus.Active)
-                            .FirstOrDefaultAsync();
-
-                        if (relationship != null)
-                        {
-                            _context.ClientGroupMembers.Add(new ClientGroupMember
-                            {
-                                ClientGroupId = newGroup.Id,
-                                CoachClientRelationshipId = relationshipId,
-                                AddedDate = DateTime.UtcNow
-                            });
-                            addedCount++;
-                        }
+                        _validationService.SetError(this, $"A group named '{groupName}' already exists.");
+                        return RedirectToPage();
                     }
 
-                    if (addedCount > 0)
+                    // Use a transaction to ensure all operations succeed or fail together
+                    using var transaction = await _context.Database.BeginTransactionAsync();
+                    
+                    // Create the new group
+                    var newGroup = new ClientGroup
                     {
-                        await _context.SaveChangesAsync();
-                        _logger.LogInformation("Added {Count} clients to group {GroupId}", addedCount, newGroup.Id);
-                        _validationService.SetSuccess(this, $"Created client group '{groupName}' with {addedCount} client{(addedCount > 1 ? "s" : "")}.");
+                        CoachId = coachId,
+                        Name = groupName,
+                        Description = groupDescription,
+                        CreatedDate = DateTime.UtcNow,
+                        LastModifiedDate = DateTime.UtcNow
+                    };
+
+                    _context.ClientGroups.Add(newGroup);
+                    await _context.SaveChangesAsync();
+                    
+                    _logger.LogInformation("Coach {CoachId} created new client group {GroupId}: {GroupName}", 
+                        coachId, newGroup.Id, newGroup.Name);
+
+                    // Add selected clients to the group if any were selected
+                    if (selectedClients.Any())
+                    {
+                        int addedCount = 0;
+                        
+                        foreach (var relationshipId in selectedClients)
+                        {
+                            // Verify relationship exists and belongs to this coach
+                            var relationship = await _context.CoachClientRelationships
+                                .Where(r => r.Id == relationshipId && r.CoachId == coachId && r.Status == RelationshipStatus.Active)
+                                .FirstOrDefaultAsync();
+
+                            if (relationship != null)
+                            {
+                                _context.ClientGroupMembers.Add(new ClientGroupMember
+                                {
+                                    ClientGroupId = newGroup.Id,
+                                    CoachClientRelationshipId = relationshipId,
+                                    AddedDate = DateTime.UtcNow
+                                });
+                                addedCount++;
+                            }
+                        }
+
+                        if (addedCount > 0)
+                        {
+                            await _context.SaveChangesAsync();
+                            _logger.LogInformation("Added {Count} clients to group {GroupId}", addedCount, newGroup.Id);
+                            _validationService.SetSuccess(this, $"Created client group '{groupName}' with {addedCount} client{(addedCount > 1 ? "s" : "")}.");
+                        }
+                        else
+                        {
+                            _validationService.SetSuccess(this, $"Created client group '{groupName}'. No valid clients were added.");
+                        }
                     }
                     else
                     {
-                        _validationService.SetSuccess(this, $"Created client group '{groupName}'. No valid clients were added.");
+                        _validationService.SetSuccess(this, $"Created client group '{groupName}'.");
                     }
-                }
-                else
-                {
-                    _validationService.SetSuccess(this, $"Created client group '{groupName}'.");
-                }
-                
-                await transaction.CommitAsync();
-                
-                // Redirect to the new group's page
-                return RedirectToPage("./Group", new { id = newGroup.Id });
+                    
+                    await transaction.CommitAsync();
+                    
+                    // Redirect to the new group's page
+                    return RedirectToPage("./Group", new { id = newGroup.Id });
+                }));
             }
             catch (Exception ex)
             {
                 _validationService.HandleException(_logger, ex, this, 
                     "An error occurred while creating the client group.",
                     $"creating client group '{groupName}'");
-                return RedirectToPage();
+                return Task.FromResult<IActionResult>(RedirectToPage());
             }
+        }
+        
+        // Helper method to run async methods synchronously
+        private T RunAsSync<T>(Func<Task<T>> asyncFunc)
+        {
+            return Task.Run(asyncFunc).GetAwaiter().GetResult();
         }
 
         public class ClientViewModel

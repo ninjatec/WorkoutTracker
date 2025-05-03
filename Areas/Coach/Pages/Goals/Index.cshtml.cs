@@ -98,7 +98,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Goals
             return Page();
         }
 
-        private async Task PopulateClientSelectList(List<CoachClientRelationship> relationships)
+        private Task PopulateClientSelectList(List<CoachClientRelationship> relationships)
         {
             var clients = relationships
                 .Select(r => new
@@ -111,6 +111,8 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Goals
 
             clients.Insert(0, new { Id = "", Name = "All Clients" });
             ClientSelectList = new SelectList(clients, "Id", "Name", ClientId);
+            
+            return Task.CompletedTask;
         }
 
         private void PopulateCategorySelectList()

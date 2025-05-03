@@ -263,13 +263,13 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             RecentMessages = RecentMessages.OrderByDescending(m => m.Date).ToList();
         }
 
-        public async Task<IActionResult> OnPostAddNoteAsync(string noteContent, bool isVisibleToClient = false)
+        public Task<IActionResult> OnPostAddNoteAsync(string noteContent, bool isVisibleToClient = false)
         {
             if (string.IsNullOrEmpty(noteContent))
             {
                 StatusMessage = "Error: Note content cannot be empty.";
                 StatusMessageType = "Error";
-                return RedirectToPage();
+                return Task.FromResult<IActionResult>(RedirectToPage());
             }
             
             var clientId = RouteData.Values["id"]?.ToString();
@@ -277,7 +277,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             {
                 StatusMessage = "Error: Client ID not found.";
                 StatusMessageType = "Error";
-                return RedirectToPage();
+                return Task.FromResult<IActionResult>(RedirectToPage());
             }
             
             // In a real implementation, you would save this note to the database
@@ -285,17 +285,17 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             StatusMessage = "Success: Note added successfully.";
             StatusMessageType = "Success";
             
-            return RedirectToPage(new { id = clientId });
+            return Task.FromResult<IActionResult>(RedirectToPage(new { id = clientId }));
         }
 
-        public async Task<IActionResult> OnPostSetGoalAsync(string goalDescription, string goalCategory, 
+        public Task<IActionResult> OnPostSetGoalAsync(string goalDescription, string goalCategory, 
             DateTime targetDate, string measurementType, decimal startValue, decimal targetValue)
         {
             if (string.IsNullOrEmpty(goalDescription))
             {
                 StatusMessage = "Error: Goal description cannot be empty.";
                 StatusMessageType = "Error";
-                return RedirectToPage();
+                return Task.FromResult<IActionResult>(RedirectToPage());
             }
             
             var clientId = RouteData.Values["id"]?.ToString();
@@ -303,7 +303,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             {
                 StatusMessage = "Error: Client ID not found.";
                 StatusMessageType = "Error";
-                return RedirectToPage();
+                return Task.FromResult<IActionResult>(RedirectToPage());
             }
             
             // In a real implementation, you would save this goal to the database
@@ -311,7 +311,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             StatusMessage = "Success: Goal created successfully.";
             StatusMessageType = "Success";
             
-            return RedirectToPage(new { id = clientId });
+            return Task.FromResult<IActionResult>(RedirectToPage(new { id = clientId }));
         }
 
         public class RecentWorkoutViewModel

@@ -58,11 +58,15 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
 
         private async Task LoadAsync(AppUser user)
         {
+            var email = await Task.FromResult(user.Email);
+            var userName = await Task.FromResult(user.UserName);
+            var phoneNumber = await Task.FromResult(user.PhoneNumber);
+            
             Input = new InputModel
             {
-                Email = user.Email,
-                UserName = user.UserName,
-                PhoneNumber = user.PhoneNumber,
+                Email = email,
+                UserName = userName,
+                PhoneNumber = phoneNumber,
                 CreatedDate = user.CreatedDate,
                 LastModifiedDate = user.LastModifiedDate
             };
