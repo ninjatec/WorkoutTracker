@@ -125,6 +125,7 @@ namespace WorkoutTrackerWeb.Pages.Calculator
                     .ThenInclude(we => we.WorkoutSession)
                 .Where(s => s.WorkoutExercise.WorkoutSession.UserId == user.UserId)
                 .Where(s => s.Weight.HasValue && s.Reps.HasValue && s.WorkoutExercise.ExerciseType != null)
+                .Where(s => s.WorkoutExercise.ExerciseType.Name != null) // Explicitly filter out entries with null names
                 .OrderByDescending(s => s.WorkoutExercise.WorkoutSession.StartDateTime)
                 .Take(1000)
                 .ToListAsync();
@@ -150,6 +151,7 @@ namespace WorkoutTrackerWeb.Pages.Calculator
                 MaxReps = Math.Max(MaxReps, set.Reps.Value);
             }
 
+            await PopulateExerciseTypesAsync();
             return Page();
         }
 
