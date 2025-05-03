@@ -304,6 +304,22 @@
         </div>
     }
 
+    @if (!Model.ExerciseSummaries.Any() && !Model.RecentSets.Any())
+    {
+        <div class="alert alert-warning mt-4" role="alert">
+            <h5 class="alert-heading">No qualifying workout data found</h5>
+            <p>
+                We couldn't find any sets in your workout history that can be used to estimate your 1RM for the selected period (@Model.ReportPeriod days).
+            </p>
+            <ul>
+                <li>You may not have logged any sets in the last @Model.ReportPeriod days.</li>
+                <li>All your sets may be marked as warmup, or missing weight/reps.</li>
+                <li>Your sets may use more than 10 reps, or have weight ≤ 0.</li>
+                <li>If you believe this is an error, please check your workout logs or contact support.</li>
+            </ul>
+        </div>
+    }
+
     <div class="row">
         <div class="col-12">
             <div class="card">

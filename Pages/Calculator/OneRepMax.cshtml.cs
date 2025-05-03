@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -19,11 +20,13 @@ namespace WorkoutTrackerWeb.Pages.Calculator
     {
         private readonly WorkoutTrackerWebContext _context;
         private readonly UserService _userService;
+        private readonly ILogger<OneRepMaxModel> _logger;
 
-        public OneRepMaxModel(WorkoutTrackerWebContext context, UserService userService)
+        public OneRepMaxModel(WorkoutTrackerWebContext context, UserService userService, ILogger<OneRepMaxModel> logger)
         {
             _context = context;
             _userService = userService;
+            _logger = logger;
         }
 
         [BindProperty]
@@ -115,8 +118,63 @@ namespace WorkoutTrackerWeb.Pages.Calculator
             var user = await _context.GetCurrentUserAsync();
             if (user == null)
             {
+                _logger.LogError("1RM Calculator: No user found via GetCurrentUserAsync");
                 return NotFound();
             }
+
+            _logger.LogInformation("1RM Calculator: User found - UserId: {UserId}, IdentityUserId: {IdentityUserId}", 
+                user.UserId, user.IdentityUserId);
+
+            // Get a count of qualifying sets for this user before applying any filters
+            var totalSetsCount = await _context.WorkoutSets
+                .Include(s => s.WorkoutExercise)
+                    .ThenInclude(we => we.WorkoutSession)
+                .Where(s => s.WorkoutExercise.WorkoutSession.UserId == user.UserId)
+                .CountAsync();
+            
+            _logger.LogInformation("1RM Calculator: Total sets for user {UserId}: {TotalSets}", 
+                user.UserId, totalSetsCount);
+
+            // Count sets that match each filter criterion individually to identify problematic filters
+            var setsWithWeightAndReps = await _context.WorkoutSets
+                .Include(s => s.WorkoutExercise)
+                    .ThenInclude(we => we.WorkoutSession)
+                .Where(s => s.WorkoutExercise.WorkoutSession.UserId == user.UserId)
+                .Where(s => s.Weight.HasValue && s.Reps.HasValue)
+                .CountAsync();
+                
+            var setsWithValidExerciseType = await _context.WorkoutSets
+                .Include(s => s.WorkoutExercise)
+                    .ThenInclude(we => we.ExerciseType)
+                .Include(s => s.WorkoutExercise)
+                    .ThenInclude(we => we.WorkoutSession)
+                .Where(s => s.WorkoutExercise.WorkoutSession.UserId == user.UserId)
+                .Where(s => s.WorkoutExercise.ExerciseType != null)
+                .Where(s => s.WorkoutExercise.ExerciseType.ExerciseTypeId > 0)
+                .Where(s => s.WorkoutExercise.ExerciseType.Name != null)
+                .Where(s => !string.IsNullOrEmpty(s.WorkoutExercise.ExerciseType.Name))
+                .CountAsync();
+                
+            var setsWithValidRepsRange = await _context.WorkoutSets
+                .Include(s => s.WorkoutExercise)
+                    .ThenInclude(we => we.WorkoutSession)
+                .Where(s => s.WorkoutExercise.WorkoutSession.UserId == user.UserId)
+                .Where(s => s.Reps >= 1 && s.Reps <= 10)
+                .CountAsync();
+                
+            var nonWarmupSets = await _context.WorkoutSets
+                .Include(s => s.WorkoutExercise)
+                    .ThenInclude(we => we.WorkoutSession)
+                .Where(s => s.WorkoutExercise.WorkoutSession.UserId == user.UserId)
+                .Where(s => !s.IsWarmup)
+                .CountAsync();
+                
+            _logger.LogInformation("1RM Calculator: Filter breakdown - " +
+                "Sets with Weight & Reps: {SetsWithWeightAndReps}, " +
+                "Sets with Valid ExerciseType: {SetsWithValidExerciseType}, " +
+                "Sets with Valid Reps Range (1-10): {SetsWithValidRepsRange}, " +
+                "Non-Warmup Sets: {NonWarmupSets}",
+                setsWithWeightAndReps, setsWithValidExerciseType, setsWithValidRepsRange, nonWarmupSets);
 
             var sets = await _context.WorkoutSets
                 .Include(s => s.WorkoutExercise)
@@ -132,6 +190,20 @@ namespace WorkoutTrackerWeb.Pages.Calculator
                 .OrderByDescending(s => s.WorkoutExercise.WorkoutSession.StartDateTime)
                 .Take(1000)
                 .ToListAsync();
+
+            _logger.LogInformation("1RM Calculator: Final filtered sets count: {SetsCount}", sets.Count);
+            
+            // If we have no sets after applying all filters, check if we're applying a time filter implicitly
+            var reportPeriodAgo = DateTime.Now.AddDays(-ReportPeriod);
+            var setsOutsideDateRange = await _context.WorkoutSets
+                .Include(s => s.WorkoutExercise)
+                    .ThenInclude(we => we.WorkoutSession)
+                .Where(s => s.WorkoutExercise.WorkoutSession.UserId == user.UserId)
+                .Where(s => s.WorkoutExercise.WorkoutSession.StartDateTime < reportPeriodAgo)
+                .CountAsync();
+                
+            _logger.LogInformation("1RM Calculator: Sets outside report period ({ReportPeriod} days): {OutsideDateRangeCount}", 
+                ReportPeriod, setsOutsideDateRange);
 
             UserSets = new List<CalculatorSetData>();
             MaxOneRepMax = 0;
@@ -286,6 +358,11 @@ namespace WorkoutTrackerWeb.Pages.Calculator
                     !ws.IsWarmup)
                 .OrderByDescending(ws => ws.WorkoutExercise.WorkoutSession.StartDateTime)
                 .ToListAsync();
+
+            if (!recentSets.Any())
+            {
+                _logger.LogWarning("No qualifying sets found for user {UserId} in the last {ReportPeriod} days. This may be due to no recent sets, all sets being warmup, or user mapping issues.", currentUserId, ReportPeriod);
+            }
 
             // Populate RecentSets with the most recent 15 sets
             RecentSets = recentSets
