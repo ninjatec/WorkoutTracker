@@ -258,7 +258,7 @@ namespace WorkoutTrackerWeb.Data
                 
             modelBuilder.Entity<WorkoutTemplateExercise>()
                 .HasOne(wte => wte.ExerciseType)
-                .WithMany(et => et.TemplateExercises)
+                .WithMany()
                 .HasForeignKey(wte => wte.ExerciseTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
                 
@@ -654,6 +654,12 @@ namespace WorkoutTrackerWeb.Data
                 .WithMany(u => u.WorkoutSessions)
                 .HasForeignKey(ws => ws.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
+                
+            modelBuilder.Entity<WorkoutSession>()
+                .HasMany(ws => ws.WorkoutExercises)
+                .WithOne(we => we.WorkoutSession)
+                .HasForeignKey(we => we.WorkoutSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
                 
             modelBuilder.Entity<WorkoutSession>()
                 .HasQueryFilter(ws => _currentUserId == null || ws.User.IdentityUserId == _currentUserId);

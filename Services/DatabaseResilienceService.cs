@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 using Polly;
 using Polly.CircuitBreaker;
 using Polly.Retry;
@@ -23,32 +24,38 @@ namespace WorkoutTrackerWeb.Services
         private bool _isCircuitBreakerOpen = false;
         private DateTime? _circuitBreakerLastStateChange;
 
-        public DatabaseResilienceService(ILogger<DatabaseResilienceService> logger)
+        public DatabaseResilienceService(ILogger<DatabaseResilienceService> logger, IConfiguration configuration)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             
-            // Configure retry policy with exponential backoff
+            var poolingConfig = configuration.GetSection("DatabaseConnectionPooling");
+            int retryCount = poolingConfig.GetValue<int>("RetryCount", 3);
+            int retryInterval = poolingConfig.GetValue<int>("RetryInterval", 10);
+            int circuitBreakerThreshold = poolingConfig.GetValue<int>("CircuitBreakerThreshold", 5);
+            int circuitBreakerDelay = poolingConfig.GetValue<int>("CircuitBreakerDelay", 30);
+            
+            // Configure retry policy with exponential backoff using config values
             _retryPolicy = Policy
                 .Handle<SqlException>(ex => IsTransientError(ex))
                 .Or<TimeoutException>()
                 .WaitAndRetryAsync(
-                    retryCount: 3,
-                    sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), // Exponential backoff: 2, 4, 8 seconds
-                    onRetry: (exception, timeSpan, retryCount, context) =>
+                    retryCount: retryCount,
+                    sleepDurationProvider: retryAttempt => TimeSpan.FromSeconds(retryInterval * Math.Pow(1.5, retryAttempt - 1)),
+                    onRetry: (exception, timeSpan, attemptCount, context) =>
                     {
                         _logger.LogWarning(exception, 
                             "Database operation failed. Retry attempt {RetryCount} after {RetryTimeSpan}ms delay", 
-                            retryCount, timeSpan.TotalMilliseconds);
+                            attemptCount, timeSpan.TotalMilliseconds);
                     }
                 );
             
-            // Configure circuit breaker policy
+            // Configure circuit breaker policy using config values
             _circuitBreakerPolicy = Policy
                 .Handle<SqlException>(ex => IsTransientError(ex))
                 .Or<TimeoutException>()
                 .CircuitBreakerAsync(
-                    exceptionsAllowedBeforeBreaking: 5,
-                    durationOfBreak: TimeSpan.FromSeconds(30),
+                    exceptionsAllowedBeforeBreaking: circuitBreakerThreshold,
+                    durationOfBreak: TimeSpan.FromSeconds(circuitBreakerDelay),
                     onBreak: (exception, breakDelay) =>
                     {
                         _isCircuitBreakerOpen = true;

@@ -238,40 +238,37 @@ namespace WorkoutTrackerWeb
             Func<string, Action<SqlServerDbContextOptionsBuilder>, DbContextOptionsBuilder> getSqlOptions = (connString, sqlOptionsAction) =>
             {
                 var poolingConfig = builder.Configuration.GetSection("DatabaseConnectionPooling");
-                int maxPoolSize = poolingConfig.GetValue<int>("MaxPoolSize", 200);
-                int minPoolSize = poolingConfig.GetValue<int>("MinPoolSize", 10);
-                int connectionLifetime = poolingConfig.GetValue<int>("ConnectionLifetime", 300);
-                bool connectionResetEnabled = poolingConfig.GetValue<bool>("ConnectionResetEnabled", true);
-                int loadBalanceTimeout = poolingConfig.GetValue<int>("LoadBalanceTimeout", 30);
-                int retryCount = poolingConfig.GetValue<int>("RetryCount", 5);
-                int retryInterval = poolingConfig.GetValue<int>("RetryInterval", 10);
                 
-                var sqlConnectionBuilder = new SqlConnectionStringBuilder(connString)
+                // Build SQL connection with pooling settings from config
+                var sqlConnectionBuilder = new SqlConnectionStringBuilder(connString);
+                if (poolingConfig.GetValue<bool>("EnableConnectionPooling", true))
                 {
-                    MaxPoolSize = maxPoolSize,
-                    MinPoolSize = minPoolSize,
-                    ConnectTimeout = loadBalanceTimeout,
-                    LoadBalanceTimeout = loadBalanceTimeout,
-                    ConnectRetryCount = retryCount,
-                    ConnectRetryInterval = retryInterval
-                };
+                    sqlConnectionBuilder.Pooling = true;
+                    sqlConnectionBuilder.MaxPoolSize = poolingConfig.GetValue<int>("MaxPoolSize", 100);
+                    sqlConnectionBuilder.MinPoolSize = poolingConfig.GetValue<int>("MinPoolSize", 5);
+                    sqlConnectionBuilder.ConnectTimeout = poolingConfig.GetValue<int>("ConnectTimeout", 30);
+                    sqlConnectionBuilder.LoadBalanceTimeout = poolingConfig.GetValue<int>("LoadBalanceTimeout", 30);
+                }
+                else
+                {
+                    sqlConnectionBuilder.Pooling = false;
+                }
 
+                // Apply additional connection settings
                 string enhancedConnectionString = sqlConnectionBuilder.ConnectionString;
-                if (connectionLifetime > 0)
+                if (poolingConfig.GetValue<int>("ConnectionLifetime", 0) > 0)
                 {
-                    enhancedConnectionString += $";Connection Lifetime={connectionLifetime}";
+                    enhancedConnectionString += $";Connection Lifetime={poolingConfig.GetValue<int>("ConnectionLifetime")}";
                 }
                 
-                if (connectionResetEnabled && OperatingSystem.IsWindows())
+                if (poolingConfig.GetValue<bool>("ConnectionResetEnabled", true) && OperatingSystem.IsWindows())
                 {
-                    enhancedConnectionString += $";Connection Reset=true";
+                    enhancedConnectionString += ";Connection Reset=true";
                 }
-                
+
                 var optionsBuilder = new DbContextOptionsBuilder<WorkoutTrackerWebContext>();
-                optionsBuilder.UseSqlServer(enhancedConnectionString, sqlOptionsAction)
-                    .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
-                    .EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
-                    
+                optionsBuilder.UseSqlServer(enhancedConnectionString, sqlOptionsAction);
+                
                 return optionsBuilder;
             };
 
@@ -447,7 +444,12 @@ namespace WorkoutTrackerWeb
 
             builder.Services.AddScoped<IHangfireInitializationService, HangfireInitializationService>();
 
-            builder.Services.AddSingleton<DatabaseResilienceService>();
+            // Register DatabaseResilienceService with configuration
+            builder.Services.AddSingleton<DatabaseResilienceService>(sp => 
+                new DatabaseResilienceService(
+                    sp.GetRequiredService<ILogger<DatabaseResilienceService>>(),
+                    sp.GetRequiredService<IConfiguration>()
+                ));
 
             // Register RedisSharedStorageService based on whether Redis is enabled
             if (redisConfig?.Enabled == true)
@@ -530,50 +532,47 @@ namespace WorkoutTrackerWeb
             builder.Services.AddDbContext<WorkoutTrackerWebContext>(options =>
             {
                 var connectionString = builder.Configuration.GetConnectionString("WorkoutTrackerWebContext") ?? 
-                                       throw new InvalidOperationException("Connection string 'WorkoutTrackerWebContext' not found.");
+                    throw new InvalidOperationException("Connection string 'WorkoutTrackerWebContext' not found.");
                 
                 var poolingConfig = builder.Configuration.GetSection("DatabaseConnectionPooling");
-                int maxPoolSize = poolingConfig.GetValue<int>("MaxPoolSize", 200);
-                int minPoolSize = poolingConfig.GetValue<int>("MinPoolSize", 10);
-                int connectionLifetime = poolingConfig.GetValue<int>("ConnectionLifetime", 300);
-                bool connectionResetEnabled = poolingConfig.GetValue<bool>("ConnectionResetEnabled", true);
-                int loadBalanceTimeout = poolingConfig.GetValue<int>("LoadBalanceTimeout", 30);
-                int retryCount = poolingConfig.GetValue<int>("RetryCount", 5);
-                int retryInterval = poolingConfig.GetValue<int>("RetryInterval", 10);
                 
-                var sqlConnectionBuilder = new SqlConnectionStringBuilder(connectionString)
+                // Build SQL connection with pooling settings from config
+                var sqlConnectionBuilder = new SqlConnectionStringBuilder(connectionString);
+                if (poolingConfig.GetValue<bool>("EnableConnectionPooling", true))
                 {
-                    MaxPoolSize = maxPoolSize,
-                    MinPoolSize = minPoolSize,
-                    ConnectTimeout = loadBalanceTimeout,
-                    LoadBalanceTimeout = loadBalanceTimeout,
-                    ConnectRetryCount = retryCount,
-                    ConnectRetryInterval = retryInterval
-                };
+                    sqlConnectionBuilder.Pooling = true;
+                    sqlConnectionBuilder.MaxPoolSize = poolingConfig.GetValue<int>("MaxPoolSize", 100);
+                    sqlConnectionBuilder.MinPoolSize = poolingConfig.GetValue<int>("MinPoolSize", 5);
+                    sqlConnectionBuilder.ConnectTimeout = poolingConfig.GetValue<int>("ConnectTimeout", 30);
+                    sqlConnectionBuilder.LoadBalanceTimeout = poolingConfig.GetValue<int>("LoadBalanceTimeout", 30);
+                }
+                else
+                {
+                    sqlConnectionBuilder.Pooling = false;
+                }
 
+                // Apply additional connection settings
                 string enhancedConnectionString = sqlConnectionBuilder.ConnectionString;
-                if (connectionLifetime > 0)
+                if (poolingConfig.GetValue<int>("ConnectionLifetime", 0) > 0)
                 {
-                    enhancedConnectionString += $";Connection Lifetime={connectionLifetime}";
+                    enhancedConnectionString += $";Connection Lifetime={poolingConfig.GetValue<int>("ConnectionLifetime")}";
                 }
                 
-                if (connectionResetEnabled && OperatingSystem.IsWindows())
+                if (poolingConfig.GetValue<bool>("ConnectionResetEnabled", true) && OperatingSystem.IsWindows())
                 {
-                    enhancedConnectionString += $";Connection Reset=true";
+                    enhancedConnectionString += ";Connection Reset=true";
                 }
-                
+
+                // Configure EF Core with resilience settings
                 options.UseSqlServer(enhancedConnectionString, sqlOptions => 
                 {
                     sqlOptions.EnableRetryOnFailure(
-                        maxRetryCount: retryCount,
-                        maxRetryDelay: TimeSpan.FromSeconds(retryInterval),
+                        maxRetryCount: poolingConfig.GetValue<int>("RetryCount", 3),
+                        maxRetryDelay: TimeSpan.FromSeconds(poolingConfig.GetValue<int>("RetryInterval", 10)),
                         errorNumbersToAdd: new[] { 4060, 40197, 40501, 40613, 49918, 4221, 1205, 233, 64, -2 });
                         
-                    sqlOptions.CommandTimeout(30);
+                    sqlOptions.CommandTimeout(poolingConfig.GetValue<int>("ConnectTimeout", 30));
                     sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "dbo");
-                    
-                    sqlOptions.MinBatchSize(5);
-                    sqlOptions.MaxBatchSize(100);
                 })
                 .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
                 .EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
