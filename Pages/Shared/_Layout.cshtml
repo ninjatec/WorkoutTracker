@@ -29,6 +29,8 @@
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body class="mobile-bottom-nav-active">
+    @await Component.InvokeAsync("MaintenanceBanner")
+    
     <header>
         <nav class="navbar navbar-expand-sm navbar-dark border-bottom box-shadow mb-3">
             <div class="container-fluid container-mobile-friendly">

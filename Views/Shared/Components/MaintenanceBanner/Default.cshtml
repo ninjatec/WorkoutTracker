@@ -1,0 +1,16 @@
+@model WorkoutTrackerWeb.ViewComponents.MaintenanceBannerViewModel
+
+@if (Model.ShowBanner)
+{
+    <div class="alert alert-warning alert-dismissible fade show mb-0" role="alert">
+        <div class="container-fluid container-mobile-friendly">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-tools me-2"></i>
+                <strong>Maintenance in Progress:</strong>
+                <span class="ms-2">The site is currently in maintenance mode. Expected completion: @Model.EstimatedCompletionTime</span>
+                <div class="badge bg-info ms-2">You have special access</div>
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+}
