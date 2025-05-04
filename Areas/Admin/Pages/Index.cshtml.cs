@@ -83,6 +83,16 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages
             var now = DateTime.UtcNow;
             var thirtyDaysAgo = now.AddDays(-30);
             
+            // User and Role Counts
+            UserCount = await _userManager.Users.CountAsync();
+            AdminCount = (await _userManager.GetUsersInRoleAsync("Admin")).Count;
+            CoachCount = (await _userManager.GetUsersInRoleAsync("Coach")).Count;
+            
+            // Coach-Client Relationships
+            CoachClientRelationshipCount = await _context.CoachClientRelationships
+                .Where(r => r.Status == Models.Coaching.RelationshipStatus.Active)
+                .CountAsync();
+                
             // Active Users (users who have logged in within the last 30 days)
             ActiveUsersToday = await _context.LoginHistory
                 .Where(lh => lh.LoginTime >= thirtyDaysAgo)

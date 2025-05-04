@@ -53,43 +53,58 @@ namespace WorkoutTrackerWeb.HealthChecks
                         data: data);
                 }
 
-                // Get connection pool statistics through DbContext
-                await _databaseResilienceService.ExecuteWithResilienceAsync(async (ct) => {
-                    await _dbContext.Database.ExecuteSqlRawAsync(
-                        "SELECT 1", // Simple query to test connection
-                        ct);
-                }, "HealthCheck.ConnectionTest", cancellationToken);
-                
-                // Add SQL Server connection pool statistics if possible
+                // Test connection and get pool statistics through DbContext
+                await using var connection = _dbContext.Database.GetDbConnection();
                 try
                 {
-                    // Get connection information from the connection string
+                    if (connection.State != System.Data.ConnectionState.Open)
+                    {
+                        await connection.OpenAsync(cancellationToken);
+                    }
+
+                    // Execute a simple query to verify connection
+                    using var command = connection.CreateCommand();
+                    command.CommandText = "SELECT 1";
+                    await command.ExecuteScalarAsync(cancellationToken);
+
+                    // Get connection string information
                     var connectionString = _dbContext.Database.GetConnectionString();
                     if (connectionString != null)
                     {
                         var poolingData = ExtractPoolingInfoFromConnectionString(connectionString);
                         foreach (var item in poolingData)
                         {
-                            data.Add(item.Key, item.Value);
+                            data[item.Key] = item.Value;
                         }
+
+                        // Add additional connection information
+                        data["DatabaseName"] = connection.Database;
+                        data["Server"] = connection.DataSource;
+                        data["CommandTimeout"] = _dbContext.Database.GetCommandTimeout()?.ToString() ?? "30";
+                        data["ConnectionState"] = connection.State.ToString();
                     }
-                    else
-                    {
-                        data.Add("ConnectionPoolInfo", "Connection string not available");
-                    }
+
+                    return HealthCheckResult.Healthy("Database connection pool is healthy", data: data);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Unable to retrieve connection pool statistics");
-                    data.Add("ConnectionPoolInfo", "Unavailable due to error: " + ex.Message);
+                    _logger.LogError(ex, "Error checking database connection pool health");
+                    return HealthCheckResult.Unhealthy(
+                        "Database connection pool check failed",
+                        ex,
+                        data);
                 }
-
-                return HealthCheckResult.Healthy("Database connection pool is healthy", data: data);
+                finally
+                {
+                    if (connection.State == System.Data.ConnectionState.Open)
+                    {
+                        await connection.CloseAsync();
+                    }
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error executing database connection pool health check");
-                
                 return HealthCheckResult.Unhealthy(
                     "Database connection pool health check failed",
                     ex,
@@ -104,26 +119,36 @@ namespace WorkoutTrackerWeb.HealthChecks
         private Dictionary<string, string> ExtractPoolingInfoFromConnectionString(string connectionString)
         {
             var poolingData = new Dictionary<string, string>();
-            var connectionOptions = connectionString.Split(';')
-                .Select(s => s.Trim())
-                .Where(s => s.StartsWith("Pooling=", StringComparison.OrdinalIgnoreCase) || 
-                            s.StartsWith("Max Pool Size=", StringComparison.OrdinalIgnoreCase) ||
-                            s.StartsWith("Min Pool Size=", StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            bool poolingEnabled = !connectionOptions.Any(o => o.Equals("Pooling=false", StringComparison.OrdinalIgnoreCase));
-            poolingData.Add("PoolingEnabled", poolingEnabled.ToString());
-
-            if (poolingEnabled)
+            
+            try
             {
-                foreach (var option in connectionOptions)
+                poolingData["ConnectionString"] = connectionString;
+                
+                var connectionOptions = connectionString.Split(';')
+                    .Select(s => s.Trim())
+                    .Where(s => s.StartsWith("Pooling=", StringComparison.OrdinalIgnoreCase) || 
+                               s.StartsWith("Max Pool Size=", StringComparison.OrdinalIgnoreCase) ||
+                               s.StartsWith("Min Pool Size=", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                bool poolingEnabled = !connectionOptions.Any(o => o.Equals("Pooling=false", StringComparison.OrdinalIgnoreCase));
+                poolingData["PoolingEnabled"] = poolingEnabled.ToString();
+
+                if (poolingEnabled)
                 {
-                    var parts = option.Split('=');
-                    if (parts.Length == 2)
+                    foreach (var option in connectionOptions)
                     {
-                        poolingData.Add(parts[0], parts[1]);
+                        var parts = option.Split('=');
+                        if (parts.Length == 2)
+                        {
+                            poolingData[parts[0].Trim()] = parts[1].Trim();
+                        }
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                poolingData["Error"] = $"Error parsing connection string: {ex.Message}";
             }
 
             return poolingData;
