@@ -63,50 +63,69 @@ namespace WorkoutTrackerWeb.Extensions
         private static async Task<Dictionary<string, string>> GetConnectionPoolStatsAsync(SqlConnection connection)
         {
             var stats = new Dictionary<string, string>();
+            bool connectionWasOpened = false;
             
             try
             {
                 stats["ConnectionString"] = SanitizeConnectionString(connection.ConnectionString);
                 stats["ServerVersion"] = connection.ServerVersion ?? "Unknown";
                 
-                // If connection is closed, we can't get the statistics
+                // Track if we need to open the connection
                 if (connection.State == System.Data.ConnectionState.Closed)
                 {
                     await connection.OpenAsync();
+                    connectionWasOpened = true;
                     stats["ConnectionOpened"] = "True (temporary for statistics)";
                 }
                 
-                // Get connection pool statistics using SQL Server dynamic management views
-                using (var command = connection.CreateCommand())
+                // Verify connection is open before proceeding
+                if (connection.State == System.Data.ConnectionState.Open)
                 {
-                    command.CommandText = @"
-                        SELECT 
-                            COUNT(*) as connections,
-                            SUM(CASE WHEN status = 'sleeping' THEN 1 ELSE 0 END) as idle_connections,
-                            SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as active_connections
-                        FROM sys.dm_exec_connections
-                        WHERE session_id > 50"; // Exclude system sessions
-                        
-                    using (var reader = await command.ExecuteReaderAsync())
+                    // Get connection pool statistics using SQL Server dynamic management views
+                    using (var command = connection.CreateCommand())
                     {
-                        if (await reader.ReadAsync())
+                        command.CommandText = @"
+                            SELECT 
+                                COUNT(*) as connections,
+                                SUM(CASE WHEN status = 'sleeping' THEN 1 ELSE 0 END) as idle_connections,
+                                SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as active_connections
+                            FROM sys.dm_exec_connections
+                            WHERE session_id > 50"; // Exclude system sessions
+                            
+                        using (var reader = await command.ExecuteReaderAsync())
                         {
-                            // Handle potentially null values safely
-                            stats["TotalConnections"] = !reader.IsDBNull(reader.GetOrdinal("connections")) ? 
-                                reader["connections"].ToString() : "0";
-                                
-                            stats["IdleConnections"] = !reader.IsDBNull(reader.GetOrdinal("idle_connections")) ? 
-                                reader["idle_connections"].ToString() : "0";
-                                
-                            stats["ActiveConnections"] = !reader.IsDBNull(reader.GetOrdinal("active_connections")) ? 
-                                reader["active_connections"].ToString() : "0";
+                            if (await reader.ReadAsync())
+                            {
+                                // Handle potentially null values safely
+                                stats["TotalConnections"] = !reader.IsDBNull(reader.GetOrdinal("connections")) ? 
+                                    reader["connections"].ToString() : "0";
+                                    
+                                stats["IdleConnections"] = !reader.IsDBNull(reader.GetOrdinal("idle_connections")) ? 
+                                    reader["idle_connections"].ToString() : "0";
+                                    
+                                stats["ActiveConnections"] = !reader.IsDBNull(reader.GetOrdinal("active_connections")) ? 
+                                    reader["active_connections"].ToString() : "0";
+                            }
                         }
                     }
+                }
+                else
+                {
+                    stats["Error"] = "Connection could not be opened to retrieve pool statistics";
                 }
             }
             catch (Exception ex)
             {
                 stats["Error"] = $"Error getting pool stats: {ex.Message}";
+            }
+            finally
+            {
+                // Close the connection only if we opened it
+                if (connectionWasOpened && connection.State == System.Data.ConnectionState.Open)
+                {
+                    await connection.CloseAsync();
+                    stats["ConnectionClosed"] = "True (closed after getting statistics)";
+                }
             }
             
             return stats;
