@@ -430,6 +430,11 @@ namespace WorkoutTrackerWeb.Pages.Reports
                         .GroupBy(e => e.ExerciseType.Name))
                     {
                         var exerciseName = exerciseGroup.Key;
+                        var sessionsList = exerciseGroup
+                            .Select(e => e.WorkoutSession)
+                            .Where(s => s != null)
+                            .OrderBy(s => s.StartDateTime)
+                            .ToList();
                         
                         var calorieData = new CalorieData {
                             ExerciseName = exerciseName,
@@ -441,6 +446,38 @@ namespace WorkoutTrackerWeb.Pages.Reports
                         if (exerciseCalories.TryGetValue(exerciseName, out var totalCals))
                         {
                             calorieData.TotalCalories = (double)totalCals;
+                            
+                            // Add time series data for each session that contains this exercise
+                            foreach (var s in sessionsList.OrderBy(s => s.StartDateTime))
+                            {
+                                try
+                                {
+                                    // Get calories for this exercise in this session
+                                    var sessionExerciseCalories = s.WorkoutExercises
+                                        .Where(e => e.ExerciseType?.Name == exerciseName)
+                                        .Sum(e => 
+                                        {
+                                            var setCount = e.WorkoutSets != null ? e.WorkoutSets.Count : 0;
+                                            return s.CaloriesBurned * 0.5m / processedSessions.Count * setCount;
+                                        });
+                                    
+                                    calorieData.Dates.Add(s.StartDateTime);
+                                    calorieData.Calories.Add((double)sessionExerciseCalories);
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.Error(ex, "Error calculating calories for exercise {Exercise} in session {SessionId}", 
+                                        exerciseName, s.WorkoutSessionId);
+                                }
+                            }
+                            
+                            // If there's only one data point, add synthetic points to allow proper plotting
+                            if (calorieData.Dates.Count == 1)
+                            {
+                                // Add a second point 1 day before
+                                calorieData.Dates.Insert(0, calorieData.Dates[0].AddDays(-1));
+                                calorieData.Calories.Insert(0, 0); // Start from zero
+                            }
                         }
                         
                         // Even if we don't have detailed time series data, at least set the total
