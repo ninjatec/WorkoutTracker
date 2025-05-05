@@ -70,7 +70,7 @@ namespace WorkoutTrackerWeb.Pages.Calculator
         public int PageSize { get; set; } = 5;  // Number of exercise groups per page
         
         [BindProperty(SupportsGet = true)]
-        public int ReportPeriod { get; set; } = 90;  // Default to 90 days
+        public int ReportPeriod { get; set; } = 30;  // Default to 30 days
         
         public int TotalPages { get; set; }
         
@@ -80,7 +80,7 @@ namespace WorkoutTrackerWeb.Pages.Calculator
         public readonly List<int> PageSizeOptions = new List<int> { 5, 10, 15, 25, 50 };
         
         // Available report periods for dropdown
-        public readonly List<int> ReportPeriodOptions = new List<int> { 30, 60, 90, 120 };
+        public readonly List<int> ReportPeriodOptions = new List<int> { 30, 60, 90, 120, 365, int.MaxValue };
         
         public class RecentSetData
         {
