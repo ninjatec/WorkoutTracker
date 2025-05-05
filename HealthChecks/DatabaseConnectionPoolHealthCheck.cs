@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Data.SqlClient;
 using WorkoutTrackerWeb.Services;
 using WorkoutTrackerWeb.Data;
 
@@ -17,15 +18,18 @@ namespace WorkoutTrackerWeb.HealthChecks
     public class DatabaseConnectionPoolHealthCheck : IHealthCheck
     {
         private readonly DatabaseResilienceService _databaseResilienceService;
+        private readonly ConnectionStringBuilderService _connectionStringBuilder;
         private readonly ILogger<DatabaseConnectionPoolHealthCheck> _logger;
         private readonly WorkoutTrackerWebContext _dbContext;
 
         public DatabaseConnectionPoolHealthCheck(
             DatabaseResilienceService databaseResilienceService,
+            ConnectionStringBuilderService connectionStringBuilder,
             ILogger<DatabaseConnectionPoolHealthCheck> logger,
             WorkoutTrackerWebContext dbContext)
         {
             _databaseResilienceService = databaseResilienceService ?? throw new ArgumentNullException(nameof(databaseResilienceService));
+            _connectionStringBuilder = connectionStringBuilder ?? throw new ArgumentNullException(nameof(connectionStringBuilder));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         }
@@ -82,6 +86,20 @@ namespace WorkoutTrackerWeb.HealthChecks
                         data["Server"] = connection.DataSource;
                         data["CommandTimeout"] = _dbContext.Database.GetCommandTimeout()?.ToString() ?? "30";
                         data["ConnectionState"] = connection.State.ToString();
+                        
+                        // Add configuration information from service
+                        var metrics = _connectionStringBuilder.GetConnectionPoolMetrics();
+                        data["ConfiguredMaxPoolSize"] = metrics.MaxPoolSize;
+                        data["ConfiguredMinPoolSize"] = metrics.MinPoolSize;
+                        data["ReadWriteSeparation"] = metrics.ReadWriteSeparationEnabled;
+                        if (metrics.ReadWriteSeparationEnabled)
+                        {
+                            data["ReadConnectionMaxPoolSize"] = metrics.ReadConnectionMaxPoolSize;
+                            data["ReadConnectionMinPoolSize"] = metrics.ReadConnectionMinPoolSize;
+                        }
+                        
+                        // Add actual pool utilization statistics from SQL Server
+                        await CollectPoolUtilizationStatisticsAsync(connection, data, cancellationToken);
                     }
 
                     return HealthCheckResult.Healthy("Database connection pool is healthy", data: data);
@@ -115,6 +133,64 @@ namespace WorkoutTrackerWeb.HealthChecks
                     });
             }
         }
+        
+        /// <summary>
+        /// Collects SQL Server connection pool utilization statistics
+        /// </summary>
+        private async Task CollectPoolUtilizationStatisticsAsync(System.Data.Common.DbConnection connection, Dictionary<string, object> data, CancellationToken cancellationToken)
+        {
+            if (connection is SqlConnection sqlConn)
+            {
+                try
+                {
+                    using var cmd = sqlConn.CreateCommand();
+                    cmd.CommandText = @"
+                    SELECT 
+                        COUNT(*) AS total_connections, 
+                        SUM(CASE WHEN status = 'sleeping' THEN 1 ELSE 0 END) AS idle_connections,
+                        SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) AS active_connections,
+                        MAX(total_elapsed_time) AS longest_running_ms
+                    FROM sys.dm_exec_connections
+                    WHERE session_id > 50;
+                    
+                    SELECT 
+                        DB_NAME() AS database_name,
+                        COUNT(*) AS total_sessions,
+                        SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) AS active_sessions,
+                        AVG(total_elapsed_time) AS avg_session_time_ms
+                    FROM sys.dm_exec_sessions
+                    WHERE session_id > 50;";
+                    
+                    using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+                    if (await reader.ReadAsync(cancellationToken))
+                    {
+                        data["TotalConnections"] = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
+                        data["IdleConnections"] = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
+                        data["ActiveConnections"] = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
+                        data["LongestRunningQueryMs"] = reader.IsDBNull(3) ? 0 : reader.GetInt32(3);
+                        
+                        // Calculate pool utilization percentage
+                        var metrics = _connectionStringBuilder.GetConnectionPoolMetrics();
+                        int totalConnections = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
+                        double utilizationPercent = metrics.MaxPoolSize > 0 ? 
+                            (totalConnections / (double)metrics.MaxPoolSize) * 100.0 : 0;
+                        data["PoolUtilizationPercent"] = Math.Round(utilizationPercent, 2);
+                    }
+                    
+                    if (await reader.NextResultAsync(cancellationToken) && await reader.ReadAsync(cancellationToken))
+                    {
+                        data["TotalSessions"] = reader.IsDBNull(1) ? 0 : reader.GetInt32(1);
+                        data["ActiveSessions"] = reader.IsDBNull(2) ? 0 : reader.GetInt32(2);
+                        data["AverageSessionTimeMs"] = reader.IsDBNull(3) ? 0 : Math.Round(reader.GetDouble(3), 2);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to collect detailed pool utilization statistics");
+                    data["PoolUtilizationError"] = ex.Message;
+                }
+            }
+        }
 
         private Dictionary<string, string> ExtractPoolingInfoFromConnectionString(string connectionString)
         {
@@ -122,13 +198,17 @@ namespace WorkoutTrackerWeb.HealthChecks
             
             try
             {
-                poolingData["ConnectionString"] = connectionString;
+                // Use sanitized connection string to avoid exposing credentials
+                poolingData["ConnectionString"] = SanitizeConnectionString(connectionString);
                 
                 var connectionOptions = connectionString.Split(';')
                     .Select(s => s.Trim())
                     .Where(s => s.StartsWith("Pooling=", StringComparison.OrdinalIgnoreCase) || 
                                s.StartsWith("Max Pool Size=", StringComparison.OrdinalIgnoreCase) ||
-                               s.StartsWith("Min Pool Size=", StringComparison.OrdinalIgnoreCase))
+                               s.StartsWith("Min Pool Size=", StringComparison.OrdinalIgnoreCase) ||
+                               s.StartsWith("Connection Lifetime=", StringComparison.OrdinalIgnoreCase) ||
+                               s.StartsWith("Connection Reset=", StringComparison.OrdinalIgnoreCase) ||
+                               s.StartsWith("ApplicationIntent=", StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
                 bool poolingEnabled = !connectionOptions.Any(o => o.Equals("Pooling=false", StringComparison.OrdinalIgnoreCase));
@@ -152,6 +232,28 @@ namespace WorkoutTrackerWeb.HealthChecks
             }
 
             return poolingData;
+        }
+        
+        private string SanitizeConnectionString(string connectionString)
+        {
+            try
+            {
+                // Redact sensitive information
+                var builder = new SqlConnectionStringBuilder(connectionString);
+                
+                // Mask the password if present
+                if (!string.IsNullOrEmpty(builder.Password))
+                {
+                    builder.Password = "********";
+                }
+                
+                return builder.ToString();
+            }
+            catch
+            {
+                // If we can't parse the connection string, return a placeholder
+                return "[Invalid connection string]";
+            }
         }
     }
 }

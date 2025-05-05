@@ -1,0 +1,347 @@
+@page
+@model WorkoutTrackerWeb.Areas.Admin.Pages.Database.ConnectionPoolModel
+@{
+    ViewData["Title"] = "Database Connection Pool Monitor";
+    Layout = "_Layout";
+}
+
+<div class="container mt-4">
+    <h2>@ViewData["Title"]</h2>
+    
+    <div class="row mb-4">
+        <div class="col">
+            <div class="alert alert-info">
+                <p><i class="bi bi-info-circle"></i> This page provides monitoring for database connection pooling.</p>
+                <p class="mb-0">Connection pool optimizations help manage database resources efficiently and improve application performance under load.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Current Connection Pool Status</h5>
+                    <button id="refreshPoolStats" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-arrow-repeat"></i> Refresh
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="poolStatsLoading" class="text-center py-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading pool statistics...</p>
+                    </div>
+                    <div id="poolStatsContent" style="display: none;">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <h3 id="currentConnectionCount" class="display-5 mb-0">0</h3>
+                                        <p class="text-muted">Current Connections</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center">
+                                        <div id="utilizationContainer">
+                                            <h3 id="utilizationPercent" class="display-5 mb-0">0%</h3>
+                                            <p class="text-muted">Pool Utilization</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-striped table-sm">
+                                <tbody id="poolStatsTable">
+                                    <!-- Pool statistics will be filled here dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="poolStatsError" class="alert alert-danger" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Connection Pool Configuration</h5>
+                    <span id="circuitBreakerStatus" class="badge bg-success">Circuit Breaker Closed</span>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h3 id="configuredMaxPool" class="display-5 mb-0">60</h3>
+                                    <p class="text-muted">Max Pool Size</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h3 id="configuredMinPool" class="display-5 mb-0">10</h3>
+                                    <p class="text-muted">Min Pool Size</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-sm">
+                            <tbody>
+                                <tr>
+                                    <th scope="row">Connection Lifetime</th>
+                                    <td id="connectionLifetime">600</td>
+                                    <td>seconds</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Pooling Enabled</th>
+                                    <td colspan="2" id="poolingEnabled">Yes</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Read/Write Separation</th>
+                                    <td colspan="2" id="readWriteSeparation">No</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Circuit Breaker Last Change</th>
+                                    <td colspan="2" id="circuitBreakerLastChange">N/A</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Database Server</th>
+                                    <td colspan="2" id="dbServer">-</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Database Name</th>
+                                    <td colspan="2" id="dbName">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Active Database Connections</h5>
+                    <button id="refreshConnections" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-arrow-repeat"></i> Refresh
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="connectionsLoading" class="text-center py-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading active connections...</p>
+                    </div>
+                    <div id="connectionsContent" class="table-responsive" style="display: none;">
+                        <table id="connectionsTable" class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Session ID</th>
+                                    <th>Host</th>
+                                    <th>Program</th>
+                                    <th>Login</th>
+                                    <th>Status</th>
+                                    <th>Connect Time</th>
+                                    <th>Duration (s)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="connectionsTableBody">
+                                <!-- Connections will be filled here dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="connectionsError" class="alert alert-danger" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            loadPoolStats();
+            loadActiveConnections();
+            
+            $("#refreshPoolStats").click(function() {
+                loadPoolStats();
+            });
+            
+            $("#refreshConnections").click(function() {
+                loadActiveConnections();
+            });
+            
+            // Auto-refresh every 30 seconds
+            setInterval(function() {
+                loadPoolStats();
+                loadActiveConnections();
+            }, 30000);
+        });
+        
+        function loadPoolStats() {
+            $("#poolStatsLoading").show();
+            $("#poolStatsContent").hide();
+            $("#poolStatsError").hide();
+            
+            $.ajax({
+                url: '/api/DatabaseHealth/pool-stats',
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    updatePoolStats(data);
+                    $("#poolStatsLoading").hide();
+                    $("#poolStatsContent").show();
+                },
+                error: function(xhr, status, error) {
+                    $("#poolStatsLoading").hide();
+                    $("#poolStatsError").text('Error loading pool statistics: ' + error).show();
+                }
+            });
+        }
+        
+        function updatePoolStats(data) {
+            // Update metrics
+            $("#currentConnectionCount").text(data.TotalConnections || 0);
+            $("#utilizationPercent").text((data.PoolUtilizationPercent || 0) + '%');
+            
+            // Update utilization color
+            const utilization = data.PoolUtilizationPercent || 0;
+            let utilizationClass = "bg-success";
+            if (utilization > 80) {
+                utilizationClass = "bg-danger";
+            } else if (utilization > 60) {
+                utilizationClass = "bg-warning";
+            }
+            $("#utilizationContainer").removeClass("bg-success bg-warning bg-danger").addClass(utilizationClass);
+            
+            // Update configuration
+            $("#configuredMaxPool").text(data.ConfiguredMaxPoolSize || 60);
+            $("#configuredMinPool").text(data.ConfiguredMinPoolSize || 10);
+            $("#connectionLifetime").text(data.ConnectionLifetime || 600);
+            $("#poolingEnabled").text(data.PoolingEnabled ? "Yes" : "No");
+            $("#readWriteSeparation").text(data.ReadWriteSeparationEnabled ? "Yes" : "No");
+            $("#dbServer").text(data.DataSource || "-");
+            $("#dbName").text(data.Database || "-");
+            
+            // Update circuit breaker
+            const circuitBreakerOpen = data.CircuitBreakerOpen || false;
+            $("#circuitBreakerStatus")
+                .text(circuitBreakerOpen ? "Circuit Breaker Open" : "Circuit Breaker Closed")
+                .removeClass("bg-success bg-danger")
+                .addClass(circuitBreakerOpen ? "bg-danger" : "bg-success");
+                
+            $("#circuitBreakerLastChange").text(data.CircuitBreakerLastStateChange || "N/A");
+            
+            // Update stats table
+            const statsTable = $("#poolStatsTable");
+            statsTable.empty();
+            
+            const stats = [
+                { label: "Active Connections", value: data.ActiveConnections || 0 },
+                { label: "Idle Connections", value: data.IdleConnections || 0 },
+                { label: "Total Sessions", value: data.TotalSessions || 0 },
+                { label: "Active Sessions", value: data.ActiveSessions || 0 },
+                { label: "Longest Query Duration", value: formatDuration(data.LongestRunningQueryMs || 0) },
+                { label: "Average Session Time", value: formatDuration(data.AverageSessionTimeMs || 0) },
+                { label: "Connection State", value: data.ConnectionState || "Unknown" }
+            ];
+            
+            stats.forEach(function(stat) {
+                statsTable.append(`
+                    <tr>
+                        <th scope="row">${stat.label}</th>
+                        <td>${stat.value}</td>
+                    </tr>
+                `);
+            });
+        }
+        
+        function loadActiveConnections() {
+            $("#connectionsLoading").show();
+            $("#connectionsContent").hide();
+            $("#connectionsError").hide();
+            
+            $.ajax({
+                url: '/api/DatabaseHealth/connections',
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    updateConnectionsTable(data);
+                    $("#connectionsLoading").hide();
+                    $("#connectionsContent").show();
+                },
+                error: function(xhr, status, error) {
+                    $("#connectionsLoading").hide();
+                    $("#connectionsError").text('Error loading connections: ' + error).show();
+                }
+            });
+        }
+        
+        function updateConnectionsTable(data) {
+            const tableBody = $("#connectionsTableBody");
+            tableBody.empty();
+            
+            if (!data.Connections || data.Connections.length === 0) {
+                tableBody.append(`
+                    <tr>
+                        <td colspan="7" class="text-center">No active connections found</td>
+                    </tr>
+                `);
+                return;
+            }
+            
+            data.Connections.forEach(function(conn) {
+                const status = conn.Status || "Unknown";
+                let statusClass = "";
+                
+                if (status.toLowerCase() === "running") {
+                    statusClass = "text-success";
+                } else if (status.toLowerCase() === "sleeping") {
+                    statusClass = "text-muted";
+                }
+                
+                tableBody.append(`
+                    <tr>
+                        <td>${conn.SessionId}</td>
+                        <td>${conn.HostName || "-"}</td>
+                        <td>${conn.ProgramName || "-"}</td>
+                        <td>${conn.LoginName || "-"}</td>
+                        <td class="${statusClass}">${status}</td>
+                        <td>${formatDateTime(conn.ConnectTime)}</td>
+                        <td>${conn.DurationSeconds || 0}</td>
+                    </tr>
+                `);
+            });
+        }
+        
+        function formatDateTime(dateStr) {
+            if (!dateStr) return "-";
+            try {
+                const date = new Date(dateStr);
+                return date.toLocaleString();
+            } catch (e) {
+                return dateStr;
+            }
+        }
+        
+        function formatDuration(ms) {
+            if (ms < 1000) {
+                return ms + " ms";
+            } else {
+                return (ms / 1000).toFixed(2) + " sec";
+            }
+        }
+    </script>
+}

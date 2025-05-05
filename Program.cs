@@ -49,6 +49,7 @@ using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services.Redis;
 using WorkoutTrackerWeb.Extensions;
 using WorkoutTrackerWeb.Services.Metrics;
+using Microsoft.AspNetCore.Authorization;
 
 namespace WorkoutTrackerWeb
 {
@@ -375,7 +376,11 @@ namespace WorkoutTrackerWeb
                     tags: new[] { "ready", "db" },
                     customTestQuery: async (db, ct) => await db.Database.CanConnectAsync(ct))
                 .AddDbContextCheck<DataProtectionKeysDbContext>("data_protection_health_check", 
-                    tags: new[] { "ready", "db" });
+                    tags: new[] { "ready", "db" })
+                .AddCheck<DatabaseConnectionPoolHealthCheck>(
+                    "connection_pool_health", 
+                    tags: new[] { "ready", "db", "pool" },
+                    timeout: TimeSpan.FromSeconds(5));
 
             // Add Redis health checks if Redis is enabled
             var redisConfig = builder.Configuration.GetSection("Redis").Get<WorkoutTrackerWeb.Services.Redis.RedisConfiguration>();
@@ -450,6 +455,9 @@ namespace WorkoutTrackerWeb
                     sp.GetRequiredService<ILogger<DatabaseResilienceService>>(),
                     sp.GetRequiredService<IConfiguration>()
                 ));
+
+            // Register ConnectionStringBuilderService for centralized connection pooling configuration
+            builder.Services.AddSingleton<ConnectionStringBuilderService>();
 
             // Register RedisSharedStorageService based on whether Redis is enabled
             if (redisConfig?.Enabled == true)
@@ -531,37 +539,9 @@ namespace WorkoutTrackerWeb
 
             builder.Services.AddDbContext<WorkoutTrackerWebContext>(options =>
             {
-                var connectionString = builder.Configuration.GetConnectionString("WorkoutTrackerWebContext") ?? 
-                    throw new InvalidOperationException("Connection string 'WorkoutTrackerWebContext' not found.");
-                
+                var connectionStringBuilder = builder.Services.BuildServiceProvider().GetRequiredService<ConnectionStringBuilderService>();
+                var enhancedConnectionString = connectionStringBuilder.BuildConnectionString("WorkoutTrackerWebContext", false);
                 var poolingConfig = builder.Configuration.GetSection("DatabaseConnectionPooling");
-                
-                // Build SQL connection with pooling settings from config
-                var sqlConnectionBuilder = new SqlConnectionStringBuilder(connectionString);
-                if (poolingConfig.GetValue<bool>("EnableConnectionPooling", true))
-                {
-                    sqlConnectionBuilder.Pooling = true;
-                    sqlConnectionBuilder.MaxPoolSize = poolingConfig.GetValue<int>("MaxPoolSize", 100);
-                    sqlConnectionBuilder.MinPoolSize = poolingConfig.GetValue<int>("MinPoolSize", 5);
-                    sqlConnectionBuilder.ConnectTimeout = poolingConfig.GetValue<int>("ConnectTimeout", 30);
-                    sqlConnectionBuilder.LoadBalanceTimeout = poolingConfig.GetValue<int>("LoadBalanceTimeout", 30);
-                }
-                else
-                {
-                    sqlConnectionBuilder.Pooling = false;
-                }
-
-                // Apply additional connection settings
-                string enhancedConnectionString = sqlConnectionBuilder.ConnectionString;
-                if (poolingConfig.GetValue<int>("ConnectionLifetime", 0) > 0)
-                {
-                    enhancedConnectionString += $";Connection Lifetime={poolingConfig.GetValue<int>("ConnectionLifetime")}";
-                }
-                
-                if (poolingConfig.GetValue<bool>("ConnectionResetEnabled", true) && OperatingSystem.IsWindows())
-                {
-                    enhancedConnectionString += ";Connection Reset=true";
-                }
 
                 // Configure EF Core with resilience settings
                 options.UseSqlServer(enhancedConnectionString, sqlOptions => 
@@ -586,38 +566,11 @@ namespace WorkoutTrackerWeb
 
             builder.Services.AddSingleton<IDbContextFactory<WorkoutTrackerWebContext>>(serviceProvider =>
             {
-                var connectionString = builder.Configuration.GetConnectionString("WorkoutTrackerWebContext") ?? 
-                                       throw new InvalidOperationException("Connection string 'WorkoutTrackerWebContext' not found.");
-                
+                var connectionStringBuilder = serviceProvider.GetRequiredService<ConnectionStringBuilderService>();
+                var enhancedConnectionString = connectionStringBuilder.BuildConnectionString("WorkoutTrackerWebContext", false);
                 var poolingConfig = builder.Configuration.GetSection("DatabaseConnectionPooling");
-                int maxPoolSize = poolingConfig.GetValue<int>("MaxPoolSize", 200);
-                int minPoolSize = poolingConfig.GetValue<int>("MinPoolSize", 10);
-                int connectionLifetime = poolingConfig.GetValue<int>("ConnectionLifetime", 300);
-                bool connectionResetEnabled = poolingConfig.GetValue<bool>("ConnectionResetEnabled", true);
-                int loadBalanceTimeout = poolingConfig.GetValue<int>("LoadBalanceTimeout", 30);
                 int retryCount = poolingConfig.GetValue<int>("RetryCount", 5);
                 int retryInterval = poolingConfig.GetValue<int>("RetryInterval", 10);
-                
-                var sqlConnectionBuilder = new SqlConnectionStringBuilder(connectionString)
-                {
-                    MaxPoolSize = maxPoolSize,
-                    MinPoolSize = minPoolSize,
-                    ConnectTimeout = loadBalanceTimeout,
-                    LoadBalanceTimeout = loadBalanceTimeout,
-                    ConnectRetryCount = retryCount,
-                    ConnectRetryInterval = retryInterval
-                };
-
-                string enhancedConnectionString = sqlConnectionBuilder.ConnectionString;
-                if (connectionLifetime > 0)
-                {
-                    enhancedConnectionString += $";Connection Lifetime={connectionLifetime}";
-                }
-                
-                if (connectionResetEnabled && OperatingSystem.IsWindows())
-                {
-                    enhancedConnectionString += $";Connection Reset=true";
-                }
                 
                 var optionsBuilder = new DbContextOptionsBuilder<WorkoutTrackerWebContext>();
                 optionsBuilder.UseSqlServer(enhancedConnectionString, sqlOptions => 
@@ -881,6 +834,12 @@ namespace WorkoutTrackerWeb
                 Predicate = check => check.Tags.Contains("email"),
                 ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
             }).AllowAnonymous();
+
+            app.MapHealthChecks("/health/pool", new HealthCheckOptions
+            {
+                Predicate = check => check.Tags.Contains("pool"),
+                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+            }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
 
             app.UseHangfireDashboard("/hangfire", new DashboardOptions {
                 Authorization = new[] { new HangfireAuthorizationFilter() }
