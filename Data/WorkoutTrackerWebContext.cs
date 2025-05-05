@@ -256,9 +256,10 @@ namespace WorkoutTrackerWeb.Data
                 .HasForeignKey(wte => wte.WorkoutTemplateId)
                 .OnDelete(DeleteBehavior.Cascade);
                 
+            // Fix ExerciseTypeId1 error by explicitly configuring the relationship
             modelBuilder.Entity<WorkoutTemplateExercise>()
                 .HasOne(wte => wte.ExerciseType)
-                .WithMany()
+                .WithMany(et => et.TemplateExercises)
                 .HasForeignKey(wte => wte.ExerciseTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
                 
