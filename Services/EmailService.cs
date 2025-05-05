@@ -29,7 +29,7 @@ namespace WorkoutTrackerWeb.Services
                 var password = _config["EmailSettings:Password"] ?? _config["EmailSettings__Password"];
                 var enableSsl = bool.Parse(_config["EmailSettings:UseSsl"] ?? _config["EmailSettings__UseSsl"] ?? "true");
                 var adminEmail = _config["EmailSettings:AdminEmail"] ?? "marc.coxall@ninjatec.co.uk";
-                var fromEmail = _config["EmailSettings:SenderEmail"] ?? _config["EmailSettings__SenderEmail"] ?? "noreply@workouttracker.app";
+                var fromEmail = _config["EmailSettings:SenderEmail"] ?? _config["EmailSettings__SenderEmail"] ?? "noreply@workouttracker.online";
                 var senderName = _config["EmailSettings:SenderName"] ?? _config["EmailSettings__SenderName"] ?? "Workout Tracker";
 
                 _logger.LogInformation($"Attempting to send feedback email using server: {host}:{port}, SSL: {enableSsl}");

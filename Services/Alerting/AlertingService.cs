@@ -393,7 +393,7 @@ namespace WorkoutTrackerWeb.Services.Alerting
                     return false;
 
                 // In a real application, you'd get admin emails from configuration
-                var adminEmails = new[] { "admin@workouttracker.app" };
+                var adminEmails = new[] { "admin@workouttracker.online" };
 
                 foreach (var email in adminEmails)
                 {
@@ -407,7 +407,7 @@ namespace WorkoutTrackerWeb.Services.Alerting
                         <p><strong>Direction:</strong> {threshold.Direction}</p>
                         <p><strong>Time:</strong> {alert.TriggeredAt.ToString("yyyy-MM-dd HH:mm:ss")} UTC</p>
                         <p><strong>Details:</strong> {alert.Details}</p>
-                        <p>Please check the <a href='https://workouttracker.app/Admin/Alerts'>Alert Dashboard</a> for more information.</p>
+                        <p>Please check the <a href='https://workouttracker.online/Admin/Alerts'>Alert Dashboard</a> for more information.</p>
                     ";
 
                     await _emailService.SendEmailAsync(email, subject, message);
@@ -568,7 +568,7 @@ namespace WorkoutTrackerWeb.Services.Alerting
                     return false;
 
                 // In a real application, you'd get escalation emails from configuration
-                var escalationEmails = new[] { "operations@workouttracker.app", "manager@workouttracker.app" };
+                var escalationEmails = new[] { "operations@workouttracker.online", "manager@workouttracker.online" };
 
                 foreach (var email in escalationEmails)
                 {
@@ -583,7 +583,7 @@ namespace WorkoutTrackerWeb.Services.Alerting
                         <p><strong>First Triggered:</strong> {alert.TriggeredAt.ToString("yyyy-MM-dd HH:mm:ss")} UTC</p>
                         <p><strong>Time since triggering:</strong> {DateTime.UtcNow.Subtract(alert.TriggeredAt).TotalMinutes:F1} minutes</p>
                         <p><strong>Details:</strong> {alert.Details}</p>
-                        <p>Please check the <a href='https://workouttracker.app/Admin/Alerts'>Alert Dashboard</a> urgently.</p>
+                        <p>Please check the <a href='https://workouttracker.online/Admin/Alerts'>Alert Dashboard</a> urgently.</p>
                     ";
 
                     await _emailService.SendEmailAsync(email, subject, message);

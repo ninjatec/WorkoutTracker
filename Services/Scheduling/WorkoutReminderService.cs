@@ -185,7 +185,7 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                 // Add closing message
                 message += $@"
                     <p>Be sure to prepare adequately and stay hydrated!</p>
-                    <p>Visit <a href='https://workouttracker.app/Workouts'>your workout dashboard</a> to view more details.</p>
+                    <p>Visit <a href='https://workouttracker.online/Workouts'>your workout dashboard</a> to view more details.</p>
                     <p>Good luck with your workout!</p>
                     ";
 
