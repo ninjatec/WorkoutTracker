@@ -293,21 +293,7 @@ namespace WorkoutTrackerWeb.Services
                             
                             ReportProgress(90, $"Deleted {sessions.Count} workout sessions");
                             
-                            // Delete legacy session data if any exists
-                            try
-                            {
-                                // Use raw SQL to avoid compilation issues when Session is removed
-                                var legacyCount = await _context.Database.ExecuteSqlRawAsync(
-                                    "DELETE FROM Set WHERE SessionId IN (SELECT SessionId FROM Session WHERE UserId = {0})", userId);
-                                await _context.Database.ExecuteSqlRawAsync(
-                                    "DELETE FROM Session WHERE UserId = {0}", userId);
-                                
-                                ReportProgress(95, "Deleted legacy session data");
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogWarning(ex, "Error deleting legacy session data - this may be normal if the tables no longer exist");
-                            }
+                            // Legacy session data removal not needed as tables have been migrated and removed
                             
                             await transaction.CommitAsync();
                             

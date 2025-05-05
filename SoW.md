@@ -34,11 +34,11 @@ This document outlines the performance and stability optimization tasks for the 
 [x] Create custom ProjectTo mappings to minimize data transfer
 
 ### DB-05: Complete Session to WorkoutSession Migration
-[ ] Remove any remaining Session models and table references
-[ ] Update all remaining components to exclusively use WorkoutSession
-[ ] Refactor volume calculation services for the new data model
-[ ] Create and execute cleanup migration script
-[ ] Update documentation to reflect completed migration
+[x] Remove any remaining Session models and table references
+[x] Update all remaining components to exclusively use WorkoutSession
+[x] Refactor volume calculation services for the new data model
+[x] Create and execute cleanup migration script
+[x] Update documentation to reflect completed migration
 
 ## Redis Enhancement Tasks
 
