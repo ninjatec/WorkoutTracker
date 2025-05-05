@@ -50,6 +50,7 @@ using WorkoutTrackerWeb.Services.Redis;
 using WorkoutTrackerWeb.Extensions;
 using WorkoutTrackerWeb.Services.Metrics;
 using Microsoft.AspNetCore.Authorization;
+using WorkoutTrackerWeb.Services.Cache;
 
 namespace WorkoutTrackerWeb
 {
@@ -150,6 +151,9 @@ namespace WorkoutTrackerWeb
 
             // Configure Redis
             builder.Services.AddRedisConfiguration(builder.Configuration);
+
+            // Add query result caching services
+            builder.Services.AddQueryResultCaching(builder.Configuration);
 
             // Add output caching services
             builder.Services.AddOutputCache(options => {

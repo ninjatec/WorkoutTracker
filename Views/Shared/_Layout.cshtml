@@ -44,8 +44,34 @@
                         </li>
                         @if(User.IsInRole("Admin"))
                         {
-                            <li class="nav-item">
-                                <a class="nav-link text-dark" asp-area="" asp-page="/HangfireDiagnostics/Index">Hangfire Diagnostics</a>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-dark" href="#" id="adminDropdown" role="button" 
+                                   data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-shield-lock"></i> Admin
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                                    <li>
+                                        <a class="dropdown-item" asp-area="Admin" asp-controller="Dashboard" asp-action="Index">
+                                            <i class="bi bi-speedometer2"></i> Dashboard
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-area="Admin" asp-controller="Cache" asp-action="Index">
+                                            <i class="bi bi-hdd-rack"></i> Cache Management
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-area="Admin" asp-controller="Dashboard" asp-action="Statistics">
+                                            <i class="bi bi-database-check"></i> Connection Pool Stats
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" asp-area="" asp-page="/HangfireDiagnostics/Index">
+                                            <i class="bi bi-wrench"></i> Hangfire Diagnostics
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
                         }
                     </ul>

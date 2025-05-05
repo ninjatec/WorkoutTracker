@@ -1,0 +1,84 @@
+@{
+    ViewData["Title"] = "Register Entities for Cache Invalidation";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid">
+    <h1 class="mt-4">@ViewData["Title"]</h1>
+    
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Entity Type Registration</h5>
+                </div>
+                <div class="card-body">
+                    <p class="lead">
+                        This page allows you to link entity types with cache prefixes for automatic invalidation.
+                        When an entity of the registered type is changed, all cache entries with the associated prefix will be invalidated.
+                    </p>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Currently registered entity types are shown below.
+                        Use the form to register additional entity types as needed.
+                    </div>
+                    
+                    <h6 class="mt-4">Common Entity Registrations</h6>
+                    <table class="table table-striped table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Entity Type</th>
+                                <th>Cache Prefix</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>WorkoutSession</td>
+                                <td>user:sessions</td>
+                                <td>User workout session data</td>
+                            </tr>
+                            <tr>
+                                <td>WorkoutExercise</td>
+                                <td>user:sessions</td>
+                                <td>Exercises within workout sessions</td>
+                            </tr>
+                            <tr>
+                                <td>WorkoutSet</td>
+                                <td>user:sessions</td>
+                                <td>Sets within workout exercises</td>
+                            </tr>
+                            <tr>
+                                <td>WorkoutSession</td>
+                                <td>user:metrics</td>
+                                <td>User metrics data</td>
+                            </tr>
+                            <tr>
+                                <td>WorkoutSession</td>
+                                <td>user:frequency</td>
+                                <td>User workout frequency data</td>
+                            </tr>
+                            <tr>
+                                <td>WorkoutSession</td>
+                                <td>user:total-workouts</td>
+                                <td>Total workout count</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div class="mt-4">
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Cache Dashboard
+                        </a>
+                        <form asp-action="RegisterCommonEntities" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-link"></i> Register Common Entities
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

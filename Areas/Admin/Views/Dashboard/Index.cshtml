@@ -1,0 +1,102 @@
+@{
+    ViewData["Title"] = "Admin Dashboard";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid">
+    <h1 class="mt-4">@ViewData["Title"]</h1>
+    
+    <div class="row">
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-primary text-white mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-speedometer2 me-2"></i> Query Cache
+                    </h5>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" asp-area="Admin" asp-controller="Cache" asp-action="Index">View Details</a>
+                    <div class="small text-white"><i class="bi bi-arrow-right"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-success text-white mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-database-check me-2"></i> Connection Pool
+                    </h5>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" asp-area="Admin" asp-controller="Dashboard" asp-action="Statistics">View Details</a>
+                    <div class="small text-white"><i class="bi bi-arrow-right"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-warning text-white mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-people me-2"></i> User Management
+                    </h5>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" asp-area="Admin" asp-page="/Users/Index">View Details</a>
+                    <div class="small text-white"><i class="bi bi-arrow-right"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-danger text-white mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-gear me-2"></i> System Health
+                    </h5>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="/hangfire">View Details</a>
+                    <div class="small text-white"><i class="bi bi-arrow-right"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-activity me-2"></i> System Overview</h5>
+                </div>
+                <div class="card-body">
+                    <p class="lead">
+                        Welcome to the WorkoutTracker Admin Dashboard. Here you can monitor system health, performance metrics, and manage system settings.
+                    </p>
+                    
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i> New features have been added to help monitor cache performance and database connection pool health.
+                    </div>
+                    
+                    <h6 class="mt-4">Quick Links</h6>
+                    <div class="list-group">
+                        <a href="/hangfire" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            Hangfire Dashboard
+                            <i class="bi bi-box-arrow-up-right"></i>
+                        </a>
+                        <a asp-area="Admin" asp-controller="Cache" asp-action="Index" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            Cache Management
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                        <a asp-area="Admin" asp-controller="Dashboard" asp-action="Statistics" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            System Statistics
+                            <i class="bi bi-arrow-right"></i>
+                        </a>
+                        <a href="/health" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            Health Checks
+                            <i class="bi bi-box-arrow-up-right"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

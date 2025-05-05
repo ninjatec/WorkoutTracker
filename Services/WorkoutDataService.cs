@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using Microsoft.Extensions.Logging;
+using WorkoutTrackerWeb.Services.Cache;
+using Microsoft.Extensions.Options;
 
 namespace WorkoutTrackerWeb.Services
 {
@@ -13,145 +15,205 @@ namespace WorkoutTrackerWeb.Services
     {
         private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger<WorkoutDataService> _logger;
+        private readonly IQueryResultCacheService _queryCache;
+        private readonly QueryResultCacheOptions _cacheOptions;
 
         // Event for progress updates
         public event EventHandler<ProgressUpdateEventArgs> OnProgressUpdate;
 
-        public WorkoutDataService(WorkoutTrackerWebContext context, ILogger<WorkoutDataService> logger)
+        public WorkoutDataService(
+            WorkoutTrackerWebContext context, 
+            ILogger<WorkoutDataService> logger,
+            IQueryResultCacheService queryCache,
+            IOptions<QueryResultCacheOptions> cacheOptions)
         {
             _context = context;
             _logger = logger;
+            _queryCache = queryCache;
+            _cacheOptions = cacheOptions.Value;
         }
 
         public async Task<List<WorkoutSession>> GetUserSessionsAsync(int userId)
         {
-            var workoutSessions = await _context.WorkoutSessions
-                .Where(ws => ws.UserId == userId)
-                .OrderByDescending(ws => ws.StartDateTime)
-                .Include(ws => ws.WorkoutExercises)
-                    .ThenInclude(we => we.ExerciseType)
-                .Include(ws => ws.WorkoutExercises)
-                    .ThenInclude(we => we.WorkoutSets)
-                .AsNoTracking()
-                .ToListAsync();  // Load data into memory first
+            // Use the query cache service with automatic key generation
+            return await _queryCache.GetOrCreateQueryResultAsync(
+                keyPrefix: "user:sessions",
+                queryParameters: new { UserId = userId },
+                queryFunc: async () => {
+                    _logger.LogDebug("Cache miss for user sessions. Loading from database for user {UserId}", userId);
+                    
+                    var workoutSessions = await _context.WorkoutSessions
+                        .Where(ws => ws.UserId == userId)
+                        .OrderByDescending(ws => ws.StartDateTime)
+                        .Include(ws => ws.WorkoutExercises)
+                            .ThenInclude(we => we.ExerciseType)
+                        .Include(ws => ws.WorkoutExercises)
+                            .ThenInclude(we => we.WorkoutSets)
+                        .AsNoTracking()
+                        .ToListAsync();  // Load data into memory first
 
-            // Process in memory to avoid SQL null issues
-            var processedSessions = workoutSessions
-                .Select(ws => new WorkoutSession
-                {
-                    WorkoutSessionId = ws.WorkoutSessionId,
-                    Name = ws.Name ?? "Unnamed Session",
-                    UserId = ws.UserId,
-                    StartDateTime = ws.StartDateTime,
-                    Duration = ws.Duration,
-                    CaloriesBurned = ws.CaloriesBurned ?? 0m,
-                    Notes = ws.Notes ?? string.Empty,
-                    WorkoutExercises = ws.WorkoutExercises?
-                        .Where(we => we.ExerciseType?.Name != null)
-                        .Select(we => new WorkoutExercise
+                    // Process in memory to avoid SQL null issues
+                    var processedSessions = workoutSessions
+                        .Select(ws => new WorkoutSession
                         {
-                            WorkoutExerciseId = we.WorkoutExerciseId,
-                            ExerciseTypeId = we.ExerciseTypeId,
-                            WorkoutSessionId = we.WorkoutSessionId,
-                            ExerciseType = we.ExerciseType != null ? new ExerciseType
-                            {
-                                ExerciseTypeId = we.ExerciseType.ExerciseTypeId,
-                                Name = we.ExerciseType.Name ?? "Unknown Exercise",
-                                Description = we.ExerciseType.Description ?? string.Empty,
-                                Type = we.ExerciseType.Type ?? string.Empty,
-                                Muscle = we.ExerciseType.Muscle ?? string.Empty,
-                                Equipment = we.ExerciseType.Equipment ?? string.Empty,
-                                Difficulty = we.ExerciseType.Difficulty ?? string.Empty
-                            } : null,
-                            WorkoutSets = we.WorkoutSets?.Select(s => new WorkoutSet
-                            {
-                                WorkoutSetId = s.WorkoutSetId,
-                                WorkoutExerciseId = s.WorkoutExerciseId,
-                                Reps = s.Reps,
-                                Weight = s.Weight,
-                                IsCompleted = s.IsCompleted
-                            }).ToList() ?? new List<WorkoutSet>()
-                        }).ToList() ?? new List<WorkoutExercise>()
-                })
-                .ToList();
+                            WorkoutSessionId = ws.WorkoutSessionId,
+                            Name = ws.Name ?? "Unnamed Session",
+                            UserId = ws.UserId,
+                            StartDateTime = ws.StartDateTime,
+                            Duration = ws.Duration,
+                            CaloriesBurned = ws.CaloriesBurned ?? 0m,
+                            Notes = ws.Notes ?? string.Empty,
+                            WorkoutExercises = ws.WorkoutExercises?
+                                .Where(we => we.ExerciseType?.Name != null)
+                                .Select(we => new WorkoutExercise
+                                {
+                                    WorkoutExerciseId = we.WorkoutExerciseId,
+                                    ExerciseTypeId = we.ExerciseTypeId,
+                                    WorkoutSessionId = we.WorkoutSessionId,
+                                    ExerciseType = we.ExerciseType != null ? new ExerciseType
+                                    {
+                                        ExerciseTypeId = we.ExerciseType.ExerciseTypeId,
+                                        Name = we.ExerciseType.Name ?? "Unknown Exercise",
+                                        Description = we.ExerciseType.Description ?? string.Empty,
+                                        Type = we.ExerciseType.Type ?? string.Empty,
+                                        Muscle = we.ExerciseType.Muscle ?? string.Empty,
+                                        Equipment = we.ExerciseType.Equipment ?? string.Empty,
+                                        Difficulty = we.ExerciseType.Difficulty ?? string.Empty
+                                    } : null,
+                                    WorkoutSets = we.WorkoutSets?.Select(s => new WorkoutSet
+                                    {
+                                        WorkoutSetId = s.WorkoutSetId,
+                                        WorkoutExerciseId = s.WorkoutExerciseId,
+                                        Reps = s.Reps,
+                                        Weight = s.Weight,
+                                        IsCompleted = s.IsCompleted
+                                    }).ToList() ?? new List<WorkoutSet>()
+                                }).ToList() ?? new List<WorkoutExercise>()
+                        })
+                        .ToList();
 
-            return processedSessions;
+                    return processedSessions;
+                },
+                // Cache for 20 minutes, which is a good balance for workout data that doesn't change too frequently
+                expiration: TimeSpan.FromMinutes(20),
+                slidingExpiration: false
+            );
         }
 
         public async Task<Dictionary<string, int>> GetUserMetricsAsync(int userId, DateTime startDate)
         {
-            var metrics = new Dictionary<string, int>();
-            
-            try {
-                // Query data with explicit null checks in the LINQ query
-                var workoutSessions = await _context.WorkoutSessions
-                    .Include(ws => ws.WorkoutExercises)
-                        .ThenInclude(we => we.WorkoutSets)
-                    .Where(ws => ws.UserId == userId && ws.StartDateTime >= startDate)
-                    .ToListAsync();
-
-                metrics["TotalWorkouts"] = workoutSessions.Count;
-                metrics["TotalExercises"] = workoutSessions.Sum(ws => ws.WorkoutExercises?.Count ?? 0);
-                
-                // Calculate TotalSets and TotalReps using null-safe aggregate operations
-                var totalSets = 0;
-                var totalReps = 0;
-                
-                foreach (var session in workoutSessions) 
-                {
-                    if (session.WorkoutExercises == null) continue;
+            // Use the query cache service with automatic key generation
+            return await _queryCache.GetOrCreateQueryResultAsync(
+                keyPrefix: "user:metrics",
+                queryParameters: new { UserId = userId, StartDate = startDate },
+                queryFunc: async () => {
+                    _logger.LogDebug("Cache miss for user metrics. Loading from database for user {UserId} from {StartDate}", userId, startDate);
                     
-                    foreach (var exercise in session.WorkoutExercises)
-                    {
-                        if (exercise.WorkoutSets == null) continue;
+                    var metrics = new Dictionary<string, int>();
+                    
+                    try {
+                        // Query data with explicit null checks in the LINQ query
+                        var workoutSessions = await _context.WorkoutSessions
+                            .Include(ws => ws.WorkoutExercises)
+                                .ThenInclude(we => we.WorkoutSets)
+                            .Where(ws => ws.UserId == userId && ws.StartDateTime >= startDate)
+                            .ToListAsync();
+
+                        metrics["TotalWorkouts"] = workoutSessions.Count;
+                        metrics["TotalExercises"] = workoutSessions.Sum(ws => ws.WorkoutExercises?.Count ?? 0);
                         
-                        totalSets += exercise.WorkoutSets.Count;
-                        totalReps += exercise.WorkoutSets.Sum(s => s.Reps ?? 0);
+                        // Calculate TotalSets and TotalReps using null-safe aggregate operations
+                        var totalSets = 0;
+                        var totalReps = 0;
+                        
+                        foreach (var session in workoutSessions) 
+                        {
+                            if (session.WorkoutExercises == null) continue;
+                            
+                            foreach (var exercise in session.WorkoutExercises)
+                            {
+                                if (exercise.WorkoutSets == null) continue;
+                                
+                                totalSets += exercise.WorkoutSets.Count;
+                                totalReps += exercise.WorkoutSets.Sum(s => s.Reps ?? 0);
+                            }
+                        }
+                        
+                        metrics["TotalSets"] = totalSets;
+                        metrics["TotalReps"] = totalReps;
                     }
-                }
-                
-                metrics["TotalSets"] = totalSets;
-                metrics["TotalReps"] = totalReps;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting user metrics for user {UserId}", userId);
-                // Provide default values in case of error
-                metrics["TotalWorkouts"] = 0;
-                metrics["TotalExercises"] = 0;
-                metrics["TotalSets"] = 0;
-                metrics["TotalReps"] = 0;
-            }
-            
-            return metrics;
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error getting user metrics for user {UserId}", userId);
+                        // Provide default values in case of error
+                        metrics["TotalWorkouts"] = 0;
+                        metrics["TotalExercises"] = 0;
+                        metrics["TotalSets"] = 0;
+                        metrics["TotalReps"] = 0;
+                    }
+                    
+                    return metrics;
+                }, 
+                // Cache for 15 minutes as metrics are aggregated data that don't change too frequently
+                expiration: TimeSpan.FromMinutes(15),
+                slidingExpiration: false
+            );
         }
 
         public async Task<Dictionary<string, int>> GetWorkoutFrequencyAsync(int userId, int days)
         {
-            var startDate = DateTime.Now.AddDays(-days);
-            var frequency = new Dictionary<string, int>();
+            // Use the query cache service with automatic key generation
+            return await _queryCache.GetOrCreateQueryResultAsync(
+                keyPrefix: "user:frequency",
+                queryParameters: new { UserId = userId, Days = days },
+                queryFunc: async () => {
+                    _logger.LogDebug("Cache miss for workout frequency. Loading from database for user {UserId} for {Days} days", userId, days);
+                    
+                    var startDate = DateTime.Now.AddDays(-days);
+                    var frequency = new Dictionary<string, int>();
 
-            var workouts = await _context.WorkoutSessions
-                .Where(ws => ws.UserId == userId && ws.StartDateTime >= startDate)
-                .ToListAsync();
+                    var workouts = await _context.WorkoutSessions
+                        .Where(ws => ws.UserId == userId && ws.StartDateTime >= startDate)
+                        .ToListAsync();
 
-            for (int i = 0; i < days; i++)
-            {
-                var date = DateTime.Now.AddDays(-i).Date.ToString("yyyy-MM-dd");
-                frequency[date] = workouts.Count(w => w.StartDateTime.Date == DateTime.Now.AddDays(-i).Date);
-            }
+                    for (int i = 0; i < days; i++)
+                    {
+                        var date = DateTime.Now.AddDays(-i).Date.ToString("yyyy-MM-dd");
+                        frequency[date] = workouts.Count(w => w.StartDateTime.Date == DateTime.Now.AddDays(-i).Date);
+                    }
 
-            return frequency;
+                    return frequency;
+                },
+                // Cache for 1 hour as frequency data is less likely to change often
+                expiration: TimeSpan.FromHours(1),
+                slidingExpiration: false
+            );
         }
 
         public async Task<int> GetTotalWorkoutsAsync(int userId)
         {
-            return await _context.WorkoutSessions
-                .CountAsync(ws => ws.UserId == userId);
+            // Use the query cache service with automatic key generation, but with Int wrapper object
+            var result = await _queryCache.GetOrCreateQueryResultAsync<IntWrapper>(
+                keyPrefix: "user:total-workouts",
+                queryParameters: new { UserId = userId },
+                queryFunc: async () => {
+                    _logger.LogDebug("Cache miss for total workouts. Loading from database for user {UserId}", userId);
+                    
+                    int count = await _context.WorkoutSessions
+                        .CountAsync(ws => ws.UserId == userId);
+                    
+                    return new IntWrapper { Value = count };
+                },
+                // Cache for 30 minutes as this is a simple count that doesn't change too frequently
+                expiration: TimeSpan.FromMinutes(30),
+                slidingExpiration: false
+            );
+            
+            return result.Value;
         }
 
         /// <summary>
-        /// Deletes all workout data for a user
+        /// Deletes all workout data for a user and invalidates related caches
         /// </summary>
         public async Task<bool> DeleteAllWorkoutDataAsync(int userId)
         {
@@ -163,7 +225,7 @@ namespace WorkoutTrackerWeb.Services
             try
             {
                 // Use the execution strategy provided by the context to handle retries properly
-                return await _context.Database.CreateExecutionStrategy().ExecuteAsync(async () => 
+                bool result = await _context.Database.CreateExecutionStrategy().ExecuteAsync(async () => 
                 {
                     using (var transaction = await _context.Database.BeginTransactionAsync())
                     {
@@ -250,6 +312,14 @@ namespace WorkoutTrackerWeb.Services
                         }
                     }
                 });
+                
+                if (result)
+                {
+                    // Invalidate all cached data for this user after successful deletion
+                    await InvalidateUserCachesAsync(userId);
+                }
+                
+                return result;
             }
             catch (Exception ex)
             {
@@ -257,6 +327,20 @@ namespace WorkoutTrackerWeb.Services
                 ReportProgress(100, $"Error: {ex.Message}");
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Invalidates all cached data for a specific user
+        /// </summary>
+        public async Task InvalidateUserCachesAsync(int userId)
+        {
+            _logger.LogInformation("Invalidating all cached workout data for user {UserId}", userId);
+            
+            // Invalidate user-specific cache prefixes
+            await _queryCache.InvalidateQueryResultsByPrefixAsync($"user:sessions:{userId}");
+            await _queryCache.InvalidateQueryResultsByPrefixAsync($"user:metrics:{userId}");
+            await _queryCache.InvalidateQueryResultsByPrefixAsync($"user:frequency:{userId}");
+            await _queryCache.InvalidateQueryResultsByPrefixAsync($"user:total-workouts:{userId}");
         }
 
         private void ReportProgress(int percentComplete, string message)
@@ -268,5 +352,13 @@ namespace WorkoutTrackerWeb.Services
                 Message = message
             });
         }
+    }
+
+    /// <summary>
+    /// A simple wrapper class for int values to use with the cache service
+    /// </summary>
+    public class IntWrapper
+    {
+        public int Value { get; set; }
     }
 }
