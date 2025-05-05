@@ -51,6 +51,8 @@ using WorkoutTrackerWeb.Extensions;
 using WorkoutTrackerWeb.Services.Metrics;
 using Microsoft.AspNetCore.Authorization;
 using WorkoutTrackerWeb.Services.Cache;
+using Microsoft.AspNetCore.ResponseCompression;
+using System.IO.Compression;
 
 namespace WorkoutTrackerWeb
 {
@@ -595,6 +597,9 @@ namespace WorkoutTrackerWeb
             // Register new database optimization services
             builder.Services.AddSingleton<WorkoutTrackerWeb.Services.Database.ProjectionService>();
 
+            // Register compression metrics service
+            builder.Services.AddSingleton<WorkoutTrackerWeb.Services.Metrics.CompressionMetricsService>();
+
             builder.Services.AddSingleton<IDbContextFactory<WorkoutTrackerWebContext>>(serviceProvider =>
             {
                 var connectionStringBuilder = serviceProvider.GetRequiredService<ConnectionStringBuilderService>();
@@ -658,6 +663,49 @@ namespace WorkoutTrackerWeb
                     {
                         await loginHistoryService.RecordSuccessfulLoginAsync(user.Id);
                     }
+                };
+            });
+
+            builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+            {
+                options.Level = CompressionLevel.Fastest;
+            });
+
+            builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+            {
+                options.Level = CompressionLevel.Fastest;
+            });
+
+            builder.Services.AddResponseCompression(options =>
+            {
+                options.EnableForHttps = true;
+                options.Providers.Add<BrotliCompressionProvider>();
+                options.Providers.Add<GzipCompressionProvider>();
+                options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+                    new[] { 
+                        "application/json", 
+                        "application/javascript",
+                        "text/css",
+                        "text/html",
+                        "text/json",
+                        "text/plain",
+                        "text/xml",
+                        "application/xml"
+                    });
+                // Add exclusion for already compressed content types
+                options.ExcludedMimeTypes = new[] {
+                    "image/png", 
+                    "image/jpeg",
+                    "image/gif",
+                    "image/webp",
+                    "image/svg+xml",
+                    "audio/mpeg",
+                    "video/mp4",
+                    "font/woff",
+                    "font/woff2",
+                    "application/octet-stream",
+                    "application/pdf",
+                    "application/zip"
                 };
             });
 
@@ -827,6 +875,13 @@ namespace WorkoutTrackerWeb
 
             app.UseAuthentication();
             app.UseAuthorization();
+
+            // Add compression middleware
+            app.UseResponseCompression();
+            app.UseCompressionAnalytics();
+            
+            // Add cache headers for static assets
+            app.UseStaticAssetCacheHeaders();
 
             app.MapHealthChecks("/health", new HealthCheckOptions
             {
