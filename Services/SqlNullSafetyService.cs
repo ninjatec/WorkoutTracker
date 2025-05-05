@@ -52,9 +52,10 @@ namespace WorkoutTrackerWeb.Services
                 }
 
                 // Table-specific fixes for known problematic columns
-                totalRowsAffected += await UpdateNullStringsInTableAsync("WorkoutSession", new[] { "Name", "Description", "Notes" });
-                totalRowsAffected += await UpdateNullStringsInTableAsync("ExerciseType", new[] { "Name", "Description", "Type", "Muscle", "Equipment", "Difficulty" });
-                totalRowsAffected += await UpdateNullStringsInTableAsync("WorkoutExercise", new[] { "Name" });
+                // Updated to use plural table names and check existence first
+                totalRowsAffected += await UpdateNullStringsInTableAsync("WorkoutSessions", new[] { "Name", "Description", "Notes" });
+                totalRowsAffected += await UpdateNullStringsInTableAsync("ExerciseTypes", new[] { "Name", "Description", "Type", "Muscle", "Equipment", "Difficulty" });
+                totalRowsAffected += await UpdateNullStringsInTableAsync("WorkoutExercises", new[] { "Name" });
 
                 // Find all string columns across the database and ensure they don't have NULL values
                 totalRowsAffected += await UpdateAllNullStringColumnsAsync();
@@ -89,9 +90,23 @@ namespace WorkoutTrackerWeb.Services
                         await connection.OpenAsync();
                     }
 
+                    // First check if the table exists
+                    if (!await TableExistsAsync(connection, tableName))
+                    {
+                        _logger.LogInformation("Table {TableName} does not exist, skipping NULL value updates", tableName);
+                        return 0;
+                    }
+
                     foreach (var column in columnNames)
                     {
-                        string sql = $"UPDATE {tableName} SET {column} = '' WHERE {column} IS NULL";
+                        // Check if column exists in the table
+                        if (!await ColumnExistsAsync(connection, tableName, column))
+                        {
+                            _logger.LogInformation("Column {Column} does not exist in table {TableName}, skipping", column, tableName);
+                            continue;
+                        }
+
+                        string sql = $"UPDATE [{tableName}] SET [{column}] = '' WHERE [{column}] IS NULL";
                         
                         using (var command = new SqlCommand(sql, connection))
                         {
@@ -120,6 +135,43 @@ namespace WorkoutTrackerWeb.Services
             }
             
             return rowsAffected;
+        }
+
+        /// <summary>
+        /// Checks if a table exists in the database
+        /// </summary>
+        private async Task<bool> TableExistsAsync(SqlConnection connection, string tableName)
+        {
+            string sql = @"
+                SELECT COUNT(*) 
+                FROM INFORMATION_SCHEMA.TABLES 
+                WHERE TABLE_NAME = @tableName";
+            
+            using (var command = new SqlCommand(sql, connection))
+            {
+                command.Parameters.AddWithValue("@tableName", tableName);
+                var result = await command.ExecuteScalarAsync();
+                return Convert.ToInt32(result) > 0;
+            }
+        }
+
+        /// <summary>
+        /// Checks if a column exists in a table
+        /// </summary>
+        private async Task<bool> ColumnExistsAsync(SqlConnection connection, string tableName, string columnName)
+        {
+            string sql = @"
+                SELECT COUNT(*) 
+                FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = @tableName AND COLUMN_NAME = @columnName";
+            
+            using (var command = new SqlCommand(sql, connection))
+            {
+                command.Parameters.AddWithValue("@tableName", tableName);
+                command.Parameters.AddWithValue("@columnName", columnName);
+                var result = await command.ExecuteScalarAsync();
+                return Convert.ToInt32(result) > 0;
+            }
         }
 
         /// <summary>

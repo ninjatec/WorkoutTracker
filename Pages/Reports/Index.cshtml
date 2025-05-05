@@ -122,8 +122,9 @@
                             <div class="card" id="weightProgressContainer" data-loading="true" style="min-height: 450px;">
                                 <div class="card-header d-flex justify-content-between align-items-center">
                                     <h5>Weight Progress by Exercise Type (@FormatPeriodText(Model.ReportPeriod))</h5>
+                                    <button id="deselectAllExercises" class="btn btn-sm btn-outline-secondary">Deselect All Exercises</button>
                                 </div>
-                                <div class="card-body" style="height: 800px;">
+                                <div class="card-body" style="height: 1200px;">
                                     <div class="text-center loading-spinner">
                                         <div class="spinner-border text-primary" role="status">
                                             <span class="sr-only">Loading...</span>
@@ -444,7 +445,31 @@
             createVolumeChart();
             createCaloriesChart();
             createCaloriesPieChart();
+            
+            // Add event listener for the "Deselect All Exercises" button
+            const deselectAllBtn = document.getElementById('deselectAllExercises');
+            if (deselectAllBtn) {
+                deselectAllBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    deselectAllExercisesInChart();
+                });
+            }
         });
+        
+        // Function to deselect all exercises in the weight progress chart
+        function deselectAllExercisesInChart() {
+            if (!chartInstances.weightProgressChart) return;
+            
+            const chart = chartInstances.weightProgressChart;
+            
+            // Hide all datasets
+            chart.data.datasets.forEach(dataset => {
+                dataset.hidden = true;
+            });
+            
+            // Update the chart to reflect changes
+            chart.update();
+        }
 
         function createWeightProgressChart() {
             const ctx = document.getElementById('weightProgressChart');
