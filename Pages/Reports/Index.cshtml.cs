@@ -561,7 +561,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
             UserId = user.UserId;
 
             // Set report period with validation (default to 90 if invalid)
-            if (period == 30 || period == 60 || period == 90 || period == 120)
+            if (period == 30 || period == 60 || period == 90 || period == 120 || period == 365 || period == int.MaxValue)
             {
                 ReportPeriod = period.Value;
             }
@@ -938,7 +938,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
             try
             {
                 // Remove cached report data for all time periods
-                int[] periods = new[] { 30, 60, 90, 120 };
+                int[] periods = new[] { 30, 60, 90, 120, 365, int.MaxValue };
                 foreach (var period in periods)
                 {
                     cache.Remove($"Reports:OverallStatus_{period}:{userId}");
@@ -985,7 +985,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
             try
             {
                 // Remove cached volume data for all periods
-                int[] periods = new[] { 30, 60, 90, 120 };
+                int[] periods = new[] { 30, 60, 90, 120, 365, int.MaxValue };
                 foreach (var period in periods)
                 {
                     _cache.Remove($"Reports:VolumeData_{period}:{UserId}");
