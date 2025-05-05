@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WorkoutTrackerWeb.Data;
@@ -25,6 +26,8 @@ namespace WorkoutTrackerWeb.Services.Scheduling
         private readonly IEmailService _emailService;
         private readonly ILogger<WorkoutReminderService> _logger;
         private readonly TimeZoneInfo _timeZone;
+        private readonly IConfiguration _configuration;
+        private readonly string _baseUrl;
 
         public WorkoutReminderService(
             WorkoutTrackerWebContext context,
@@ -32,21 +35,26 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             UserManager<AppUser> userManager,
             IEmailService emailService,
             ILogger<WorkoutReminderService> logger,
-            IOptions<ScheduledWorkoutProcessorOptions> options)
+            IOptions<ScheduledWorkoutProcessorOptions> options,
+            IConfiguration configuration)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _identityContext = identityContext ?? throw new ArgumentNullException(nameof(identityContext));
             _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
             _emailService = emailService ?? throw new ArgumentNullException(nameof(emailService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            
+            // Get base URL from configuration, or use the default domain if not configured
+            _baseUrl = _configuration["AppSettings:BaseUrl"] ?? "https://workouttracker.online";
             
             // Use the same timezone configuration as the workout processor
             _timeZone = options.Value.UseLocalTimeZone 
                 ? TimeZoneInfo.Local 
                 : TimeZoneInfo.Utc;
                 
-            _logger.LogInformation("WorkoutReminderService initialized with timezone: {TimeZone}", 
-                _timeZone.DisplayName);
+            _logger.LogInformation("WorkoutReminderService initialized with timezone: {TimeZone}, BaseUrl: {BaseUrl}", 
+                _timeZone.DisplayName, _baseUrl);
         }
 
         /// <summary>
@@ -75,6 +83,7 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                     .Include(s => s.Template)
                     .Include(s => s.TemplateAssignment)
                     .ThenInclude(a => a.WorkoutTemplate)
+                    .Include(s => s.LastGeneratedSession)
                     .OrderBy(s => s.ScheduledDateTime)
                     .ToListAsync();
 
@@ -156,6 +165,24 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                 // Format workout time
                 var workoutTime = workout.ScheduledDateTime?.ToString("dddd, MMMM d, yyyy 'at' h:mm tt");
                 
+                // Generate workout URL - determine specific URL based on workout type
+                string workoutUrl;
+                if (workout.LastGeneratedSession != null && workout.LastGeneratedSessionId.HasValue)
+                {
+                    // If there's already a session created, link directly to it
+                    workoutUrl = $"{_baseUrl}/WorkoutSessions/Details/{workout.LastGeneratedSessionId.Value}";
+                }
+                else if (workout.WorkoutScheduleId > 0)
+                {
+                    // Link to the specific scheduled workout
+                    workoutUrl = $"{_baseUrl}/Workouts/ScheduledWorkouts#{workout.WorkoutScheduleId}";
+                }
+                else
+                {
+                    // Generic link to scheduled workouts page
+                    workoutUrl = $"{_baseUrl}/Workouts/ScheduledWorkouts";
+                }
+                
                 // Prepare email subject and message
                 string subject = $"Reminder: Your workout '{workout.Name}' is coming up";
                 string message = $@"
@@ -185,15 +212,15 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                 // Add closing message
                 message += $@"
                     <p>Be sure to prepare adequately and stay hydrated!</p>
-                    <p>Visit <a href='https://workouttracker.online/Workouts'>your workout dashboard</a> to view more details.</p>
+                    <p>Visit <a href='{workoutUrl}'>your workout dashboard</a> to view more details.</p>
                     <p>Good luck with your workout!</p>
                     ";
 
                 // Send the email
                 await _emailService.SendEmailAsync(identityUser.Email, subject, message);
                 
-                _logger.LogInformation("Sent workout reminder email for workout {WorkoutId} to {Email}",
-                    workout.WorkoutScheduleId, identityUser.Email);
+                _logger.LogInformation("Sent workout reminder email for workout {WorkoutId} to {Email} with link to {Url}",
+                    workout.WorkoutScheduleId, identityUser.Email, workoutUrl);
                 
                 return true;
             }

@@ -24,6 +24,23 @@
 - Focus on readability over performance
 - Fully implement all requested functionality
 - Use the logs directory files to help with debug
+- Use the existing logging framework
+- Use the existing model sctructure where possible
+- Use the existing data access layer where possible
+- Use the existing repository pattern where possible
+- Use the existing service layer where possible
+- Use the existing view model structure where possible
+- Use the existing view structure where possible
+- Use the existing controller structure where possible
+- Use the existing view component structure where possible
+- Use the existing middleware structure where possible
+- Use the existing configuration structure where possible
+- Use the existing dependency injection structure where possible
+- Use the existing authentication structure where possible
+- Use the existing authorization structure where possible
+- Use the existing caching structure where possible
+- Use the existing localization structure where possible
+
 
 ## Architecture Guidelines
 - Design for multi-pod Kubernetes deployments
