@@ -15,6 +15,12 @@ namespace WorkoutTrackerWeb.Services
     {
         private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger<SqlNullSafetyService> _logger;
+        
+        // List of tables to exclude from automatic NULL fixing (commonly Hangfire tables)
+        private static readonly HashSet<string> _excludedTables = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Job", "JobParameter", "JobQueue", "State", "Server", "List", "Hash", "Set", "Counter", "AggregatedCounter", "Lock"
+        };
 
         public SqlNullSafetyService(
             WorkoutTrackerWebContext context,
@@ -212,6 +218,14 @@ namespace WorkoutTrackerWeb.Services
                         {
                             string tableName = reader.GetString(0);
                             string columnName = reader.GetString(1);
+                            
+                            // Skip excluded tables (like Hangfire tables)
+                            if (_excludedTables.Contains(tableName))
+                            {
+                                _logger.LogDebug("Skipping excluded table {TableName} for NULL string updates", tableName);
+                                continue;
+                            }
+                            
                             stringColumns.Add((tableName, columnName));
                         }
                     }

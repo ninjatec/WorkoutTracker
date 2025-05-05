@@ -542,6 +542,83 @@ namespace WorkoutTrackerWeb.Services.Scheduling
         }
 
         /// <summary>
+        /// Converts a scheduled workout to an actual workout session
+        /// </summary>
+        private async Task<WorkoutSession> ConvertScheduledWorkoutToSessionAsync(WorkoutSchedule workout)
+        {
+            var template = workout.Template ?? workout.TemplateAssignment?.WorkoutTemplate;
+            if (template == null)
+            {
+                _logger.LogError("Cannot convert scheduled workout {Id} without a template", workout.WorkoutScheduleId);
+                return null;
+            }
+
+            var workoutSession = new WorkoutSession
+            {
+                Name = workout.Name,
+                Description = workout.Description,
+                UserId = workout.ClientUserId,
+                StartDateTime = workout.ScheduledDateTime ?? DateTime.UtcNow,
+                Status = "Scheduled",
+                IsFromCoach = true,
+                WorkoutTemplateId = workout.TemplateId,
+                TemplateAssignmentId = workout.TemplateAssignmentId
+            };
+
+            _context.WorkoutSessions.Add(workoutSession);
+            await _context.SaveChangesAsync();
+
+            // Create exercises and sets from template
+            foreach (var templateExercise in template.TemplateExercises.OrderBy(e => e.OrderIndex))
+            {
+                var workoutExercise = new WorkoutExercise
+                {
+                    WorkoutSessionId = workoutSession.WorkoutSessionId,
+                    ExerciseTypeId = templateExercise.ExerciseTypeId,
+                    SequenceNum = templateExercise.OrderIndex,
+                    OrderIndex = templateExercise.OrderIndex,
+                    Notes = templateExercise.Notes
+                };
+
+                _context.WorkoutExercises.Add(workoutExercise);
+                await _context.SaveChangesAsync();
+
+                foreach (var templateSet in templateExercise.TemplateSets.OrderBy(s => s.SequenceNum))
+                {
+                    var workoutSet = new WorkoutSet
+                    {
+                        WorkoutExerciseId = workoutExercise.WorkoutExerciseId,
+                        SettypeId = templateSet.SettypeId,
+                        SequenceNum = templateSet.SequenceNum,
+                        SetNumber = templateSet.SequenceNum,
+                        Reps = templateSet.DefaultReps,
+                        Weight = templateSet.DefaultWeight,
+                        Notes = templateSet.Notes
+                    };
+
+                    _context.WorkoutSets.Add(workoutSet);
+                }
+            }
+            await _context.SaveChangesAsync();
+
+            // Update the workout schedule status
+            if (workout.WorkoutScheduleId > 0) // Only update if this is a real schedule
+            {
+                // Find the actual workout schedule in the database and update its status
+                var scheduleToUpdate = await _context.WorkoutSchedules.FindAsync(workout.WorkoutScheduleId);
+                if (scheduleToUpdate != null)
+                {
+                    scheduleToUpdate.LastGenerationStatus = "Processed";
+                    scheduleToUpdate.LastGeneratedWorkoutDate = DateTime.UtcNow;
+                    scheduleToUpdate.LastGeneratedSessionId = workoutSession.WorkoutSessionId;
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            return workoutSession;
+        }
+
+        /// <summary>
         /// Cleans up expired scheduled workouts that are no longer needed
         /// </summary>
         public async Task<int> CleanupExpiredWorkoutsAsync()
@@ -941,88 +1018,32 @@ namespace WorkoutTrackerWeb.Services.Scheduling
         /// <summary>
         /// Converts a scheduled workout to an actual workout session
         /// </summary>
-        private async Task<WorkoutSession> ConvertScheduledWorkoutToSessionAsync(WorkoutSchedule workout)
-        {
-            var template = workout.Template ?? workout.TemplateAssignment?.WorkoutTemplate;
-            if (template == null)
-            {
-                _logger.LogError("Cannot convert scheduled workout {Id} without a template", workout.WorkoutScheduleId);
-                return null;
-            }
-
-            var workoutSession = new WorkoutSession
-            {
-                Name = workout.Name,
-                Description = workout.Description,
-                UserId = workout.ClientUserId,
-                StartDateTime = workout.ScheduledDateTime ?? DateTime.UtcNow,
-                Status = "Scheduled",
-                IsFromCoach = true,
-                WorkoutTemplateId = workout.TemplateId,
-                TemplateAssignmentId = workout.TemplateAssignmentId
-            };
-
-            _context.WorkoutSessions.Add(workoutSession);
-            await _context.SaveChangesAsync();
-
-            // Create exercises and sets from template
-            foreach (var templateExercise in template.TemplateExercises.OrderBy(e => e.OrderIndex))
-            {
-                var workoutExercise = new WorkoutExercise
-                {
-                    WorkoutSessionId = workoutSession.WorkoutSessionId,
-                    ExerciseTypeId = templateExercise.ExerciseTypeId,
-                    SequenceNum = templateExercise.OrderIndex,
-                    OrderIndex = templateExercise.OrderIndex,
-                    Notes = templateExercise.Notes
-                };
-
-                _context.WorkoutExercises.Add(workoutExercise);
-                await _context.SaveChangesAsync();
-
-                foreach (var templateSet in templateExercise.TemplateSets.OrderBy(s => s.SequenceNum))
-                {
-                    var workoutSet = new WorkoutSet
-                    {
-                        WorkoutExerciseId = workoutExercise.WorkoutExerciseId,
-                        SettypeId = templateSet.SettypeId,
-                        SequenceNum = templateSet.SequenceNum,
-                        SetNumber = templateSet.SequenceNum,
-                        Reps = templateSet.DefaultReps,
-                        Weight = templateSet.DefaultWeight,
-                        Notes = templateSet.Notes
-                    };
-
-                    _context.WorkoutSets.Add(workoutSet);
-                }
-            }
-            await _context.SaveChangesAsync();
-
-            // Update the workout schedule status
-            if (workout.WorkoutScheduleId > 0) // Only update if this is a real schedule
-            {
-                // Find the actual workout schedule in the database and update its status
-                var scheduleToUpdate = await _context.WorkoutSchedules.FindAsync(workout.WorkoutScheduleId);
-                if (scheduleToUpdate != null)
-                {
-                    scheduleToUpdate.LastGenerationStatus = "Processed";
-                    scheduleToUpdate.LastGeneratedWorkoutDate = DateTime.UtcNow;
-                    scheduleToUpdate.LastGeneratedSessionId = workoutSession.WorkoutSessionId;
-                    await _context.SaveChangesAsync();
-                }
-            }
-
-            return workoutSession;
-        }
-
-        /// <summary>
-        /// Processes a single scheduled workout
-        /// </summary>
         private async Task ProcessScheduledWorkoutAsync(WorkoutSchedule schedule)
         {
-            if (schedule == null || schedule.Template == null)
+            if (schedule == null)
             {
-                _logger.LogError("Invalid schedule or missing template");
+                _logger.LogError("Cannot process null schedule");
+                return;
+            }
+
+            // Get template from either direct assignment or template assignment
+            var template = schedule.Template ?? schedule.TemplateAssignment?.WorkoutTemplate;
+            if (template == null)
+            {
+                _logger.LogError("Invalid schedule or missing template for schedule ID {ScheduleId}, client user ID {UserId}", 
+                    schedule.WorkoutScheduleId, schedule.ClientUserId);
+                
+                // Update the schedule status if it's a real schedule to prevent repeated processing attempts
+                if (schedule.WorkoutScheduleId > 0)
+                {
+                    var scheduleToUpdate = await _context.WorkoutSchedules.FindAsync(schedule.WorkoutScheduleId);
+                    if (scheduleToUpdate != null)
+                    {
+                        scheduleToUpdate.LastGenerationStatus = "Error: Missing Template";
+                        scheduleToUpdate.LastGeneratedWorkoutDate = DateTime.UtcNow;
+                        await _context.SaveChangesAsync();
+                    }
+                }
                 return;
             }
 
@@ -1044,7 +1065,7 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                 await _context.SaveChangesAsync();
 
                 // Copy exercises from template
-                foreach (var templateExercise in schedule.Template.TemplateExercises.OrderBy(x => x.OrderIndex))
+                foreach (var templateExercise in template.TemplateExercises.OrderBy(x => x.OrderIndex))
                 {
                     var workoutExercise = new WorkoutExercise
                     {
