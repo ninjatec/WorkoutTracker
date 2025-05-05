@@ -131,7 +131,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
         public double CompletionRate { get; set; }
         public Dictionary<string, int> ExerciseFrequencies { get; set; }
         public List<TrendPoint> VolumeTrends { get; set; }
-        public DateTime PeriodStart => DateTime.Now.AddDays(-ReportPeriod);
+        public DateTime PeriodStart => ReportPeriod == int.MaxValue ? new DateTime(2000, 1, 1) : DateTime.Now.AddDays(-ReportPeriod);
         public DateTime PeriodEnd => DateTime.Now;
         public int UserId { get; set; }
 
@@ -611,7 +611,10 @@ namespace WorkoutTrackerWeb.Pages.Reports
             InvalidateVolumeDataCache();
             InvalidatePersonalRecordsCache();
             
-            var reportPeriodDate = DateTime.Now.AddDays(-ReportPeriod);
+            // Use a safe minimum date for "All time" period to avoid ArgumentOutOfRangeException
+            var reportPeriodDate = ReportPeriod == int.MaxValue ? 
+                                new DateTime(2000, 1, 1) : 
+                                DateTime.Now.AddDays(-ReportPeriod);
 
             // Performance optimization: Create a separate connection with timeout
             using (var scope = _serviceProvider.CreateScope())
@@ -892,7 +895,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
 
             return Page();
         }
-        
+
         private void InitializeEmptyReportData()
         {
             OverallStatus = new RepStatusData { SuccessfulReps = 0, FailedReps = 0 };
