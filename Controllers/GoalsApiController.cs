@@ -8,13 +8,14 @@ using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Models.Coaching;
 using WorkoutTrackerWeb.Models.Identity;
 using WorkoutTrackerWeb.Services.Coaching;
+using WorkoutTrackerWeb.Attributes;
 
 namespace WorkoutTrackerWeb.Controllers
 {
     [Route("api/goals")]
     [ApiController]
     [Authorize]
-    public class GoalsApiController : ControllerBase
+    public class GoalsApiController : ApiBaseController
     {
         private readonly GoalOperationsService _goalOperationsService;
         private readonly GoalQueryService _goalQueryService;
@@ -41,6 +42,7 @@ namespace WorkoutTrackerWeb.Controllers
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<GoalExportDto>), 200)]
         [ProducesResponseType(401)]
+        [ETag(cacheDurationSeconds: 300)] // 5 minutes cache duration
         public async Task<IActionResult> GetGoals([FromQuery] bool includeCompleted = true)
         {
             try
@@ -48,16 +50,23 @@ namespace WorkoutTrackerWeb.Controllers
                 var userId = _userManager.GetUserId(User);
                 if (string.IsNullOrEmpty(userId))
                 {
-                    return Unauthorized();
+                    return UnauthorizedResponse<IEnumerable<GoalExportDto>>();
                 }
 
                 var goals = await _goalOperationsService.ExportGoalsAsync(userId, includeCompleted);
-                return Ok(goals);
+                
+                var metadata = new Dictionary<string, object>();
+                int totalCount = goals != null ? goals.Count() : 0;
+                metadata.Add("totalCount", totalCount);
+                metadata.Add("includeCompleted", includeCompleted);
+                metadata.Add("timestamp", DateTime.UtcNow);
+                
+                return SuccessResponse(goals, metadata);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving goals for user");
-                return StatusCode(500, "An error occurred while retrieving goals");
+                return ErrorResponse<IEnumerable<GoalExportDto>>("An error occurred while retrieving goals");
             }
         }
 
@@ -70,6 +79,7 @@ namespace WorkoutTrackerWeb.Controllers
         [ProducesResponseType(typeof(ClientGoal), 200)]
         [ProducesResponseType(401)]
         [ProducesResponseType(404)]
+        [ETag(cacheDurationSeconds: 300)] // 5 minutes cache duration
         public async Task<IActionResult> GetGoal(int id)
         {
             try
@@ -77,21 +87,27 @@ namespace WorkoutTrackerWeb.Controllers
                 var userId = _userManager.GetUserId(User);
                 if (string.IsNullOrEmpty(userId))
                 {
-                    return Unauthorized();
+                    return UnauthorizedResponse<ClientGoal>();
                 }
 
                 var goal = await _goalOperationsService.GetGoalDetailAsync(id, userId);
                 if (goal == null)
                 {
-                    return NotFound();
+                    return NotFoundResponse<ClientGoal>($"Goal with ID {id} was not found");
                 }
 
-                return Ok(goal);
+                var metadata = new Dictionary<string, object>
+                {
+                    { "goalId", id },
+                    { "requestTime", DateTime.UtcNow }
+                };
+                
+                return SuccessResponse(goal, metadata);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving goal {GoalId}", id);
-                return StatusCode(500, "An error occurred while retrieving the goal");
+                return ErrorResponse<ClientGoal>($"An error occurred while retrieving goal {id}");
             }
         }
 
@@ -110,27 +126,35 @@ namespace WorkoutTrackerWeb.Controllers
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(ModelState);
+                    return BadRequestResponse<ClientGoal>("Invalid goal data");
                 }
 
                 var userId = _userManager.GetUserId(User);
                 if (string.IsNullOrEmpty(userId))
                 {
-                    return Unauthorized();
+                    return UnauthorizedResponse<ClientGoal>();
                 }
 
                 var createdGoal = await _goalOperationsService.CreateGoalAsync(goal, userId);
                 if (createdGoal == null)
                 {
-                    return BadRequest("Failed to create goal");
+                    return BadRequestResponse<ClientGoal>("Failed to create goal");
                 }
 
-                return CreatedAtAction(nameof(GetGoal), new { id = createdGoal.Id }, createdGoal);
+                var metadata = new Dictionary<string, object>
+                {
+                    { "goalId", createdGoal.Id },
+                    { "createdAt", DateTime.UtcNow }
+                };
+                
+                // Using custom response to set 201 status code
+                Response.StatusCode = 201;
+                return SuccessResponse(createdGoal, metadata);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating goal for user");
-                return StatusCode(500, "An error occurred while creating the goal");
+                return ErrorResponse<ClientGoal>("An error occurred while creating the goal");
             }
         }
 
@@ -151,32 +175,38 @@ namespace WorkoutTrackerWeb.Controllers
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(ModelState);
+                    return BadRequestResponse<ClientGoal>("Invalid goal data");
                 }
 
                 if (id != goal.Id)
                 {
-                    return BadRequest("Goal ID mismatch");
+                    return BadRequestResponse<ClientGoal>("Goal ID mismatch");
                 }
 
                 var userId = _userManager.GetUserId(User);
                 if (string.IsNullOrEmpty(userId))
                 {
-                    return Unauthorized();
+                    return UnauthorizedResponse<ClientGoal>();
                 }
 
                 var updatedGoal = await _goalOperationsService.UpdateGoalAsync(id, goal, userId);
                 if (updatedGoal == null)
                 {
-                    return NotFound();
+                    return NotFoundResponse<ClientGoal>($"Goal with ID {id} was not found");
                 }
 
-                return Ok(updatedGoal);
+                var metadata = new Dictionary<string, object>
+                {
+                    { "goalId", id },
+                    { "updatedAt", DateTime.UtcNow }
+                };
+                
+                return SuccessResponse(updatedGoal, metadata);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating goal {GoalId}", id);
-                return StatusCode(500, "An error occurred while updating the goal");
+                return ErrorResponse<ClientGoal>($"An error occurred while updating goal {id}");
             }
         }
 
@@ -197,13 +227,13 @@ namespace WorkoutTrackerWeb.Controllers
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(ModelState);
+                    return BadRequestResponse<ClientGoal>("Invalid progress update data");
                 }
 
                 var userId = _userManager.GetUserId(User);
                 if (string.IsNullOrEmpty(userId))
                 {
-                    return Unauthorized();
+                    return UnauthorizedResponse<ClientGoal>();
                 }
 
                 var updatedGoal = await _goalOperationsService.UpdateGoalProgressAsync(
@@ -211,15 +241,22 @@ namespace WorkoutTrackerWeb.Controllers
                     
                 if (updatedGoal == null)
                 {
-                    return NotFound();
+                    return NotFoundResponse<ClientGoal>($"Goal with ID {id} was not found");
                 }
 
-                return Ok(updatedGoal);
+                var metadata = new Dictionary<string, object>
+                {
+                    { "goalId", id },
+                    { "previousProgress", progressUpdate.NewValue },
+                    { "updatedAt", DateTime.UtcNow }
+                };
+                
+                return SuccessResponse(updatedGoal, metadata);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating progress for goal {GoalId}", id);
-                return StatusCode(500, "An error occurred while updating goal progress");
+                return ErrorResponse<ClientGoal>($"An error occurred while updating progress for goal {id}");
             }
         }
 
@@ -239,21 +276,27 @@ namespace WorkoutTrackerWeb.Controllers
                 var userId = _userManager.GetUserId(User);
                 if (string.IsNullOrEmpty(userId))
                 {
-                    return Unauthorized();
+                    return UnauthorizedResponse<ClientGoal>();
                 }
 
                 var completedGoal = await _goalOperationsService.CompleteGoalAsync(id, userId);
                 if (completedGoal == null)
                 {
-                    return NotFound();
+                    return NotFoundResponse<ClientGoal>($"Goal with ID {id} was not found");
                 }
 
-                return Ok(completedGoal);
+                var metadata = new Dictionary<string, object>
+                {
+                    { "goalId", id },
+                    { "completedAt", DateTime.UtcNow }
+                };
+                
+                return SuccessResponse(completedGoal, metadata);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error completing goal {GoalId}", id);
-                return StatusCode(500, "An error occurred while completing the goal");
+                return ErrorResponse<ClientGoal>($"An error occurred while completing goal {id}");
             }
         }
 
@@ -273,21 +316,21 @@ namespace WorkoutTrackerWeb.Controllers
                 var userId = _userManager.GetUserId(User);
                 if (string.IsNullOrEmpty(userId))
                 {
-                    return Unauthorized();
+                    return UnauthorizedResponse<object>();
                 }
 
                 var result = await _goalOperationsService.DeleteGoalAsync(id, userId);
                 if (!result)
                 {
-                    return NotFound();
+                    return NotFoundResponse<object>($"Goal with ID {id} was not found");
                 }
 
-                return NoContent();
+                return NoContentResponse();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting goal {GoalId}", id);
-                return StatusCode(500, "An error occurred while deleting the goal");
+                return ErrorResponse<object>($"An error occurred while deleting goal {id}");
             }
         }
 
@@ -301,6 +344,7 @@ namespace WorkoutTrackerWeb.Controllers
         [HttpGet("export")]
         [ProducesResponseType(typeof(IEnumerable<GoalExportDto>), 200)]
         [ProducesResponseType(401)]
+        [ETag(cacheDurationSeconds: 600)] // 10 minutes cache duration for exports
         public async Task<IActionResult> ExportGoals(
             [FromQuery] bool includeCompleted = true,
             [FromQuery] DateTime? startDate = null,
@@ -311,18 +355,26 @@ namespace WorkoutTrackerWeb.Controllers
                 var userId = _userManager.GetUserId(User);
                 if (string.IsNullOrEmpty(userId))
                 {
-                    return Unauthorized();
+                    return UnauthorizedResponse<IEnumerable<GoalExportDto>>();
                 }
 
                 var goals = await _goalOperationsService.ExportGoalsAsync(
                     userId, includeCompleted, startDate, endDate);
+                
+                var metadata = new Dictionary<string, object>();
+                int totalCount = goals != null ? goals.Count() : 0;
+                metadata.Add("totalCount", totalCount);
+                metadata.Add("includeCompleted", includeCompleted);
+                metadata.Add("startDate", startDate);
+                metadata.Add("endDate", endDate);
+                metadata.Add("exportTimestamp", DateTime.UtcNow);
                     
-                return Ok(goals);
+                return SuccessResponse(goals, metadata);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error exporting goals");
-                return StatusCode(500, "An error occurred while exporting goals");
+                return ErrorResponse<IEnumerable<GoalExportDto>>("An error occurred while exporting goals");
             }
         }
     }

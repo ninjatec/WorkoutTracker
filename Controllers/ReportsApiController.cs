@@ -9,6 +9,7 @@ using WorkoutTrackerWeb.Services;
 using WorkoutTrackerWeb.Services.Reports;
 using WorkoutTrackerWeb.Services.Redis;
 using WorkoutTrackerWeb.Models;
+using WorkoutTrackerWeb.Attributes;
 using System.Threading;
 
 namespace WorkoutTrackerWeb.Controllers
@@ -16,7 +17,7 @@ namespace WorkoutTrackerWeb.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
-    public class ReportsApiController : ControllerBase
+    public class ReportsApiController : ApiBaseController
     {
         private readonly IReportsService _reportsService;
         private readonly UserService _userService;
@@ -43,12 +44,13 @@ namespace WorkoutTrackerWeb.Controllers
         }
 
         [HttpGet("weight-progress")]
+        [ETag(cacheDurationSeconds: 900)] // 15 minutes cache duration
         public async Task<IActionResult> GetWeightProgress(int days = 90, int limit = 5)
         {
             var userId = await _userService.GetCurrentUserIdAsync();
             if (userId == null)
             {
-                return Unauthorized();
+                return UnauthorizedResponse<object>();
             }
 
             try
@@ -59,23 +61,32 @@ namespace WorkoutTrackerWeb.Controllers
                     cacheKey,
                     async () => await _reportsService.GetWeightProgressAsync(userId.Value, days, limit),
                     DefaultCacheDuration);
+                
+                var metadata = new Dictionary<string, object>
+                {
+                    { "days", days },
+                    { "limit", limit },
+                    { "generatedAt", DateTime.UtcNow }
+                };
                     
-                return Ok(result);
+                return SuccessResponse(result, metadata);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting weight progress for user {UserId} with days={Days}, limit={Limit}", userId, days, limit);
-                return StatusCode(500, new { error = "Unable to load weight progress data", message = "Please try with a shorter time period" });
+                return ErrorResponse<object>("Unable to load weight progress data", 500, 
+                    new Dictionary<string, object> { { "suggestion", "Please try with a shorter time period" } });
             }
         }
 
         [HttpGet("exercise-status")]
+        [ETag(cacheDurationSeconds: 900)] // 15 minutes cache duration
         public async Task<IActionResult> GetExerciseStatus(int days = 90, int limit = 10)
         {
             var userId = await _userService.GetCurrentUserIdAsync();
             if (userId == null)
             {
-                return Unauthorized();
+                return UnauthorizedResponse<object>();
             }
 
             try
@@ -86,23 +97,32 @@ namespace WorkoutTrackerWeb.Controllers
                     cacheKey,
                     async () => await _reportsService.GetExerciseStatusAsync(userId.Value, days, limit),
                     DefaultCacheDuration);
+                
+                var metadata = new Dictionary<string, object>
+                {
+                    { "days", days },
+                    { "limit", limit },
+                    { "generatedAt", DateTime.UtcNow }
+                };
                     
-                return Ok(result);
+                return SuccessResponse(result, metadata);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting exercise status for user {UserId} with days={Days}, limit={Limit}", userId, days, limit);
-                return StatusCode(500, new { error = "Unable to load exercise status data", message = "Please try with a shorter time period" });
+                return ErrorResponse<object>("Unable to load exercise status data", 500, 
+                    new Dictionary<string, object> { { "suggestion", "Please try with a shorter time period" } });
             }
         }
 
         [HttpGet("volume-over-time")]
+        [ETag(cacheDurationSeconds: 900)] // 15 minutes cache duration
         public async Task<IActionResult> GetVolumeOverTime(int days = 90)
         {
             var userId = await _userService.GetCurrentUserIdAsync();
             if (userId == null)
             {
-                return Unauthorized();
+                return UnauthorizedResponse<object>();
             }
 
             try
@@ -124,28 +144,40 @@ namespace WorkoutTrackerWeb.Controllers
                         return await _reportsService.GetVolumeOverTimeAsync(userId.Value, startDate, endDate, cts.Token);
                     },
                     cacheDuration);
+                
+                var metadata = new Dictionary<string, object>
+                {
+                    { "days", days },
+                    { "startDate", DateTime.UtcNow.AddDays(-days) },
+                    { "endDate", DateTime.UtcNow },
+                    { "dataPoints", result != null ? result.Count : 0 },
+                    { "generatedAt", DateTime.UtcNow }
+                };
                     
-                return Ok(result);
+                return SuccessResponse(result, metadata);
             }
             catch (OperationCanceledException)
             {
                 _logger.LogWarning("Volume data query timed out for user {UserId} with days={Days}", userId, days);
-                return StatusCode(500, new { error = "Unable to load volume chart data", message = "Please try with a shorter time period" });
+                return ErrorResponse<object>("Unable to load volume chart data", 500, 
+                    new Dictionary<string, object> { { "suggestion", "Please try with a shorter time period" } });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting volume over time for user {UserId} with days={Days}", userId, days);
-                return StatusCode(500, new { error = "Unable to load volume chart data", message = "Please try with a shorter time period" });
+                return ErrorResponse<object>("Unable to load volume chart data", 500, 
+                    new Dictionary<string, object> { { "suggestion", "Please try with a shorter time period" } });
             }
         }
 
         [HttpGet("workout-distribution")]
+        [ETag(cacheDurationSeconds: 1800)] // 30 minutes cache duration
         public async Task<IActionResult> GetWorkoutDistribution(int days = 90)
         {
             var userId = await _userService.GetCurrentUserIdAsync();
             if (userId == null)
             {
-                return Unauthorized();
+                return UnauthorizedResponse<object>();
             }
 
             try
@@ -164,23 +196,33 @@ namespace WorkoutTrackerWeb.Controllers
                         return new { byDay, byHour };
                     },
                     DefaultCacheDuration);
+                
+                var metadata = new Dictionary<string, object>
+                {
+                    { "days", days },
+                    { "startDate", DateTime.UtcNow.AddDays(-days) },
+                    { "endDate", DateTime.UtcNow },
+                    { "generatedAt", DateTime.UtcNow }
+                };
                     
-                return Ok(result);
+                return SuccessResponse(result, metadata);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting workout distribution for user {UserId} with days={Days}", userId, days);
-                return StatusCode(500, new { error = "Unable to load workout distribution data", message = "Please try with a shorter time period" });
+                return ErrorResponse<object>("Unable to load workout distribution data", 500, 
+                    new Dictionary<string, object> { { "suggestion", "Please try with a shorter time period" } });
             }
         }
 
         [HttpGet("exercise-distribution")]
+        [ETag(cacheDurationSeconds: 1800)] // 30 minutes cache duration
         public async Task<IActionResult> GetExerciseDistribution(int days = 90)
         {
             var userId = await _userService.GetCurrentUserIdAsync();
             if (userId == null)
             {
-                return Unauthorized();
+                return UnauthorizedResponse<object>();
             }
 
             try
@@ -199,23 +241,33 @@ namespace WorkoutTrackerWeb.Controllers
                         return new { byMuscleGroup, byType };
                     },
                     DefaultCacheDuration);
+                
+                var metadata = new Dictionary<string, object>
+                {
+                    { "days", days },
+                    { "startDate", DateTime.UtcNow.AddDays(-days) },
+                    { "endDate", DateTime.UtcNow },
+                    { "generatedAt", DateTime.UtcNow }
+                };
                     
-                return Ok(result);
+                return SuccessResponse(result, metadata);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting exercise distribution for user {UserId} with days={Days}", userId, days);
-                return StatusCode(500, new { error = "Unable to load exercise distribution data", message = "Please try again later" });
+                return ErrorResponse<object>("Unable to load exercise distribution data", 500, 
+                    new Dictionary<string, object> { { "suggestion", "Please try again later" } });
             }
         }
 
         [HttpGet("dashboard-metrics")]
+        [ETag(cacheDurationSeconds: 900)] // 15 minutes cache duration
         public async Task<IActionResult> GetDashboardMetrics(int days = 90)
         {
             var userId = await _userService.GetCurrentUserIdAsync();
             if (userId == null)
             {
-                return Unauthorized();
+                return UnauthorizedResponse<object>();
             }
 
             try
@@ -232,18 +284,28 @@ namespace WorkoutTrackerWeb.Controllers
                     cacheKey,
                     async () => await _reportsService.GetUserMetricsAsync(userId.Value, days, cts.Token),
                     cacheDuration);
+                
+                var metadata = new Dictionary<string, object>
+                {
+                    { "days", days },
+                    { "startDate", DateTime.UtcNow.AddDays(-days) },
+                    { "endDate", DateTime.UtcNow },
+                    { "generatedAt", DateTime.UtcNow }
+                };
                     
-                return Ok(result);
+                return SuccessResponse(result, metadata);
             }
             catch (OperationCanceledException)
             {
                 _logger.LogWarning("Dashboard metrics query timed out for user {UserId} with days={Days}", userId, days);
-                return StatusCode(500, new { error = "Unable to load calorie chart data", message = "Please try with a shorter time period" });
+                return ErrorResponse<object>("Unable to load calorie chart data", 500, 
+                    new Dictionary<string, object> { { "suggestion", "Please try with a shorter time period" } });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting dashboard metrics for user {UserId} with days={Days}", userId, days);
-                return StatusCode(500, new { error = "Unable to load dashboard metrics", message = "Please try with a shorter time period" });
+                return ErrorResponse<object>("Unable to load dashboard metrics", 500, 
+                    new Dictionary<string, object> { { "suggestion", "Please try with a shorter time period" } });
             }
         }
         
@@ -254,6 +316,8 @@ namespace WorkoutTrackerWeb.Controllers
             try
             {
                 // If userId is provided, clear cache for specific user
+                var operationMetadata = new Dictionary<string, object>();
+                
                 if (userId.HasValue)
                 {
                     await _cacheService.RemoveAsync($"reports:weight-progress:{userId}:*");
@@ -264,7 +328,11 @@ namespace WorkoutTrackerWeb.Controllers
                     await _cacheService.RemoveAsync($"reports:dashboard-metrics:{userId}:*");
                     
                     _logger.LogInformation("Cleared report cache for user {UserId}", userId);
-                    return Ok(new { message = $"Cache cleared for user {userId}" });
+                    operationMetadata.Add("userId", userId);
+                    operationMetadata.Add("action", "clear cache");
+                    operationMetadata.Add("clearTime", DateTime.UtcNow);
+                    
+                    return SuccessResponse(new { message = $"Cache cleared for user {userId}" }, operationMetadata);
                 }
                 else
                 {
@@ -280,16 +348,21 @@ namespace WorkoutTrackerWeb.Controllers
                         await _cacheService.RemoveAsync($"reports:dashboard-metrics:{currentUserId}:*");
                         
                         _logger.LogInformation("Cleared report cache for current user {UserId}", currentUserId);
-                        return Ok(new { message = "Your report cache has been cleared" });
+                        operationMetadata.Add("userId", currentUserId);
+                        operationMetadata.Add("action", "clear cache");
+                        operationMetadata.Add("clearTime", DateTime.UtcNow);
+                        
+                        return SuccessResponse(new { message = "Your report cache has been cleared" }, operationMetadata);
                     }
                 }
                 
-                return BadRequest(new { error = "No user ID provided" });
+                return BadRequestResponse<object>("No user ID provided");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error clearing report cache for userId={UserId}", userId);
-                return StatusCode(500, new { error = "Unable to clear cache", message = "Please try again later" });
+                return ErrorResponse<object>("Unable to clear cache", 500, 
+                    new Dictionary<string, object> { { "suggestion", "Please try again later" } });
             }
         }
     }
