@@ -2,7 +2,9 @@
 
 A comprehensive fitness tracking web application built with ASP.NET Core that allows users to track their workout sessions, exercises, and progress.
 
-Production Site running on wot.ninjatec.co.uk
+Production Site running on www.workouttracker.online
+
+Current Version: 2.1.0.1
 
 ## Features
 
@@ -437,29 +439,50 @@ The application provides comprehensive data portability features:
 
 ## Recent Updates
 
+- **Completed Session to WorkoutSession Migration**:
+  - Migrated from legacy Session model to improved WorkoutSession structure
+  - Redesigned data model with improved relationships and organization
+  - Ensured backward compatibility with existing data
+  - Updated all controllers, pages, and services to use new model
+  - Improved query performance with optimized data structures
+
+- **Enhanced Coach-Client Features**:
+  - Implemented robust goal management system with progress tracking
+  - Added client grouping for better organization
+  - Created coach-client permissions system
+  - Built note-taking tools with privacy controls
+  - Added goal milestones with progress history
+
+- **Improved Alerting and Monitoring System**:
+  - Added comprehensive alert history tracking
+  - Implemented circuit breaker patterns for database resilience
+  - Created system uptime history monitoring
+  - Built health monitoring dashboards
+  - Added login history tracking for security auditing
+
 - **Implemented Comprehensive Version Management System**:
-  - Added AppVersion model for tracking application version history.
-  - Created version administration interface for managing releases.
-  - Implemented display of current version in UI footer.
-  - Added version history page with detailed release notes.
-  - Enabled setting any historical version as current.
-  - Created version tracking with git commit hash links.
-  - Implemented automatic version capture during deployment.
-  - Added rollback capability with previous version detection.
-  - Created timeline view for visualizing version history.
+  - Added AppVersion model for tracking application version history
+  - Created version administration interface for managing releases
+  - Implemented display of current version in UI footer
+  - Added version history page with detailed release notes
+  - Enabled setting any historical version as current
+  - Created version tracking with git commit hash links
+  - Implemented automatic version capture during deployment
+  - Added rollback capability with previous version detection
+  - Created timeline view for visualizing version history
 
 - **Enhanced Mobile Navigation Experience**:
-  - Implemented mobile-optimized bottom navigation bar for critical actions.
-  - Added swipe gestures for common actions like edit and delete.
-  - Created pull-to-refresh functionality for data lists and tables.
-  - Enhanced mobile menu interface with collapsible panels.
+  - Implemented mobile-optimized bottom navigation bar for critical actions
+  - Added swipe gestures for common actions like edit and delete
+  - Created pull-to-refresh functionality for data lists and tables
+  - Enhanced mobile menu interface with collapsible panels
 
 - **Enhanced Mobile-First Responsive Design**:
-  - Implemented mobile-first CSS architecture with progressive enhancement.
-  - Added touch-friendly optimizations for mobile interfaces.
-  - Optimized forms with larger touch targets and improved mobile spacing.
+  - Implemented mobile-first CSS architecture with progressive enhancement
+  - Added touch-friendly optimizations for mobile interfaces
+  - Optimized forms with larger touch targets and improved mobile spacing
 
 - **Implemented Output Caching for Static Content**:
-  - Added Redis-backed output caching for production environments.
-  - Configured memory-based output caching for development environments.
-  - Created specialized cache policies for different content types.
+  - Added Redis-backed output caching for production environments
+  - Configured memory-based output caching for development environments
+  - Created specialized cache policies for different content types

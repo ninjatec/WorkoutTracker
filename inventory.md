@@ -25,6 +25,9 @@ This document maintains an up-to-date inventory of all features, components, and
 - Alert System
 - Volume Calculation System
 - Calorie Estimation System
+- Version Management System
+- Coach-Client Relationship Management
+- Goal Tracking and Progress Management
 
 ### Technology Stack
 - ASP.NET Core 9
@@ -55,28 +58,45 @@ This document maintains an up-to-date inventory of all features, components, and
 - Responsive Design System
 - Volume Calculation System
 - Calorie Estimation System
+- Version Management System
+- Coach-Client Relationship System
+- Goal Tracking System
 
 ### API Controllers
 - GoalsController - Main controller for goal operations via MVC
 - GoalsApiController - RESTful API controller for mobile integration 
+- SharedWorkoutController - API for accessing shared workout data
+- WorkoutScheduleController - Controller for workout scheduling operations
+- HangfireController - Controller for background job management
+- HangfireDiagnosticsController - Controller for job monitoring and diagnostics
+- JobStatusController - Controller for tracking job status updates
+- ReportsApiController - API for workout report data
 
 ### Services
 - GoalOperationsService - Shared service for centralized goal operations with permission checking
 - GoalQueryService - Service for optimized goal-related queries
 - GoalProgressService - Service for tracking and updating goal progress
+- LoginHistoryService - Service for tracking user login activity
+- LoggingService - Service for dynamic log level management
+- VersionService - Service for application version management
+- AlertingService - Service for system alerts and notifications
+- VolumeCalculationService - Service for workout volume calculations
+- CalorieCalculationService - Service for workout calorie estimation
+- QuickWorkoutService - Service for optimized gym workout tracking
 
 ### DTOs
 - GoalExportDto - Data transfer object for goal export and API integration
 - GoalMilestoneDto - Data transfer object for goal milestone data in exports
 - GoalProgressUpdateDto - Data transfer object for goal progress updates via API
+- ShareTokenDto - Data transfer object for sharing workout data
 
 ### Data Models
 - User
 - WorkoutSession
-- Exercise
-- Set
-- Rep
+- WorkoutExercise
+- WorkoutSet
 - ExerciseType
+- SetType
 - UserProfile
 - ShareToken
 - LoginHistory
@@ -94,47 +114,63 @@ This document maintains an up-to-date inventory of all features, components, and
 - WorkoutSchedule
 - ClientGroup
 - CoachClientRelationship
+- CoachClientPermission
 - ClientGoal
 - GoalCategory
+- GoalMilestone
+- AppVersion
+- WhitelistedIp
 
 #### User
 - Primary entity representing application users
 - Links to ASP.NET Core Identity system
-- Properties: UserId, Name, IdentityUserId
+- Properties: UserId, Name, IdentityUserId, CreatedDate, LastModifiedDate
 - Relationships: 
-  - One-to-many with Sessions
+  - One-to-many with WorkoutSessions
   - One-to-many with Feedback
+  - One-to-many with ClientGoals
+  - Many-to-many with CoachClientRelationship (as coach or client)
 
-#### Session
+#### WorkoutSession
 - Represents a workout session
-- Properties: SessionId, Name, datetime, UserId
+- Properties: WorkoutSessionId, Name, Description, StartDateTime, EndDateTime
+  CompletedDate, Duration, IsCompleted, TemplatesUsed, WorkoutTemplateId
+  TemplateAssignmentId, IsFromCoach, Status, UserId
 - Relationships: 
   - Many-to-one with User
-  - One-to-many with Sets
+  - One-to-many with WorkoutExercises
+  - Many-to-one with WorkoutTemplate (optional)
 
-#### Set
-- Represents a group of repetitions for an exercise
-- Properties: SetId, Description, Notes, NumberReps, Weight, ExerciseTypeId, SettypeId, SessionId
+#### WorkoutExercise
+- Represents an exercise performed during a workout session
+- Properties: WorkoutExerciseId, WorkoutSessionId, ExerciseTypeId, SequenceNum, Notes
 - Relationships:
-  - Many-to-one with Session
+  - Many-to-one with WorkoutSession
   - Many-to-one with ExerciseType
-  - Many-to-one with SetType
-  - One-to-many with Reps
+  - One-to-many with WorkoutSets
 
-#### Rep
-- Represents a single repetition within a set
-- Properties: RepId, weight, repnumber, success, SetsSetId
-- Relationships: Many-to-one with Set
+#### WorkoutSet
+- Represents a set of an exercise performed during a workout
+- Properties: WorkoutSetId, WorkoutExerciseId, SetTypeId, Reps, Weight, SequenceNum, Notes
+- Relationships:
+  - Many-to-one with WorkoutExercise
+  - Many-to-one with SetType
 
 #### ExerciseType
 - Catalog of available exercises
-- Properties: ExerciseTypeId, Name
-- Relationships: One-to-many with Sets
+- Properties: ExerciseTypeId, Name, Description, MuscleGroup, Equipment, Difficulty,
+  Instructions, IsApiSourced, ApiId, IsCustom, CreatedByUserId
+- Relationships: 
+  - One-to-many with WorkoutExercises
+  - One-to-many with WorkoutTemplateExercises
+  - Many-to-one with User (creator, optional)
 
 #### SetType
 - Categorizes sets (e.g., warm-up, normal, drop set)
 - Properties: SettypeId, Name, Description
-- Relationships: One-to-many with Sets
+- Relationships: 
+  - One-to-many with WorkoutSets
+  - One-to-many with WorkoutTemplateSets
 
 #### Feedback
 - User submitted feedback, bug reports, and feature requests
@@ -183,11 +219,12 @@ This document maintains an up-to-date inventory of all features, components, and
   - Id, Token, CreatedAt, ExpiresAt, IsActive
   - AccessCount, MaxAccessCount
   - AllowSessionAccess, AllowReportAccess, AllowCalculatorAccess
-  - UserId, SessionId (optional)
+  - UserId, SessionId (optional), WorkoutSessionId (optional)
   - Name, Description
 - Relationships:
   - Many-to-one with User (creator)
-  - Many-to-one with Session (optional, for session-specific sharing)
+  - Many-to-one with Session (legacy, optional)
+  - Many-to-one with WorkoutSession (optional)
 - Features:
   - Time-limited access via expiration date
   - Usage tracking with access count
@@ -298,6 +335,7 @@ This document maintains an up-to-date inventory of all features, components, and
 - Relationships:
   - Many-to-one with User (creator).
   - One-to-many with WorkoutTemplateExercise.
+  - One-to-many with WorkoutSessions (workouts created from this template)
 
 #### WorkoutTemplateExercise
 - Represents an exercise within a workout template.
@@ -390,6 +428,20 @@ This document maintains an up-to-date inventory of all features, components, and
   - Invitation expiration for security
   - Group-based organization
 
+#### CoachClientPermission
+- Defines permission settings for coach-client relationships
+- Properties:
+  - Id, CoachClientRelationshipId
+  - CanViewWorkouts, CanCreateWorkouts, CanModifyWorkouts, CanEditWorkouts, CanDeleteWorkouts
+  - CanViewPersonalInfo, CanCreateGoals, CanViewReports
+  - CanMessage, CanCreateTemplates, CanAssignTemplates
+  - LastModifiedDate
+- Relationships:
+  - One-to-one with CoachClientRelationship
+- Features:
+  - Granular permission controls for coaching activities
+  - Audit trail with modification timestamps
+
 #### ClientGoal
 - Represents fitness goals for users, can be created by coaches or users themselves
 - Properties:
@@ -405,6 +457,7 @@ This document maintains an up-to-date inventory of all features, components, and
 - Relationships:
   - Many-to-one with User (goal owner)
   - Many-to-one with CoachClientRelationship (optional, for coach-assigned goals)
+  - One-to-many with GoalMilestone (progress tracking)
 - Features:
   - Support for both coach-assigned and user-created goals
   - Standardized goal categories with custom category option
@@ -431,3 +484,31 @@ This document maintains an up-to-date inventory of all features, components, and
   - Display name attributes for UI presentation
   - Standardized categorization for consistent reporting
   - Support for filtering and grouping goals by category
+
+#### GoalMilestone
+- Records progress points toward a goal
+- Properties:
+  - Id, GoalId, Value, Date
+  - Notes, ProgressPercentage
+  - IsAutomaticUpdate, Source
+  - ReferenceId (for linking to related entities)
+- Relationships:
+  - Many-to-one with ClientGoal
+- Features:
+  - Timestamped tracking of progress
+  - Support for automatic and manual progress updates
+  - Notes for contextualizing progress
+  - Source tracking for data provenance
+
+#### WhitelistedIp
+- IP addresses allowed for specific operations
+- Properties:
+  - Id, IpAddress, Description
+  - IsActive, CreatedAt, CreatedById
+  - LastUsedAt
+- Relationships:
+  - Many-to-one with User (creator)
+- Features:
+  - Used for securing admin operations
+  - Access logging for security auditing
+  - Description for documenting purpose
