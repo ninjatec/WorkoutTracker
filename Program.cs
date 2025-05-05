@@ -53,6 +53,11 @@ using Microsoft.AspNetCore.Authorization;
 using WorkoutTrackerWeb.Services.Cache;
 using Microsoft.AspNetCore.ResponseCompression;
 using System.IO.Compression;
+using System;
+using System.Linq;
+using Hangfire.Common;
+using Hangfire.States;
+using Hangfire.Storage;
 
 namespace WorkoutTrackerWeb
 {
@@ -228,9 +233,15 @@ namespace WorkoutTrackerWeb
             builder.Services.AddSingleton<JobActivator>(sp => 
                 new HangfireActivator(sp.GetRequiredService<IServiceScopeFactory>()));
 
+            // Configure JobFilterAttributeUtils with the service provider
+            builder.Services.AddSingleton<IStartupFilter>(sp => new JobFilterAttributeStartupFilter(sp));
+
             // Register background job services
             builder.Services.AddTransient<WorkoutTrackerWeb.Services.Hangfire.AlertingJobsService>();
             builder.Services.AddTransient<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsService>();
+            
+            // Register the HangfireStorageMaintenanceService for job storage cleanup and maintenance
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Hangfire.HangfireStorageMaintenanceService>();
             
             // Set the static service provider for Hangfire jobs to handle parameterless constructor scenarios
             WorkoutTrackerWeb.Services.Hangfire.AlertingJobsService.SetServiceProvider(builder.Services.BuildServiceProvider());
@@ -820,6 +831,11 @@ namespace WorkoutTrackerWeb
                             var workoutReminderJobsRegistration = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.WorkoutReminderJobsRegistration>();
                             workoutReminderJobsRegistration.RegisterWorkoutReminderJobs();
                             
+                            // Register storage maintenance jobs
+                            Log.Information("Registering storage maintenance jobs");
+                            var storageMaintenanceService = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.HangfireStorageMaintenanceService>();
+                            storageMaintenanceService.RegisterMaintenanceJobs();
+                            
                             Log.Information("All background jobs registered successfully");
                         }
                         else
@@ -831,6 +847,12 @@ namespace WorkoutTrackerWeb
                     {
                         Log.Error("Hangfire schema initialization failed");
                     }
+
+                    // Initialize JobFilterAttributeUtils with the service provider
+                    JobFilterAttributeUtils.SetServiceProvider(scope.ServiceProvider);
+                    
+                    // Register the retry backoff attribute globally
+                    GlobalJobFilters.Filters.Add(new JobRetryBackoffAttribute());
                 }
             }
             catch (Exception ex)
@@ -987,6 +1009,31 @@ namespace WorkoutTrackerWeb
             app.MapRazorPages();
 
             app.Run();
+        }
+    }
+
+    /// <summary>
+    /// Startup filter to configure job filter attribute utils early in the pipeline
+    /// </summary>
+    public class JobFilterAttributeStartupFilter : IStartupFilter
+    {
+        private readonly IServiceProvider _serviceProvider;
+
+        public JobFilterAttributeStartupFilter(IServiceProvider serviceProvider)
+        {
+            _serviceProvider = serviceProvider;
+        }
+
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
+        {
+            return builder =>
+            {
+                // Set the service provider to be used by job filter attributes
+                JobFilterAttributeUtils.SetServiceProvider(_serviceProvider);
+                
+                // Call the next configure action
+                next(builder);
+            };
         }
     }
 }
