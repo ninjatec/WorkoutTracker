@@ -161,7 +161,22 @@ namespace WorkoutTrackerWeb
                 options.AddPolicy("Short", builder => builder.Expire(TimeSpan.FromMinutes(1)));
                 options.AddPolicy("Medium", builder => builder.Expire(TimeSpan.FromMinutes(30)));
                 options.AddPolicy("Long", builder => builder.Expire(TimeSpan.FromHours(1)));
+                options.AddPolicy("StaticContent", builder => builder.Expire(TimeSpan.FromDays(1)));
+                options.AddPolicy("HomePagePolicy", builder => 
+                    builder.Expire(TimeSpan.FromMinutes(5))
+                           .SetVaryByQuery("none")
+                           .Tag("content:home"));
             });
+
+            // Register the custom OutputCache services
+            builder.Services.AddSingleton<ITaggedOutputCachePolicyProvider, TaggedOutputCachePolicyProvider>();
+            builder.Services.AddSingleton<IOutputCacheInvalidationService, OutputCacheInvalidationService>();
+            builder.Services.AddSingleton<AntiDogpileLockManager>();
+            
+            // Configure and register the background refresher
+            builder.Services.Configure<OutputCacheRefresherOptions>(builder.Configuration.GetSection("OutputCacheRefresher"));
+            builder.Services.AddSingleton<OutputCacheBackgroundRefresher>();
+            builder.Services.AddHostedService(sp => sp.GetRequiredService<OutputCacheBackgroundRefresher>());
 
             // Configure Hangfire
             builder.Services.AddSingleton<WorkoutTrackerWeb.Services.Hangfire.HangfireServerConfiguration>();
@@ -797,6 +812,9 @@ namespace WorkoutTrackerWeb
             app.UseRouting();
 
             app.UseOutputCache();
+
+            // Add OutputCache metrics and partitioning middleware
+            app.UseOutputCacheMetrics();
 
             app.UseSession();
 

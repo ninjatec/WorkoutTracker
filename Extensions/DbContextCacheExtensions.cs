@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.Extensions.DependencyInjection;
 using WorkoutTrackerWeb.Services.Cache;
 
@@ -21,14 +23,6 @@ namespace WorkoutTrackerWeb.Extensions
         /// <returns>The number of state entries written to the database</returns>
         public static int SaveChangesWithCacheInvalidation(this DbContext context, IServiceProvider serviceProvider)
         {
-            // Get the cache invalidation service
-            var cacheService = serviceProvider.GetService<ICacheInvalidationService>();
-            if (cacheService == null)
-            {
-                // If cache service is not available, just save changes normally
-                return context.SaveChanges();
-            }
-
             // Capture the change tracker entries before saving
             var entries = context.ChangeTracker.Entries().ToList();
             
@@ -36,7 +30,7 @@ namespace WorkoutTrackerWeb.Extensions
             int result = context.SaveChanges();
             
             // Process cache invalidation asynchronously
-            Task.Run(() => cacheService.ProcessChangesAsync(entries)).ConfigureAwait(false);
+            Task.Run(() => ProcessCacheInvalidationAsync(serviceProvider, entries)).ConfigureAwait(false);
             
             return result;
         }
@@ -51,14 +45,6 @@ namespace WorkoutTrackerWeb.Extensions
         public static async Task<int> SaveChangesWithCacheInvalidationAsync(this DbContext context, 
             IServiceProvider serviceProvider, CancellationToken cancellationToken = default)
         {
-            // Get the cache invalidation service
-            var cacheService = serviceProvider.GetService<ICacheInvalidationService>();
-            if (cacheService == null)
-            {
-                // If cache service is not available, just save changes normally
-                return await context.SaveChangesAsync(cancellationToken);
-            }
-
             // Capture the change tracker entries before saving
             var entries = context.ChangeTracker.Entries().ToList();
             
@@ -66,9 +52,37 @@ namespace WorkoutTrackerWeb.Extensions
             int result = await context.SaveChangesAsync(cancellationToken);
             
             // Process cache invalidation
-            await cacheService.ProcessChangesAsync(entries);
+            await ProcessCacheInvalidationAsync(serviceProvider, entries);
             
             return result;
+        }
+
+        /// <summary>
+        /// Process cache invalidation for both query cache and output cache
+        /// </summary>
+        private static async Task ProcessCacheInvalidationAsync(IServiceProvider serviceProvider, IEnumerable<EntityEntry> entries)
+        {
+            var tasks = new List<Task>();
+
+            // Get and use the query cache invalidation service if available
+            var queryCacheService = serviceProvider.GetService<ICacheInvalidationService>();
+            if (queryCacheService != null)
+            {
+                tasks.Add(queryCacheService.ProcessChangesAsync(entries));
+            }
+
+            // Get and use the output cache invalidation service if available
+            var outputCacheService = serviceProvider.GetService<IOutputCacheInvalidationService>();
+            if (outputCacheService != null)
+            {
+                tasks.Add(outputCacheService.ProcessChangesAsync(entries));
+            }
+
+            // Wait for all invalidation tasks to complete
+            if (tasks.Count > 0)
+            {
+                await Task.WhenAll(tasks);
+            }
         }
     }
 }
