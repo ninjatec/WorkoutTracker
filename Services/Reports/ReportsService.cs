@@ -177,11 +177,8 @@ namespace WorkoutTrackerWeb.Services.Reports
         {
             try
             {
-                return await _context.WorkoutSessions
-                    .Where(s => s.UserId == userId)
-                    .OrderByDescending(s => s.StartDateTime)
-                    .Take(count)
-                    .ToListAsync();
+                // Use the compiled query instead of building a new query each time
+                return await Services.Database.CompiledQueries.GetRecentWorkoutSessionsAsync(_context, userId, count);
             }
             catch (Exception ex)
             {
@@ -201,117 +198,48 @@ namespace WorkoutTrackerWeb.Services.Reports
                 var dateSpan = (endDate - startDate).TotalDays;
                 _logger.LogDebug("Date span for volume data is {DateSpan} days", dateSpan);
                 
-                // For large date ranges, aggregate data by week instead of by day
+                // For large date ranges, use compiled query and aggregate in memory
+                var volumeData = await Services.Database.CompiledQueries.GetVolumeByDateRangeAsync(
+                    _context, userId, startDate, endDate);
+                    
+                // Check for cancellation
+                cancellationToken.ThrowIfCancellationRequested();
+                
+                // Aggregate based on date span
                 if (dateSpan > 90)
                 {
                     _logger.LogDebug("Large date range detected ({DateSpan} days), aggregating by week", dateSpan);
                     
-                    // Add a limit to the query for better performance with large datasets
-                    var maxRecords = 1000; // Reasonable limit for weekly aggregation
-                    _logger.LogDebug("Limiting query to {MaxRecords} workout sessions", maxRecords);
-                    
-                    // Use ToListAsync with cancellation token to allow timeouts
-                    var sessions = await _context.WorkoutSessions
-                        .Where(s => s.UserId == userId && 
-                                    s.StartDateTime >= startDate &&
-                                    s.StartDateTime <= endDate)
-                        .OrderByDescending(s => s.StartDateTime)
-                        .Take(maxRecords)
-                        .ToListAsync(cancellationToken);
-                        
-                    _logger.LogDebug("Retrieved {Count} workout sessions for weekly aggregation", sessions.Count);
-                    
-                    // Check for cancellation
-                    cancellationToken.ThrowIfCancellationRequested();
-                    
-                    // Perform weekly grouping in memory
-                    var volumeByWeek = sessions
-                        .GroupBy(s => DateTimeExtensions.GetStartOfWeek(s.StartDateTime))
+                    // Group by week in memory
+                    return volumeData
+                        .GroupBy(v => DateTimeExtensions.GetStartOfWeek(v.Date))
                         .Select(g => new
                         {
                             Date = g.Key,
-                            Volume = g.SelectMany(s => s.WorkoutExercises ?? new List<WorkoutExercise>())
-                                     .SelectMany(e => e.WorkoutSets ?? new List<WorkoutSet>())
-                                     .Sum(s => (s.Weight ?? 0) * (s.Reps ?? 0))
+                            Volume = g.Sum(v => v.TotalVolume)
                         })
                         .OrderBy(x => x.Date)
                         .ToDictionary(x => x.Date, x => x.Volume);
-                    
-                    _logger.LogDebug("Weekly aggregation complete. Generated {Count} data points", volumeByWeek.Count);
-                    return volumeByWeek;
                 }
                 else if (dateSpan > 30)
                 {
                     _logger.LogDebug("Medium date range detected ({DateSpan} days), aggregating by 3 days", dateSpan);
                     
-                    // For medium range, limit records and group by 3-day periods in memory
-                    var maxRecords = 2000; // Higher limit for 3-day periods
-                    _logger.LogDebug("Limiting query to {MaxRecords} workout sessions", maxRecords);
-                    
-                    var sessions = await _context.WorkoutSessions
-                        .Where(s => s.UserId == userId && 
-                                    s.StartDateTime >= startDate &&
-                                    s.StartDateTime <= endDate)
-                        .OrderByDescending(s => s.StartDateTime)
-                        .Take(maxRecords)
-                        .ToListAsync(cancellationToken);
-                        
-                    _logger.LogDebug("Retrieved {Count} workout sessions for 3-day aggregation", sessions.Count);
-                    
-                    // Check for cancellation before heavy processing
-                    cancellationToken.ThrowIfCancellationRequested();
-                    
                     // Group by 3-day periods in memory
-                    var volumeByPeriod = sessions
-                        .GroupBy(s => s.StartDateTime.Date.AddDays(-(s.StartDateTime.Date.Subtract(startDate.Date).Days % 3)))
+                    return volumeData
+                        .GroupBy(v => v.Date.Date.AddDays(-(v.Date.Date.Subtract(startDate.Date).Days % 3)))
                         .Select(g => new
                         {
                             Date = g.Key,
-                            Volume = g.SelectMany(s => s.WorkoutExercises ?? new List<WorkoutExercise>())
-                                     .SelectMany(e => e.WorkoutSets ?? new List<WorkoutSet>())
-                                     .Sum(s => (s.Weight ?? 0) * (s.Reps ?? 0))
+                            Volume = g.Sum(v => v.TotalVolume)
                         })
                         .OrderBy(x => x.Date)
                         .ToDictionary(x => x.Date, x => x.Volume);
-                    
-                    _logger.LogDebug("3-day aggregation complete. Generated {Count} data points", volumeByPeriod.Count);
-                    return volumeByPeriod;
                 }
                 
-                // Default case - show daily data for shorter periods with a limit
+                // Default case - return daily data
                 _logger.LogDebug("Standard date range detected ({DateSpan} days), showing daily data", dateSpan);
-                
-                var dailyMaxRecords = 3000; // Higher limit for daily data within reasonable range
-                _logger.LogDebug("Limiting query to {MaxRecords} workout sessions for daily data", dailyMaxRecords);
-                
-                var dailySessions = await _context.WorkoutSessions
-                    .Where(s => s.UserId == userId && 
-                                s.StartDateTime >= startDate &&
-                                s.StartDateTime <= endDate)
-                    .OrderByDescending(s => s.StartDateTime)
-                    .Take(dailyMaxRecords)
-                    .ToListAsync(cancellationToken);
-                    
-                _logger.LogDebug("Retrieved {Count} workout sessions for daily data", dailySessions.Count);
-                
-                // Check for cancellation before heavy processing
-                cancellationToken.ThrowIfCancellationRequested();
-                
-                // Group by day in memory
-                var volumeByDay = dailySessions
-                    .GroupBy(s => s.StartDateTime.Date)
-                    .Select(g => new
-                    {
-                        Date = g.Key,
-                        Volume = g.SelectMany(s => s.WorkoutExercises ?? new List<WorkoutExercise>())
-                                 .SelectMany(e => e.WorkoutSets ?? new List<WorkoutSet>())
-                                 .Sum(s => (s.Weight ?? 0) * (s.Reps ?? 0))
-                    })
-                    .OrderBy(x => x.Date)
-                    .ToDictionary(x => x.Date, x => x.Volume);
-                
-                _logger.LogDebug("Daily aggregation complete. Generated {Count} data points", volumeByDay.Count);
-                return volumeByDay;
+                return volumeData.ToDictionary(x => x.Date, x => x.TotalVolume);
             }
             catch (OperationCanceledException)
             {

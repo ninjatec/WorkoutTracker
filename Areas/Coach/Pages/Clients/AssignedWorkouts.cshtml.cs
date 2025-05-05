@@ -246,24 +246,21 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 var startDate = DateTime.Today.AddDays(-30);
                 var endDate = DateTime.Today;
 
-                // Get workout sessions with volume data
-                var workoutSessions = await _context.WorkoutSessions
+                // Use a more efficient query to calculate volume data directly in the database
+                // This avoids N+1 queries by using SQL grouping rather than client-side enumeration
+                var volumeData = await _context.WorkoutSessions
                     .Where(s => s.UserId == clientId && s.CompletedDate >= startDate && s.CompletedDate <= endDate)
-                    .Include(s => s.WorkoutExercises)
-                    .ThenInclude(e => e.WorkoutSets)
-                    .OrderBy(s => s.CompletedDate)
+                    .GroupBy(s => s.CompletedDate)
+                    .Select(g => new ChartDataPoint
+                    {
+                        Date = g.Key ?? DateTime.Now,
+                        TotalVolume = g.SelectMany(s => s.WorkoutExercises)
+                                      .SelectMany(e => e.WorkoutSets)
+                                      .Sum(set => (set.Weight ?? 0) * (set.Reps ?? 0))
+                    })
                     .ToListAsync();
 
-                // Calculate total volume for each session
-                ChartData = workoutSessions
-                    .Select(s => new ChartDataPoint
-                    {
-                        Date = s.CompletedDate ?? DateTime.Now,
-                        TotalVolume = s.WorkoutExercises
-                            .SelectMany(e => e.WorkoutSets)
-                            .Sum(set => (set.Weight ?? 0) * (set.Reps ?? 0))
-                    })
-                    .ToList();
+                ChartData = volumeData;
 
                 // If no data, add some placeholder data points
                 if (!ChartData.Any())
@@ -278,39 +275,31 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                     }
                 }
 
-                // For exercise progress chart: Get key exercises and their progress
-                var keyExercises = new List<int>();
-                try
-                {
-                    keyExercises = await _context.WorkoutSessions
-                        .Where(s => s.UserId == clientId)
-                        .SelectMany(s => s.WorkoutExercises)
-                        .GroupBy(e => e.ExerciseTypeId)
-                        .OrderByDescending(g => g.Count())
-                        .Take(5)
-                        .Select(g => g.Key)
-                        .ToListAsync();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error getting key exercises for client {ClientId}", clientId);
-                }
+                // Get key exercises in a single efficient query with usage counts
+                var keyExercises = await _context.WorkoutExercises
+                    .Where(e => e.WorkoutSession.UserId == clientId)
+                    .GroupBy(e => new { e.ExerciseTypeId, e.ExerciseType.Name })
+                    .OrderByDescending(g => g.Count())
+                    .Take(5)
+                    .Select(g => new 
+                    {
+                        ExerciseId = g.Key.ExerciseTypeId,
+                        ExerciseName = g.Key.Name
+                    })
+                    .ToListAsync();
 
                 // Placeholder for demo - in case there's no data yet
                 if (!keyExercises.Any())
                 {
-                    try
-                    {
-                        keyExercises = await _context.ExerciseType
-                            .OrderBy(e => e.Name)
-                            .Take(3)
-                            .Select(e => e.ExerciseTypeId)
-                            .ToListAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error getting placeholder exercise types for client {ClientId}", clientId);
-                    }
+                    keyExercises = await _context.ExerciseType
+                        .OrderBy(e => e.Name)
+                        .Take(3)
+                        .Select(e => new
+                        {
+                            ExerciseId = e.ExerciseTypeId,
+                            ExerciseName = e.Name
+                        })
+                        .ToListAsync();
                 }
 
                 // Initialize exercise progress view model
@@ -327,53 +316,55 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 }
                 ExerciseProgressData.Dates.Reverse();
 
-                // Get exercise names and generate colors
+                // Generate colors for exercises
                 var colors = new[] { "#4e73df", "#1cc88a", "#36b9cc", "#f6c23e", "#e74a3b" };
-                var colorIndex = 0;
+                
+                // Get all weight data for the key exercises in a single query
+                // This avoids making a separate query for each exercise
+                var allWeightData = await _context.WorkoutSets
+                    .Where(s => s.WorkoutExercise.WorkoutSession.UserId == clientId &&
+                                s.WorkoutExercise.WorkoutSession.CompletedDate >= startDate &&
+                                keyExercises.Select(e => e.ExerciseId).Contains(s.WorkoutExercise.ExerciseTypeId))
+                    .Select(s => new
+                    {
+                        ExerciseId = s.WorkoutExercise.ExerciseTypeId,
+                        Date = (s.WorkoutExercise.WorkoutSession.CompletedDate ?? DateTime.Now).Date,
+                        Weight = s.Weight ?? 0
+                    })
+                    .ToListAsync();
 
-                foreach (var exerciseId in keyExercises)
+                // Group the weight data by exercise and date
+                var weightsByExerciseAndDate = allWeightData
+                    .GroupBy(w => new { w.ExerciseId, w.Date })
+                    .Select(g => new
+                    {
+                        ExerciseId = g.Key.ExerciseId,
+                        Date = g.Key.Date,
+                        MaxWeight = g.Max(s => s.Weight)
+                    })
+                    .ToList();
+
+                // Create progress items for each exercise
+                for (int i = 0; i < keyExercises.Count; i++)
                 {
-                    try
+                    var exercise = keyExercises[i];
+                    
+                    var progressItem = new ExerciseProgressItem
                     {
-                        var exercise = await _context.ExerciseType.FindAsync(exerciseId);
-                        if (exercise == null || string.IsNullOrEmpty(exercise.Name)) continue;
+                        Name = exercise.ExerciseName ?? "Unknown Exercise",
+                        Color = colors[i % colors.Length],
+                        Weights = new List<decimal?>()
+                    };
 
-                        // Get max weight for each exercise over time
-                        var weightData = await _context.WorkoutSessions
-                            .Where(s => s.UserId == clientId && s.CompletedDate >= startDate)
-                            .OrderBy(s => s.CompletedDate)
-                            .SelectMany(s => s.WorkoutExercises.Where(e => e.ExerciseTypeId == exerciseId))
-                            .SelectMany(e => e.WorkoutSets)
-                            .GroupBy(s => (s.WorkoutExercise.WorkoutSession.CompletedDate ?? DateTime.Now).Date)
-                            .Select(g => new
-                            {
-                                Date = g.Key,
-                                MaxWeight = g.Max(s => s.Weight ?? 0)
-                            })
-                            .ToListAsync();
-
-                        // Create exercise progress item
-                        var progressItem = new ExerciseProgressItem
-                        {
-                            Name = exercise.Name,
-                            Color = colors[colorIndex % colors.Length],
-                            Weights = new List<decimal?>()
-                        };
-
-                        // Fill in weights data for each date
-                        foreach (var date in ExerciseProgressData.Dates)
-                        {
-                            var dataPoint = weightData.FirstOrDefault(w => w.Date == date.Date);
-                            progressItem.Weights.Add(dataPoint?.MaxWeight);
-                        }
-
-                        ExerciseProgressData.Exercises.Add(progressItem);
-                        colorIndex++;
-                    }
-                    catch (Exception ex)
+                    // Fill in weights data for each date
+                    foreach (var date in ExerciseProgressData.Dates)
                     {
-                        _logger.LogError(ex, "Error processing exercise data for exercise {ExerciseId}, client {ClientId}", exerciseId, clientId);
+                        var dataPoint = weightsByExerciseAndDate
+                            .FirstOrDefault(w => w.ExerciseId == exercise.ExerciseId && w.Date == date.Date);
+                        progressItem.Weights.Add(dataPoint?.MaxWeight);
                     }
+
+                    ExerciseProgressData.Exercises.Add(progressItem);
                 }
 
                 // If no exercise data, add placeholder data

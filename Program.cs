@@ -568,6 +568,9 @@ namespace WorkoutTrackerWeb
             // Register DatabaseMigrationService
             builder.Services.AddScoped<DatabaseMigrationService>();
 
+            // Register new database optimization services
+            builder.Services.AddSingleton<WorkoutTrackerWeb.Services.Database.ProjectionService>();
+
             builder.Services.AddSingleton<IDbContextFactory<WorkoutTrackerWebContext>>(serviceProvider =>
             {
                 var connectionStringBuilder = serviceProvider.GetRequiredService<ConnectionStringBuilderService>();

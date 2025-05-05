@@ -21,17 +21,17 @@ This document outlines the performance and stability optimization tasks for the 
 [x] Add instrumentation to measure cache hit/miss rates
 
 ### DB-03: Optimize Entity Framework Tracking
-[ ] Audit and update Entity Framework tracking behavior for all repositories
-[ ] Create a tracking strategy implementation for read vs write operations
-[ ] Add custom conventions for change tracking to ignore unnecessary fields
-[ ] Implement explicit entity inclusion/exclusion for complex aggregates
+[x] Audit and update Entity Framework tracking behavior for all repositories
+[x] Create a tracking strategy implementation for read vs write operations
+[x] Add custom conventions for change tracking to ignore unnecessary fields
+[x] Implement explicit entity inclusion/exclusion for complex aggregates
 
 ### DB-04: Optimize N+1 Query Patterns
-[ ] Identify and fix N+1 query patterns in workout session retrieval
-[ ] Review and optimize eager loading strategies across application
-[ ] Implement batch fetching for collections where appropriate
-[ ] Add compiled queries for frequently executed database operations
-[ ] Create custom ProjectTo mappings to minimize data transfer
+[x] Identify and fix N+1 query patterns in workout session retrieval
+[x] Review and optimize eager loading strategies across application
+[x] Implement batch fetching for collections where appropriate
+[x] Add compiled queries for frequently executed database operations
+[x] Create custom ProjectTo mappings to minimize data transfer
 
 ### DB-05: Complete Session to WorkoutSession Migration
 [ ] Remove any remaining Session models and table references

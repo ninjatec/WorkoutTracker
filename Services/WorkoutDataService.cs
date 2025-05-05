@@ -42,15 +42,18 @@ namespace WorkoutTrackerWeb.Services
                 queryFunc: async () => {
                     _logger.LogDebug("Cache miss for user sessions. Loading from database for user {UserId}", userId);
                     
+                    // Use AsSplitQuery to avoid cartesian explosion and improve performance
+                    // This breaks a single complex query into multiple simpler queries
                     var workoutSessions = await _context.WorkoutSessions
                         .Where(ws => ws.UserId == userId)
                         .OrderByDescending(ws => ws.StartDateTime)
+                        .AsSplitQuery()
                         .Include(ws => ws.WorkoutExercises)
                             .ThenInclude(we => we.ExerciseType)
                         .Include(ws => ws.WorkoutExercises)
                             .ThenInclude(we => we.WorkoutSets)
-                        .AsNoTracking()
-                        .ToListAsync();  // Load data into memory first
+                        .AsNoTracking() // No tracking for read-only operations
+                        .ToListAsync();
 
                     // Process in memory to avoid SQL null issues
                     var processedSessions = workoutSessions
@@ -112,35 +115,29 @@ namespace WorkoutTrackerWeb.Services
                     var metrics = new Dictionary<string, int>();
                     
                     try {
-                        // Query data with explicit null checks in the LINQ query
-                        var workoutSessions = await _context.WorkoutSessions
-                            .Include(ws => ws.WorkoutExercises)
-                                .ThenInclude(we => we.WorkoutSets)
+                        // Use a more efficient query approach to avoid N+1 queries
+                        // Get total workout count directly
+                        metrics["TotalWorkouts"] = await _context.WorkoutSessions
                             .Where(ws => ws.UserId == userId && ws.StartDateTime >= startDate)
-                            .ToListAsync();
+                            .CountAsync();
 
-                        metrics["TotalWorkouts"] = workoutSessions.Count;
-                        metrics["TotalExercises"] = workoutSessions.Sum(ws => ws.WorkoutExercises?.Count ?? 0);
+                        // Get total exercises with a single query
+                        metrics["TotalExercises"] = await _context.WorkoutExercises
+                            .Where(we => we.WorkoutSession.UserId == userId && 
+                                         we.WorkoutSession.StartDateTime >= startDate)
+                            .CountAsync();
                         
-                        // Calculate TotalSets and TotalReps using null-safe aggregate operations
-                        var totalSets = 0;
-                        var totalReps = 0;
+                        // Get total sets with a single query
+                        metrics["TotalSets"] = await _context.WorkoutSets
+                            .Where(ws => ws.WorkoutExercise.WorkoutSession.UserId == userId && 
+                                          ws.WorkoutExercise.WorkoutSession.StartDateTime >= startDate)
+                            .CountAsync();
                         
-                        foreach (var session in workoutSessions) 
-                        {
-                            if (session.WorkoutExercises == null) continue;
-                            
-                            foreach (var exercise in session.WorkoutExercises)
-                            {
-                                if (exercise.WorkoutSets == null) continue;
-                                
-                                totalSets += exercise.WorkoutSets.Count;
-                                totalReps += exercise.WorkoutSets.Sum(s => s.Reps ?? 0);
-                            }
-                        }
-                        
-                        metrics["TotalSets"] = totalSets;
-                        metrics["TotalReps"] = totalReps;
+                        // Get sum of reps with a single query
+                        metrics["TotalReps"] = await _context.WorkoutSets
+                            .Where(ws => ws.WorkoutExercise.WorkoutSession.UserId == userId && 
+                                          ws.WorkoutExercise.WorkoutSession.StartDateTime >= startDate)
+                            .SumAsync(ws => ws.Reps ?? 0);
                     }
                     catch (Exception ex)
                     {
@@ -171,15 +168,29 @@ namespace WorkoutTrackerWeb.Services
                     
                     var startDate = DateTime.Now.AddDays(-days);
                     var frequency = new Dictionary<string, int>();
-
-                    var workouts = await _context.WorkoutSessions
-                        .Where(ws => ws.UserId == userId && ws.StartDateTime >= startDate)
-                        .ToListAsync();
-
+                    
+                    // Initialize dictionary with zero values for all days in range
                     for (int i = 0; i < days; i++)
                     {
                         var date = DateTime.Now.AddDays(-i).Date.ToString("yyyy-MM-dd");
-                        frequency[date] = workouts.Count(w => w.StartDateTime.Date == DateTime.Now.AddDays(-i).Date);
+                        frequency[date] = 0;
+                    }
+
+                    // Get the workout counts grouped by date directly from the database
+                    var workoutCounts = await _context.WorkoutSessions
+                        .Where(ws => ws.UserId == userId && ws.StartDateTime >= startDate)
+                        .GroupBy(ws => ws.StartDateTime.Date)
+                        .Select(g => new { Date = g.Key, Count = g.Count() })
+                        .ToListAsync();
+
+                    // Update frequency dictionary with actual counts
+                    foreach (var item in workoutCounts)
+                    {
+                        string dateKey = item.Date.ToString("yyyy-MM-dd");
+                        if (frequency.ContainsKey(dateKey))
+                        {
+                            frequency[dateKey] = item.Count;
+                        }
                     }
 
                     return frequency;
