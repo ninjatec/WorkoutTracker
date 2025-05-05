@@ -2,6 +2,9 @@
 @model WorkoutTrackerWeb.Pages.Reports.IndexModel
 @{
     ViewData["Title"] = "Workout Reports";
+    
+    // Helper function to format the period display text
+    string FormatPeriodText(int period) => period == int.MaxValue ? "All Time" : $"Last {period} Days";
 }
 
 <div class="container">
@@ -118,9 +121,9 @@
                         <div class="col-md-12">
                             <div class="card" id="weightProgressContainer" data-loading="true" style="min-height: 450px;">
                                 <div class="card-header d-flex justify-content-between align-items-center">
-                                    <h5>Weight Progress by Exercise Type (Last @Model.ReportPeriod Days)</h5>
+                                    <h5>Weight Progress by Exercise Type (@FormatPeriodText(Model.ReportPeriod))</h5>
                                 </div>
-                                <div class="card-body" style="height: 400px;">
+                                <div class="card-body" style="height: 800px;">
                                     <div class="text-center loading-spinner">
                                         <div class="spinner-border text-primary" role="status">
                                             <span class="sr-only">Loading...</span>
@@ -148,7 +151,7 @@
                         <div class="col-md-6">
                             <div class="card" id="overallChartContainer" data-loading="true" style="min-height: 350px;">
                                 <div class="card-header d-flex justify-content-between align-items-center">
-                                    <h5>Overall Rep Success/Failure (Last @Model.ReportPeriod Days)</h5>
+                                    <h5>Overall Rep Success/Failure (@FormatPeriodText(Model.ReportPeriod))</h5>
                                     <form method="get" class="d-flex align-items-center">
                                         <input type="hidden" name="pageNumber" value="@Model.CurrentPage" />
                                         <input type="hidden" name="period" value="@Model.ReportPeriod" />
@@ -168,7 +171,7 @@
                         <div class="col-md-6">
                             <div class="card">
                                 <div class="card-header d-flex justify-content-between align-items-center">
-                                    <h5>Success Rate by Exercise Type (Last @Model.ReportPeriod Days)</h5>
+                                    <h5>Success Rate by Exercise Type (@FormatPeriodText(Model.ReportPeriod))</h5>
                                     <form method="get" class="d-flex align-items-center">
                                         <input type="hidden" name="pageNumber" value="@Model.CurrentPage" />
                                         <input type="hidden" name="period" value="@Model.ReportPeriod" />
@@ -207,7 +210,7 @@
                         <div class="col-md-12">
                             <div class="card" id="exerciseChartContainer" data-loading="true" style="min-height: 450px;">
                                 <div class="card-header d-flex justify-content-between align-items-center">
-                                    <h5>Recent Exercise Performance (Last @Model.ReportPeriod Days)</h5>
+                                    <h5>Recent Exercise Performance (@FormatPeriodText(Model.ReportPeriod))</h5>
                                     <form method="get" class="d-flex align-items-center">
                                         <input type="hidden" name="pageNumber" value="@Model.CurrentPage" />
                                         <input type="hidden" name="period" value="@Model.ReportPeriod" />
@@ -244,7 +247,7 @@
                                 <div class="d-flex align-items-center">
                                     <i class="bi bi-info-circle-fill me-2 fs-4"></i>
                                     <div>
-                                        <strong>Total Workout Volume (Last @Model.ReportPeriod Days):</strong> 
+                                        <strong>Total Workout Volume (@FormatPeriodText(Model.ReportPeriod)):</strong> 
                                         <span class="fs-4 ms-2">@Model.TotalWorkoutVolume.ToString("N0") kg</span>
                                     </div>
                                 </div>
@@ -255,7 +258,7 @@
                         <div class="col-md-12">
                             <div class="card" id="volumeChartContainer" data-loading="true" style="min-height: 450px;">
                                 <div class="card-header d-flex justify-content-between align-items-center">
-                                    <h5>Volume Progression by Exercise (Last @Model.ReportPeriod Days)</h5>
+                                    <h5>Volume Progression by Exercise (@FormatPeriodText(Model.ReportPeriod))</h5>
                                     <form method="get" class="d-flex align-items-center">
                                         <input type="hidden" name="pageNumber" value="@Model.CurrentPage" />
                                         <input type="hidden" name="period" value="@Model.ReportPeriod" />
@@ -277,7 +280,7 @@
                         <div class="col-md-12">
                             <div class="card">
                                 <div class="card-header">
-                                    <h5>Volume Breakdown by Exercise (Last @Model.ReportPeriod Days)</h5>
+                                    <h5>Volume Breakdown by Exercise (@FormatPeriodText(Model.ReportPeriod))</h5>
                                 </div>
                                 <div class="card-body">
                                     <div class="table-responsive">
@@ -336,7 +339,7 @@
                                 <div class="d-flex align-items-center">
                                     <i class="bi bi-fire me-2 fs-4"></i>
                                     <div>
-                                        <strong>Total Calories Burned (Last @Model.ReportPeriod Days):</strong> 
+                                        <strong>Total Calories Burned (@FormatPeriodText(Model.ReportPeriod)):</strong> 
                                         <span class="fs-4 ms-2">@Model.TotalCaloriesBurned.ToString("N0") kcal</span>
                                     </div>
                                 </div>
@@ -347,7 +350,7 @@
                         <div class="col-md-12">
                             <div class="card" id="caloriesChartContainer" data-loading="true" style="min-height: 450px;">
                                 <div class="card-header d-flex justify-content-between align-items-center">
-                                    <h5>Calorie Expenditure Over Time (Last @Model.ReportPeriod Days)</h5>
+                                    <h5>Calorie Expenditure Over Time (@FormatPeriodText(Model.ReportPeriod))</h5>
                                     <form method="get" class="d-flex align-items-center">
                                         <input type="hidden" name="pageNumber" value="@Model.CurrentPage" />
                                         <input type="hidden" name="period" value="@Model.ReportPeriod" />
