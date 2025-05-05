@@ -99,6 +99,40 @@ namespace WorkoutTrackerWeb.Data
             // No global query filters on User table - we need to see all users for admin purposes
             // But we'll add filters to child entities
 
+            // Configure precision and scale for decimal properties to avoid truncation warnings
+            modelBuilder.Entity<ClientGoal>()
+                .Property(g => g.CurrentValue)
+                .HasPrecision(10, 2);
+                
+            modelBuilder.Entity<ClientGoal>()
+                .Property(g => g.StartValue)
+                .HasPrecision(10, 2);
+                
+            modelBuilder.Entity<ClientGoal>()
+                .Property(g => g.TargetValue)
+                .HasPrecision(10, 2);
+                
+            modelBuilder.Entity<ProgressionRule>()
+                .Property(p => p.MaximumValue)
+                .HasPrecision(10, 2);
+                
+            modelBuilder.Entity<WorkoutSession>()
+                .Property(w => w.CaloriesBurned)
+                .HasPrecision(10, 2);
+            
+            // Fix CoachClientRelationship and AppUser relationships to prevent shadow properties
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasOne(r => r.Coach)
+                .WithMany(u => u.CoachRelationships)
+                .HasForeignKey(r => r.CoachId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasOne(r => r.Client) 
+                .WithMany(u => u.ClientRelationships)
+                .HasForeignKey(r => r.ClientId)
+                .OnDelete(DeleteBehavior.NoAction);
+
             // Configure AppUser relationships
             modelBuilder.Entity<AppUser>()
                 .HasMany(u => u.CoachRelationships)
