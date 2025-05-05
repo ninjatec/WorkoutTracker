@@ -18,6 +18,7 @@ using WorkoutTrackerWeb.Hubs;
 using WorkoutTrackerWeb.Services;
 using WorkoutTrackerWeb.Pages.BackgroundJobs;
 using WorkoutTrackerWeb.Models.Identity;
+using WorkoutTrackerWeb.Models;
 
 namespace WorkoutTrackerWeb.Pages.DataPortability
 {
@@ -240,13 +241,14 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
             try 
             {
                 // Send an initial progress update to show the job is starting
-                var initialProgress = new JobProgress
+                var initialProgress = new Models.JobProgress
                 {
-                    Status = "Starting import...",
+                    JobId = jobId,
+                    Status = JobStatus.Starting,
                     PercentComplete = 0,
                     TotalItems = workoutCount,
                     ProcessedItems = 0,
-                    Details = fileSize.HasValue ? 
+                    CurrentStage = fileSize.HasValue ? 
                         $"Preparing to process {(fileSize.Value / (1024.0 * 1024.0)).ToString("F2")} MB file" : 
                         "Preparing to import workouts"
                 };

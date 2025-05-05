@@ -1544,6 +1544,7 @@ namespace WorkoutTrackerWeb.Services
         public int TotalItems { get; set; }
         public string Details { get; set; }
         public string ErrorMessage { get; set; }
+        public JobProgressBatchInfo BatchInfo { get; set; }
     }
 
     // Data wrapper for JSON import

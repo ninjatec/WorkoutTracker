@@ -7,33 +7,45 @@
 <h1>@ViewData["Title"]</h1>
 
 <div class="row">
-    <div class="col-md-6">
+    <div class="col-md-8">
         <div class="card mb-4">
             <div class="card-body">
-                <h5 class="card-title">Import JSON Data</h5>
-                <form method="post" enctype="multipart/form-data" id="importForm">
-                    <div class="mb-3">
+                <h5 class="card-title">Import from JSON</h5>
+                <form method="post" enctype="multipart/form-data" class="mt-3" id="importForm">
+                    <div class="form-group">
                         <label asp-for="ImportFile" class="form-label">JSON File</label>
                         <input asp-for="ImportFile" class="form-control" type="file" accept=".json" id="jsonFileInput" />
                         <span asp-validation-for="ImportFile" class="text-danger"></span>
                         <div id="fileInfo" class="form-text d-none">
                             <span id="fileSize"></span>
                             <div id="largeFileWarning" class="alert alert-info mt-2 d-none">
-                                <i class="fas fa-info-circle"></i> Large file detected. The upload will be processed in the background to avoid timeouts.
+                                <i class="fas fa-info-circle"></i> 
+                                Large file detected. The import will run as a background process and may take several minutes.
+                                You can leave this page and check back later.
+                            </div>
+                            <div id="veryLargeFileWarning" class="alert alert-warning mt-2 d-none">
+                                <i class="fas fa-exclamation-triangle"></i> 
+                                Very large file detected. The import will run as a background process and may take significant time.
+                                Processing will continue even if you close this page.
                             </div>
                         </div>
                     </div>
 
-                    <div class="form-check mb-3">
-                        <input asp-for="SkipExisting" class="form-check-input" type="checkbox" checked />
-                        <label asp-for="SkipExisting" class="form-check-label">Skip existing sessions</label>
-                    </div>
-
-                    <div class="mb-3">
+                    <div class="mt-3">
                         <button type="submit" class="btn btn-primary" id="importButton">Import</button>
                         <a asp-page="./Index" class="btn btn-secondary">Cancel</a>
                     </div>
                 </form>
+
+                <!-- Upload progress indicator for large files -->
+                <div id="uploadProgressSection" class="mt-4 d-none">
+                    <h5>Uploading File</h5>
+                    <div class="progress mb-2">
+                        <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                    </div>
+                    <p id="uploadStatus" class="text-muted small">Preparing to upload...</p>
+                </div>
             </div>
         </div>
 
@@ -41,62 +53,37 @@
         {
             <div class="alert @(Model.Success ? "alert-success" : "alert-danger")" role="alert">
                 @Model.Message
-                @if (!string.IsNullOrEmpty(Model.ErrorMessage))
-                {
-                    <div class="mt-2">
-                        <strong>Error details:</strong> @Model.ErrorMessage
-                    </div>
-                }
             </div>
         }
         
-        <!-- File Upload Progress -->
-        <div id="uploadProgressSection" class="card mb-4 d-none">
-            <div class="card-body">
-                <h5 class="card-title">Upload Progress</h5>
-                <div class="progress mb-3">
-                    <div id="uploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-info" 
-                         role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
-                </div>
-                <p id="uploadStatus" class="text-muted">Preparing to upload file...</p>
-            </div>
-        </div>
-        
-        <!-- Job Progress Section -->
+        <!-- Progress tracking UI -->
         <div id="progressSection" class="card mb-4 @(string.IsNullOrEmpty(Model.JobId) ? "d-none" : "")">
             <div class="card-body">
-                <h5 class="card-title d-flex justify-content-between align-items-center">
-                    Import Progress
-                    <span id="connectionStatus" class="badge bg-secondary">Connecting...</span>
-                </h5>
-                
-                <p id="progressStatus">@(Model.JobState ?? "Initializing...")</p>
-                
+                <h5 class="card-title" id="progressStatus">Import in progress...</h5>
                 <div class="progress mb-3">
-                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                         role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-info" 
+                         role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%">
+                        0%
+                    </div>
                 </div>
-                
-                <p id="progressDetails" class="text-muted small"></p>
-                
-                <div id="itemProgress" class="d-none mb-3">
-                    <p><span id="processedItems">0</span> of <span id="totalItems">0</span> items processed</p>
+                <div id="progressDetails" class="small text-muted"></div>
+                <div id="errorMessage" class="alert alert-danger mt-3 @(string.IsNullOrEmpty(Model.ErrorMessage) ? "d-none" : "")">
+                    @Model.ErrorMessage
                 </div>
-                
-                <div id="errorMessage" class="alert alert-danger d-none"></div>
                 
                 <div class="mt-3">
                     <p class="text-info">
-                        <i class="fas fa-info-circle"></i>
+                        <i class="fa fa-info-circle"></i>
                         The import is running in the background. You can leave this page if you wish.
                     </p>
+                    <div id="connectionStatus" class="badge bg-success">Connected</div>
                 </div>
             </div>
         </div>
 
         @if (Model.Success && Model.ImportedItems.Any())
         {
-            <div class="card mt-4">
+            <div class="card">
                 <div class="card-header">
                     Import Summary
                 </div>
@@ -111,22 +98,21 @@
             </div>
         }
     </div>
-    
-    <div class="col-md-6">
+    <div class="col-md-4">
         <div class="card">
             <div class="card-body">
                 <h5 class="card-title">Import Instructions</h5>
                 <p>To import your workout data:</p>
                 <ol>
-                    <li>Click "Choose File" and select a JSON file exported from this or another compatible system</li>
-                    <li>Check "Skip existing sessions" if you want to avoid duplicates</li>
+                    <li>First export your workout data as a JSON file</li>
+                    <li>Click "Choose File" and select your JSON file</li>
                     <li>Click "Import" to start the import process</li>
                 </ol>
                 <p class="mb-0"><strong>Note:</strong> The import process will:</p>
                 <ul>
                     <li>Create new exercise types if they don't exist</li>
-                    <li>Import all sessions along with sets and reps</li>
-                    <li>Match existing exercise types and set types by name</li>
+                    <li>Import all workouts as separate sessions</li>
+                    <li>Preserve set and rep information</li>
                 </ul>
                 <div class="alert alert-info mt-3">
                     <i class="fas fa-info-circle"></i> Large imports now run as background jobs and won't time out.
@@ -138,276 +124,385 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
-    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+    <script src="~/lib/microsoft/signalr/dist/signalr.min.js"></script>
+    <script src="~/js/signalr-connection-manager.js"></script>
     <style>
         .importing {
             cursor: wait !important;
         }
-        
-        .badge.connected {
-            background-color: #28a745 !important;
+        #connectionStatus {
+            display: inline-block;
+            padding: 0.3rem 0.6rem;
+            font-size: 0.75rem;
         }
-        
-        .badge.disconnected {
-            background-color: #dc3545 !important;
+        #connectionStatus.connected {
+            background-color: var(--bs-success);
         }
-        
-        .badge.reconnecting {
-            background-color: #ffc107 !important;
+        #connectionStatus.disconnected {
+            background-color: var(--bs-danger);
+        }
+        #connectionStatus.reconnecting {
+            background-color: var(--bs-warning);
         }
     </style>
 
     <script>
-        // Get form and UI elements
-        const form = document.getElementById('importForm');
-        const importButton = document.getElementById('importButton');
+        // File size thresholds for different upload methods
+        const LARGE_FILE_THRESHOLD = 1 * 1024 * 1024; // 1MB
+        const VERY_LARGE_FILE_THRESHOLD = 5 * 1024 * 1024; // 5MB
+
+        // Handle file input change to show file size information
         const fileInput = document.getElementById('jsonFileInput');
         const fileInfo = document.getElementById('fileInfo');
         const fileSize = document.getElementById('fileSize');
         const largeFileWarning = document.getElementById('largeFileWarning');
+        const veryLargeFileWarning = document.getElementById('veryLargeFileWarning');
         
         // Upload progress elements
         const uploadProgressSection = document.getElementById('uploadProgressSection');
         const uploadProgressBar = document.getElementById('uploadProgressBar');
         const uploadStatus = document.getElementById('uploadStatus');
         
-        // Import progress elements
+        // Progress UI elements
         const progressSection = document.getElementById('progressSection');
         const progressBar = document.getElementById('progressBar');
         const progressStatus = document.getElementById('progressStatus');
         const progressDetails = document.getElementById('progressDetails');
         const errorMessage = document.getElementById('errorMessage');
         const connectionStatus = document.getElementById('connectionStatus');
-        const processedItems = document.getElementById('processedItems');
-        const totalItems = document.getElementById('totalItems');
-        const itemProgress = document.getElementById('itemProgress');
         
-        // File size threshold for large file handling (5MB)
-        const LARGE_FILE_THRESHOLD = 5 * 1024 * 1024;
+        // Get form and button elements
+        const form = document.getElementById('importForm');
+        const importButton = document.getElementById('importButton');
         
-        // File input change handler to show file size
+        // For job status polling when connection is lost
+        let jobStatusCheckInterval;
+        
         fileInput.addEventListener('change', function() {
-            if (this.files && this.files.length > 0) {
+            // Reset warnings
+            fileInfo.classList.add('d-none');
+            largeFileWarning.classList.add('d-none');
+            veryLargeFileWarning.classList.add('d-none');
+            
+            if (this.files && this.files[0]) {
                 const file = this.files[0];
-                const fileSizeMB = (file.size / 1024 / 1024).toFixed(2);
                 
-                // Show file info
-                fileInfo.classList.remove('d-none');
-                fileSize.textContent = `File size: ${fileSizeMB} MB`;
-                
-                // Show warning for large files
-                if (file.size > LARGE_FILE_THRESHOLD) {
-                    largeFileWarning.classList.remove('d-none');
+                // Format file size in human-readable format
+                let displaySize;
+                if (file.size < 1024) {
+                    displaySize = file.size + ' bytes';
+                } else if (file.size < 1024 * 1024) {
+                    displaySize = (file.size / 1024).toFixed(2) + ' KB';
                 } else {
-                    largeFileWarning.classList.add('d-none');
+                    displaySize = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
                 }
-            } else {
-                fileInfo.classList.add('d-none');
+                
+                // Show file size information
+                fileSize.textContent = `File size: ${displaySize}`;
+                fileInfo.classList.remove('d-none');
+                
+                // Show warnings based on file size
+                if (file.size >= VERY_LARGE_FILE_THRESHOLD) {
+                    veryLargeFileWarning.classList.remove('d-none');
+                } else if (file.size >= LARGE_FILE_THRESHOLD) {
+                    largeFileWarning.classList.remove('d-none');
+                }
             }
         });
         
-        // SignalR connection
-        let connection;
-        let isConnected = false;
-        let jobRegistered = false;
-        let reconnectAttempts = 0;
-        let jobStatusCheckInterval = null;
-        
-        // Initialize connection
-        function initializeConnection() {
-            // Create the connection
-            connection = new signalR.HubConnectionBuilder()
-                .withUrl("/importProgressHub")
-                .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
-                .build();
+        // Create the SignalR Connection Manager with optimized settings
+        const signalRManager = new SignalRConnectionManager('/importProgressHub', {
+            maxReconnectAttempts: 10,
+            // Event handlers for connection state changes
+            onConnected: (data) => {
+                console.log('SignalR connected with ID:', data.connectionId);
+                connectionStatus.textContent = 'Connected';
+                connectionStatus.className = 'badge connected bg-success';
                 
-            // Handle connection status changes
-            connection.onreconnecting(error => {
-                console.warn("SignalR reconnecting", error);
-                connectionStatus.textContent = "Reconnecting...";
-                connectionStatus.className = "badge reconnecting bg-warning";
-                isConnected = false;
-            });
-            
-            connection.onreconnected(() => {
-                console.log("SignalR reconnected");
-                connectionStatus.textContent = "Connected";
-                connectionStatus.className = "badge connected bg-success";
-                isConnected = true;
-                
-                // Re-register for job updates if we have a jobId
-                const jobId = "@Model.JobId";
-                if (jobId && !jobRegistered) {
-                    registerForJobUpdates(jobId);
+                // Register for job updates if we have a job ID
+                const jobId = '@Model.JobId';
+                if (jobId) {
+                    signalRManager.registerForJobUpdates(jobId);
                 }
                 
-                // Clear the polling interval if we're reconnected
+                // Clear any polling interval since we have a live connection
                 clearJobStatusPolling();
-            });
-            
-            connection.onclose((error) => {
-                console.error("SignalR connection closed", error);
-                connectionStatus.textContent = "Disconnected";
-                connectionStatus.className = "badge disconnected bg-danger";
-                isConnected = false;
+            },
+            onDisconnected: (data) => {
+                console.log('SignalR disconnected:', data);
+                connectionStatus.textContent = 'Disconnected';
+                connectionStatus.className = 'badge disconnected bg-danger';
                 
-                // Show error only if we have an active job
-                const jobId = "@Model.JobId";
-                if (jobId && !progressBar.classList.contains('bg-success')) {
-                    errorMessage.textContent = "Lost connection to server. Your import is still running. The page will check status periodically.";
+                // If we have an active job and this wasn't intentional, show error and start polling
+                if (!data.wasIntentional && '@Model.JobId') {
+                    errorMessage.textContent = 'Lost connection to server. Your import is still running. The page will check status periodically.';
+                    errorMessage.classList.remove('d-none');
+                    startJobStatusPolling();
+                }
+            },
+            onReconnecting: (data) => {
+                console.log('SignalR reconnecting (attempt ' + data.attempt + '/' + data.maxAttempts + ')');
+                connectionStatus.textContent = 'Reconnecting...';
+                connectionStatus.className = 'badge reconnecting bg-warning';
+                
+                // If we've exceeded our max reconnections show a different message
+                if (data.attempt >= data.maxAttempts) {
+                    connectionStatus.textContent = 'Connection Lost';
+                    errorMessage.textContent = "Lost connection to server and couldn't reconnect. Your import is still running. The page will check status periodically.";
                     errorMessage.classList.remove('d-none');
                     
                     // Start polling for job status
                     startJobStatusPolling();
                 }
-            });
-
-            // Handle progress updates from the server
-            connection.on("ReceiveProgress", (progress) => {
-                console.log("Progress update:", progress);
+            },
+            onReconnected: (data) => {
+                console.log('SignalR reconnected with ID:', data.connectionId);
+                connectionStatus.textContent = 'Connected';
+                connectionStatus.className = 'badge connected bg-success';
                 
-                // Show progress section and hide upload progress
-                progressSection.classList.remove('d-none');
-                uploadProgressSection.classList.add('d-none');
-                
-                // Update progress bar
-                progressBar.style.width = progress.percentComplete + "%";
-                progressBar.setAttribute('aria-valuenow', progress.percentComplete);
-                progressBar.textContent = progress.percentComplete + "%";
-                
-                // Update status text
-                progressStatus.textContent = progress.status;
-                
-                // Show details if available
-                if (progress.details) {
-                    progressDetails.textContent = progress.details;
-                    progressDetails.classList.remove('d-none');
-                } else {
-                    progressDetails.classList.add('d-none');
-                }
-                
-                // Show item progress if available
-                if (progress.totalItems > 0) {
-                    itemProgress.classList.remove('d-none');
-                    processedItems.textContent = progress.processedItems;
-                    totalItems.textContent = progress.totalItems;
-                } else {
-                    itemProgress.classList.add('d-none');
-                }
-                
-                // Show error message if available
-                if (progress.errorMessage) {
-                    errorMessage.textContent = progress.errorMessage;
-                    errorMessage.classList.remove('d-none');
-                    
-                    // Change progress bar to red for errors
-                    progressBar.classList.remove('bg-info');
-                    progressBar.classList.add('bg-danger');
-                } else {
+                // Hide any connection error messages
+                if (errorMessage.textContent.includes("connection")) {
                     errorMessage.classList.add('d-none');
                 }
                 
-                // Handle completion
-                if (progress.status === "Completed") {
-                    progressBar.classList.remove('bg-info');
-                    progressBar.classList.add('bg-success');
-                    importButton.disabled = false;
-                    importButton.textContent = "Import";
-                    document.body.classList.remove('importing');
-                    
-                    // Clear any status polling
-                    clearJobStatusPolling();
-                    
-                    // Refresh page after 3 seconds to show import summary
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 3000);
+                // Re-register for job updates with the current job ID
+                const jobId = '@Model.JobId';
+                if (jobId) {
+                    // Use the reconnect method to restore the job group
+                    signalRManager.reconnectToJobGroup(data.previousConnectionId, jobId);
                 }
                 
-                // If there's an error, re-enable the form
-                if (progress.status === "Error") {
-                    importButton.disabled = false;
-                    importButton.textContent = "Import";
-                    document.body.classList.remove('importing');
-                    
-                    // Clear any status polling
-                    clearJobStatusPolling();
-                }
-            });
+                // Clear any polling since we have a live connection again
+                clearJobStatusPolling();
+            },
+            onError: (error) => {
+                console.error('SignalR error:', error);
+            },
+            onMessage: (data) => {
+                // Handle progress update format
+                handleProgressUpdate(data);
+            }
+        });
+        
+        // Function to handle progress updates from the server
+        function handleProgressUpdate(progress) {
+            console.log("Progress update:", progress);
             
-            // Handle connection status updates from the server
-            connection.on("connectionstatus", (data) => {
-                console.log("Connection status update:", data);
+            // Show progress section
+            progressSection.classList.remove('d-none');
+            
+            // Handle batch information if available
+            if (progress.batchInfo && progress.batchInfo.batchedUpdates) {
+                console.debug(`Received batch of ${progress.batchInfo.batchSize} updates`);
+            }
+            
+            // Update progress bar
+            progressBar.style.width = progress.percentComplete + "%";
+            progressBar.setAttribute('aria-valuenow', progress.percentComplete);
+            progressBar.textContent = progress.percentComplete + "%";
+            
+            // Update status text
+            progressStatus.textContent = progress.status;
+            
+            // Show details if available
+            if (progress.details) {
+                progressDetails.textContent = progress.details;
+                progressDetails.classList.remove('d-none');
+            } else {
+                progressDetails.classList.add('d-none');
+            }
+            
+            // Show item progress if available
+            if (progress.totalItems > 0) {
+                progressDetails.textContent += ` (${progress.processedItems} of ${progress.totalItems} items)`;
+            }
+            
+            // Show error message if available
+            if (progress.errorMessage) {
+                errorMessage.textContent = progress.errorMessage;
+                errorMessage.classList.remove('d-none');
                 
-                if (data.isConnected) {
-                    connectionStatus.textContent = "Connected";
-                    connectionStatus.className = "badge connected bg-success";
-                    isConnected = true;
-                } else {
-                    connectionStatus.textContent = "Disconnected";
-                    connectionStatus.className = "badge disconnected bg-danger";
-                    isConnected = false;
-                }
-            });
-            
-            // Handle job registration status updates from the server
-            connection.on("JobRegistrationStatus", (data) => {
-                console.log("Job registration status:", data);
+                // Change progress bar to red for errors
+                progressBar.classList.remove('bg-info');
+                progressBar.classList.add('bg-danger');
+                importButton.disabled = false;
+                importButton.textContent = "Import";
+                document.body.classList.remove('importing');
                 
-                if (data.success) {
-                    jobRegistered = true;
-                    console.log(data.message);
-                } else {
-                    jobRegistered = false;
-                    console.error("Failed to register for job updates:", data.message);
-                    
-                    // Try again after a delay if we're still connected
-                    if (isConnected && data.jobId) {
-                        setTimeout(() => registerForJobUpdates(data.jobId), 3000);
-                    }
-                }
-            });
+                // Clear any status polling
+                clearJobStatusPolling();
+            }
             
-            // Start the connection
-            startConnection();
+            // Handle completion
+            if (progress.status === "Completed") {
+                progressBar.classList.remove('bg-info');
+                progressBar.classList.add('bg-success');
+                importButton.disabled = false;
+                importButton.textContent = "Import";
+                document.body.classList.remove('importing');
+                
+                // Clear any status polling
+                clearJobStatusPolling();
+                
+                // Refresh page after 3 seconds to show import summary
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+            }
         }
         
-        // Function to register for job updates
-        function registerForJobUpdates(jobId) {
-            if (!jobId || !isConnected) return;
+        // Function to simulate upload progress for large files
+        function simulateUploadProgress() {
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 5;
+                if (progress >= 95) {
+                    progress = 95; // Cap at 95% until we get confirmation
+                    clearInterval(interval);
+                }
+                
+                uploadProgressBar.style.width = `${Math.floor(progress)}%`;
+                uploadProgressBar.setAttribute('aria-valuenow', Math.floor(progress));
+                uploadProgressBar.textContent = `${Math.floor(progress)}%`;
+                
+                if (progress >= 95) {
+                    uploadStatus.textContent = "Upload complete. Processing file...";
+                }
+            }, 500);
+        }
+        
+        // Function to handle large file uploads via AJAX
+        function uploadLargeFileWithAjax(file) {
+            const formData = new FormData();
+            formData.append('ImportFile', file);
             
-            console.log("Attempting to register for updates on job:", jobId);
+            // Show upload progress UI
+            uploadProgressSection.classList.remove('d-none');
+            uploadStatus.textContent = `Uploading ${(file.size / 1024 / 1024).toFixed(2)} MB file...`;
             
-            connection.invoke("RegisterForJobUpdates", jobId)
-                .then(() => {
-                    console.log("Successfully registered for updates on job:", jobId);
-                    jobRegistered = true;
-                    
-                    // Also show the progress section since we're monitoring a job
-                    progressSection.classList.remove('d-none');
-                })
-                .catch(err => {
-                    console.error("Error registering for job updates:", err);
-                    // Try again later if we're still connected
-                    if (isConnected) {
-                        setTimeout(() => registerForJobUpdates(jobId), 3000);
+            // Real upload progress if supported, simulated otherwise
+            try {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/DataPortability/Import?handler=LargeFile', true);
+                
+                // Add anti-forgery token
+                const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                xhr.setRequestHeader("X-CSRF-TOKEN", token);
+                
+                xhr.onload = function() {
+                    if (xhr.status === 200) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            
+                            if (response.success) {
+                                // Show 100% complete and update status
+                                uploadProgressBar.style.width = '100%';
+                                uploadProgressBar.setAttribute('aria-valuenow', 100);
+                                uploadProgressBar.textContent = '100%';
+                                uploadStatus.textContent = "Upload complete. Processing file...";
+                                
+                                // Close the upload section and show the job progress section
+                                setTimeout(() => {
+                                    uploadProgressSection.classList.add('d-none');
+                                    progressSection.classList.remove('d-none');
+                                    progressStatus.textContent = `File uploaded successfully. Starting import process...`;
+                                    progressDetails.textContent = `File size: ${response.fileSizeMb} MB. Job ID: ${response.jobId}`;
+                                    
+                                    // Reset the progress bar to show starting state for processing
+                                    progressBar.style.width = '5%';
+                                    progressBar.setAttribute('aria-valuenow', 5);
+                                    progressBar.textContent = '5%';
+                                    progressBar.classList.add('bg-info');
+                                    progressBar.classList.add('progress-bar-animated');
+                                    progressBar.classList.add('progress-bar-striped');
+                                }, 1000);
+                                
+                                // Register for updates on the new job if SignalR is connected
+                                if (signalRManager.isConnected) {
+                                    signalRManager.registerForJobUpdates(response.jobId);
+                                } else {
+                                    // If SignalR is not connected, start polling
+                                    startJobStatusPolling(response.jobId);
+                                }
+                            } else {
+                                // Show error
+                                errorMessage.textContent = response.message;
+                                errorMessage.classList.remove('d-none');
+                                importButton.disabled = false;
+                                importButton.innerHTML = 'Import';
+                                document.body.classList.remove('importing');
+                            }
+                        } catch (e) {
+                            console.error("Error parsing server response:", e);
+                            errorMessage.textContent = "Error processing the server response";
+                            errorMessage.classList.remove('d-none');
+                            importButton.disabled = false;
+                            importButton.innerHTML = 'Import';
+                            document.body.classList.remove('importing');
+                        }
+                    } else {
+                        // Handle HTTP errors
+                        errorMessage.textContent = `Upload failed: Server returned status ${xhr.status}`;
+                        errorMessage.classList.remove('d-none');
+                        importButton.disabled = false;
+                        importButton.innerHTML = 'Import';
+                        document.body.classList.remove('importing');
                     }
-                });
+                };
+                
+                xhr.onerror = function() {
+                    errorMessage.textContent = "Network error occurred during upload";
+                    errorMessage.classList.remove('d-none');
+                    importButton.disabled = false;
+                    importButton.innerHTML = 'Import';
+                    document.body.classList.remove('importing');
+                };
+                
+                // Show real upload progress if browser supports it
+                if (xhr.upload) {
+                    xhr.upload.onprogress = function(e) {
+                        if (e.lengthComputable) {
+                            const percent = Math.floor((e.loaded / e.total) * 100);
+                            uploadProgressBar.style.width = `${percent}%`;
+                            uploadProgressBar.setAttribute('aria-valuenow', percent);
+                            uploadProgressBar.textContent = `${percent}%`;
+                            
+                            if (percent >= 100) {
+                                uploadStatus.textContent = "Upload complete. Processing file...";
+                            }
+                        }
+                    };
+                } else {
+                    // Fall back to simulated progress
+                    simulateUploadProgress();
+                }
+                
+                // Send the request
+                xhr.send(formData);
+            } catch (error) {
+                console.error("Error setting up XHR:", error);
+                // Fall back to simulated progress
+                simulateUploadProgress();
+                
+                // Continue with the form post
+                form.submit();
+            }
         }
         
         // Function to start polling for job status updates when SignalR is not available
-        function startJobStatusPolling() {
+        function startJobStatusPolling(jobId = null) {
             // Clear any existing interval
             clearJobStatusPolling();
             
-            const jobId = "@Model.JobId";
-            if (!jobId) return;
+            // Use provided jobId or get from model
+            const id = jobId || '@Model.JobId';
+            if (!id) return;
             
-            console.log("Starting job status polling for job:", jobId);
+            console.log("Starting job status polling for job:", id);
             
             // Poll every 5 seconds
             jobStatusCheckInterval = setInterval(() => {
-                checkJobStatus(jobId);
+                checkJobStatus(id);
             }, 5000);
         }
         
@@ -482,9 +577,14 @@
                                 if (data.progress.details) {
                                     progressDetails.textContent = data.progress.details;
                                 }
+                            } else {
+                                // Make sure we always show some progress to avoid getting stuck at upload completion
+                                if (progressBar.getAttribute('aria-valuenow') < 10) {
+                                    progressBar.style.width = '10%';
+                                    progressBar.setAttribute('aria-valuenow', 10);
+                                    progressBar.textContent = '10%';
+                                }
                             }
-                            
-                            // Keep the poll running
                         }
                         else {
                             // Unknown state
@@ -497,163 +597,25 @@
                     // Don't stop polling on errors, just try again next time
                 });
         }
-        
-        // Start the connection and register for job updates if needed
-        function startConnection() {
-            console.log("Starting SignalR connection...");
-            
-            connection.start()
-                .then(() => {
-                    console.log("SignalR connected!");
-                    connectionStatus.textContent = "Connected";
-                    connectionStatus.className = "badge connected bg-success";
-                    isConnected = true;
-                    reconnectAttempts = 0;
-                    
-                    // Register for job updates if we have a job ID
-                    const jobId = "@Model.JobId";
-                    if (jobId && !jobRegistered) {
-                        registerForJobUpdates(jobId);
-                    }
-                })
-                .catch(err => {
-                    console.error("SignalR Connection Error: ", err);
-                    connectionStatus.textContent = "Connection Failed";
-                    connectionStatus.className = "badge disconnected bg-danger";
-                    
-                    // If we have a job ID, start polling as fallback
-                    const jobId = "@Model.JobId";
-                    if (jobId) {
-                        startJobStatusPolling();
-                    }
-                    
-                    // Try to reconnect after a delay
-                    setTimeout(startConnection, 5000);
-                });
-        }
 
-        // Simulate upload progress when submitting large files
-        function simulateUploadProgress() {
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += Math.random() * 10;
-                if (progress > 100) {
-                    progress = 100;
-                    clearInterval(interval);
-                }
-                
-                uploadProgressBar.style.width = `${Math.floor(progress)}%`;
-                uploadProgressBar.setAttribute('aria-valuenow', Math.floor(progress));
-                uploadProgressBar.textContent = `${Math.floor(progress)}%`;
-                
-                if (progress >= 100) {
-                    uploadStatus.textContent = "Upload complete. Processing file...";
-                }
-            }, 500);
-        }
-
-        // New function to handle large file uploads via AJAX
-        function uploadLargeFileWithAjax(file) {
-            const formData = new FormData();
-            formData.append('ImportFile', file);
-            formData.append('SkipExisting', document.getElementById('SkipExisting').checked);
-            
-            // Show upload progress UI
-            uploadProgressSection.classList.remove('d-none');
-            uploadStatus.textContent = `Uploading ${(file.size / 1024 / 1024).toFixed(2)} MB file...`;
-            simulateUploadProgress();
-            
-            // Add AJAX request headers to avoid 504 timeout
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/DataPortability/Import?handler=LargeFile', true);
-            
-            // Get request verification token for CSRF protection
-            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-            xhr.setRequestHeader('X-CSRF-TOKEN', token);
-            
-            // Send the form data without setting content type - let browser set it with proper boundary
-            xhr.onload = function() {
-                if (xhr.status === 200) {
-                    try {
-                        const response = JSON.parse(xhr.responseText);
-                        if (response.success && response.jobId) {
-                            // Redirect to the status page with the job ID
-                            window.location.href = `/DataPortability/Import?jobId=${response.jobId}`;
-                        } else {
-                            // Show error
-                            errorMessage.textContent = response.message || "Upload failed";
-                            errorMessage.classList.remove('d-none');
-                            importButton.disabled = false;
-                            importButton.innerHTML = 'Import';
-                            document.body.classList.remove('importing');
-                        }
-                    } catch (e) {
-                        console.error("Error parsing response:", e);
-                        errorMessage.textContent = "Error processing server response";
-                        errorMessage.classList.remove('d-none');
-                        importButton.disabled = false;
-                        importButton.innerHTML = 'Import';
-                        document.body.classList.remove('importing');
-                    }
-                } else {
-                    // Handle HTTP errors
-                    errorMessage.textContent = `Upload failed: Server returned status ${xhr.status}`;
-                    errorMessage.classList.remove('d-none');
-                    importButton.disabled = false;
-                    importButton.innerHTML = 'Import';
-                    document.body.classList.remove('importing');
-                }
-            };
-            
-            xhr.onerror = function() {
-                errorMessage.textContent = "Network error occurred during upload";
-                errorMessage.classList.remove('d-none');
-                importButton.disabled = false;
-                importButton.innerHTML = 'Import';
-                document.body.classList.remove('importing');
-            };
-            
-            xhr.upload.onprogress = function(e) {
-                if (e.lengthComputable) {
-                    const percent = Math.floor((e.loaded / e.total) * 100);
-                    uploadProgressBar.style.width = `${percent}%`;
-                    uploadProgressBar.setAttribute('aria-valuenow', percent);
-                    uploadProgressBar.textContent = `${percent}%`;
-                    
-                    if (percent >= 100) {
-                        uploadStatus.textContent = "Upload complete. Processing file...";
-                    }
-                }
-            };
-            
-            // Send the form data
-            xhr.send(formData);
-        }
-
-        // Add form submit handler
+        // Add form submit handler with large file handling
         form.addEventListener('submit', function(e) {
-            // Make sure we have a file
-            if (!fileInput.files || fileInput.files.length === 0) {
-                return;
-            }
-
+            const file = fileInput.files[0];
+            if (!file) return; // No file selected
+            
+            // Always prevent default form submission and use AJAX for all files
+            e.preventDefault();
+            
             // Add waiting cursor to body
             document.body.classList.add('importing');
-            
             // Disable the import button
             importButton.disabled = true;
-            importButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Importing...';
+            importButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Uploading...';
             
-            const file = fileInput.files[0];
-            
-            // Always use AJAX upload to process via background jobs
-            e.preventDefault(); // Prevent default form submission
+            // Use AJAX to upload the file and avoid timeouts
             uploadLargeFileWithAjax(file);
         });
-        
-        // Initialize SignalR connection
-        initializeConnection();
-        
+
         // Show progress section if we have a job ID (background job is running)
         @if (!string.IsNullOrEmpty(Model.JobId))
         {
@@ -681,10 +643,11 @@
                 progressBar.classList.remove('bg-info');
                 progressBar.classList.add('bg-danger');
                 
+                // Show error message if available
                 @if (!string.IsNullOrEmpty(Model.ErrorMessage))
                 {
                     <text>
-                    errorMessage.textContent = "@Html.Raw(Json.Serialize(Model.ErrorMessage))";
+                    errorMessage.textContent = "@Html.Raw(Model.ErrorMessage.Replace("\"", "\\\""))";
                     errorMessage.classList.remove('d-none');
                     </text>
                 }
@@ -692,18 +655,10 @@
             </text>
         }
         
-        // Show file size info if we have it from the model
-        @if (Model.FileSizeBytes > 0)
-        {
-            <text>
-            const fileSizeMB = (@Model.FileSizeBytes / 1024 / 1024).toFixed(2);
-            fileInfo.classList.remove('d-none');
-            fileSize.textContent = `File size: ${fileSizeMB} MB`;
-            
-            if (@Model.FileSizeBytes > LARGE_FILE_THRESHOLD) {
-                largeFileWarning.classList.remove('d-none');
-            }
-            </text>
-        }
+        // Start the connection when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM loaded, starting SignalR connection");
+            signalRManager.start();
+        });
     </script>
 }

@@ -119,11 +119,13 @@ namespace WorkoutTrackerWeb.Pages.ExerciseTypes
                 
                 // Send cancellation notification via SignalR
                 string groupName = $"job_{JobId}";
-                var progress = new JobProgress
+                var progress = new Models.JobProgress
                 {
-                    Status = "Cancellation requested. Waiting for current operations to complete...",
+                    JobId = JobId,
+                    Status = JobStatus.Canceled,
                     PercentComplete = 0,
-                    ErrorMessage = null
+                    ErrorMessage = null,
+                    CurrentStage = "Cancellation requested. Waiting for current operations to complete..."
                 };
                 
                 await _hubContext.Clients.Group(groupName).SendAsync("receiveProgress", progress);

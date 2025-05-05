@@ -149,6 +149,9 @@ namespace WorkoutTrackerWeb
 
             builder.Services.AddHttpClient();
 
+            // Register SignalR message batching service
+            builder.Services.AddSingleton<SignalRMessageBatchService>();
+
             // Configure Redis
             builder.Services.AddRedisConfiguration(builder.Configuration);
 

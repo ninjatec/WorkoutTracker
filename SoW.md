@@ -53,17 +53,17 @@ This document outlines the performance and stability optimization tasks for the 
 [x] Add appropriate TTL for different categories of cached data
 
 ### RD-03: Enhance Output Cache Policies
-[ ] Implement cache invalidation hooks for entity changes
-[ ] Add cache partitioning for better isolation and expiration control
-[ ] Create anti-dogpile locking mechanism for high-concurrency keys
-[ ] Integrate background refresh for about-to-expire popular content
+[x] Implement cache invalidation hooks for entity changes
+[x] Add cache partitioning for better isolation and expiration control
+[x] Create anti-dogpile locking mechanism for high-concurrency keys
+[x] Integrate background refresh for about-to-expire popular content
 
 ## Application Performance Tasks
 
 ### AP-01: Optimize SignalR Implementation
-[ ] Implement message batching for high-frequency updates
-[ ] Create error handling and reconnection strategies for client disconnects
-[ ] Optimize connection lifetime for mobile clients to reduce resource usage
+[x] Implement message batching for high-frequency updates
+[x] Create error handling and reconnection strategies for client disconnects
+[x] Optimize connection lifetime for mobile clients to reduce resource usage
 
 ### AP-02: Implement Response Compression
 [ ] Add response compression middleware with Brotli/Gzip support

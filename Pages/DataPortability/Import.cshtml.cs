@@ -14,6 +14,7 @@ using System.Linq;
 using Microsoft.AspNetCore.SignalR;
 using WorkoutTrackerWeb.Hubs;
 using System.Text.Json;
+using WorkoutTrackerWeb.Models;
 
 namespace WorkoutTrackerWeb.Pages.DataPortability
 {
@@ -176,13 +177,14 @@ namespace WorkoutTrackerWeb.Pages.DataPortability
             try 
             {
                 // Send an initial progress update to show the job is starting
-                var initialProgress = new JobProgress
+                var initialProgress = new Models.JobProgress
                 {
-                    Status = "Starting import...",
+                    JobId = jobId,
+                    Status = JobStatus.Starting,
                     PercentComplete = 0,
                     TotalItems = 1,
                     ProcessedItems = 0,
-                    Details = $"Preparing to import JSON data ({(fileSize / 1024.0 / 1024.0):F2}MB)"
+                    CurrentStage = $"Preparing to import JSON data ({(fileSize / 1024.0 / 1024.0):F2}MB)"
                 };
                 
                 // Send to both the individual connection and the job group
