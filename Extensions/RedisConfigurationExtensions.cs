@@ -24,6 +24,7 @@ public static class RedisConfigurationExtensions
         }
 
         services.Configure<RedisConfiguration>(configuration.GetSection("Redis"));
+        services.Configure<CircuitBreakerOptions>(configuration.GetSection("Redis:CircuitBreaker"));
         
         services.AddStackExchangeRedisCache(options =>
         {
@@ -44,6 +45,9 @@ public static class RedisConfigurationExtensions
         // If Redis is not configured or disabled, skip Redis registration
         if (redisConfig == null || !redisConfig.Enabled)
         {
+            // Register fallback components even if Redis is disabled
+            services.AddSingleton<IRedisCircuitBreakerService, NullCircuitBreakerService>();
+            services.AddSingleton<IResilientCacheService, FallbackCacheService>();
             return services;
         }
         
@@ -99,6 +103,13 @@ public static class RedisConfigurationExtensions
         
         // Also configure Redis options for services
         services.Configure<RedisConfiguration>(configuration.GetSection("Redis"));
+        services.Configure<CircuitBreakerOptions>(configuration.GetSection("Redis:CircuitBreaker"));
+        
+        // Register the circuit breaker service
+        services.AddSingleton<IRedisCircuitBreakerService, RedisCircuitBreakerService>();
+        
+        // Register the resilient cache service
+        services.AddSingleton<IResilientCacheService, ResilientCacheService>();
 
         return services;
     }
@@ -106,6 +117,7 @@ public static class RedisConfigurationExtensions
     public static IServiceCollection ConfigureRedis(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<RedisConfiguration>(configuration.GetSection("Redis"));
+        services.Configure<CircuitBreakerOptions>(configuration.GetSection("Redis:CircuitBreaker"));
         return services;
     }
 
@@ -127,6 +139,19 @@ public static class RedisConfigurationExtensions
             
             // Add Redis health check with connection pooling
             services.AddSingleton<IConnectionMultiplexer>(sp => ConnectionMultiplexer.Connect(multiplexerOptions));
+
+            // Configure circuit breaker options
+            services.Configure<CircuitBreakerOptions>(options =>
+            {
+                options.FailureThreshold = 5;
+                options.ResetTimeoutSeconds = 60;
+                options.MaxBackoffSeconds = 30;
+                options.BackoffExponent = 1.5;
+                options.InitialBackoffMs = 100;
+            });
+            
+            // Register circuit breaker service
+            services.AddSingleton<IRedisCircuitBreakerService, RedisCircuitBreakerService>();
 
             // Configure cache with sensible options and resilience handling
             services.AddStackExchangeRedisCache(options =>
@@ -153,6 +178,9 @@ public static class RedisConfigurationExtensions
             {
                 options.SizeLimit = 100 * 1024 * 1024; // 100 MB limit
             });
+            
+            // Register null circuit breaker
+            services.AddSingleton<IRedisCircuitBreakerService, NullCircuitBreakerService>();
             
             // Use a memory-based fallback service instead of Redis
             services.AddSingleton<IResilientCacheService, FallbackCacheService>();

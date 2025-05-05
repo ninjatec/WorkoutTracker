@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using System.Text.Json;
 using System.Text;
+using Microsoft.Extensions.Options;
 
 namespace WorkoutTrackerWeb.Services.Redis
 {
@@ -22,18 +23,22 @@ namespace WorkoutTrackerWeb.Services.Redis
     {
         private readonly IDistributedCache _cache;
         private readonly ILogger<ResilientCacheService> _logger;
+        private readonly IRedisCircuitBreakerService _circuitBreaker;
 
         public ResilientCacheService(
             IDistributedCache cache, 
-            ILogger<ResilientCacheService> logger)
+            ILogger<ResilientCacheService> logger,
+            IRedisCircuitBreakerService circuitBreaker)
         {
             _cache = cache;
             _logger = logger;
+            _circuitBreaker = circuitBreaker;
         }
 
         public async Task<T> GetOrCreateAsync<T>(string key, Func<Task<T>> factory, TimeSpan expiration, bool slidingExpiration = false) where T : class
         {
-            try
+            // Define the Redis operation
+            async Task<T> RedisOperation(IConnectionMultiplexer _)
             {
                 var cachedBytes = await _cache.GetAsync(key);
                 if (cachedBytes != null)
@@ -57,6 +62,19 @@ namespace WorkoutTrackerWeb.Services.Redis
                 
                 return value;
             }
+
+            // Define the fallback operation
+            async Task<T> FallbackOperation()
+            {
+                _logger.LogDebug("Using fallback for key {Key} due to Redis unavailability", key);
+                return await factory();
+            }
+
+            try
+            {
+                // Use the circuit breaker to execute the operation
+                return await _circuitBreaker.ExecuteAsync(_ => RedisOperation(_), FallbackOperation);
+            }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to retrieve or create value from cache for key {Key}", key);
@@ -66,7 +84,8 @@ namespace WorkoutTrackerWeb.Services.Redis
 
         public async Task<(bool Found, T Value)> TryGetValueAsync<T>(string key) where T : class
         {
-            try
+            // Define the Redis operation
+            async Task<(bool Found, T Value)> RedisOperation(IConnectionMultiplexer _)
             {
                 var cachedBytes = await _cache.GetAsync(key);
                 if (cachedBytes != null)
@@ -75,6 +94,19 @@ namespace WorkoutTrackerWeb.Services.Redis
                     return (value != null, value);
                 }
                 return (false, default);
+            }
+
+            // Define the fallback operation
+            Task<(bool Found, T Value)> FallbackOperation()
+            {
+                _logger.LogDebug("Using fallback for TryGetValue on key {Key} due to Redis unavailability", key);
+                return Task.FromResult((false, default(T)));
+            }
+
+            try
+            {
+                // Use the circuit breaker to execute the operation
+                return await _circuitBreaker.ExecuteAsync(_ => RedisOperation(_), FallbackOperation);
             }
             catch (Exception ex)
             {
@@ -85,7 +117,8 @@ namespace WorkoutTrackerWeb.Services.Redis
 
         public async Task SetAsync<T>(string key, T value, TimeSpan expiration, bool slidingExpiration = false) where T : class
         {
-            try
+            // Define the Redis operation
+            async Task SetInRedisAsync(IConnectionMultiplexer _)
             {
                 var options = new DistributedCacheEntryOptions();
                 
@@ -102,6 +135,19 @@ namespace WorkoutTrackerWeb.Services.Redis
                 await _cache.SetAsync(key, serializedValue, options);
                 _logger.LogDebug("Successfully cached value for key {Key} with expiration {Expiration}", key, expiration);
             }
+
+            // Define the fallback operation - just log the fact we couldn't cache
+            Task FallbackOperation()
+            {
+                _logger.LogDebug("Skipping cache set for key {Key} due to Redis unavailability", key);
+                return Task.CompletedTask;
+            }
+
+            try
+            {
+                // Use the circuit breaker to execute the operation
+                await _circuitBreaker.ExecuteAsync(_ => SetInRedisAsync(_), FallbackOperation);
+            }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to set cache value for key {Key}", key);
@@ -111,10 +157,24 @@ namespace WorkoutTrackerWeb.Services.Redis
 
         public async Task RemoveAsync(string key)
         {
-            try
+            // Define the Redis operation
+            async Task RemoveFromRedisAsync(IConnectionMultiplexer _)
             {
                 await _cache.RemoveAsync(key);
                 _logger.LogDebug("Removed cache entry for key {Key}", key);
+            }
+
+            // Define the fallback operation - just log the fact we couldn't remove
+            Task FallbackOperation()
+            {
+                _logger.LogDebug("Skipping cache remove for key {Key} due to Redis unavailability", key);
+                return Task.CompletedTask;
+            }
+
+            try
+            {
+                // Use the circuit breaker to execute the operation
+                await _circuitBreaker.ExecuteAsync(_ => RemoveFromRedisAsync(_), FallbackOperation);
             }
             catch (Exception ex)
             {

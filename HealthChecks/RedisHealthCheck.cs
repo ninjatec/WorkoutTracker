@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
+using System.Collections.Generic;
+using WorkoutTrackerWeb.Services.Redis;
 
 namespace WorkoutTrackerWeb.HealthChecks
 {
@@ -11,13 +13,16 @@ namespace WorkoutTrackerWeb.HealthChecks
     {
         private readonly IConnectionMultiplexer _connectionMultiplexer;
         private readonly ILogger<RedisHealthCheck> _logger;
+        private readonly IRedisCircuitBreakerService _circuitBreaker;
 
         public RedisHealthCheck(
             IConnectionMultiplexer connectionMultiplexer,
-            ILogger<RedisHealthCheck> logger)
+            ILogger<RedisHealthCheck> logger,
+            IRedisCircuitBreakerService circuitBreaker)
         {
             _connectionMultiplexer = connectionMultiplexer;
             _logger = logger;
+            _circuitBreaker = circuitBreaker;
         }
 
         public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
@@ -39,13 +44,21 @@ namespace WorkoutTrackerWeb.HealthChecks
                 {
                     { "Ping", pingResult.TotalMilliseconds },
                     { "ConnectedEndpoints", _connectionMultiplexer.GetEndPoints().Length },
-                    { "Status", _connectionMultiplexer.GetStatus() }
+                    { "Status", _connectionMultiplexer.GetStatus() },
+                    { "CircuitState", _circuitBreaker.CurrentState.ToString() },
+                    { "IsCircuitAvailable", _circuitBreaker.IsAvailable }
                 };
 
                 // Check if ping is slow (over 100ms)
                 if (pingResult.TotalMilliseconds > 100)
                 {
                     return HealthCheckResult.Degraded("Redis ping response time is high", null, data);
+                }
+
+                // Check circuit breaker status
+                if (_circuitBreaker.CurrentState != CircuitState.Closed)
+                {
+                    return HealthCheckResult.Degraded($"Redis circuit breaker is in {_circuitBreaker.CurrentState} state", null, data);
                 }
 
                 return HealthCheckResult.Healthy("Redis connection is healthy", data);
