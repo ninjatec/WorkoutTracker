@@ -122,7 +122,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
         public double TotalCaloriesBurned { get; set; }
         public int CurrentPage { get; set; }
         public int TotalPages { get; set; }
-        public int ReportPeriod { get; set; } = 90; // Default to 90 days
+        public int ReportPeriod { get; set; } = 30; // Default to 30 days
         public Dictionary<string, decimal> TopExercisesByVolume { get; set; }
         public decimal TotalVolume { get; set; }
         public decimal TotalCalories { get; set; }
@@ -550,7 +550,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
             public decimal Weight { get; set; }
         }
 
-        public async Task<IActionResult> OnGetAsync(int? pageNumber = 1, int? period = 90)
+        public async Task<IActionResult> OnGetAsync(int? pageNumber = 1, int? period = 30)
         {
             var user = await _context.GetCurrentUserAsync();
             if (user == null)
@@ -560,14 +560,14 @@ namespace WorkoutTrackerWeb.Pages.Reports
 
             UserId = user.UserId;
 
-            // Set report period with validation (default to 90 if invalid)
+            // Set report period with validation (default to 30 if invalid)
             if (period == 30 || period == 60 || period == 90 || period == 120 || period == 365 || period == int.MaxValue)
             {
                 ReportPeriod = period.Value;
             }
             else
             {
-                ReportPeriod = 90; // Default if invalid value provided
+                ReportPeriod = 30; // Default if invalid value provided
             }
 
             // Invalidate volume data cache to ensure we always get fresh data
