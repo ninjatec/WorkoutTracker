@@ -4,6 +4,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using System.Text;
+using WorkoutTrackerWeb.Services.Redis;
+using Microsoft.Extensions.Options;
+using System.Linq;
 
 namespace WorkoutTrackerWeb.Services
 {
@@ -44,26 +47,25 @@ namespace WorkoutTrackerWeb.Services
     {
         private readonly IConnectionMultiplexer _redis;
         private readonly ILogger<RedisSharedStorageService> _logger;
-        private const string KEY_PREFIX = "file:";
-        private const string META_SUFFIX = ":meta";
+        private readonly IRedisKeyService _keyService;
         private const int CHUNK_SIZE = 1024 * 1024; // 1MB chunks
         private const int MAX_RETRIES = 3;
         private const int RETRY_DELAY_MS = 500;
 
         public RedisSharedStorageService(
             IConnectionMultiplexer redis,
-            ILogger<RedisSharedStorageService> logger)
+            ILogger<RedisSharedStorageService> logger,
+            IRedisKeyService keyService)
         {
             _redis = redis;
             _logger = logger;
+            _keyService = keyService;
         }
 
-        // Helper method to get a database connection with write capability
         private IDatabase GetWritableDatabase()
         {
             if (_redis == null)
             {
-                // In development mode or when Redis is configured as null, the local filesystem version is used
                 _logger.LogWarning("Redis connection is null, returning empty database implementation. Using local filesystem storage.");
                 return null;
             }
@@ -80,17 +82,13 @@ namespace WorkoutTrackerWeb.Services
                     {
                         _logger.LogWarning("Redis is not connected. Attempt {RetryCount}/{MaxRetries} to reconnect...", 
                             retryCount + 1, maxRetries);
-                        // Wait before retry with exponential backoff
                         int delayMs = baseDelayMs * (int)Math.Pow(2, retryCount);
-                        Task.Delay(delayMs).Wait(); // Small delay before retry
+                        Task.Delay(delayMs).Wait();
                         retryCount++;
                         continue;
                     }
 
-                    // Get the database
                     var db = _redis.GetDatabase();
-                    
-                    // Identify master nodes explicitly
                     System.Net.EndPoint masterEndpoint = null;
                     foreach (var endpoint in _redis.GetEndPoints())
                     {
@@ -109,13 +107,9 @@ namespace WorkoutTrackerWeb.Services
                         throw new InvalidOperationException("No master Redis node available for write operations");
                     }
 
-                    // Create a unique test key that won't interfere with real data
-                    string testKey = $"redis:master:writetest:{Guid.NewGuid()}";
-                    
-                    // Use SetAsync instead of StringSet to avoid blocking
+                    string testKey = _keyService.CreateKey("test", Guid.NewGuid().ToString());
                     var setTask = db.StringSetAsync(testKey, "test", TimeSpan.FromSeconds(5));
                     
-                    // Wait with timeout to avoid hanging indefinitely
                     if (!setTask.Wait(TimeSpan.FromSeconds(5)))
                     {
                         throw new TimeoutException("Redis write test timed out after 5 seconds");
@@ -126,15 +120,12 @@ namespace WorkoutTrackerWeb.Services
                         throw new InvalidOperationException("Redis write test failed - SET operation returned false");
                     }
                     
-                    // If we get here, the write was successful
                     return db;
                 }
                 catch (RedisConnectionException connEx)
                 {
                     _logger.LogWarning(connEx, "Redis connection error. Attempt {RetryCount}/{MaxRetries}. Will retry.", 
                         retryCount + 1, maxRetries);
-                    
-                    // Wait before retry with exponential backoff
                     int delayMs = baseDelayMs * (int)Math.Pow(2, retryCount);
                     Task.Delay(delayMs).Wait();
                     retryCount++;
@@ -145,14 +136,12 @@ namespace WorkoutTrackerWeb.Services
                     
                     try
                     {
-                        // Force a reconnection attempt to find a master
                         var connection = _redis as ConnectionMultiplexer;
                         if (connection != null)
                         {
-                            connection.Configure(); // Trigger configuration refresh
+                            connection.Configure();
                         }
                         
-                        // Wait before retry with exponential backoff
                         int delayMs = baseDelayMs * (int)Math.Pow(2, retryCount);
                         Task.Delay(delayMs).Wait();
                         retryCount++;
@@ -169,8 +158,6 @@ namespace WorkoutTrackerWeb.Services
                     {
                         _logger.LogWarning(ex, "Error checking Redis write capability. Attempt {RetryCount}/{MaxRetries}. Will retry.", 
                             retryCount + 1, maxRetries);
-                        
-                        // Wait before retry with exponential backoff
                         int delayMs = baseDelayMs * (int)Math.Pow(2, retryCount);
                         Task.Delay(delayMs).Wait();
                         retryCount++;
@@ -178,15 +165,12 @@ namespace WorkoutTrackerWeb.Services
                     else
                     {
                         _logger.LogError(ex, "Error checking Redis write capability after {RetryCount} attempts", maxRetries);
-                        
-                        // Last resort: return the database even if we couldn't verify write capability
                         _logger.LogWarning("Returning Redis database connection without write verification. Operations may fail.");
                         return _redis.GetDatabase();
                     }
                 }
             }
             
-            // If we exit the loop, we've failed all retries
             _logger.LogError("Failed to get a writable Redis connection after {MaxRetries} attempts", maxRetries);
             throw new InvalidOperationException($"Failed to get a writable Redis connection after {maxRetries} attempts");
         }
@@ -198,26 +182,26 @@ namespace WorkoutTrackerWeb.Services
                 throw new ArgumentNullException(nameof(fileStream));
             }
 
-            string fileId = $"{Guid.NewGuid()}";
-            string fileKey = $"{KEY_PREFIX}{fileId}";
-            string metaKey = $"{fileKey}{META_SUFFIX}";
+            string fileId = Guid.NewGuid().ToString();
+            string fileKey = _keyService.CreateFileKey(fileId);
+            string metaKey = _keyService.CreateFileKey(fileId, "meta");
             
-            // Use GetWritableDatabase to ensure we're writing to a master, not a replica
+            if (!expiry.HasValue)
+            {
+                expiry = _keyService.GetExpirationForKeyType(RedisKeyType.File);
+            }
+            
             var db = GetWritableDatabase();
             
-            // If we couldn't get a Redis database but Redis is configured, this is an error
             if (db == null && _redis != null)
             {
                 _logger.LogError("Failed to get a writable Redis connection for storing file");
                 throw new InvalidOperationException("Failed to get a writable Redis connection for storing file");
             }
             
-            // If Redis is not configured, fall back to local filesystem
             if (db == null && _redis == null)
             {
-                // We're in development mode with local filesystem storage
                 _logger.LogWarning("Redis is not configured, falling back to local filesystem storage");
-                // Create a temp file to simulate Redis storage in development
                 string tempDir = Path.GetTempPath();
                 string tempFileName = $"{fileId}{fileExtension}";
                 string tempFilePath = Path.Combine(tempDir, tempFileName);
@@ -250,20 +234,17 @@ namespace WorkoutTrackerWeb.Services
                 {
                     _logger.LogInformation("Storing file in shared storage with ID: {FileId}", fileId);
                     
-                    // Store file metadata with retry
                     await db.HashSetAsync(metaKey, new HashEntry[]
                     {
                         new HashEntry("extension", fileExtension),
                         new HashEntry("created", DateTimeOffset.UtcNow.ToUnixTimeSeconds())
                     });
 
-                    // Apply expiry to metadata if specified
                     if (expiry.HasValue)
                     {
                         await db.KeyExpireAsync(metaKey, expiry.Value);
                     }
 
-                    // Store file content in chunks for large files
                     byte[] buffer = new byte[CHUNK_SIZE];
                     int bytesRead;
                     long position = 0;
@@ -275,7 +256,6 @@ namespace WorkoutTrackerWeb.Services
                             Array.Resize(ref buffer, bytesRead);
                         }
 
-                        // Use retry for each chunk
                         bool chunkStored = false;
                         int chunkRetryCount = 0;
                         
@@ -283,10 +263,9 @@ namespace WorkoutTrackerWeb.Services
                         {
                             try 
                             {
-                                string chunkKey = $"{fileKey}:{position}";
+                                string chunkKey = _keyService.CreateFileKey(fileId, position.ToString());
                                 await db.StringSetAsync(chunkKey, buffer);
                                 
-                                // Apply expiry to chunk if specified
                                 if (expiry.HasValue)
                                 {
                                     await db.KeyExpireAsync(chunkKey, expiry.Value);
@@ -312,7 +291,6 @@ namespace WorkoutTrackerWeb.Services
                         position += bytesRead;
                     }
 
-                    // Store total size in metadata
                     await db.HashSetAsync(metaKey, "size", position);
 
                     _logger.LogInformation("File stored successfully in shared storage. ID: {FileId}, Size: {Size} bytes", fileId, position);
@@ -325,8 +303,7 @@ namespace WorkoutTrackerWeb.Services
                     {
                         _logger.LogError(ex, "Cannot store file - connected to a read-only Redis replica. File ID: {fileId}", fileId);
                         
-                        // Try to clean up any partial data that may have been created
-                        try { await CleanupFileAsync(fileId); } catch { /* Ignore cleanup errors */ }
+                        try { await CleanupFileAsync(fileId); } catch { }
                         
                         throw new InvalidOperationException($"Cannot store file - connected to a read-only Redis replica. File ID: {fileId}", ex);
                     }
@@ -334,7 +311,6 @@ namespace WorkoutTrackerWeb.Services
                     _logger.LogWarning(ex, "Connected to a read-only Redis replica. Attempt {RetryCount}/{MaxRetries}", 
                         retryCount, maxRetries);
                         
-                    // Try to get a writable connection again
                     db = GetWritableDatabase();
                     if (db == null)
                     {
@@ -351,8 +327,7 @@ namespace WorkoutTrackerWeb.Services
                     {
                         _logger.LogError(connEx, "Cannot store file - Redis connection issue. File ID: {FileId}", fileId);
                         
-                        // Try to clean up any partial data that may have been created
-                        try { await CleanupFileAsync(fileId); } catch { /* Ignore cleanup errors */ }
+                        try { await CleanupFileAsync(fileId); } catch { }
                         
                         throw;
                     }
@@ -360,7 +335,6 @@ namespace WorkoutTrackerWeb.Services
                     _logger.LogWarning(connEx, "Redis connection issue. Attempt {RetryCount}/{MaxRetries}", 
                         retryCount, maxRetries);
                     
-                    // Try to get a writable connection again
                     db = GetWritableDatabase();
                     
                     await Task.Delay(retryDelayMs * retryCount);
@@ -369,14 +343,12 @@ namespace WorkoutTrackerWeb.Services
                 {
                     _logger.LogError(ex, "Error storing file in shared storage: {Message}", ex.Message);
                     
-                    // Clean up any chunks that may have been created
-                    try { await CleanupFileAsync(fileId); } catch { /* Ignore cleanup errors */ }
+                    try { await CleanupFileAsync(fileId); } catch { }
                     
                     throw;
                 }
             }
             
-            // This should not be reached due to the exception in the last retry, but just in case
             _logger.LogError("Failed to store file after {MaxRetries} retries", maxRetries);
             throw new InvalidOperationException($"Failed to store file after {maxRetries} retries");
         }
@@ -408,13 +380,11 @@ namespace WorkoutTrackerWeb.Services
                 throw new ArgumentNullException(nameof(fileId));
             }
 
-            // Handle development mode with local filesystem
             if (_redis == null)
             {
                 _logger.LogWarning("Redis is not configured, using local filesystem storage for file retrieval");
                 string tempDir = Path.GetTempPath();
                 
-                // Try to find the file by ID in temp directory
                 try
                 {
                     string[] possibleFiles = Directory.GetFiles(tempDir, $"{fileId}*");
@@ -440,10 +410,9 @@ namespace WorkoutTrackerWeb.Services
                 }
             }
 
-            string fileKey = $"{KEY_PREFIX}{fileId}";
-            string metaKey = $"{fileKey}{META_SUFFIX}";
+            string fileKey = _keyService.CreateFileKey(fileId);
+            string metaKey = _keyService.CreateFileKey(fileId, "meta");
             
-            // Get database with null check
             if (_redis == null)
             {
                 throw new InvalidOperationException("Redis connection is not available");
@@ -455,7 +424,6 @@ namespace WorkoutTrackerWeb.Services
                 throw new InvalidOperationException("Failed to get Redis database for file retrieval");
             }
 
-            // Check if file exists
             if (!await db.KeyExistsAsync(metaKey))
             {
                 _logger.LogWarning("File not found in shared storage: {FileId}", fileId);
@@ -464,7 +432,6 @@ namespace WorkoutTrackerWeb.Services
 
             try
             {
-                // Get metadata
                 var metaHash = await db.HashGetAllAsync(metaKey);
                 var meta = metaHash.ToDictionary(h => (string)h.Name, h => (string)h.Value);
                 
@@ -475,14 +442,12 @@ namespace WorkoutTrackerWeb.Services
                 
                 string extension = meta.TryGetValue("extension", out string ext) ? ext : "";
 
-                // Create memory stream to hold file content
                 MemoryStream memoryStream = new MemoryStream();
                 
-                // Retrieve chunks and write to memory stream
                 long position = 0;
                 while (position < size)
                 {
-                    string chunkKey = $"{fileKey}:{position}";
+                    string chunkKey = _keyService.CreateFileKey(fileId, position.ToString());
                     var chunk = await db.StringGetAsync(chunkKey);
                     
                     if (chunk.IsNull)
@@ -490,13 +455,11 @@ namespace WorkoutTrackerWeb.Services
                         throw new InvalidDataException($"Missing chunk at position {position} for file {fileId}");
                     }
                     
-                    // Convert the RedisValue to byte array before writing
                     byte[] bytes = chunk;
                     await memoryStream.WriteAsync(bytes, 0, bytes.Length);
                     position += bytes.Length;
                 }
                 
-                // Reset position to start
                 memoryStream.Position = 0;
                 
                 _logger.LogInformation("File retrieved successfully from shared storage. ID: {FileId}, Size: {Size} bytes", fileId, size);
@@ -518,21 +481,17 @@ namespace WorkoutTrackerWeb.Services
 
             try
             {
-                // Get the file from shared storage
                 var (fileStream, extension) = await RetrieveFileAsync(fileId);
                 
-                // Create a temporary file with the correct extension
                 string tempDir = Path.GetTempPath();
                 string tempFileName = $"{Path.GetRandomFileName()}{extension}";
                 string tempFilePath = Path.Combine(tempDir, tempFileName);
                 
-                // Write the file to disk
                 using (var fileStream2 = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write))
                 {
                     await fileStream.CopyToAsync(fileStream2);
                 }
                 
-                // Clean up the memory stream
                 fileStream.Dispose();
                 
                 _logger.LogInformation("File retrieved from shared storage and saved to temp path: {TempFilePath}", tempFilePath);
@@ -552,7 +511,6 @@ namespace WorkoutTrackerWeb.Services
                 throw new ArgumentNullException(nameof(fileId));
             }
 
-            // Handle local filesystem storage in development mode
             if (_redis == null)
             {
                 _logger.LogWarning("Redis is not configured, attempting to delete from local filesystem: {FileId}", fileId);
@@ -590,7 +548,6 @@ namespace WorkoutTrackerWeb.Services
                 }
             }
 
-            // Use Redis storage
             try 
             {
                 await CleanupFileAsync(fileId);
@@ -615,7 +572,6 @@ namespace WorkoutTrackerWeb.Services
                 return false;
             }
 
-            // Handle local filesystem storage in development mode
             if (_redis == null)
             {
                 _logger.LogWarning("Redis is not configured, checking local filesystem for file: {FileId}", fileId);
@@ -635,10 +591,10 @@ namespace WorkoutTrackerWeb.Services
                 }
             }
 
-            // Use Redis storage
             try
             {
-                string metaKey = $"{KEY_PREFIX}{fileId}{META_SUFFIX}";
+                string metaKey = _keyService.CreateFileKey(fileId, "meta");
+                
                 var db = _redis.GetDatabase();
                 
                 if (db == null)
@@ -657,19 +613,17 @@ namespace WorkoutTrackerWeb.Services
 
         private async Task CleanupFileAsync(string fileId)
         {
-            // Handle local filesystem storage in development mode
             if (_redis == null)
             {
-                // Already handled by DeleteFileAsync, so just return
                 _logger.LogDebug("CleanupFileAsync called in local filesystem mode, delegating to DeleteFileAsync");
                 return;
             }
 
-            string fileKey = $"{KEY_PREFIX}{fileId}";
-            string metaKey = $"{fileKey}{META_SUFFIX}";
+            string fileKey = _keyService.CreateFileKey(fileId);
+            string metaKey = _keyService.CreateFileKey(fileId, "meta");
+            
             var db = GetWritableDatabase();
             
-            // Early exit if we failed to get a writable database connection
             if (db == null && _redis != null)
             {
                 _logger.LogWarning("Could not get a writable Redis connection for cleanup. File ID: {fileId}", fileId);
@@ -677,22 +631,19 @@ namespace WorkoutTrackerWeb.Services
             }
             
             try {
-                // Get size to know how many chunks to delete
                 HashEntry[] metaEntries = await db.HashGetAllAsync(metaKey);
                 var meta = metaEntries.ToDictionary(h => (string)h.Name, h => (string)h.Value);
                 
                 if (meta.TryGetValue("size", out string sizeStr) && long.TryParse(sizeStr, out long size))
                 {
-                    // Delete all chunks
                     long position = 0;
                     while (position < size)
                     {
-                        string chunkKey = $"{fileKey}:{position}";
+                        string chunkKey = _keyService.CreateFileKey(fileId, position.ToString());
                         RedisValue chunk = RedisValue.Null;
                         
                         try
                         {
-                            // Use a timeout for the get operation to prevent hanging
                             var getTask = db.StringGetAsync(chunkKey);
                             if (await Task.WhenAny(getTask, Task.Delay(5000)) == getTask)
                             {
@@ -701,7 +652,6 @@ namespace WorkoutTrackerWeb.Services
                             else
                             {
                                 _logger.LogWarning("Timeout getting chunk at position {Position} for file {fileId}", position, fileId);
-                                // Move to next chunk to avoid getting stuck
                                 position += CHUNK_SIZE;
                                 continue;
                             }
@@ -709,7 +659,6 @@ namespace WorkoutTrackerWeb.Services
                         catch (Exception ex)
                         {
                             _logger.LogWarning(ex, "Error getting chunk at position {Position} for file {fileId}", position, fileId);
-                            // Move to next chunk to avoid getting stuck
                             position += CHUNK_SIZE;
                             continue;
                         }
@@ -725,35 +674,31 @@ namespace WorkoutTrackerWeb.Services
                             catch (Exception ex)
                             {
                                 _logger.LogWarning(ex, "Error deleting chunk at position {Position} for file {fileId}", position, fileId);
-                                // Move to next chunk to avoid getting stuck
                                 position += CHUNK_SIZE;
                             }
                         }
                         else
                         {
-                            // If chunk is missing, assume fixed size and move to next one
                             position += CHUNK_SIZE;
                         }
                     }
                 }
                 else
                 {
-                    // If we can't get size, try to delete chunks using a pattern search
                     try
                     {
                         if (_redis.GetEndPoints().Length > 0)
                         {
                             var server = _redis.GetServer(_redis.GetEndPoints()[0]);
-                            
-                            // Use a timeout for the KEYS operation to prevent hanging
-                            var keysTask = Task.Run(() => server.Keys(pattern: $"{fileKey}:*").ToArray());
+                            string pattern = _keyService.GetKeyPatternForEntityType("file");
+                            var keysTask = Task.Run(() => server.Keys(pattern: pattern).ToArray());
                             RedisKey[] keys;
                             
                             if (await Task.WhenAny(keysTask, Task.Delay(10000)) == keysTask)
                             {
                                 keys = await keysTask;
                                 
-                                foreach (var key in keys)
+                                foreach (var key in keys.Where(k => k.ToString().Contains(fileId)))
                                 {
                                     try 
                                     {
@@ -777,7 +722,6 @@ namespace WorkoutTrackerWeb.Services
                     }
                 }
                 
-                // Delete metadata as the last step
                 try
                 {
                     await db.KeyDeleteAsync(metaKey);

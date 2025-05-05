@@ -466,15 +466,21 @@ namespace WorkoutTrackerWeb
             // Register RedisSharedStorageService based on whether Redis is enabled
             if (redisConfig?.Enabled == true)
             {
-                // Redis is enabled, normal registration happens in AddRedisConfiguration
-                builder.Services.AddScoped<ISharedStorageService, RedisSharedStorageService>();
+                // Redis is enabled, register with proper dependencies
+                builder.Services.AddScoped<ISharedStorageService>(sp => {
+                    var logger = sp.GetRequiredService<ILogger<RedisSharedStorageService>>();
+                    var multiplexer = sp.GetRequiredService<IConnectionMultiplexer>();
+                    var keyService = sp.GetRequiredService<IRedisKeyService>();
+                    return new RedisSharedStorageService(multiplexer, logger, keyService);
+                });
             }
             else
             {
                 // Redis is disabled, register a version with null redis connection
                 builder.Services.AddScoped<ISharedStorageService>(sp => {
                     var logger = sp.GetRequiredService<ILogger<RedisSharedStorageService>>();
-                    return new RedisSharedStorageService(null, logger);
+                    var keyService = sp.GetRequiredService<IRedisKeyService>();
+                    return new RedisSharedStorageService(null, logger, keyService);
                 });
                 Log.Information("Redis is disabled. Using local filesystem fallback for shared storage.");
             }

@@ -25,6 +25,10 @@ public static class RedisConfigurationExtensions
 
         services.Configure<RedisConfiguration>(configuration.GetSection("Redis"));
         services.Configure<CircuitBreakerOptions>(configuration.GetSection("Redis:CircuitBreaker"));
+        services.Configure<RedisKeyOptions>(configuration.GetSection("Redis:Keys"));
+        
+        // Register key management service
+        services.AddSingleton<IRedisKeyService, RedisKeyService>();
         
         services.AddStackExchangeRedisCache(options =>
         {
@@ -48,6 +52,11 @@ public static class RedisConfigurationExtensions
             // Register fallback components even if Redis is disabled
             services.AddSingleton<IRedisCircuitBreakerService, NullCircuitBreakerService>();
             services.AddSingleton<IResilientCacheService, FallbackCacheService>();
+            
+            // Register key management service with default options
+            services.Configure<RedisKeyOptions>(configuration.GetSection("Redis:Keys"));
+            services.AddSingleton<IRedisKeyService, RedisKeyService>();
+            
             return services;
         }
         
@@ -104,12 +113,16 @@ public static class RedisConfigurationExtensions
         // Also configure Redis options for services
         services.Configure<RedisConfiguration>(configuration.GetSection("Redis"));
         services.Configure<CircuitBreakerOptions>(configuration.GetSection("Redis:CircuitBreaker"));
+        services.Configure<RedisKeyOptions>(configuration.GetSection("Redis:Keys"));
         
         // Register the circuit breaker service
         services.AddSingleton<IRedisCircuitBreakerService, RedisCircuitBreakerService>();
         
         // Register the resilient cache service
         services.AddSingleton<IResilientCacheService, ResilientCacheService>();
+        
+        // Register key management service
+        services.AddSingleton<IRedisKeyService, RedisKeyService>();
 
         return services;
     }
@@ -118,6 +131,7 @@ public static class RedisConfigurationExtensions
     {
         services.Configure<RedisConfiguration>(configuration.GetSection("Redis"));
         services.Configure<CircuitBreakerOptions>(configuration.GetSection("Redis:CircuitBreaker"));
+        services.Configure<RedisKeyOptions>(configuration.GetSection("Redis:Keys"));
         return services;
     }
 
@@ -132,6 +146,10 @@ public static class RedisConfigurationExtensions
             ConnectRetry = 3,
             ReconnectRetryPolicy = new ExponentialRetry(1000, 10000), // Start at 1s, max 10s
         };
+
+        // Configure Redis key options
+        services.Configure<RedisKeyOptions>(configuration.GetSection("Redis:Keys"));
+        services.AddSingleton<IRedisKeyService, RedisKeyService>();
 
         if (!string.IsNullOrEmpty(redisConnectionString))
         {

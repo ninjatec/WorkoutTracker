@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Text;
 using System.Security.Cryptography;
 using System.Diagnostics;
+using System.Linq;
 
 namespace WorkoutTrackerWeb.Services.Cache
 {
@@ -111,6 +112,7 @@ namespace WorkoutTrackerWeb.Services.Cache
         private readonly IResilientCacheService _cacheService;
         private readonly ILogger<QueryResultCacheService> _logger;
         private readonly QueryResultCacheOptions _options;
+        private readonly IRedisKeyService _keyService;
         
         // In-memory collection of cache key prefixes for tracking invalidation patterns
         private static readonly ConcurrentDictionary<string, HashSet<string>> _prefixRegistry = new();
@@ -118,11 +120,13 @@ namespace WorkoutTrackerWeb.Services.Cache
         public QueryResultCacheService(
             IResilientCacheService cacheService,
             ILogger<QueryResultCacheService> logger,
-            IOptions<QueryResultCacheOptions> options)
+            IOptions<QueryResultCacheOptions> options,
+            IRedisKeyService keyService)
         {
             _cacheService = cacheService;
             _logger = logger;
             _options = options.Value;
+            _keyService = keyService;
         }
         
         /// <inheritdoc />
@@ -134,8 +138,8 @@ namespace WorkoutTrackerWeb.Services.Cache
                 return await queryFunc();
             }
             
-            // Prefix the cache key with the global prefix
-            string fullCacheKey = $"{_options.GlobalKeyPrefix}{cacheKey}";
+            // Use the standardized Redis key service for key generation
+            string fullCacheKey = _keyService.CreateQueryKey(cacheKey);
             
             try
             {
@@ -148,7 +152,7 @@ namespace WorkoutTrackerWeb.Services.Cache
                     var (found, value) = await _cacheService.TryGetValueAsync<T>(fullCacheKey);
                     
                     // Extract prefix for metrics recording
-                    string prefix = ExtractPrefixFromKey(fullCacheKey);
+                    string prefix = _keyService.ExtractEntityTypeFromKey(fullCacheKey);
                     
                     if (found && value != null)
                     {
@@ -188,7 +192,8 @@ namespace WorkoutTrackerWeb.Services.Cache
         /// <inheritdoc />
         public async Task<T> GetOrCreateQueryResultAsync<T>(string keyPrefix, object queryParameters, Func<Task<T>> queryFunc, TimeSpan expiration, bool slidingExpiration = false) where T : class
         {
-            string cacheKey = GenerateCacheKey(keyPrefix, queryParameters);
+            // Use the RedisKeyService to generate the query key with parameters
+            string cacheKey = _keyService.CreateQueryKey(keyPrefix, queryParameters);
             return await GetOrCreateQueryResultAsync(cacheKey, queryFunc, expiration, slidingExpiration);
         }
         
@@ -200,8 +205,8 @@ namespace WorkoutTrackerWeb.Services.Cache
                 return (false, null);
             }
             
-            // Prefix the cache key with the global prefix
-            string fullCacheKey = $"{_options.GlobalKeyPrefix}{cacheKey}";
+            // Use the standardized Redis key service for key generation
+            string fullCacheKey = _keyService.CreateQueryKey(cacheKey);
             
             try
             {
@@ -211,7 +216,7 @@ namespace WorkoutTrackerWeb.Services.Cache
                     var result = await _cacheService.TryGetValueAsync<T>(fullCacheKey);
                     
                     // Extract prefix for metrics recording
-                    string prefix = ExtractPrefixFromKey(fullCacheKey);
+                    string prefix = _keyService.ExtractEntityTypeFromKey(fullCacheKey);
                     
                     if (result.Found && result.Value != null)
                     {
@@ -240,8 +245,8 @@ namespace WorkoutTrackerWeb.Services.Cache
                 return;
             }
             
-            // Prefix the cache key with the global prefix
-            string fullCacheKey = $"{_options.GlobalKeyPrefix}{cacheKey}";
+            // Use the standardized Redis key service for key generation
+            string fullCacheKey = _keyService.CreateQueryKey(cacheKey);
             
             try
             {
@@ -254,7 +259,7 @@ namespace WorkoutTrackerWeb.Services.Cache
                     await _cacheService.SetAsync(fullCacheKey, value, expiration, slidingExpiration);
                     
                     // Extract prefix for metrics recording
-                    string prefix = ExtractPrefixFromKey(fullCacheKey);
+                    string prefix = _keyService.ExtractEntityTypeFromKey(fullCacheKey);
                     CacheMetrics.IncrementSize(prefix);
                     
                     _logger.LogDebug("Cached query result for key: {CacheKey} with expiration: {Expiration}", 
@@ -275,8 +280,8 @@ namespace WorkoutTrackerWeb.Services.Cache
                 return;
             }
             
-            // Prefix the cache key with the global prefix
-            string fullCacheKey = $"{_options.GlobalKeyPrefix}{cacheKey}";
+            // Use the standardized Redis key service for key generation
+            string fullCacheKey = _keyService.CreateQueryKey(cacheKey);
             
             try
             {
@@ -286,7 +291,7 @@ namespace WorkoutTrackerWeb.Services.Cache
                     await _cacheService.RemoveAsync(fullCacheKey);
                     
                     // Extract prefix for metrics recording
-                    string prefix = ExtractPrefixFromKey(fullCacheKey);
+                    string prefix = _keyService.ExtractEntityTypeFromKey(fullCacheKey);
                     CacheMetrics.DecrementSize(prefix);
                     CacheMetrics.RecordInvalidation(prefix, "manual");
                     
@@ -307,13 +312,8 @@ namespace WorkoutTrackerWeb.Services.Cache
                 return;
             }
             
-            string normalizedPrefix = keyPrefix;
-            if (!normalizedPrefix.EndsWith(":"))
-            {
-                normalizedPrefix += ":";
-            }
-            
-            string fullPrefix = $"{_options.GlobalKeyPrefix}{normalizedPrefix}";
+            // Generate the pattern for keys with this prefix
+            string fullPrefix = _keyService.CreateQueryKey(keyPrefix);
             
             try
             {
@@ -332,6 +332,7 @@ namespace WorkoutTrackerWeb.Services.Cache
                             registeredKeys.Count, fullPrefix);
                             
                         // Record metrics for this invalidation
+                        string normalizedPrefix = _keyService.ExtractEntityTypeFromKey(fullPrefix);
                         CacheMetrics.RecordInvalidation(normalizedPrefix, "entity_change");
                     }
                     else
@@ -349,70 +350,29 @@ namespace WorkoutTrackerWeb.Services.Cache
         /// <inheritdoc />
         public string GenerateCacheKey(string keyPrefix, object parameters)
         {
-            if (string.IsNullOrEmpty(keyPrefix))
-            {
-                throw new ArgumentException("Key prefix cannot be null or empty", nameof(keyPrefix));
-            }
-            
-            if (parameters == null)
-            {
-                return keyPrefix;
-            }
-            
-            // Create a deterministic string representation of the parameters
-            var parametersJson = System.Text.Json.JsonSerializer.Serialize(parameters);
-            
-            // Use SHA256 to create a deterministic, fixed-length hash of the parameters
-            using (var sha256 = SHA256.Create())
-            {
-                var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(parametersJson));
-                var hashString = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
-                
-                // Normalize the key prefix
-                string normalizedPrefix = keyPrefix;
-                if (!normalizedPrefix.EndsWith(":"))
-                {
-                    normalizedPrefix += ":";
-                }
-                
-                return $"{normalizedPrefix}{hashString}";
-            }
+            // Delegate to the RedisKeyService for consistent key generation
+            return _keyService.CreateQueryKey(keyPrefix, parameters);
         }
         
         #region Private Helper Methods
         
         private void RegisterKeyWithPrefix(string fullCacheKey)
         {
-            // Extract prefix from the key
-            int lastColonIndex = fullCacheKey.LastIndexOf(':');
-            if (lastColonIndex > 0)
-            {
-                string prefix = fullCacheKey.Substring(0, lastColonIndex + 1);
+            // Extract prefix using the key service
+            string prefix = _keyService.ExtractEntityTypeFromKey(fullCacheKey) + ":";
                 
-                // Register this key with its prefix
-                _prefixRegistry.AddOrUpdate(
-                    prefix,
-                    _ => new HashSet<string> { fullCacheKey },
-                    (_, existingSet) =>
+            // Register this key with its prefix
+            _prefixRegistry.AddOrUpdate(
+                prefix,
+                _ => new HashSet<string> { fullCacheKey },
+                (_, existingSet) =>
+                {
+                    lock (existingSet)
                     {
-                        lock (existingSet)
-                        {
-                            existingSet.Add(fullCacheKey);
-                            return existingSet;
-                        }
-                    });
-            }
-        }
-        
-        private string ExtractPrefixFromKey(string fullCacheKey)
-        {
-            int lastColonIndex = fullCacheKey.LastIndexOf(':');
-            if (lastColonIndex > 0)
-            {
-                return fullCacheKey.Substring(0, lastColonIndex);
-            }
-            
-            return "default";
+                        existingSet.Add(fullCacheKey);
+                        return existingSet;
+                    }
+                });
         }
         
         #endregion

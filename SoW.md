@@ -48,9 +48,9 @@ This document outlines the performance and stability optimization tasks for the 
 [x] Implement fallback to in-memory alternatives during Redis outages
 
 ### RD-02: Optimize Redis Key Strategies
-[ ] Audit current Redis key usage for optimization opportunities
-[ ] Implement consistent key naming convention and documentation
-[ ] Add appropriate TTL for different categories of cached data
+[x] Audit current Redis key usage for optimization opportunities
+[x] Implement consistent key naming convention and documentation
+[x] Add appropriate TTL for different categories of cached data
 
 ### RD-03: Enhance Output Cache Policies
 [ ] Implement cache invalidation hooks for entity changes
