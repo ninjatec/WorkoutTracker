@@ -456,11 +456,19 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             // Check if the specific day already has a workout session from this schedule
             var date = occurrence.Date;
             
+            // More comprehensive check that considers multiple ways a workout might be linked
             return await _context.WorkoutSessions
                 .AnyAsync(s => 
-                    s.WorkoutTemplateId == workout.TemplateId && 
                     s.UserId == workout.ClientUserId && 
-                    s.StartDateTime.Date == date);
+                    s.StartDateTime.Date == date && 
+                    (
+                        // Check if created from the same template
+                        (workout.TemplateId.HasValue && s.WorkoutTemplateId == workout.TemplateId) ||
+                        // Check if created from the same assignment
+                        (workout.TemplateAssignmentId.HasValue && s.TemplateAssignmentId == workout.TemplateAssignmentId) ||
+                        // Check if this specific schedule already generated a session for this date
+                        (workout.WorkoutScheduleId > 0 && s.ScheduleId == workout.WorkoutScheduleId)
+                    ));
         }
 
         /// <summary>
@@ -562,7 +570,8 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                 Status = "Scheduled",
                 IsFromCoach = true,
                 WorkoutTemplateId = workout.TemplateId,
-                TemplateAssignmentId = workout.TemplateAssignmentId
+                TemplateAssignmentId = workout.TemplateAssignmentId,
+                ScheduleId = workout.WorkoutScheduleId > 0 ? workout.WorkoutScheduleId : (int?)null
             };
 
             _context.WorkoutSessions.Add(workoutSession);
@@ -1058,7 +1067,9 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                     StartDateTime = schedule.ScheduledDateTime ?? DateTime.UtcNow,
                     Status = "Scheduled",
                     IsFromCoach = true,
-                    WorkoutTemplateId = schedule.TemplateId
+                    WorkoutTemplateId = schedule.TemplateId,
+                    TemplateAssignmentId = schedule.TemplateAssignmentId,
+                    ScheduleId = schedule.WorkoutScheduleId > 0 ? schedule.WorkoutScheduleId : (int?)null
                 };
 
                 _context.WorkoutSessions.Add(workoutSession);

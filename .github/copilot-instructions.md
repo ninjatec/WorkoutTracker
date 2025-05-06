@@ -9,6 +9,8 @@
 - Only use free, open-source NuGet packages
 - Make all code and configuration compatible with Linux containers
 - Remenber User details are stored accross 2 db contexts
+- We run the site on Linux containers. case sensitivity is very important
+- The containers a created with dotnet publish and not dockerfile
 
 ## Development Practices
 - The application is currently in development so dataloss and downtime are acceptable

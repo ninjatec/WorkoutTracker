@@ -52,6 +52,9 @@ namespace WorkoutTrackerWeb.Models
         // Foreign key for template assignment (optional)
         public int? TemplateAssignmentId { get; set; }
         
+        // Foreign key for workout schedule (optional)
+        public int? ScheduleId { get; set; }
+        
         [Display(Name = "Start Time")]
         public DateTime? StartTime { get; set; }
         
@@ -83,6 +86,9 @@ namespace WorkoutTrackerWeb.Models
         
         [ForeignKey("WorkoutTemplateId")]
         public WorkoutTemplate WorkoutTemplate { get; set; }
+        
+        [ForeignKey("ScheduleId")]
+        public WorkoutTrackerWeb.Models.Coaching.WorkoutSchedule Schedule { get; set; }
         
         // Additional properties to ensure backwards compatibility
         [NotMapped]
