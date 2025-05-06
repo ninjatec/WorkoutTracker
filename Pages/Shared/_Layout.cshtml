@@ -324,19 +324,31 @@
         </div>
     </footer>
 
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <!-- jQuery with CDN and local fallback -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" 
+            integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" 
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        // Fallback to local if CDN fails
+        if (typeof jQuery === 'undefined') {
+            document.write('<script src="~/lib/jquery/dist/jquery.min.js"><\/script>');
+        }
+    </script>
+    
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
     <script src="~/js/service-worker-registration.js" asp-append-version="true"></script>
+    
+    <!-- DataTables JS (after jQuery is loaded) -->
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+    
     <script src="~/js/module-loader.js" asp-append-version="true"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/responsive-tables.js" asp-append-version="true"></script>
     <script src="~/js/mobile-navigation.js" asp-append-version="true"></script>
     <script src="~/js/lazy-loading.js" asp-append-version="true"></script>
     <script src="~/js/progressive-images.js" asp-append-version="true"></script>
-    <!-- DataTables JS (Bootstrap 5 version) -->
-    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
 
     @await RenderSectionAsync("Scripts", required: false)
 </body>
