@@ -1,8 +1,7 @@
-@page "{id:int}"
+@page
 @model WorkoutTrackerWeb.Areas.Coach.Pages.Clients.GroupModel
 @{
-    ViewData["Title"] = "Manage Client Group";
-    Layout = "_Layout";
+    ViewData["Title"] = Model.GroupName;
 }
 
 <div class="row mb-4">
