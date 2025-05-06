@@ -4,87 +4,17 @@
 
 This document outlines the performance and stability optimization tasks for the WorkoutTracker application, structured as actionable tasks with specific implementation details.
 
-## Database Optimization Tasks
 
-### DB-01: Optimize Database Connection Pooling
-[x] Adjust maximum pool size from 100/200 to a more appropriate value based on deployment scale (suggest 50-75)
-[x] Refactor connection string builders to use consistent pool sizing across application
-[x] Implement connection health monitoring with metrics for pool utilization
-[x] Create dashboard widget for connection pool statistics
-[x] Add configuration for separate read/write connection pools with different settings]
-
-### DB-02: Implement Query Result Caching
-[x] Create a QueryResultCacheService with Redis/in-memory fallback
-[x] Implement cache invalidation triggers for database changes
-[x] Add cache configuration options in appsettings.json
-[x] Cache frequently accessed, rarely changing data (exercise types, workout templates)
-[x] Add instrumentation to measure cache hit/miss rates
-
-### DB-03: Optimize Entity Framework Tracking
-[x] Audit and update Entity Framework tracking behavior for all repositories
-[x] Create a tracking strategy implementation for read vs write operations
-[x] Add custom conventions for change tracking to ignore unnecessary fields
-[x] Implement explicit entity inclusion/exclusion for complex aggregates
-
-### DB-04: Optimize N+1 Query Patterns
-[x] Identify and fix N+1 query patterns in workout session retrieval
-[x] Review and optimize eager loading strategies across application
-[x] Implement batch fetching for collections where appropriate
-[x] Add compiled queries for frequently executed database operations
-[x] Create custom ProjectTo mappings to minimize data transfer
-
-### DB-05: Complete Session to WorkoutSession Migration
-[x] Remove any remaining Session models and table references
-[x] Update all remaining components to exclusively use WorkoutSession
-[x] Refactor volume calculation services for the new data model
-[x] Create and execute cleanup migration script
-[x] Update documentation to reflect completed migration
-
-## Redis Enhancement Tasks
-
-### RD-01: Implement Redis Circuit Breaker
-[x] Create dedicated RedisCircuitBreakerService as wrapper for Redis operations
-[x] Add exponential back-off for Redis connection failures
-[x] Implement fallback to in-memory alternatives during Redis outages
-
-### RD-02: Optimize Redis Key Strategies
-[x] Audit current Redis key usage for optimization opportunities
-[x] Implement consistent key naming convention and documentation
-[x] Add appropriate TTL for different categories of cached data
-
-### RD-03: Enhance Output Cache Policies
-[x] Implement cache invalidation hooks for entity changes
-[x] Add cache partitioning for better isolation and expiration control
-[x] Create anti-dogpile locking mechanism for high-concurrency keys
-[x] Integrate background refresh for about-to-expire popular content
-
-## Application Performance Tasks
-
-### AP-01: Optimize SignalR Implementation
-[x] Implement message batching for high-frequency updates
-[x] Create error handling and reconnection strategies for client disconnects
-[x] Optimize connection lifetime for mobile clients to reduce resource usage
-
-### AP-02: Implement Response Compression
-[x] Add response compression middleware with Brotli/Gzip support
-[x] Configure compression for JSON, JavaScript, CSS, and HTML responses
-[x] Add cache-control headers for compressed static assets
-[x] Create compression exclusion list for already compressed content
-[x] Add compression analytics to track bandwidth savings
-
-### AP-03: Optimize API Endpoints
-[x] Implement ETags for cacheable API resources
-[x] Create response envelope with metadata for complex data structures
-
-### AP-04: Enhance Background Job Processing
-[x] Add retry backoff strategy for failing jobs
-[x] Improve job continuation patterns for complex workflows
-[x] Add job storage cleanup and maintenance routines
-
-### AP-05: Optimize Frontend Asset Delivery
-[ ] Add browser caching headers for static assets
-[ ] Implement lazy loading for non-critical JavaScript
-[ ] Create bundled and minified asset pipeline for production
-[ ] Implement critical CSS path optimization
-[ ] Add image optimization and lazy loading for workout images
+### DB-01: Fix Entity Framework Model Relationship Warnings
+[ ] Resolve navigation property relationship warnings for WorkoutSchedule and WorkoutSession
+[ ] Configure explicit foreign key relationships for CoachClientRelationship and AppUser models
+[ ] Fix global query filter issues with required relationships in:
+  - CoachClientRelationship → CoachClientPermission
+  - WorkoutFeedback → ExerciseFeedback
+  - ProgressionRule → ProgressionHistory
+  - WorkoutSession → WorkoutExercise
+[ ] Resolve shadow foreign key property conflicts by explicit relationship configurations
+[ ] Add OrderBy clause to queries using First/FirstOrDefault operators
+[ ] Add comprehensive relationship unit tests to prevent regression
+[ ] Update database migration documentation with relationship configuration best practices
 

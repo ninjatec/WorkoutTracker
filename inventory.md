@@ -512,3 +512,26 @@ This document maintains an up-to-date inventory of all features, components, and
   - Used for securing admin operations
   - Access logging for security auditing
   - Description for documenting purpose
+
+### Known Technical Debt
+
+#### Entity Framework Model Relationship Issues
+- **ForeignKey Attribute Conflicts**: Navigation properties 'WorkoutSchedule.LastGeneratedSession' and 'WorkoutSession.Schedule' have ForeignKey attributes on both sides, causing Entity Framework to create two separate relationships.
+- **Undefined Foreign Key Properties**: Multiple relationships between 'CoachClientRelationship' and 'AppUser' lack properly configured foreign key properties, resulting in shadow property creation.
+- **Global Query Filter Conflicts**: Several entities have global query filters defined but are the required end of relationships, potentially leading to missing data in query results:
+  - CoachClientRelationship → CoachClientPermission
+  - WorkoutFeedback → ExerciseFeedback
+  - ProgressionRule → ProgressionHistory
+  - WorkoutSession → WorkoutExercise
+- **Shadow Foreign Key Property Conflicts**: Several shadow foreign key properties were created due to conflicts with existing properties:
+  - CoachClientRelationship.AppUserId1
+  - WorkoutFeedback.WorkoutSessionId1
+  - WorkoutSchedule.TemplateAssignmentId1
+  - WorkoutExercise.ExerciseTypeId1
+- **Query Execution Issues**: Some queries use First/FirstOrDefault without OrderBy clauses, potentially resulting in unpredictable data retrieval.
+
+#### Database Schema Migration Issues
+- **Missing Columns**: Some columns referenced in code don't exist in the database schema:
+  - Notes column in WorkoutSessions table
+  - Name column in WorkoutExercises table
+- **Missing Tables**: ExerciseTypes table doesn't exist in the database but is referenced in code.
