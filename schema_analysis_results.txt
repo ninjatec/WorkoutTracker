@@ -1,4 +1,0 @@
-__EFMigrationsHistory                                                                                                            MigrationId                                                                                                                      OK                
-__EFMigrationsHistory                                                                                                            ProductVersion                                                                                                                   OK                
-
-(2 rows affected)
