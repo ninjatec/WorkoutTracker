@@ -725,6 +725,8 @@ namespace WorkoutTrackerWeb
                 };
             });
 
+            builder.Services.AddHostedService<VersionCacheInvalidationService>();
+
             var app = builder.Build();
 
             // Initialize database
