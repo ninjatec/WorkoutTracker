@@ -6,14 +6,14 @@ This document outlines the performance and stability optimization tasks for the 
 
 
 ### DB-01: Fix Entity Framework Model Relationship Warnings
-[ ] Resolve navigation property relationship warnings for WorkoutSchedule and WorkoutSession
-[ ] Configure explicit foreign key relationships for CoachClientRelationship and AppUser models
-[ ] Fix global query filter issues with required relationships in:
+[x] Resolve navigation property relationship warnings for WorkoutSchedule and WorkoutSession
+[x] Configure explicit foreign key relationships for CoachClientRelationship and AppUser models
+[x] Fix global query filter issues with required relationships in:
   - CoachClientRelationship → CoachClientPermission
   - WorkoutFeedback → ExerciseFeedback
   - ProgressionRule → ProgressionHistory
   - WorkoutSession → WorkoutExercise
-[ ] Resolve shadow foreign key property conflicts by explicit relationship configurations
+[x] Resolve shadow foreign key property conflicts by explicit relationship configurations
 [ ] Add OrderBy clause to queries using First/FirstOrDefault operators
 [ ] Add comprehensive relationship unit tests to prevent regression
 [ ] Update database migration documentation with relationship configuration best practices

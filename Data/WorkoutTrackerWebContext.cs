@@ -121,11 +121,7 @@ namespace WorkoutTrackerWeb.Data
                 .HasPrecision(10, 2);
             
             // Fix CoachClientRelationship and AppUser relationships to prevent shadow properties
-            
-            // Removing duplicate configurations and setting up a clean relationship configuration
-            // between CoachClientRelationship and AppUser to fix the shadow property warnings
-            
-            // First, remove any previously defined relationship configurations
+            // Explicitly configure relationships to avoid shadow foreign key properties
             modelBuilder.Entity<CoachClientRelationship>()
                 .HasOne(r => r.Coach)
                 .WithMany(u => u.CoachRelationships)
@@ -554,12 +550,14 @@ namespace WorkoutTrackerWeb.Data
                 .HasForeignKey(ta => ta.CoachUserId)
                 .OnDelete(DeleteBehavior.Restrict);
                 
-            // WorkoutSchedule relationships
+            // Fix WorkoutSchedule.TemplateAssignmentId1 shadow property issue
+            // Explicitly configure the relationship to avoid shadow property creation
             modelBuilder.Entity<WorkoutSchedule>()
                 .HasOne(ws => ws.TemplateAssignment)
                 .WithMany()
                 .HasForeignKey(ws => ws.TemplateAssignmentId)
-                .OnDelete(DeleteBehavior.SetNull);
+                .OnDelete(DeleteBehavior.SetNull)
+                .IsRequired(false);
                 
             modelBuilder.Entity<WorkoutSchedule>()
                 .HasOne(ws => ws.Client)
@@ -599,6 +597,15 @@ namespace WorkoutTrackerWeb.Data
                 .HasQueryFilter(ws => _currentUserId == null || 
                                  ws.Coach.IdentityUserId == _currentUserId || 
                                  ws.Client.IdentityUserId == _currentUserId);
+                
+            // Fix WorkoutFeedback.WorkoutSessionId1 shadow property issue
+            // Explicitly configure the relationship to avoid shadow property creation
+            modelBuilder.Entity<WorkoutFeedback>()
+                .HasOne(wf => wf.WorkoutSession)
+                .WithMany()
+                .HasForeignKey(wf => wf.WorkoutSessionId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
                 
             modelBuilder.Entity<WorkoutFeedback>()
                 .HasQueryFilter(wf => _currentUserId == null || 
@@ -750,7 +757,8 @@ namespace WorkoutTrackerWeb.Data
             modelBuilder.Entity<WorkoutSession>()
                 .HasQueryFilter(ws => _currentUserId == null || ws.User.IdentityUserId == _currentUserId);
                 
-            // WorkoutExercise relationships
+            // Fix WorkoutExercise.ExerciseTypeId1 shadow property issue
+            // Explicitly configure the relationship to avoid shadow property creation
             modelBuilder.Entity<WorkoutExercise>()
                 .HasOne(we => we.WorkoutSession)
                 .WithMany(ws => ws.WorkoutExercises)
@@ -762,7 +770,8 @@ namespace WorkoutTrackerWeb.Data
                 .HasOne(we => we.ExerciseType)
                 .WithMany()
                 .HasForeignKey(we => we.ExerciseTypeId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired();
                 
             modelBuilder.Entity<WorkoutExercise>()
                 .HasQueryFilter(we => _currentUserId == null || 
@@ -775,13 +784,7 @@ namespace WorkoutTrackerWeb.Data
                 .HasForeignKey(ws => ws.WorkoutExerciseId)
                 .OnDelete(DeleteBehavior.Cascade);
                 
-            // WorkoutFeedback relationships
-            modelBuilder.Entity<WorkoutFeedback>()
-                .HasOne(wf => wf.WorkoutSession)
-                .WithMany()
-                .HasForeignKey(wf => wf.WorkoutSessionId)
-                .OnDelete(DeleteBehavior.Cascade);
-                
+            // ExerciseFeedback relationships
             modelBuilder.Entity<ExerciseFeedback>()
                 .HasOne(ef => ef.WorkoutSet)
                 .WithMany()
