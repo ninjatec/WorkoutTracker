@@ -606,7 +606,7 @@ namespace WorkoutTrackerWeb
             builder.Services.AddScoped<DatabaseMigrationService>();
 
             // Register new database optimization services
-            builder.Services.AddSingleton<WorkoutTrackerWeb.Services.Database.ProjectionService>();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Database.ProjectionService>();
 
             // Register compression metrics service
             builder.Services.AddSingleton<WorkoutTrackerWeb.Services.Metrics.CompressionMetricsService>();
