@@ -232,7 +232,9 @@ namespace WorkoutTrackerWeb.Extensions
                 using (var identityContext = new ApplicationDbContext(optionsBuilder.Options))
                 {
                     return await identityContext.Users
-                        .FirstOrDefaultAsync(u => u.Id == userId);
+                        .Where(u => u.Id == userId)
+                        .OrderBy(u => u.Id)
+                        .FirstOrDefaultAsync();
                 }
             }
         }

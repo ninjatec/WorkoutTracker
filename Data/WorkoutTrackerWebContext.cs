@@ -88,7 +88,11 @@ namespace WorkoutTrackerWeb.Data
             if (string.IsNullOrEmpty(_currentUserId))
                 return null;
 
-            return await User.FirstOrDefaultAsync(u => u.IdentityUserId == _currentUserId);
+            // Add OrderBy to ensure consistent results
+            return await User
+                .Where(u => u.IdentityUserId == _currentUserId)
+                .OrderBy(u => u.UserId)
+                .FirstOrDefaultAsync();
         }
 
         // Filter data based on current user

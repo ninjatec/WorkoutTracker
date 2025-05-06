@@ -14,7 +14,8 @@ This document outlines the performance and stability optimization tasks for the 
   - ProgressionRule → ProgressionHistory
   - WorkoutSession → WorkoutExercise
 [x] Resolve shadow foreign key property conflicts by explicit relationship configurations
-[ ] Add OrderBy clause to queries using First/FirstOrDefault operators
+[x] Add OrderBy clause to queries using First/FirstOrDefault operators
 [ ] Add comprehensive relationship unit tests to prevent regression
 [ ] Update database migration documentation with relationship configuration best practices
+[ ] Update Readme and Inventory files
 
