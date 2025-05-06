@@ -68,11 +68,15 @@ namespace WorkoutTrackerWeb.Services.Reports
                 
                 var startDate = DateTime.UtcNow.AddDays(-period);
                 result.TotalSessions = await _context.WorkoutSessions
-                    .Where(s => s.UserId == userId && s.StartDateTime >= startDate)
+                    .Where(s => s.UserId == userId && 
+                                s.StartDateTime >= startDate && 
+                                s.IsCompleted)
                     .CountAsync();
                 
                 result.TotalSets = await _context.WorkoutExercises
-                    .Where(e => e.WorkoutSession.UserId == userId && e.WorkoutSession.StartDateTime >= startDate)
+                    .Where(e => e.WorkoutSession.UserId == userId && 
+                                e.WorkoutSession.StartDateTime >= startDate && 
+                                e.WorkoutSession.IsCompleted)
                     .SelectMany(e => e.WorkoutSets)
                     .CountAsync();
             }
@@ -93,6 +97,7 @@ namespace WorkoutTrackerWeb.Services.Reports
                                 e.WorkoutSession.UserId == userId && 
                                 e.WorkoutSession.StartDateTime >= startDate &&
                                 e.WorkoutSession.StartDateTime <= endDate &&
+                                e.WorkoutSession.IsCompleted &&
                                 e.ExerciseType != null)
                     .GroupBy(e => e.ExerciseType.PrimaryMuscleGroup)
                     .Select(g => new
@@ -120,6 +125,7 @@ namespace WorkoutTrackerWeb.Services.Reports
                                 e.WorkoutSession.UserId == userId && 
                                 e.WorkoutSession.StartDateTime >= startDate &&
                                 e.WorkoutSession.StartDateTime <= endDate &&
+                                e.WorkoutSession.IsCompleted &&
                                 e.ExerciseType != null)
                     .GroupBy(e => e.ExerciseType.Type)
                     .Select(g => new
@@ -147,6 +153,7 @@ namespace WorkoutTrackerWeb.Services.Reports
                                 e.WorkoutSession.UserId == userId && 
                                 e.WorkoutSession.StartDateTime >= startDate &&
                                 e.WorkoutSession.StartDateTime <= endDate &&
+                                e.WorkoutSession.IsCompleted &&
                                 e.ExerciseType != null)
                     .Select(e => new 
                     {
@@ -262,6 +269,7 @@ namespace WorkoutTrackerWeb.Services.Reports
                                 e.WorkoutSession.UserId == userId && 
                                 e.WorkoutSession.StartDateTime >= startDate &&
                                 e.WorkoutSession.StartDateTime <= endDate &&
+                                e.WorkoutSession.IsCompleted &&
                                 e.ExerciseType != null)
                     .GroupBy(e => e.ExerciseType.PrimaryMuscleGroup)
                     .Select(g => new
@@ -290,7 +298,8 @@ namespace WorkoutTrackerWeb.Services.Reports
                                 e.WorkoutSession.UserId == userId && 
                                 e.ExerciseTypeId == exerciseTypeId &&
                                 e.WorkoutSession.StartDateTime >= startDate &&
-                                e.WorkoutSession.StartDateTime <= endDate)
+                                e.WorkoutSession.StartDateTime <= endDate &&
+                                e.WorkoutSession.IsCompleted)
                     .OrderBy(e => e.WorkoutSession.StartDateTime)
                     .Select(e => new
                     {
@@ -328,7 +337,8 @@ namespace WorkoutTrackerWeb.Services.Reports
                 var workoutsByDay = await _context.WorkoutSessions
                     .Where(s => s.UserId == userId && 
                                 s.StartDateTime >= startDate &&
-                                s.StartDateTime <= endDate)
+                                s.StartDateTime <= endDate &&
+                                s.IsCompleted)
                     .GroupBy(s => s.StartDateTime.DayOfWeek)
                     .Select(g => new
                     {
@@ -359,7 +369,8 @@ namespace WorkoutTrackerWeb.Services.Reports
                 var workoutsByHour = await _context.WorkoutSessions
                     .Where(s => s.UserId == userId && 
                                 s.StartDateTime >= startDate &&
-                                s.StartDateTime <= endDate)
+                                s.StartDateTime <= endDate &&
+                                s.IsCompleted)
                     .GroupBy(s => s.StartDateTime.Hour)
                     .Select(g => new
                     {
@@ -462,6 +473,7 @@ namespace WorkoutTrackerWeb.Services.Reports
                         JOIN ExerciseType et ON et.ExerciseTypeId = we.ExerciseTypeId
                         WHERE sess.UserId = @UserId
                           AND sess.StartDateTime >= @StartDate
+                          AND sess.IsCompleted = 1
                           AND et.Name IS NOT NULL
                         GROUP BY we.ExerciseTypeId, et.Name
                         ORDER BY COUNT(*) DESC";
@@ -517,6 +529,7 @@ namespace WorkoutTrackerWeb.Services.Reports
                                         WHERE we2.ExerciseTypeId = @ExerciseId
                                           AND CAST(sess2.StartDateTime AS DATE) = CAST(sess.StartDateTime AS DATE)
                                           AND sess2.UserId = @UserId
+                                          AND sess2.IsCompleted = 1
                                     ) THEN ws.Reps ELSE 0 END) AS MaxReps,
                                 MIN(sess.WorkoutSessionId) AS SessionId
                             FROM WorkoutSets ws
@@ -525,6 +538,7 @@ namespace WorkoutTrackerWeb.Services.Reports
                             WHERE we.ExerciseTypeId = @ExerciseId
                               AND sess.UserId = @UserId
                               AND sess.StartDateTime >= @StartDate
+                              AND sess.IsCompleted = 1
                               AND ws.Weight IS NOT NULL AND ws.Weight > 0
                             GROUP BY CAST(sess.StartDateTime AS DATE)
                             ORDER BY CAST(sess.StartDateTime AS DATE)";
@@ -628,6 +642,7 @@ namespace WorkoutTrackerWeb.Services.Reports
                         JOIN ExerciseType et ON et.ExerciseTypeId = we.ExerciseTypeId
                         WHERE sess.UserId = @UserId
                           AND sess.StartDateTime >= @StartDate
+                          AND sess.IsCompleted = 1
                           AND et.Name IS NOT NULL
                         GROUP BY we.ExerciseTypeId, et.Name
                         ORDER BY SUM(CASE WHEN ws.IsCompleted = 1 THEN 1 ELSE 0 END) + SUM(CASE WHEN ws.IsCompleted = 0 THEN 1 ELSE 0 END) DESC";
@@ -714,7 +729,9 @@ namespace WorkoutTrackerWeb.Services.Reports
                 cancellationToken.ThrowIfCancellationRequested();
                 
                 var sessionCount = await _context.WorkoutSessions
-                    .Where(s => s.UserId == userId && s.StartDateTime >= startDate)
+                    .Where(s => s.UserId == userId && 
+                               s.StartDateTime >= startDate && 
+                               s.IsCompleted)
                     .CountAsync(cancellationToken);
                 
                 // Check cancellation before next expensive operation
@@ -724,7 +741,8 @@ namespace WorkoutTrackerWeb.Services.Reports
                     .Where(s => s.WorkoutExercise != null &&
                                s.WorkoutExercise.WorkoutSession != null &&
                                s.WorkoutExercise.WorkoutSession.UserId == userId && 
-                               s.WorkoutExercise.WorkoutSession.StartDateTime >= startDate)
+                               s.WorkoutExercise.WorkoutSession.StartDateTime >= startDate &&
+                               s.WorkoutExercise.WorkoutSession.IsCompleted)
                     .GroupBy(_ => 1)
                     .Select(g => new
                     {
@@ -762,6 +780,7 @@ namespace WorkoutTrackerWeb.Services.Reports
                             JOIN WorkoutSessions sess ON sess.WorkoutSessionId = we.WorkoutSessionId
                             WHERE sess.UserId = @UserId
                               AND sess.StartDateTime >= @StartDate
+                              AND sess.IsCompleted = 1
                               AND ws.Weight IS NOT NULL AND ws.Reps IS NOT NULL";
                         
                         var paramUserId = command.CreateParameter();
@@ -789,7 +808,8 @@ namespace WorkoutTrackerWeb.Services.Reports
                         .Where(s => s.WorkoutExercise != null &&
                                    s.WorkoutExercise.WorkoutSession != null &&
                                    s.WorkoutExercise.WorkoutSession.UserId == userId && 
-                                   s.WorkoutExercise.WorkoutSession.StartDateTime >= startDate)
+                                   s.WorkoutExercise.WorkoutSession.StartDateTime >= startDate &&
+                                   s.WorkoutExercise.WorkoutSession.IsCompleted)
                         .SumAsync(s => (s.Weight ?? 0) * (s.Reps ?? 0), cancellationToken);
                 }
                 
@@ -847,6 +867,7 @@ namespace WorkoutTrackerWeb.Services.Reports
                                 s.WorkoutExercise.WorkoutSession != null &&
                                 s.WorkoutExercise.WorkoutSession.UserId == userId && 
                                 s.WorkoutExercise.WorkoutSession.StartDateTime >= startDate &&
+                                s.WorkoutExercise.WorkoutSession.IsCompleted &&
                                 s.WorkoutExercise.ExerciseType != null &&
                                 !string.IsNullOrEmpty(s.WorkoutExercise.ExerciseType.Name))
                     .GroupBy(s => new
