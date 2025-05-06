@@ -154,3 +154,88 @@ This feature aims to provide users with robust tools for planning their workouts
     *   Update `README.md` to reflect the new workout planning and calendar features.
     *   Update `inventory.md` with new entities, services, and Razor Pages.
 
+## Feature: Interactive Progress Dashboard
+
+### Overview
+Provide users with a dynamic dashboard visualizing workout metrics—volume, consistency, intensity—over time using Chart.js or D3.
+
+1. Data Model & Persistence:
+   * Extend or create entities to track aggregated metrics, e.g., `WorkoutMetric` with `UserId`, `Date`, `Volume`, `Intensity`, `ConsistencyScore`.
+   * Update `ApplicationDbContext` with a `DbSet<WorkoutMetric>`.
+   * Add EF Core migration with context flag:
+     ```bash
+     dotnet ef migrations add AddWorkoutMetrics --context ApplicationDbContext
+     dotnet ef database update --context ApplicationDbContext
+     ```
+
+2. Service Layer:
+   * Create `ProgressDashboardService`:
+     - `Task<IEnumerable<MetricDto>> GetVolumeSeriesAsync(Guid userId, DateTime start, DateTime end)`
+     - `Task<IEnumerable<MetricDto>> GetIntensitySeriesAsync(Guid userId, DateTime start, DateTime end)`
+     - `Task<IEnumerable<MetricDto>> GetConsistencySeriesAsync(Guid userId, DateTime start, DateTime end)`
+   * Register service in DI (Program.cs).
+
+3. Razor Page & API Handler:
+   * Add new Razor Page `/Progress/Index.cshtml` and `ProgressModel.cs`:
+     - `OnGetAsync()` renders page shell.
+     - `OnGetDataAsync(string metric, DateTime from, DateTime to)` returns JSON via `JsonResult`.
+   * Use output caching for page; configure caching headers for data endpoint.
+
+4. UI & Chart Integration:
+   * Install Chart.js via libman or npm (client-side only).
+   * In the page, include `<canvas>` elements for each chart.
+   * Create a JavaScript module to:
+     - Fetch `/Progress?handler=Data&metric=volume&from=...&to=...`.
+     - Initialize Chart.js instances with returned JSON.
+     - Provide date-range picker controls (e.g., Bootstrap Datepicker) to update charts.
+
+5. Styling & Layout:
+   * Use Bootstrap 5 grid to arrange charts responsively.
+   * Style axis labels, tooltips, and legends for clarity.
+
+6. Caching & Performance:
+   * Cache computed metric series in memory or distributed cache (Redis) for short durations.
+   * Invalidate cache when new workout data is logged.
+
+7. Documentation Updates:
+   * Update `README.md`, `inventory.md`, and this `SoW.md` with dashboard details.
+
+## Feature: Dark Mode / Theming Toggle
+
+### Overview
+Implement a user-selectable dark/light theme using Bootstrap 5 utilities and persist preference in the user profile.
+
+1. Data Model & Persistence:
+   * Extend `ApplicationUser` model in `ApplicationDbContext` to include `ThemePreference` (string or enum: "light" | "dark").
+   * Create EF Core migration:
+     ```bash
+     dotnet ef migrations add AddThemePreferenceToUser --context ApplicationDbContext
+     dotnet ef database update --context ApplicationDbContext
+     ```
+
+2. Service Layer:
+   * Add or extend `UserPreferenceService` with:
+     - `Task<string> GetThemePreferenceAsync(Guid userId)`
+     - `Task SetThemePreferenceAsync(Guid userId, string theme)`
+   * Register the service in DI (e.g., in `Program.cs`).
+
+3. UI & Razor Layout:
+   * In `Views/Shared/_Layout.cshtml`, add a theme toggle control (e.g., switch or icon button) in the navbar.
+   * Render the current theme on `<body>` via a `data-theme` attribute bound to the user preference.
+
+4. JavaScript & UI Behavior:
+   * Include a small JS module to:
+     - Handle toggle clicks: switch `data-theme` on `<body>` and update Bootstrap utility classes.
+     - Call an MVC/Razor Page handler via AJAX to persist the new preference.
+   * On page load, read the `data-theme` attribute and apply any necessary CSS classes.
+
+5. Styling & Bootstrap Integration:
+   * Define CSS custom properties in `wwwroot/css/site.css` under `[data-theme="dark"]` selector to override colors.
+   * Leverage Bootstrap 5 utility classes (`.bg-dark`, `.text-light`, etc.) conditionally based on `data-theme`.
+
+6. Caching & Performance:
+   * Use existing output cache for pages; ensure theme changes invalidate cached entries when appropriate.
+
+7. Documentation Updates:
+   * Update `README.md`, `inventory.md`, and this `SoW.md` to reflect the new dark mode feature.
+
