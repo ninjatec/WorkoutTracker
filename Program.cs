@@ -257,19 +257,24 @@ namespace WorkoutTrackerWeb
             builder.Services.AddScoped<WorkoutTrackerWeb.Services.Scheduling.WorkoutReminderService>();
             builder.Services.AddScoped<WorkoutTrackerWeb.Services.Scheduling.ScheduledWorkoutProcessorService>();
 
-            // Add server after everything is configured
-            builder.Services.AddHangfireServer((provider, options) => {
-                var serverConfig = provider.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.HangfireServerConfiguration>();
-                if (serverConfig.IsProcessingEnabled)
-                {
+            // Get Hangfire server configuration to check if processing is enabled
+            var serverConfig = builder.Services.BuildServiceProvider().GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.HangfireServerConfiguration>();
+
+            // Only add Hangfire server when processing is enabled
+            if (serverConfig.IsProcessingEnabled)
+            {
+                // Add server after everything is configured
+                builder.Services.AddHangfireServer((provider, options) => {
                     Log.Information("Configuring Hangfire server with {WorkerCount} workers", serverConfig.WorkerCount);
                     serverConfig.ConfigureServerOptions(options);
-                }
-                else 
-                {
-                    Log.Information("Hangfire processing is disabled for this instance");
-                }
-            });
+                });
+                
+                Log.Information("Hangfire server registered for this instance");
+            }
+            else
+            {
+                Log.Information("Hangfire processing is disabled for this instance. No server registered.");
+            }
 
             Func<string, Action<SqlServerDbContextOptionsBuilder>, DbContextOptionsBuilder> getSqlOptions = (connString, sqlOptionsAction) =>
             {
