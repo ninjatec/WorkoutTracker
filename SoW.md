@@ -15,7 +15,7 @@ This document outlines the performance and stability optimization tasks for the 
   - WorkoutSession → WorkoutExercise
 [x] Resolve shadow foreign key property conflicts by explicit relationship configurations
 [x] Add OrderBy clause to queries using First/FirstOrDefault operators
-[ ] Add comprehensive relationship unit tests to prevent regression
-[ ] Update database migration documentation with relationship configuration best practices
+[x] Add comprehensive relationship unit tests to prevent regression
+[x] Update database migration documentation with relationship configuration best practices
 [ ] Update Readme and Inventory files
 

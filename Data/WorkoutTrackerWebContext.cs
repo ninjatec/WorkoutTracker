@@ -577,10 +577,10 @@ namespace WorkoutTrackerWeb.Data
 
             // Configure the relationship between WorkoutSchedule and WorkoutSession
             // This fixes the warning: "Navigations 'WorkoutSchedule.LastGeneratedSession' and 'WorkoutSession.Schedule' were separated into two relationships"
-            modelBuilder.Entity<WorkoutTrackerWeb.Models.Coaching.WorkoutSchedule>()
+            modelBuilder.Entity<WorkoutSchedule>()
                 .HasOne(ws => ws.LastGeneratedSession)
                 .WithOne()
-                .HasForeignKey<WorkoutTrackerWeb.Models.Coaching.WorkoutSchedule>(ws => ws.LastGeneratedSessionId)
+                .HasForeignKey<WorkoutSchedule>(ws => ws.LastGeneratedSessionId)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.SetNull);
 
@@ -590,7 +590,31 @@ namespace WorkoutTrackerWeb.Data
                 .HasForeignKey(s => s.ScheduleId)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.SetNull);
-                
+
+            // Configure global query filters to match between both sides of required relationships
+            // This resolves warnings about mismatches between required entities with global filters
+            modelBuilder.Entity<ExerciseFeedback>()
+                .HasQueryFilter(ef => _currentUserId == null || 
+                                ef.WorkoutFeedback.Client.IdentityUserId == _currentUserId ||
+                                ef.WorkoutSet.WorkoutExercise.WorkoutSession.User.IdentityUserId == _currentUserId);
+                                
+            modelBuilder.Entity<ProgressionHistory>()
+                .HasQueryFilter(ph => _currentUserId == null || 
+                               ph.ProgressionRule.Coach.IdentityUserId == _currentUserId || 
+                               (ph.ProgressionRule.Client != null && ph.ProgressionRule.Client.IdentityUserId == _currentUserId) ||
+                               (ph.WorkoutSession != null && ph.WorkoutSession.User.IdentityUserId == _currentUserId));
+                              
+            // Ensure WorkoutExercises have matching filters with WorkoutSession
+            modelBuilder.Entity<WorkoutExercise>()
+                .HasQueryFilter(we => _currentUserId == null || 
+                               we.WorkoutSession.User.IdentityUserId == _currentUserId);
+                               
+            // Fix for CoachClientPermission matching CoachClientRelationship filter
+            modelBuilder.Entity<CoachClientPermission>()
+                .HasQueryFilter(p => _currentUserId == null || 
+                               p.Relationship.CoachId == _currentUserId || 
+                               p.Relationship.ClientId == _currentUserId);
+
             // Configure query filters for workout programming models
             modelBuilder.Entity<TemplateAssignment>()
                 .HasQueryFilter(ta => _currentUserId == null || 
