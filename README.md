@@ -439,6 +439,15 @@ The application provides comprehensive data portability features:
 
 ## Recent Updates
 
+- **Enhanced Entity Framework Core Relationships**:
+  - Fixed foreign key attribute conflicts between WorkoutSchedule and WorkoutSession
+  - Properly configured relationships between CoachClientRelationship and AppUser
+  - Added matching query filters for required relationship endpoints
+  - Resolved shadow property conflicts with explicit configurations
+  - Added OrderBy clauses to ensure consistent query results
+  - Created comprehensive documentation of EF Core relationship best practices
+  - Improved performance and stability in multi-container deployments
+
 - **Completed Session to WorkoutSession Migration**:
   - Migrated from legacy Session model to improved WorkoutSession structure
   - Redesigned data model with improved relationships and organization

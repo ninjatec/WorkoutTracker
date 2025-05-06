@@ -516,22 +516,31 @@ This document maintains an up-to-date inventory of all features, components, and
 ### Known Technical Debt
 
 #### Entity Framework Model Relationship Issues
-- **ForeignKey Attribute Conflicts**: Navigation properties 'WorkoutSchedule.LastGeneratedSession' and 'WorkoutSession.Schedule' have ForeignKey attributes on both sides, causing Entity Framework to create two separate relationships.
-- **Undefined Foreign Key Properties**: Multiple relationships between 'CoachClientRelationship' and 'AppUser' lack properly configured foreign key properties, resulting in shadow property creation.
-- **Global Query Filter Conflicts**: Several entities have global query filters defined but are the required end of relationships, potentially leading to missing data in query results:
-  - CoachClientRelationship → CoachClientPermission
-  - WorkoutFeedback → ExerciseFeedback
-  - ProgressionRule → ProgressionHistory
-  - WorkoutSession → WorkoutExercise
-- **Shadow Foreign Key Property Conflicts**: Several shadow foreign key properties were created due to conflicts with existing properties:
-  - CoachClientRelationship.AppUserId1
-  - WorkoutFeedback.WorkoutSessionId1
-  - WorkoutSchedule.TemplateAssignmentId1
-  - WorkoutExercise.ExerciseTypeId1
-- **Query Execution Issues**: Some queries use First/FirstOrDefault without OrderBy clauses, potentially resulting in unpredictable data retrieval.
+- ~~**ForeignKey Attribute Conflicts**: Navigation properties 'WorkoutSchedule.LastGeneratedSession' and 'WorkoutSession.Schedule' have ForeignKey attributes on both sides, causing Entity Framework to create two separate relationships.~~ **FIXED**
+- ~~**Undefined Foreign Key Properties**: Multiple relationships between 'CoachClientRelationship' and 'AppUser' lack properly configured foreign key properties, resulting in shadow property creation.~~ **FIXED**
+- ~~**Global Query Filter Conflicts**: Several entities have global query filters defined but are the required end of relationships, potentially leading to missing data in query results:~~ **FIXED**
+  - ~~CoachClientRelationship → CoachClientPermission~~ **FIXED**
+  - ~~WorkoutFeedback → ExerciseFeedback~~ **FIXED**
+  - ~~ProgressionRule → ProgressionHistory~~ **FIXED**
+  - ~~WorkoutSession → WorkoutExercise~~ **FIXED**
+- ~~**Shadow Foreign Key Property Conflicts**: Several shadow foreign key properties were created due to conflicts with existing properties:~~ **FIXED**
+  - ~~CoachClientRelationship.AppUserId1~~ **FIXED**
+  - ~~WorkoutFeedback.WorkoutSessionId1~~ **FIXED**
+  - ~~WorkoutSchedule.TemplateAssignmentId1~~ **FIXED**
+  - ~~WorkoutExercise.ExerciseTypeId1~~ **FIXED**
+- ~~**Query Execution Issues**: Some queries use First/FirstOrDefault without OrderBy clauses, potentially resulting in unpredictable data retrieval.~~ **FIXED**
 
 #### Database Schema Migration Issues
 - **Missing Columns**: Some columns referenced in code don't exist in the database schema:
   - Notes column in WorkoutSessions table
   - Name column in WorkoutExercises table
 - **Missing Tables**: ExerciseTypes table doesn't exist in the database but is referenced in code.
+
+### Entity Framework Core Best Practices
+- **Relationship Configuration**: The project now follows a set of documented best practices for configuring entity relationships:
+  - Explicit foreign key configurations to avoid shadow properties
+  - Matching query filters on both sides of required relationships
+  - Proper one-to-one relationship configuration
+  - Careful cascade delete behavior specification
+  - OrderBy clauses with First/FirstOrDefault operators
+- **Documentation**: Comprehensive relationship configuration best practices are documented in `/Documentation/migrations/RelationshipBestPractices.md`
