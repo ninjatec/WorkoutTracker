@@ -121,17 +121,58 @@ namespace WorkoutTrackerWeb.Data
                 .HasPrecision(10, 2);
             
             // Fix CoachClientRelationship and AppUser relationships to prevent shadow properties
+            
+            // Removing duplicate configurations and setting up a clean relationship configuration
+            // between CoachClientRelationship and AppUser to fix the shadow property warnings
+            
+            // First, remove any previously defined relationship configurations
             modelBuilder.Entity<CoachClientRelationship>()
                 .HasOne(r => r.Coach)
                 .WithMany(u => u.CoachRelationships)
                 .HasForeignKey(r => r.CoachId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired();
 
             modelBuilder.Entity<CoachClientRelationship>()
                 .HasOne(r => r.Client) 
                 .WithMany(u => u.ClientRelationships)
                 .HasForeignKey(r => r.ClientId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.NoAction)
+                .IsRequired(false); // Allow null for invited users who are not registered yet
+                
+            // Configure CoachClientRelationship relationships and query filter
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasQueryFilter(r => _currentUserId == null || r.CoachId == _currentUserId || r.ClientId == _currentUserId);
+                                    
+            // Configure unique index on coach-client pairs (with non-null filter)
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasIndex(r => new { r.CoachId, r.ClientId })
+                .IsUnique()
+                .HasFilter("[ClientId] IS NOT NULL");
+                
+            // Configure ClientGroup relationship to CoachClientRelationship
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasOne(r => r.ClientGroup)
+                .WithMany(g => g.ClientRelationships)
+                .HasForeignKey(r => r.ClientGroupId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Configure CoachClientPermission relationship
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasOne(r => r.Permissions)
+                .WithOne(p => p.Relationship)
+                .HasForeignKey<CoachClientPermission>(p => p.CoachClientRelationshipId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            // Add additional indexes for efficient querying
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasIndex(r => r.CoachId);
+                
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasIndex(r => r.ClientId);
+                
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasIndex(r => r.Status);
 
             // Configure AppUser relationships
             modelBuilder.Entity<AppUser>()
@@ -158,12 +199,6 @@ namespace WorkoutTrackerWeb.Data
                 .WithOne(p => p.Relationship)
                 .HasForeignKey<CoachClientPermission>(p => p.CoachClientRelationshipId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            // Configure unique index on coach-client pairs
-            modelBuilder.Entity<CoachClientRelationship>()
-                .HasIndex(r => new { r.CoachId, r.ClientId })
-                .IsUnique()
-                .HasFilter("[ClientId] IS NOT NULL");
 
             // Configure ClientGoal relationships
             modelBuilder.Entity<ClientGoal>()
