@@ -537,6 +537,22 @@ namespace WorkoutTrackerWeb.Data
                 .WithMany()
                 .HasForeignKey(ws => ws.CoachUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure the relationship between WorkoutSchedule and WorkoutSession
+            // This fixes the warning: "Navigations 'WorkoutSchedule.LastGeneratedSession' and 'WorkoutSession.Schedule' were separated into two relationships"
+            modelBuilder.Entity<WorkoutTrackerWeb.Models.Coaching.WorkoutSchedule>()
+                .HasOne(ws => ws.LastGeneratedSession)
+                .WithOne()
+                .HasForeignKey<WorkoutTrackerWeb.Models.Coaching.WorkoutSchedule>(ws => ws.LastGeneratedSessionId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<WorkoutSession>()
+                .HasOne(s => s.Schedule)
+                .WithMany()
+                .HasForeignKey(s => s.ScheduleId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
                 
             // Configure query filters for workout programming models
             modelBuilder.Entity<TemplateAssignment>()
