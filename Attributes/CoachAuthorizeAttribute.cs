@@ -46,14 +46,19 @@ namespace WorkoutTrackerWeb.Attributes
                 return;
                 
             // Get client ID from route data
-            if (!context.RouteData.Values.TryGetValue("clientId", out var clientIdValue) && 
-                !context.HttpContext.Request.Query.TryGetValue("clientId", out var clientIdQueryValue))
+            var clientIdValue = default(object);
+            var clientIdQueryValue = default(string);
+            
+            bool hasRouteValue = context.RouteData.Values.TryGetValue("clientId", out clientIdValue);
+            bool hasQueryValue = context.HttpContext.Request.Query.TryGetValue("clientId", out var queryValue);
+            
+            if (!hasRouteValue && !hasQueryValue)
             {
                 context.Result = new ForbidResult();
                 return;
             }
             
-            string clientId = (clientIdValue ?? clientIdQueryValue.ToString()).ToString();
+            string clientId = hasRouteValue ? clientIdValue.ToString() : queryValue.ToString();
             if (string.IsNullOrEmpty(clientId))
             {
                 context.Result = new ForbidResult();
