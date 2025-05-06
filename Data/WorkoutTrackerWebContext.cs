@@ -755,13 +755,18 @@ namespace WorkoutTrackerWeb.Data
                 .HasOne(we => we.WorkoutSession)
                 .WithMany(ws => ws.WorkoutExercises)
                 .HasForeignKey(we => we.WorkoutSessionId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
                 
             modelBuilder.Entity<WorkoutExercise>()
                 .HasOne(we => we.ExerciseType)
                 .WithMany()
                 .HasForeignKey(we => we.ExerciseTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
+                
+            modelBuilder.Entity<WorkoutExercise>()
+                .HasQueryFilter(we => _currentUserId == null || 
+                              we.WorkoutSession.User.IdentityUserId == _currentUserId);
                 
             // WorkoutSet relationships
             modelBuilder.Entity<WorkoutSet>()
@@ -783,12 +788,35 @@ namespace WorkoutTrackerWeb.Data
                 .HasForeignKey(ef => ef.WorkoutSetId)
                 .OnDelete(DeleteBehavior.Restrict);
                 
+            modelBuilder.Entity<ExerciseFeedback>()
+                .HasOne(ef => ef.WorkoutFeedback)
+                .WithMany(wf => wf.ExerciseFeedbacks)
+                .HasForeignKey(ef => ef.WorkoutFeedbackId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+                
+            modelBuilder.Entity<ExerciseFeedback>()
+                .HasQueryFilter(ef => _currentUserId == null || 
+                               ef.WorkoutFeedback.Client.IdentityUserId == _currentUserId);
+                
             // ProgressionHistory relationships
             modelBuilder.Entity<ProgressionHistory>()
                 .HasOne(ph => ph.WorkoutSession)
                 .WithMany()
                 .HasForeignKey(ph => ph.WorkoutSessionId)
                 .OnDelete(DeleteBehavior.SetNull);
+                
+            modelBuilder.Entity<ProgressionHistory>()
+                .HasOne(ph => ph.ProgressionRule)
+                .WithMany(pr => pr.ProgressionHistory)
+                .HasForeignKey(ph => ph.ProgressionRuleId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+                
+            modelBuilder.Entity<ProgressionHistory>()
+                .HasQueryFilter(ph => _currentUserId == null || 
+                               ph.ProgressionRule.Coach.IdentityUserId == _currentUserId || 
+                               (ph.ProgressionRule.Client != null && ph.ProgressionRule.Client.IdentityUserId == _currentUserId));
                 
             // Add indexes for better performance
             modelBuilder.Entity<WorkoutSession>()
