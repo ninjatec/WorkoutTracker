@@ -77,19 +77,28 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
                 return Forbid();
             }
 
-            // Get the relationship
+            // Get the relationship - Find the relationship with this clientId
             var relationship = await _context.CoachClientRelationships
                 .Include(r => r.Client)
                 .Include(r => r.Permissions)
-                .FirstOrDefaultAsync(r => r.Id == id && r.CoachId == coachId);
+                .FirstOrDefaultAsync(r => r.ClientId == id.ToString() && r.CoachId == coachId);
 
             if (relationship == null)
             {
-                return NotFound("Client relationship not found.");
+                // Fallback: Try to find by relationship ID (for compatibility with existing URLs)
+                relationship = await _context.CoachClientRelationships
+                    .Include(r => r.Client)
+                    .Include(r => r.Permissions)
+                    .FirstOrDefaultAsync(r => r.Id == id && r.CoachId == coachId);
+
+                if (relationship == null)
+                {
+                    return NotFound("Client relationship not found.");
+                }
             }
 
             // Set basic client information
-            ClientId = relationship.Id;
+            ClientId = int.TryParse(relationship.ClientId, out int clientIdInt) ? clientIdInt : id;
             ClientName = relationship.Client?.UserName?.Split('@')[0] ?? "Client";
             ClientEmail = relationship.Client?.Email ?? "N/A";
             StartDate = relationship.StartDate ?? relationship.CreatedDate;
@@ -99,7 +108,7 @@ namespace WorkoutTrackerWeb.Areas.Coach.Pages.Clients
             CanViewPersonalInfo = relationship.Permissions?.CanViewPersonalInfo ?? false;
             
             // Set client group (placeholder for demo)
-            ClientGroup = GetSampleClientGroup(id);
+            ClientGroup = GetSampleClientGroup(ClientId);
             
             // Load demo data
             LoadDemoData();
