@@ -100,94 +100,126 @@ document.addEventListener('DOMContentLoaded', function() {
     // Start the connection
     startConnection();
     
-    // Initialize mobile touch enhancements
-    initMobileTouchEnhancements();
+    // Initialize Bootstrap components explicitly
+    initBootstrapComponents();
 });
 
 /**
- * Enhances touch interactions across the entire application for mobile devices
- * This addresses specific issues with menu buttons, accordions, and other tap-based interactions
+ * Explicitly initializes all Bootstrap 5 components that need JavaScript activation
+ * This ensures all interactive elements work properly on all devices, especially mobile
  */
-function initMobileTouchEnhancements() {
-    // Fix header menu button (common issue reported)
-    const menuButtons = document.querySelectorAll('.navbar-toggler');
-    menuButtons.forEach(button => {
-        if (button) {
-            button.addEventListener('touchend', function(e) {
-                // Stop event only if it's not part of a scroll/swipe action
-                if (!button.dataset.swiping) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    // Force click event to trigger Bootstrap's toggle
-                    button.click();
-                }
-            });
-            
-            // Track if we're in a swipe operation
-            button.addEventListener('touchstart', function() {
-                button.dataset.swiping = 'false';
-            }, { passive: true });
-            
-            button.addEventListener('touchmove', function() {
-                button.dataset.swiping = 'true';
-            }, { passive: true });
-        }
+function initBootstrapComponents() {
+    console.log("Initializing Bootstrap components for mobile compatibility");
+    
+    // Initialize all Bootstrap 5 tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
     });
-
-    // General approach for all Bootstrap components that might need help on mobile
-    // This handles components that might be added dynamically after page load
-    document.addEventListener('touchend', function(e) {
-        // Find the nearest interactive element
-        let target = e.target;
-        let interactiveElement = null;
+    
+    // Initialize all Bootstrap 5 popovers
+    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.map(function (popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl);
+    });
+    
+    // Fix for accordions in mobile view
+    var accordionButtons = document.querySelectorAll('.accordion-button');
+    accordionButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            // Ensure the click event works properly
+            // This is especially important on mobile devices
+            console.log("Accordion button clicked");
+        });
         
-        // Check if the target or any of its parents is a button, a, or any clickable element
-        while (target && target !== document && !interactiveElement) {
-            if (target.tagName === 'BUTTON' || 
-                target.tagName === 'A' || 
-                target.tagName === 'INPUT' ||
-                target.hasAttribute('data-bs-toggle') ||
-                target.hasAttribute('data-toggle') ||
-                target.classList.contains('list-group-item-action') ||
-                target.classList.contains('accordion-button') ||
-                target.classList.contains('nav-link')) {
-                interactiveElement = target;
-                break;
-            }
-            target = target.parentNode;
-        }
+        // Add a touch-specific handler that ensures proper functioning on mobile
+        button.addEventListener('touchend', function(e) {
+            // Prevent ghost clicks
+            e.preventDefault();
+            // Use Bootstrap's native collapse functionality by triggering a click
+            setTimeout(() => {
+                button.click();
+            }, 10);
+        }, { passive: false });
+    });
+    
+    // Fix for dropdown menus in navbar on mobile
+    var dropdownToggles = document.querySelectorAll('[data-bs-toggle="dropdown"]');
+    dropdownToggles.forEach(toggle => {
+        toggle.addEventListener('click', function(e) {
+            console.log("Dropdown toggle clicked");
+        });
         
-        // If we found an interactive element and it's not part of a swipe gesture
-        if (interactiveElement && !interactiveElement.dataset.swiping) {
-            // Handle Bootstrap specific components
-            if (interactiveElement.hasAttribute('data-bs-toggle') || 
-                interactiveElement.hasAttribute('data-toggle')) {
-                // Special handling for certain toggle types
-                const toggleType = interactiveElement.getAttribute('data-bs-toggle') || 
-                                   interactiveElement.getAttribute('data-toggle');
-                
-                if (toggleType === 'dropdown' || toggleType === 'collapse') {
-                    // Let Bootstrap handle these interactions
-                    // Just ensure the click event fires
-                    if (!e.defaultPrevented) {
-                        interactiveElement.click();
+        // Improve touch behavior for dropdowns
+        toggle.addEventListener('touchend', function(e) {
+            // Prevent the default touch behavior which can be inconsistent on mobile
+            e.preventDefault();
+            // Use Bootstrap's native dropdown functionality
+            setTimeout(() => {
+                toggle.click();
+            }, 10);
+        }, { passive: false });
+    });
+    
+    // Fix for navbar toggler button on mobile
+    var navbarTogglers = document.querySelectorAll('.navbar-toggler');
+    navbarTogglers.forEach(toggler => {
+        toggler.addEventListener('click', function(e) {
+            console.log("Navbar toggler clicked");
+        });
+        
+        // Ensure touchend works correctly on mobile for navbar toggle
+        toggler.addEventListener('touchend', function(e) {
+            // Prevent the default touch behavior which can be inconsistent on mobile
+            e.preventDefault();
+            // Use Bootstrap's native collapse functionality
+            setTimeout(() => {
+                toggler.click();
+            }, 10);
+        }, { passive: false });
+    });
+    
+    // Fix for potential touch-to-click delay on mobile devices
+    document.addEventListener('touchstart', function() {}, { passive: true });
+    
+    // MutationObserver to handle dynamically added Bootstrap components
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                mutation.addedNodes.forEach(function(node) {
+                    if (node.nodeType === 1) { // Element node
+                        // Check for newly added accordions
+                        const accordionButtons = node.querySelectorAll ? node.querySelectorAll('.accordion-button') : [];
+                        accordionButtons.forEach(button => {
+                            button.addEventListener('touchend', function(e) {
+                                e.preventDefault();
+                                setTimeout(() => {
+                                    button.click();
+                                }, 10);
+                            }, { passive: false });
+                        });
+                        
+                        // Check for newly added dropdowns
+                        const dropdownToggles = node.querySelectorAll ? node.querySelectorAll('[data-bs-toggle="dropdown"]') : [];
+                        dropdownToggles.forEach(toggle => {
+                            toggle.addEventListener('touchend', function(e) {
+                                e.preventDefault();
+                                setTimeout(() => {
+                                    toggle.click();
+                                }, 10);
+                            }, { passive: false });
+                        });
                     }
-                }
+                });
             }
-        }
-    }, { passive: false });
-
-    // Add improved touch scroll handling for modal dialogs
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(modal => {
-        if (!modal) return;
-        
-        modal.addEventListener('touchmove', function(e) {
-            // Allow scrolling inside modal bodies
-            const modalBody = modal.querySelector('.modal-body');
-            if (modalBody && modalBody.contains(e.target)) {
-                e.stopPropagation();
-            }
-        }, { passive: true });
+        });
     });
+    
+    // Start observing for dynamic content changes
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    
+    console.log("Bootstrap components initialized");
 }
