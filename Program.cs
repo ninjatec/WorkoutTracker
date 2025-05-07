@@ -613,6 +613,9 @@ namespace WorkoutTrackerWeb
             // Register new database optimization services
             builder.Services.AddScoped<WorkoutTrackerWeb.Services.Database.ProjectionService>();
 
+            // Register Progress Dashboard services
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Progress.IProgressDashboardService, WorkoutTrackerWeb.Services.Progress.ProgressDashboardService>();
+
             // Register compression metrics service
             builder.Services.AddSingleton<WorkoutTrackerWeb.Services.Metrics.CompressionMetricsService>();
 

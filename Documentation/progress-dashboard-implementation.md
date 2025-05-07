@@ -10,11 +10,11 @@ This document tracks the implementation progress of the Interactive Progress Das
 - [x] Add and apply EF Core migration
 
 ### 2. Service Layer
-- [ ] Create ProgressDashboardService
-- [ ] Implement GetVolumeSeriesAsync method
-- [ ] Implement GetIntensitySeriesAsync method
-- [ ] Implement GetConsistencySeriesAsync method
-- [ ] Register service in DI (Program.cs)
+- [x] Create ProgressDashboardService
+- [x] Implement GetVolumeSeriesAsync method
+- [x] Implement GetIntensitySeriesAsync method
+- [x] Implement GetConsistencySeriesAsync method
+- [x] Register service in DI (Program.cs)
 
 ### 3. Razor Page & API Handler
 - [ ] Create new Razor Page (/Progress/Index.cshtml)
@@ -45,3 +45,4 @@ This document tracks the implementation progress of the Interactive Progress Das
 1. [2025-05-07] Created feature branch `feature/interactive-progress-dashboard`
 2. [2025-05-07] Added progress tracking file for the Interactive Progress Dashboard feature
 3. [2025-05-07] Implemented WorkoutMetric entity model and database migration
+4. [2025-05-07] Implemented ProgressDashboardService and registered in DI container
