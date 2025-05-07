@@ -137,51 +137,51 @@ This feature aims to provide users with robust tools for planning their workouts
     *   Update `README.md` to reflect the new workout planning and calendar features.
     *   Update `inventory.md` with new entities, services, and Razor Pages.
 
-## Feature: Interactive Progress Dashboard
+## Feature: Interactive Progress Dashboard (COMPLETED)
 
 ### Overview
 Provide users with a dynamic dashboard visualizing workout metrics—volume, consistency, intensity—over time using Chart.js or D3.
 
-1. Data Model & Persistence:
-   * Extend or create entities to track aggregated metrics, e.g., `WorkoutMetric` with `UserId`, `Date`, `Volume`, `Intensity`, `ConsistencyScore`.
-   * Update `ApplicationDbContext` with a `DbSet<WorkoutMetric>`.
-   * Add EF Core migration with context flag:
-     ```bash
-     dotnet ef migrations add AddWorkoutMetrics --context ApplicationDbContext
-     dotnet ef database update --context ApplicationDbContext
-     ```
+1. Data Model & Persistence: ✓
+   * Created `WorkoutMetric` entity to track aggregated metrics with `UserId`, `MetricType`, `Date`, and `Value` fields.
+   * Updated `WorkoutTrackerWebContext` with a `DbSet<WorkoutMetric>`.
+   * Added and applied EF Core migration.
 
-2. Service Layer:
-   * Create `ProgressDashboardService`:
-     - `Task<IEnumerable<MetricDto>> GetVolumeSeriesAsync(Guid userId, DateTime start, DateTime end)`
-     - `Task<IEnumerable<MetricDto>> GetIntensitySeriesAsync(Guid userId, DateTime start, DateTime end)`
-     - `Task<IEnumerable<MetricDto>> GetConsistencySeriesAsync(Guid userId, DateTime start, DateTime end)`
-   * Register service in DI (Program.cs).
+2. Service Layer: ✓
+   * Created `ProgressDashboardService` with:
+     - `Task<IEnumerable<WorkoutMetric>> GetVolumeSeriesAsync(Guid userId, DateTime start, DateTime end)`
+     - `Task<IEnumerable<WorkoutMetric>> GetIntensitySeriesAsync(Guid userId, DateTime start, DateTime end)`
+     - `Task<IEnumerable<WorkoutMetric>> GetConsistencySeriesAsync(Guid userId, DateTime start, DateTime end)`
+     - `Task CalculateAndStoreMissingMetricsAsync()`
+   * Registered service in DI (Program.cs).
 
-3. Razor Page & API Handler:
-   * Add new Razor Page `/Progress/Index.cshtml` and `ProgressModel.cs`:
-     - `OnGetAsync()` renders page shell.
-     - `OnGetDataAsync(string metric, DateTime from, DateTime to)` returns JSON via `JsonResult`.
-   * Use output caching for page; configure caching headers for data endpoint.
+3. Razor Page & API Handler: ✓
+   * Added new Razor Page `/Progress/Index.cshtml` and `ProgressModel.cs`:
+     - `OnGetAsync()` renders page shell and handles date range parameters.
+     - `OnGetDataAsync()` returns JSON via `JsonResult` with output caching.
+   * Added navigation link in the Reporting dropdown menu.
 
-4. UI & Chart Integration:
-   * Install Chart.js via libman or npm (client-side only).
-   * In the page, include `<canvas>` elements for each chart.
-   * Create a JavaScript module to:
-     - Fetch `/Progress?handler=Data&metric=volume&from=...&to=...`.
-     - Initialize Chart.js instances with returned JSON.
-     - Provide date-range picker controls (e.g., Bootstrap Datepicker) to update charts.
+4. UI & Chart Integration: ✓
+   * Used existing Chart.js integration.
+   * Implemented `<canvas>` elements for each chart type (volume, intensity, consistency).
+   * Created JavaScript code to:
+     - Fetch data via API handler.
+     - Initialize Chart.js instances for each metric type.
+     - Implemented date-range picker controls for filtering data.
 
-5. Styling & Layout:
-   * Use Bootstrap 5 grid to arrange charts responsively.
-   * Style axis labels, tooltips, and legends for clarity.
+5. Styling & Layout: ✓
+   * Used Bootstrap 5 grid to arrange charts responsively.
+   * Implemented responsive design for all screen sizes.
+   * Styled charts with appropriate colors and tooltips.
 
-6. Caching & Performance:
-   * Cache computed metric series in memory or distributed cache (Redis) for short durations.
-   * Invalidate cache when new workout data is logged.
+6. Caching & Performance: ✓
+   * Implemented output caching for the data endpoint with a 5-minute duration.
+   * Added cache invalidation when metrics are recalculated.
 
-7. Documentation Updates:
-   * Update `README.md`, `inventory.md`, and this `SoW.md` with dashboard details.
+7. Documentation Updates: ✓
+   * Updated `README.md` with feature description.
+   * Updated `inventory.md` with new components and models.
+   * Updated this `SoW.md` to mark completion.
 
 ## Feature: Dark Mode / Theming Toggle
 

@@ -14,6 +14,7 @@ This document maintains an up-to-date inventory of all features, components, and
 - Exercise Tracking
 - Set and Rep Recording
 - Progress Visualization
+- Interactive Progress Dashboard
 - Sharing Capabilities
 - Data Import/Export
 - Report Generation
@@ -50,6 +51,7 @@ This document maintains an up-to-date inventory of all features, components, and
 - Authentication System
 - Sharing System with Secure Tokens
 - Reporting Engine
+- Interactive Progress Dashboard
 - Admin Area
 - Import/Export System
 - Scheduling System
@@ -76,6 +78,7 @@ This document maintains an up-to-date inventory of all features, components, and
 - GoalOperationsService - Shared service for centralized goal operations with permission checking
 - GoalQueryService - Service for optimized goal-related queries
 - GoalProgressService - Service for tracking and updating goal progress
+- ProgressDashboardService - Service for Interactive Progress Dashboard metrics and visualization
 - LoginHistoryService - Service for tracking user login activity
 - LoggingService - Service for dynamic log level management
 - VersionService - Service for application version management
@@ -120,6 +123,7 @@ This document maintains an up-to-date inventory of all features, components, and
 - GoalMilestone
 - AppVersion
 - WhitelistedIp
+- WorkoutMetric
 
 #### User
 - Primary entity representing application users
@@ -512,6 +516,24 @@ This document maintains an up-to-date inventory of all features, components, and
   - Used for securing admin operations
   - Access logging for security auditing
   - Description for documenting purpose
+
+#### WorkoutMetric
+- Records aggregated workout metrics for the Progress Dashboard
+- Properties:
+  - Id, MetricType (Volume, Intensity, Consistency), UserId
+  - Date, Value, ExerciseTypeId (optional)
+  - Source (workout session ID or calculated)
+  - IsCalculated, LastUpdated
+- Relationships:
+  - Many-to-one with User
+  - Many-to-one with ExerciseType (optional)
+- Features:
+  - Tracks volume metrics (total weight lifted)
+  - Tracks intensity metrics (average weight per set) 
+  - Tracks consistency metrics (workouts per week)
+  - Configurable date ranges for trend analysis
+  - Automatic calculation from workout sessions
+  - Support for filtering by exercise type for targeted metrics
 
 ### Known Technical Debt
 
