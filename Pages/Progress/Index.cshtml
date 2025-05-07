@@ -199,10 +199,8 @@
                     throw new Error(data.error);
                 }
                 
-                // Restore canvas elements
-                document.getElementById('volumeChart').outerHTML = '<canvas id="volumeChart"></canvas>';
-                document.getElementById('intensityChart').outerHTML = '<canvas id="intensityChart"></canvas>';
-                document.getElementById('consistencyChart').outerHTML = '<canvas id="consistencyChart"></canvas>';
+                // Safely restore canvas elements
+                restoreCanvasElements();
                 
                 // Create Volume chart
                 volumeChart = new Chart(
@@ -306,6 +304,16 @@
                     retryButton.addEventListener('click', () => loadChartData());
                 });
             }
+        }
+        
+        // Function to safely restore canvas elements
+        function restoreCanvasElements() {
+            const chartContainers = document.querySelectorAll('.chart-container');
+            
+            // Clear each container and add fresh canvas elements
+            chartContainers[0].innerHTML = '<canvas id="volumeChart"></canvas>';
+            chartContainers[1].innerHTML = '<canvas id="intensityChart"></canvas>';
+            chartContainers[2].innerHTML = '<canvas id="consistencyChart"></canvas>';
         }
 
         // Initialize page

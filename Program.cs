@@ -160,7 +160,31 @@ namespace WorkoutTrackerWeb
             builder.Services.AddSingleton<SignalRMessageBatchService>();
 
             // Configure Redis
-            builder.Services.AddRedisConfiguration(builder.Configuration);
+            if (builder.Environment.IsDevelopment())
+            {
+                // In development, only add Redis configuration if explicitly enabled
+                var redisSettings = builder.Configuration.GetSection("Redis").Get<WorkoutTrackerWeb.Services.Redis.RedisConfiguration>();
+                if (redisSettings?.Enabled == true)
+                {
+                    builder.Services.AddRedisConfiguration(builder.Configuration);
+                    Log.Information("Redis configuration enabled in development environment");
+                }
+                else
+                {
+                    // Register fallback components for development
+                    builder.Services.AddSingleton<IRedisCircuitBreakerService, NullCircuitBreakerService>();
+                    builder.Services.AddSingleton<IResilientCacheService, FallbackCacheService>();
+                    builder.Services.Configure<RedisKeyOptions>(builder.Configuration.GetSection("Redis:Keys"));
+                    builder.Services.AddSingleton<IRedisKeyService, RedisKeyService>();
+                    
+                    Log.Information("Using in-memory distributed cache for development environment");
+                }
+            }
+            else
+            {
+                // In production, use the standard Redis configuration
+                builder.Services.AddRedisConfiguration(builder.Configuration);
+            }
 
             // Add query result caching services
             builder.Services.AddQueryResultCaching(builder.Configuration);

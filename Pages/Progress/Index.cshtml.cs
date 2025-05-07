@@ -151,7 +151,7 @@ namespace WorkoutTrackerWeb.Pages.Progress
                 try
                 {
                     volumeData = (await _progressDashboardService.GetVolumeSeriesAsync(currentUser.UserId, StartDate, EndDate)).ToList();
-                    _logger.LogDebug("OnGetDataAsync: Retrieved {count} volume data points", volumeData.Count);
+                    _logger.LogInformation("OnGetDataAsync: Retrieved {count} volume data points", volumeData.Count);
                 }
                 catch (Exception ex)
                 {
@@ -161,7 +161,7 @@ namespace WorkoutTrackerWeb.Pages.Progress
                 try
                 {
                     intensityData = (await _progressDashboardService.GetIntensitySeriesAsync(currentUser.UserId, StartDate, EndDate)).ToList();
-                    _logger.LogDebug("OnGetDataAsync: Retrieved {count} intensity data points", intensityData.Count);
+                    _logger.LogInformation("OnGetDataAsync: Retrieved {count} intensity data points", intensityData.Count);
                 }
                 catch (Exception ex)
                 {
@@ -171,25 +171,45 @@ namespace WorkoutTrackerWeb.Pages.Progress
                 try
                 {
                     consistencyData = (await _progressDashboardService.GetConsistencySeriesAsync(currentUser.UserId, StartDate, EndDate)).ToList();
-                    _logger.LogDebug("OnGetDataAsync: Retrieved {count} consistency data points", consistencyData.Count);
+                    _logger.LogInformation("OnGetDataAsync: Retrieved {count} consistency data points", consistencyData.Count);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error retrieving consistency data");
                 }
 
-                // Format data for charts
-                var result = new
+                // Define a concrete class for chart data that exactly matches what the client expects
+                var chartData = new ChartDataViewModel
                 {
-                    Volume = FormatMetricsForChart(volumeData),
-                    Intensity = FormatMetricsForChart(intensityData),
-                    Consistency = FormatMetricsForChart(consistencyData)
+                    Volume = CreateChartData(volumeData),
+                    Intensity = CreateChartData(intensityData),
+                    Consistency = CreateChartData(consistencyData)
                 };
+
+                // Log the data structure
+                _logger.LogInformation("Chart data structure: Volume ({volumeLabels} labels, {volumeData} data points), " +
+                                      "Intensity ({intensityLabels} labels, {intensityData} data points), " +
+                                      "Consistency ({consistencyLabels} labels, {consistencyData} data points)",
+                    chartData.Volume.Labels.Count, chartData.Volume.Data.Count, 
+                    chartData.Intensity.Labels.Count, chartData.Intensity.Data.Count, 
+                    chartData.Consistency.Labels.Count, chartData.Consistency.Data.Count);
+
+                // Create serialization options that preserve property names exactly as they are
+                var jsonOptions = new System.Text.Json.JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = null, // Preserves property names as-is
+                    WriteIndented = false // For production, keep responses compact
+                };
+
+                // Serialize the result to see exactly what is going to the client
+                var serializedJson = System.Text.Json.JsonSerializer.Serialize(chartData, jsonOptions);
+                _logger.LogInformation("Serialized JSON for client: {serializedJson}", serializedJson);
 
                 stopwatch.Stop();
                 _logger.LogInformation("OnGetDataAsync: Completed loading progress dashboard data in {ElapsedMilliseconds}ms", stopwatch.ElapsedMilliseconds);
 
-                return new JsonResult(result);
+                // Return the result as JSON with explicit serialization options
+                return new JsonResult(chartData, jsonOptions);
             }
             catch (SqlException sqlEx)
             {
@@ -205,49 +225,57 @@ namespace WorkoutTrackerWeb.Pages.Progress
             }
         }
 
-        private object FormatMetricsForChart(IEnumerable<WorkoutMetric> metrics)
+        private ChartSeriesData CreateChartData(IEnumerable<WorkoutMetric> metrics)
         {
-            var labels = new List<string>();
-            var data = new List<decimal>();
+            var result = new ChartSeriesData
+            {
+                Labels = new List<string>(),
+                Data = new List<decimal>()
+            };
             
             // Ensure metrics is not null to prevent exceptions
             if (metrics == null)
             {
-                _logger.LogWarning("FormatMetricsForChart: Metrics collection is null");
-                return new
-                {
-                    Labels = Array.Empty<string>(),
-                    Data = Array.Empty<decimal>()
-                };
+                _logger.LogWarning("CreateChartData: Metrics collection is null");
+                // Add placeholder data point if no data exists
+                result.Labels.Add(DateTime.Now.ToString("yyyy-MM-dd"));
+                result.Data.Add(0);
+                return result;
             }
             
             // Handle empty data gracefully
             if (!metrics.Any())
             {
-                _logger.LogInformation("FormatMetricsForChart: No metrics available for chart");
+                _logger.LogInformation("CreateChartData: No metrics available for chart");
                 
                 // Add placeholder data point if no data exists
-                labels.Add(DateTime.Now.ToString("yyyy-MM-dd"));
-                data.Add(0);
-                
-                return new
-                {
-                    Labels = labels,
-                    Data = data
-                };
+                result.Labels.Add(DateTime.Now.ToString("yyyy-MM-dd"));
+                result.Data.Add(0);
+                return result;
             }
             
             foreach (var metric in metrics.OrderBy(m => m.Date))
             {
-                labels.Add(metric.Date.ToString("yyyy-MM-dd"));
-                data.Add(metric.Value);
+                result.Labels.Add(metric.Date.ToString("yyyy-MM-dd"));
+                result.Data.Add(metric.Value);
             }
             
-            return new
-            {
-                Labels = labels,
-                Data = data
-            };
+            return result;
+        }
+
+        // Concrete class for chart data that matches client expectations exactly
+        public class ChartDataViewModel
+        {
+            public ChartSeriesData Volume { get; set; }
+            public ChartSeriesData Intensity { get; set; }
+            public ChartSeriesData Consistency { get; set; }
+        }
+
+        // Concrete class for chart series data
+        public class ChartSeriesData
+        {
+            public List<string> Labels { get; set; }
+            public List<decimal> Data { get; set; }
         }
     }
 }
