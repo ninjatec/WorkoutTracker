@@ -173,6 +173,14 @@ namespace WorkoutTrackerWeb.Data
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            // Configure WorkoutSchedule and TemplateAssignment relationship more explicitly to avoid shadow properties
+            modelBuilder.Entity<WorkoutSchedule>()
+                .HasOne(ws => ws.TemplateAssignment)
+                .WithMany(ta => ta.WorkoutSchedules)
+                .HasForeignKey(ws => ws.TemplateAssignmentId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
+
             modelBuilder.Entity<WorkoutSchedule>()
                 .HasOne(w => w.LastGeneratedSession)
                 .WithMany()
