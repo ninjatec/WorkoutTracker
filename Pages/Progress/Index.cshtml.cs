@@ -10,6 +10,8 @@ using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services.Progress;
 using WorkoutTrackerWeb.Data;
+using System.Diagnostics;
+using Microsoft.Data.SqlClient;
 
 namespace WorkoutTrackerWeb.Pages.Progress
 {
@@ -47,6 +49,7 @@ namespace WorkoutTrackerWeb.Pages.Progress
                 var currentUser = await _context.GetCurrentUserAsync();
                 if (currentUser == null)
                 {
+                    _logger.LogWarning("OnGetAsync: User not found");
                     return NotFound("User not found.");
                 }
 
@@ -66,12 +69,14 @@ namespace WorkoutTrackerWeb.Pages.Progress
                 // Validate date range
                 if (EndDate < StartDate)
                 {
+                    _logger.LogInformation("OnGetAsync: Fixing invalid date range - end date is before start date");
                     EndDate = StartDate.AddMonths(3);
                 }
 
                 // Don't allow ranges longer than 1 year
                 if ((EndDate - StartDate).TotalDays > 365)
                 {
+                    _logger.LogInformation("OnGetAsync: Limiting date range to 1 year");
                     EndDate = StartDate.AddYears(1);
                 }
 
@@ -80,7 +85,7 @@ namespace WorkoutTrackerWeb.Pages.Progress
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error loading progress dashboard");
-                StatusMessage = "Error: An error occurred while loading the dashboard.";
+                StatusMessage = "Error: An error occurred while loading the dashboard. Please try refreshing the page.";
                 return Page();
             }
         }
@@ -88,13 +93,18 @@ namespace WorkoutTrackerWeb.Pages.Progress
         [OutputCache(Duration = 300, VaryByQueryKeys = new[] { "start", "end" })]
         public async Task<IActionResult> OnGetDataAsync()
         {
+            var stopwatch = Stopwatch.StartNew();
+            
             try
             {
+                _logger.LogInformation("OnGetDataAsync: Loading progress dashboard data");
+                
                 // Get the current user
                 var currentUser = await _context.GetCurrentUserAsync();
                 if (currentUser == null)
                 {
-                    return NotFound("User not found.");
+                    _logger.LogWarning("OnGetDataAsync: User not found");
+                    return NotFound(new { error = "User not found." });
                 }
 
                 // Parse date range from query parameters
@@ -111,22 +121,62 @@ namespace WorkoutTrackerWeb.Pages.Progress
                 // Validate date range
                 if (EndDate < StartDate)
                 {
+                    _logger.LogInformation("OnGetDataAsync: Fixing invalid date range - end date is before start date");
                     EndDate = StartDate.AddMonths(3);
                 }
 
                 // Don't allow ranges longer than 1 year
                 if ((EndDate - StartDate).TotalDays > 365)
                 {
+                    _logger.LogInformation("OnGetDataAsync: Limiting date range to 1 year");
                     EndDate = StartDate.AddYears(1);
                 }
 
                 // Calculate metrics that need to be calculated
-                await _progressDashboardService.CalculateAndStoreMissingMetricsAsync();
+                try
+                {
+                    await _progressDashboardService.CalculateAndStoreMissingMetricsAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error calculating missing metrics");
+                    // Continue to retrieve existing metrics - don't fail completely
+                }
 
-                // Get metrics from the service
-                var volumeData = await _progressDashboardService.GetVolumeSeriesAsync(currentUser.UserId, StartDate, EndDate);
-                var intensityData = await _progressDashboardService.GetIntensitySeriesAsync(currentUser.UserId, StartDate, EndDate);
-                var consistencyData = await _progressDashboardService.GetConsistencySeriesAsync(currentUser.UserId, StartDate, EndDate);
+                // Get metrics from the service - handle each independently to prevent total failure
+                var volumeData = new List<WorkoutMetric>();
+                var intensityData = new List<WorkoutMetric>();
+                var consistencyData = new List<WorkoutMetric>();
+
+                try
+                {
+                    volumeData = (await _progressDashboardService.GetVolumeSeriesAsync(currentUser.UserId, StartDate, EndDate)).ToList();
+                    _logger.LogDebug("OnGetDataAsync: Retrieved {count} volume data points", volumeData.Count);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error retrieving volume data");
+                }
+
+                try
+                {
+                    intensityData = (await _progressDashboardService.GetIntensitySeriesAsync(currentUser.UserId, StartDate, EndDate)).ToList();
+                    _logger.LogDebug("OnGetDataAsync: Retrieved {count} intensity data points", intensityData.Count);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error retrieving intensity data");
+                }
+
+                try
+                {
+                    consistencyData = (await _progressDashboardService.GetConsistencySeriesAsync(currentUser.UserId, StartDate, EndDate)).ToList();
+                    _logger.LogDebug("OnGetDataAsync: Retrieved {count} consistency data points", consistencyData.Count);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error retrieving consistency data");
+                }
 
                 // Format data for charts
                 var result = new
@@ -136,11 +186,21 @@ namespace WorkoutTrackerWeb.Pages.Progress
                     Consistency = FormatMetricsForChart(consistencyData)
                 };
 
+                stopwatch.Stop();
+                _logger.LogInformation("OnGetDataAsync: Completed loading progress dashboard data in {ElapsedMilliseconds}ms", stopwatch.ElapsedMilliseconds);
+
                 return new JsonResult(result);
+            }
+            catch (SqlException sqlEx)
+            {
+                stopwatch.Stop();
+                _logger.LogError(sqlEx, "Database error getting progress dashboard data. Duration: {ElapsedMilliseconds}ms", stopwatch.ElapsedMilliseconds);
+                return StatusCode(500, new { error = "A database error occurred. Our team has been notified." });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting progress dashboard data");
+                stopwatch.Stop();
+                _logger.LogError(ex, "Error getting progress dashboard data. Duration: {ElapsedMilliseconds}ms", stopwatch.ElapsedMilliseconds);
                 return StatusCode(500, new { error = "An error occurred while loading the dashboard data." });
             }
         }
@@ -149,6 +209,33 @@ namespace WorkoutTrackerWeb.Pages.Progress
         {
             var labels = new List<string>();
             var data = new List<decimal>();
+            
+            // Ensure metrics is not null to prevent exceptions
+            if (metrics == null)
+            {
+                _logger.LogWarning("FormatMetricsForChart: Metrics collection is null");
+                return new
+                {
+                    Labels = Array.Empty<string>(),
+                    Data = Array.Empty<decimal>()
+                };
+            }
+            
+            // Handle empty data gracefully
+            if (!metrics.Any())
+            {
+                _logger.LogInformation("FormatMetricsForChart: No metrics available for chart");
+                
+                // Add placeholder data point if no data exists
+                labels.Add(DateTime.Now.ToString("yyyy-MM-dd"));
+                data.Add(0);
+                
+                return new
+                {
+                    Labels = labels,
+                    Data = data
+                };
+            }
             
             foreach (var metric in metrics.OrderBy(m => m.Date))
             {

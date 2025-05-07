@@ -151,11 +151,17 @@
 
         // Chart instances
         let volumeChart, intensityChart, consistencyChart;
-
+        let chartLoadAttempts = 0;
+        const MAX_RETRIES = 3;
+        
         // Function to fetch data and update charts
-        async function loadChartData() {
+        async function loadChartData(isRetry = false) {
             const startDate = document.getElementById('startDate').value;
             const endDate = document.getElementById('endDate').value;
+            
+            if (!isRetry) {
+                chartLoadAttempts = 0;
+            }
             
             try {
                 // Show loading indicators
@@ -163,14 +169,35 @@
                     container.innerHTML = '<div class="d-flex justify-content-center align-items-center" style="height:100%"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
                 });
                 
-                // Fetch data from API
-                const response = await fetch(`?handler=Data&start=${startDate}&end=${endDate}`);
+                // Create AbortController for timeout handling
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+                
+                // Fetch data from API with timeout
+                const response = await fetch(`?handler=Data&start=${startDate}&end=${endDate}&nocache=${Date.now()}`, {
+                    signal: controller.signal,
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
+                
+                clearTimeout(timeoutId);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
                 
                 const data = await response.json();
+                
+                // Check if data is present for charts
+                if (!data || !data.Volume || !data.Intensity || !data.Consistency) {
+                    throw new Error("Invalid data format received from server");
+                }
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
                 
                 // Restore canvas elements
                 document.getElementById('volumeChart').outerHTML = '<canvas id="volumeChart"></canvas>';
@@ -238,8 +265,45 @@
                 
             } catch (error) {
                 console.error('Error loading chart data:', error);
+                
+                // Check if we should retry
+                if (chartLoadAttempts < MAX_RETRIES) {
+                    chartLoadAttempts++;
+                    
+                    // Display retry message
+                    document.querySelectorAll('.chart-container').forEach(container => {
+                        container.innerHTML = `<div class="alert alert-warning">
+                            Retrying... (attempt ${chartLoadAttempts} of ${MAX_RETRIES})
+                            <div class="spinner-border spinner-border-sm ms-2" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>`;
+                    });
+                    
+                    // Wait a bit before retrying (exponential backoff)
+                    const retryDelay = Math.min(1000 * Math.pow(2, chartLoadAttempts - 1), 5000);
+                    setTimeout(() => loadChartData(true), retryDelay);
+                    return;
+                }
+                
+                // Show error with retry button after max retries
                 document.querySelectorAll('.chart-container').forEach(container => {
-                    container.innerHTML = '<div class="alert alert-danger">Error loading chart data. Please try again later.</div>';
+                    // Create error message with retry button
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'alert alert-danger';
+                    errorDiv.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>Error loading chart data. Please try again later.</div>
+                            <button class="btn btn-sm btn-outline-danger retry-button">Retry</button>
+                        </div>
+                        <div class="small text-muted mt-2">${error.message}</div>
+                    `;
+                    container.innerHTML = '';
+                    container.appendChild(errorDiv);
+                    
+                    // Add event listener to retry button
+                    const retryButton = errorDiv.querySelector('.retry-button');
+                    retryButton.addEventListener('click', () => loadChartData());
                 });
             }
         }
