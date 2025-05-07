@@ -11,7 +11,7 @@
 - Remenber User details are stored accross 2 db contexts
 - We run the site on Linux containers. case sensitivity is very important
 - The containers a created with dotnet publish and not dockerfile
-- Tech Debt should be avoided, but where unavoidable docuemnt via techdebt.md file
+- Tech Debt should be avoided, but where unavoidable document via techdebt.md file
 
 ## Development Practices
 - The application is currently in development so dataloss and downtime are acceptable
