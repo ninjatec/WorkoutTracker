@@ -22,6 +22,31 @@ namespace WorkoutTrackerWeb.Pages.Calculator
         private readonly UserService _userService;
         private readonly ILogger<OneRepMaxModel> _logger;
 
+        // Available formulas for filtering
+        public readonly List<string> AvailableFormulas = new List<string> 
+        { 
+            "All", 
+            "Average", 
+            "Brzycki", 
+            "Epley", 
+            "Lander", 
+            "Lombardi", 
+            "Mayhew", 
+            "O'Conner", 
+            "Wathan" 
+        };
+
+        // Selected formula for filtering results
+        [BindProperty(SupportsGet = true)]
+        public string SelectedFormula { get; set; } = "All";
+
+        // Display name for the selected formula (for UI clarity)
+        public string SelectedFormulaDisplayName => SelectedFormula switch
+        {
+            "All" => "All Formulas",
+            _ => SelectedFormula
+        };
+
         public OneRepMaxModel(WorkoutTrackerWebContext context, UserService userService, ILogger<OneRepMaxModel> logger)
         {
             _context = context;
@@ -452,8 +477,13 @@ namespace WorkoutTrackerWeb.Pages.Calculator
                 }
             }
             
+            // Filter summaries by selected formula
+            var filteredExerciseSummaries = SelectedFormula == "All"
+                ? allExerciseSummaries
+                : allExerciseSummaries.Where(s => s.Formula == SelectedFormula);
+
             // Sort all exercise summaries by their max 1RM weight
-            var sortedExerciseGroups = allExerciseSummaries
+            var sortedExerciseGroups = filteredExerciseSummaries
                 .GroupBy(s => s.ExerciseName)
                 .OrderByDescending(g => exerciseMaxOneRMs[g.Key]);
             
