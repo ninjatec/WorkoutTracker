@@ -166,14 +166,7 @@ namespace WorkoutTrackerWeb.Data
                 .OnDelete(DeleteBehavior.Restrict);
             
             // 5. Fix WorkoutSchedule <-> TemplateAssignment relationship to prevent TemplateAssignmentId1 shadow property
-            modelBuilder.Entity<TemplateAssignment>()
-                .HasMany(ta => ta.WorkoutSchedules)
-                .WithOne(ws => ws.TemplateAssignment)
-                .HasForeignKey(ws => ws.TemplateAssignmentId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.SetNull);
-
-            // Configure WorkoutSchedule and TemplateAssignment relationship more explicitly to avoid shadow properties
+            // UPDATED: Keep only one configuration for this relationship to avoid ambiguity
             modelBuilder.Entity<WorkoutSchedule>()
                 .HasOne(ws => ws.TemplateAssignment)
                 .WithMany(ta => ta.WorkoutSchedules)
@@ -181,6 +174,7 @@ namespace WorkoutTrackerWeb.Data
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            // Configure the other relationships in WorkoutSchedule
             modelBuilder.Entity<WorkoutSchedule>()
                 .HasOne(w => w.LastGeneratedSession)
                 .WithMany()
@@ -194,6 +188,18 @@ namespace WorkoutTrackerWeb.Data
                 .HasForeignKey(w => w.TemplateId)
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.SetNull);
+                
+            modelBuilder.Entity<WorkoutSchedule>()
+                .HasOne(w => w.Client)
+                .WithMany()
+                .HasForeignKey(w => w.ClientUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            modelBuilder.Entity<WorkoutSchedule>()
+                .HasOne(w => w.Coach) 
+                .WithMany()
+                .HasForeignKey(w => w.CoachUserId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             // *** OTHER RELATIONSHIP CONFIGURATIONS ***
             
