@@ -39,6 +39,7 @@ namespace WorkoutTrackerWeb.Data
         public DbSet<WorkoutTrackerWeb.Models.LoginHistory> LoginHistory { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.ShareToken> ShareToken { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.PendingExerciseSelection> PendingExerciseSelection { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.WorkoutMetric> WorkoutMetrics { get; set; } = default!;
 
         // Alerting system DbSets
         public DbSet<WorkoutTrackerWeb.Models.Alerting.AlertThreshold> AlertThreshold { get; set; } = default!;
@@ -576,13 +577,19 @@ namespace WorkoutTrackerWeb.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
             // Configure the relationship between WorkoutSchedule and WorkoutSession
-            // This fixes the warning: "Navigations 'WorkoutSchedule.LastGeneratedSession' and 'WorkoutSession.Schedule' were separated into two relationships"
+            // Fix to avoid the FK_WorkoutSchedules_WorkoutSessions_LastGeneratedSessionId constraint issue
             modelBuilder.Entity<WorkoutSchedule>()
                 .HasOne(ws => ws.LastGeneratedSession)
                 .WithOne()
                 .HasForeignKey<WorkoutSchedule>(ws => ws.LastGeneratedSessionId)
                 .IsRequired(false)
+                // Do not specify HasConstraintName to let EF Core use the constraint that already exists
                 .OnDelete(DeleteBehavior.SetNull);
+                
+            // Tell EF Core to ignore changes to this navigation property when generating migrations
+            modelBuilder.Entity<WorkoutSchedule>()
+                .Navigation(ws => ws.LastGeneratedSession)
+                .UsePropertyAccessMode(PropertyAccessMode.Field);
 
             modelBuilder.Entity<WorkoutSession>()
                 .HasOne(s => s.Schedule)
@@ -923,6 +930,30 @@ namespace WorkoutTrackerWeb.Data
                 .HasQueryFilter(ca => _currentUserId == null || 
                               ca.ClientId == _currentUserId || 
                               ca.CoachId == _currentUserId);
+                              
+            // Configure WorkoutMetric relationships and query filters
+            modelBuilder.Entity<WorkoutMetric>()
+                .HasOne(wm => wm.User)
+                .WithMany()
+                .HasForeignKey(wm => wm.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            // WorkoutMetrics are filtered by the current user (only see your own metrics)
+            modelBuilder.Entity<WorkoutMetric>()
+                .HasQueryFilter(wm => _currentUserId == null || wm.User.IdentityUserId == _currentUserId);
+                
+            // Add indexes for better performance
+            modelBuilder.Entity<WorkoutMetric>()
+                .HasIndex(wm => wm.UserId);
+                
+            modelBuilder.Entity<WorkoutMetric>()
+                .HasIndex(wm => wm.Date);
+                
+            modelBuilder.Entity<WorkoutMetric>()
+                .HasIndex(wm => wm.MetricType);
+                
+            modelBuilder.Entity<WorkoutMetric>()
+                .HasIndex(wm => new { wm.UserId, wm.Date, wm.MetricType }).IsUnique();
         }
     }
 }

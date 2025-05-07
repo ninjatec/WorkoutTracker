@@ -5,9 +5,9 @@ This document tracks the implementation progress of the Interactive Progress Das
 ## Implementation Steps
 
 ### 1. Data Model & Persistence
-- [ ] Extend or create entities to track aggregated metrics (WorkoutMetric)
-- [ ] Update ApplicationDbContext with DbSet<WorkoutMetric>
-- [ ] Add and apply EF Core migration
+- [x] Extend or create entities to track aggregated metrics (WorkoutMetric)
+- [x] Update ApplicationDbContext with DbSet<WorkoutMetric>
+- [x] Add and apply EF Core migration
 
 ### 2. Service Layer
 - [ ] Create ProgressDashboardService
@@ -42,4 +42,6 @@ This document tracks the implementation progress of the Interactive Progress Das
 
 ## Commits
 
-*This section will be updated with commit details as progress is made.*
+1. [2025-05-07] Created feature branch `feature/interactive-progress-dashboard`
+2. [2025-05-07] Added progress tracking file for the Interactive Progress Dashboard feature
+3. [2025-05-07] Implemented WorkoutMetric entity model and database migration
