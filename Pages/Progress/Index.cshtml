@@ -1,0 +1,269 @@
+@page
+@model WorkoutTrackerWeb.Pages.Progress.IndexModel
+@{
+    ViewData["Title"] = "Progress Dashboard";
+}
+
+<div class="container">
+    <h1 class="mb-4">Interactive Progress Dashboard</h1>
+    
+    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+    {
+        <div class="alert alert-info" role="alert">
+            @Model.StatusMessage
+        </div>
+    }
+
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-graph-up"></i> Your Workout Progress
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        This dashboard shows your progress over time based on your completed workouts.
+                        Use the date range picker to customize the time period.
+                    </p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-calendar-range"></i> Date Range
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="dateRangeForm" method="get">
+                        <div class="mb-3">
+                            <label for="startDate" class="form-label">Start Date</label>
+                            <input type="date" id="startDate" name="start" class="form-control" 
+                                   value="@Model.StartDate.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="mb-3">
+                            <label for="endDate" class="form-label">End Date</label>
+                            <input type="date" id="endDate" name="end" class="form-control" 
+                                   value="@Model.EndDate.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <button type="submit" class="btn btn-primary">Update Charts</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Workout Volume Over Time</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="position: relative; height:300px; width:100%">
+                        <canvas id="volumeChart"></canvas>
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted">Total weight lifted (weight × reps) per workout session</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Workout Intensity</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="position: relative; height:250px; width:100%">
+                        <canvas id="intensityChart"></canvas>
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted">Average weight per set</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Workout Consistency</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" style="position: relative; height:250px; width:100%">
+                        <canvas id="consistencyChart"></canvas>
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted">Workouts per week</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <h5><i class="bi bi-info-circle"></i> How to Use This Dashboard</h5>
+                <p>
+                    The Interactive Progress Dashboard helps you track your workout progress over time across three key metrics:
+                </p>
+                <ul>
+                    <li><strong>Volume</strong> - The total amount of weight lifted (weight × reps) per workout session</li>
+                    <li><strong>Intensity</strong> - The average weight used per set</li>
+                    <li><strong>Consistency</strong> - The number of workouts completed per week</li>
+                </ul>
+                <p>
+                    Use the date range selector to focus on specific time periods and track your progress over time.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Chart.js configuration
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            }
+        };
+
+        // Chart instances
+        let volumeChart, intensityChart, consistencyChart;
+
+        // Function to fetch data and update charts
+        async function loadChartData() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            try {
+                // Show loading indicators
+                document.querySelectorAll('.chart-container').forEach(container => {
+                    container.innerHTML = '<div class="d-flex justify-content-center align-items-center" style="height:100%"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+                });
+                
+                // Fetch data from API
+                const response = await fetch(`?handler=Data&start=${startDate}&end=${endDate}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Restore canvas elements
+                document.getElementById('volumeChart').outerHTML = '<canvas id="volumeChart"></canvas>';
+                document.getElementById('intensityChart').outerHTML = '<canvas id="intensityChart"></canvas>';
+                document.getElementById('consistencyChart').outerHTML = '<canvas id="consistencyChart"></canvas>';
+                
+                // Create Volume chart
+                volumeChart = new Chart(
+                    document.getElementById('volumeChart'),
+                    {
+                        type: 'line',
+                        data: {
+                            labels: data.Volume.Labels,
+                            datasets: [{
+                                label: 'Total Volume',
+                                data: data.Volume.Data,
+                                fill: false,
+                                backgroundColor: '#1976D2',
+                                borderColor: '#1976D2',
+                                borderWidth: 2,
+                                tension: 0.1
+                            }]
+                        },
+                        options: chartOptions
+                    }
+                );
+                
+                // Create Intensity chart
+                intensityChart = new Chart(
+                    document.getElementById('intensityChart'),
+                    {
+                        type: 'bar',
+                        data: {
+                            labels: data.Intensity.Labels,
+                            datasets: [{
+                                label: 'Average Intensity',
+                                data: data.Intensity.Data,
+                                backgroundColor: '#F57C00',
+                                borderColor: '#E65100',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: chartOptions
+                    }
+                );
+                
+                // Create Consistency chart
+                consistencyChart = new Chart(
+                    document.getElementById('consistencyChart'),
+                    {
+                        type: 'bar',
+                        data: {
+                            labels: data.Consistency.Labels,
+                            datasets: [{
+                                label: 'Workouts per Week',
+                                data: data.Consistency.Data,
+                                backgroundColor: '#4CAF50',
+                                borderColor: '#2E7D32',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: chartOptions
+                    }
+                );
+                
+            } catch (error) {
+                console.error('Error loading chart data:', error);
+                document.querySelectorAll('.chart-container').forEach(container => {
+                    container.innerHTML = '<div class="alert alert-danger">Error loading chart data. Please try again later.</div>';
+                });
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load chart data on page load
+            loadChartData();
+            
+            // Set up form submission
+            document.getElementById('dateRangeForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Update URL with new parameters without reloading
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                const url = new URL(window.location);
+                url.searchParams.set('start', startDate);
+                url.searchParams.set('end', endDate);
+                window.history.pushState({}, '', url);
+                
+                // Load new data
+                loadChartData();
+            });
+        });
+    </script>
+}
