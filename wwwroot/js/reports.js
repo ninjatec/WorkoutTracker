@@ -51,9 +51,86 @@ document.addEventListener('DOMContentLoaded', function() {
         // This is handled by createCaloriesChart
     };
 
+    // Enhance mobile accordion responsiveness
+    enhanceMobileAccordions();
+
     // Initialize charts with improved error handling
     initializeCharts();
 });
+
+// New function to enhance accordion responsiveness on mobile
+function enhanceMobileAccordions() {
+    // Find all accordion headers
+    const accordionHeaders = document.querySelectorAll('.accordion-button, [data-bs-toggle="collapse"]');
+    
+    accordionHeaders.forEach(header => {
+        // Add touchstart event with passive flag
+        header.addEventListener('touchstart', function(e) {
+            header.dataset.touchStartX = e.touches[0].clientX;
+            header.dataset.touchStartY = e.touches[0].clientY;
+            header.dataset.swiping = 'false';
+        }, { passive: true });
+        
+        // Add touchmove to detect if user is swiping rather than tapping
+        header.addEventListener('touchmove', function(e) {
+            if (!header.dataset.touchStartX) return;
+            
+            const diffX = Math.abs(e.touches[0].clientX - header.dataset.touchStartX);
+            const diffY = Math.abs(e.touches[0].clientY - header.dataset.touchStartY);
+            
+            // If finger moved more than 10px in any direction, it's a swipe
+            if (diffX > 10 || diffY > 10) {
+                header.dataset.swiping = 'true';
+            }
+        }, { passive: true });
+        
+        // Handle touchend to trigger click for simple taps
+        header.addEventListener('touchend', function(e) {
+            if (header.dataset.swiping !== 'true') {
+                // This was a tap, not a swipe
+                // Get the target element that should be expanded/collapsed
+                const targetId = header.getAttribute('data-bs-target') || 
+                                 header.getAttribute('data-target') || 
+                                 header.getAttribute('href');
+                
+                if (targetId) {
+                    // If we can find the collapse element, toggle its state
+                    const targetElement = document.querySelector(targetId);
+                    if (targetElement) {
+                        const bsCollapse = bootstrap.Collapse.getInstance(targetElement);
+                        if (bsCollapse) {
+                            if (targetElement.classList.contains('show')) {
+                                bsCollapse.hide();
+                            } else {
+                                bsCollapse.show();
+                            }
+                        } else {
+                            // Fallback if Bootstrap instance not available
+                            targetElement.classList.toggle('show');
+                            header.classList.toggle('collapsed');
+                            
+                            const expanded = header.getAttribute('aria-expanded') === 'true';
+                            header.setAttribute('aria-expanded', !expanded);
+                        }
+                    }
+                }
+            }
+            
+            // Reset touch tracking
+            delete header.dataset.touchStartX;
+            delete header.dataset.touchStartY;
+            delete header.dataset.swiping;
+        }, { passive: false });
+    });
+    
+    // Also handle the accordion content areas to prevent accidental collapse
+    document.querySelectorAll('.accordion-collapse').forEach(content => {
+        content.addEventListener('touchstart', function(e) {
+            // Prevent event bubbling to accordion header when touching inside content
+            e.stopPropagation();
+        }, { passive: true });
+    });
+}
 
 function initializeChart(containerId) {
     const period = document.getElementById('period')?.value || 90;

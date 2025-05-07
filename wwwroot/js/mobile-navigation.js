@@ -439,12 +439,46 @@ function initHapticFeedback() {
         element.addEventListener('click', function() {
             triggerHapticFeedback('light');
         });
+        
+        // Add touchend event to ensure mobile devices respond properly
+        element.addEventListener('touchend', function(e) {
+            // Prevent default only if this is a simple tap (not part of a swipe)
+            if (!element.dataset.swiping) {
+                triggerHapticFeedback('light');
+                // Only prevent default for buttons and anchors that don't have href="#"
+                if (element.tagName === 'BUTTON' || 
+                   (element.tagName === 'A' && (!element.getAttribute('href') || element.getAttribute('href') !== '#'))) {
+                    e.preventDefault();
+                }
+                // Trigger the click event to ensure handlers are executed
+                element.click();
+            }
+        });
+        
+        // Track if we're in a swipe operation
+        element.addEventListener('touchstart', function() {
+            element.dataset.swiping = 'false';
+        });
+        
+        element.addEventListener('touchmove', function() {
+            element.dataset.swiping = 'true';
+        });
     });
     
     // Special actions get more intense feedback
     document.querySelectorAll('button.btn-danger, a.btn-danger, button[type=submit]').forEach(element => {
         element.addEventListener('click', function() {
             triggerHapticFeedback('medium');
+        });
+    });
+    
+    // Handle Bootstrap accordion headers specifically for mobile - they might be using data-bs-toggle="collapse"
+    document.querySelectorAll('[data-bs-toggle="collapse"], [data-toggle="collapse"]').forEach(element => {
+        element.addEventListener('touchend', function(e) {
+            if (!element.dataset.swiping) {
+                triggerHapticFeedback('light');
+                // Don't prevent default to allow Bootstrap's collapse functionality to work
+            }
         });
     });
 }
