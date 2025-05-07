@@ -100,9 +100,6 @@ namespace WorkoutTrackerWeb.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // No global query filters on User table - we need to see all users for admin purposes
-            // But we'll add filters to child entities
-
             // Configure precision and scale for decimal properties to avoid truncation warnings
             modelBuilder.Entity<ClientGoal>()
                 .Property(g => g.CurrentValue)
@@ -124,115 +121,60 @@ namespace WorkoutTrackerWeb.Data
                 .Property(w => w.CaloriesBurned)
                 .HasPrecision(10, 2);
             
-            // Fix CoachClientRelationship and AppUser relationships to prevent shadow properties
-            // Explicitly configure relationships to avoid shadow foreign key properties
+            // *** RELATIONSHIP CONFIGURATIONS TO FIX SHADOW PROPERTY ISSUES ***
+
+            // 1. Fix CoachClientRelationship <-> AppUser relationships to prevent AppUserId1 shadow property
+            // Define relationships with AppUser explicitly using correct property names
             modelBuilder.Entity<CoachClientRelationship>()
                 .HasOne(r => r.Coach)
                 .WithMany(u => u.CoachRelationships)
                 .HasForeignKey(r => r.CoachId)
-                .OnDelete(DeleteBehavior.NoAction)
-                .IsRequired();
-
+                .OnDelete(DeleteBehavior.NoAction);
+                
             modelBuilder.Entity<CoachClientRelationship>()
-                .HasOne(r => r.Client) 
+                .HasOne(r => r.Client)
                 .WithMany(u => u.ClientRelationships)
                 .HasForeignKey(r => r.ClientId)
                 .OnDelete(DeleteBehavior.NoAction)
                 .IsRequired(false); // Allow null for invited users who are not registered yet
-                
-            // Configure CoachClientRelationship relationships and query filter
-            modelBuilder.Entity<CoachClientRelationship>()
-                .HasQueryFilter(r => _currentUserId == null || r.CoachId == _currentUserId || r.ClientId == _currentUserId);
-                                    
-            // Configure unique index on coach-client pairs (with non-null filter)
-            modelBuilder.Entity<CoachClientRelationship>()
-                .HasIndex(r => new { r.CoachId, r.ClientId })
-                .IsUnique()
-                .HasFilter("[ClientId] IS NOT NULL");
-                
-            // Configure ClientGroup relationship to CoachClientRelationship
-            modelBuilder.Entity<CoachClientRelationship>()
-                .HasOne(r => r.ClientGroup)
-                .WithMany(g => g.ClientRelationships)
-                .HasForeignKey(r => r.ClientGroupId)
-                .OnDelete(DeleteBehavior.SetNull);
-
-            // Configure CoachClientPermission relationship
-            modelBuilder.Entity<CoachClientRelationship>()
-                .HasOne(r => r.Permissions)
-                .WithOne(p => p.Relationship)
-                .HasForeignKey<CoachClientPermission>(p => p.CoachClientRelationshipId)
+            
+            // 2. Fix WorkoutFeedback <-> WorkoutSession relationship to prevent WorkoutSessionId1 shadow property
+            modelBuilder.Entity<WorkoutFeedback>()
+                .HasOne(wf => wf.WorkoutSession)
+                .WithMany() // Explicitly define empty collection to ensure separate relationship
+                .HasForeignKey(wf => wf.WorkoutSessionId)
                 .OnDelete(DeleteBehavior.Cascade);
-                
-            // Add additional indexes for efficient querying
-            modelBuilder.Entity<CoachClientRelationship>()
-                .HasIndex(r => r.CoachId);
-                
-            modelBuilder.Entity<CoachClientRelationship>()
-                .HasIndex(r => r.ClientId);
-                
-            modelBuilder.Entity<CoachClientRelationship>()
-                .HasIndex(r => r.Status);
-
-            // Configure AppUser relationships
-            modelBuilder.Entity<AppUser>()
-                .HasMany(u => u.CoachRelationships)
-                .WithOne(r => r.Coach)
-                .HasForeignKey(r => r.CoachId)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            modelBuilder.Entity<AppUser>()
-                .HasMany(u => u.ClientRelationships)
-                .WithOne(r => r.Client)
-                .HasForeignKey(r => r.ClientId)
-                .OnDelete(DeleteBehavior.NoAction);
-
-            // Configure CoachClientRelationship relationships
-            modelBuilder.Entity<CoachClientRelationship>()
-                .HasOne(r => r.ClientGroup)
-                .WithMany(g => g.ClientRelationships)
-                .HasForeignKey(r => r.ClientGroupId)
-                .OnDelete(DeleteBehavior.SetNull);
-
-            modelBuilder.Entity<CoachClientRelationship>()
-                .HasOne(r => r.Permissions)
-                .WithOne(p => p.Relationship)
-                .HasForeignKey<CoachClientPermission>(p => p.CoachClientRelationshipId)
+            
+            // 3. Fix ProgressionRule <-> ProgressionHistory relationship
+            modelBuilder.Entity<ProgressionRule>()
+                .HasMany(pr => pr.ProgressionHistory)
+                .WithOne(ph => ph.ProgressionRule)
+                .HasForeignKey(ph => ph.ProgressionRuleId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            // 4. Fix WorkoutSession <-> WorkoutExercise relationship to prevent ExerciseTypeId1 shadow property
+            modelBuilder.Entity<WorkoutSession>()
+                .HasMany(ws => ws.WorkoutExercises)
+                .WithOne(we => we.WorkoutSession)
+                .HasForeignKey(we => we.WorkoutSessionId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Configure ClientGoal relationships
-            modelBuilder.Entity<ClientGoal>()
-                .HasOne(g => g.Relationship)
-                .WithMany()
-                .HasForeignKey(g => g.CoachClientRelationshipId)
-                .OnDelete(DeleteBehavior.Cascade)
+            modelBuilder.Entity<WorkoutExercise>()
+                .HasOne(we => we.ExerciseType)
+                .WithMany() // Explicitly define empty collection to avoid confusion
+                .HasForeignKey(we => we.ExerciseTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+            
+            // 5. Fix WorkoutSchedule <-> TemplateAssignment relationship to prevent TemplateAssignmentId1 shadow property
+            modelBuilder.Entity<WorkoutSchedule>()
+                .HasOne(ws => ws.TemplateAssignment)
+                .WithMany() // Explicitly define empty collection to ensure separate relationship
+                .HasForeignKey(ws => ws.TemplateAssignmentId)
+                .OnDelete(DeleteBehavior.SetNull)
                 .IsRequired(false);
 
-            // Configure ClientGroup relationships
-            modelBuilder.Entity<ClientGroup>()
-                .HasOne(g => g.Coach)
-                .WithMany()
-                .HasForeignKey(g => g.CoachId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .IsRequired();
-
-            // Configure ClientGroupMember relationships
-            modelBuilder.Entity<ClientGroupMember>()
-                .HasOne(m => m.ClientGroup)
-                .WithMany()
-                .HasForeignKey(m => m.ClientGroupId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<ClientGroupMember>()
-                .HasOne(m => m.Relationship)
-                .WithMany()
-                .HasForeignKey(m => m.CoachClientRelationshipId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            // Feedback is filtered by the current user (only see your own feedback unless admin)
-            modelBuilder.Entity<Feedback>()
-                .HasQueryFilter(f => _currentUserId == null || f.User == null || f.User.IdentityUserId == _currentUserId);
-                
+            // *** OTHER RELATIONSHIP CONFIGURATIONS ***
+            
             // Configure the relationship between Feedback and User
             modelBuilder.Entity<Feedback>()
                 .HasOne(f => f.User)
@@ -293,19 +235,6 @@ namespace WorkoutTrackerWeb.Data
                 .WithMany()
                 .HasForeignKey(n => n.AlertId)
                 .OnDelete(DeleteBehavior.SetNull);
-                
-            // Configure indexes for alerting system
-            modelBuilder.Entity<AlertThreshold>()
-                .HasIndex(at => at.MetricName);
-                
-            modelBuilder.Entity<Alert>()
-                .HasIndex(a => a.TriggeredAt);
-                
-            modelBuilder.Entity<AlertHistory>()
-                .HasIndex(ah => ah.TriggeredAt);
-                
-            modelBuilder.Entity<Notification>()
-                .HasIndex(n => new { n.UserId, n.IsRead });
 
             // Configure WorkoutTemplate relationships and query filter
             modelBuilder.Entity<WorkoutTemplate>()
@@ -325,7 +254,6 @@ namespace WorkoutTrackerWeb.Data
                 .HasForeignKey(wte => wte.WorkoutTemplateId)
                 .OnDelete(DeleteBehavior.Cascade);
                 
-            // Fix ExerciseTypeId1 error by explicitly configuring the relationship
             modelBuilder.Entity<WorkoutTemplateExercise>()
                 .HasOne(wte => wte.ExerciseType)
                 .WithMany(et => et.TemplateExercises)
@@ -352,8 +280,171 @@ namespace WorkoutTrackerWeb.Data
             // WorkoutTemplateSets are filtered by the current user (via WorkoutTemplateExercise -> WorkoutTemplate)
             modelBuilder.Entity<WorkoutTemplateSet>()
                 .HasQueryFilter(wts => _currentUserId == null || wts.WorkoutTemplateExercise.WorkoutTemplate.User.IdentityUserId == _currentUserId);
+            
+            // Configure CoachClientRelationship <-> CoachClientPermission relationship
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasOne(r => r.Permissions)
+                .WithOne(p => p.Relationship)
+                .HasForeignKey<CoachClientPermission>(p => p.CoachClientRelationshipId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure relationships for ClientGroup
+            modelBuilder.Entity<ClientGroup>()
+                .HasOne(g => g.Coach)
+                .WithMany()
+                .HasForeignKey(g => g.CoachId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ClientGroup>()
+                .HasMany(g => g.ClientRelationships)
+                .WithOne(r => r.ClientGroup)
+                .HasForeignKey(r => r.ClientGroupId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Configure relationships for ClientGroupMember
+            modelBuilder.Entity<ClientGroupMember>()
+                .HasOne(m => m.ClientGroup)
+                .WithMany()
+                .HasForeignKey(m => m.ClientGroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ClientGroupMember>()
+                .HasOne(m => m.Relationship)
+                .WithMany()
+                .HasForeignKey(m => m.CoachClientRelationshipId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure relationships for CoachNote
+            modelBuilder.Entity<CoachNote>()
+                .HasOne(n => n.Relationship)
+                .WithMany(r => r.Notes)
+                .HasForeignKey(n => n.CoachClientRelationshipId)
+                .OnDelete(DeleteBehavior.Cascade);
                 
-            // Add indexes for better performance
+            // Configure relationships for ClientGoal
+            modelBuilder.Entity<ClientGoal>()
+                .HasOne(g => g.Relationship)
+                .WithMany()
+                .HasForeignKey(g => g.CoachClientRelationshipId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            // Configure relationships for CoachClientMessage
+            modelBuilder.Entity<CoachClientMessage>()
+                .HasOne(m => m.Relationship)
+                .WithMany()
+                .HasForeignKey(m => m.CoachClientRelationshipId)
+                .OnDelete(DeleteBehavior.Cascade);
+            
+            // Configure relationship for ExerciseFeedback to fix warnings
+            modelBuilder.Entity<ExerciseFeedback>()
+                .HasOne(ef => ef.WorkoutFeedback)
+                .WithMany(wf => wf.ExerciseFeedbacks)
+                .HasForeignKey(ef => ef.WorkoutFeedbackId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ExerciseFeedback>()
+                .HasOne(ef => ef.WorkoutSet)
+                .WithMany()
+                .HasForeignKey(ef => ef.WorkoutSetId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // *** QUERY FILTERS ***
+
+            // Configure WorkoutSession and related entity query filters with matching conditions
+            modelBuilder.Entity<WorkoutSession>()
+                .HasQueryFilter(ws => _currentUserId == null || ws.User.IdentityUserId == _currentUserId);
+
+            modelBuilder.Entity<WorkoutExercise>()
+                .HasQueryFilter(we => _currentUserId == null || we.WorkoutSession.User.IdentityUserId == _currentUserId);
+
+            modelBuilder.Entity<WorkoutSet>()
+                .HasQueryFilter(ws => _currentUserId == null || ws.WorkoutExercise.WorkoutSession.User.IdentityUserId == _currentUserId);
+
+            // Configure coaching entity filters
+            modelBuilder.Entity<CoachClientRelationship>()
+                .HasQueryFilter(r => _currentUserId == null || r.CoachId == _currentUserId || r.ClientId == _currentUserId);
+                
+            modelBuilder.Entity<CoachClientPermission>()
+                .HasQueryFilter(p => _currentUserId == null || p.Relationship.CoachId == _currentUserId || p.Relationship.ClientId == _currentUserId);
+
+            modelBuilder.Entity<ClientGroup>()
+                .HasQueryFilter(g => _currentUserId == null || g.CoachId == _currentUserId);
+
+            modelBuilder.Entity<ClientGroupMember>()
+                .HasQueryFilter(m => _currentUserId == null || m.ClientGroup.CoachId == _currentUserId || m.Relationship.ClientId == _currentUserId);
+            
+            modelBuilder.Entity<CoachNote>()
+                .HasQueryFilter(n => _currentUserId == null || n.Relationship.CoachId == _currentUserId || n.Relationship.ClientId == _currentUserId);
+
+            modelBuilder.Entity<ClientGoal>()
+                .HasQueryFilter(g => _currentUserId == null || g.Relationship.CoachId == _currentUserId || g.Relationship.ClientId == _currentUserId);
+
+            modelBuilder.Entity<CoachClientMessage>()
+                .HasQueryFilter(m => _currentUserId == null || m.Relationship.CoachId == _currentUserId || m.Relationship.ClientId == _currentUserId);
+            
+            // Configure WorkoutFeedback and ExerciseFeedback with matching query filters
+            modelBuilder.Entity<WorkoutFeedback>()
+                .HasQueryFilter(wf => _currentUserId == null || wf.Client.IdentityUserId == _currentUserId);
+
+            modelBuilder.Entity<ExerciseFeedback>()
+                .HasQueryFilter(ef => _currentUserId == null || ef.WorkoutFeedback.Client.IdentityUserId == _currentUserId);
+
+            // Configure ProgressionRule and ProgressionHistory matching query filters
+            modelBuilder.Entity<ProgressionRule>()
+                .HasQueryFilter(pr => _currentUserId == null || pr.Coach.IdentityUserId == _currentUserId || 
+                                (pr.Client != null && pr.Client.IdentityUserId == _currentUserId));
+
+            modelBuilder.Entity<ProgressionHistory>()
+                .HasQueryFilter(ph => _currentUserId == null || ph.ProgressionRule.Coach.IdentityUserId == _currentUserId || 
+                               (ph.ProgressionRule.Client != null && ph.ProgressionRule.Client.IdentityUserId == _currentUserId));
+
+            // Configure workout programming models query filters
+            modelBuilder.Entity<TemplateAssignment>()
+                .HasQueryFilter(ta => _currentUserId == null || ta.Coach.IdentityUserId == _currentUserId || 
+                                ta.Client.IdentityUserId == _currentUserId);
+
+            modelBuilder.Entity<WorkoutSchedule>()
+                .HasQueryFilter(ws => _currentUserId == null || ws.Coach.IdentityUserId == _currentUserId || 
+                               ws.Client.IdentityUserId == _currentUserId);
+
+            modelBuilder.Entity<ClientExerciseExclusion>()
+                .HasQueryFilter(cee => _currentUserId == null || cee.Client.IdentityUserId == _currentUserId || 
+                                (cee.CreatedByCoach != null && cee.CreatedByCoach.IdentityUserId == _currentUserId));
+
+            modelBuilder.Entity<ClientEquipment>()
+                .HasQueryFilter(ce => _currentUserId == null || ce.Client.IdentityUserId == _currentUserId);
+
+            // Query filter for Feedback table
+            modelBuilder.Entity<Feedback>()
+                .HasQueryFilter(f => _currentUserId == null || f.User == null || f.User.IdentityUserId == _currentUserId);
+
+            // Query filter for GoalMilestones
+            modelBuilder.Entity<GoalMilestone>()
+                .HasQueryFilter(m => _currentUserId == null || m.Goal.UserId == _currentUserId || 
+                              (m.Goal.IsVisibleToCoach && m.Goal.Relationship.CoachId == _currentUserId));
+
+            // Query filters for dashboard entities
+            modelBuilder.Entity<GoalFeedback>()
+                .HasQueryFilter(gf => _currentUserId == null || gf.CoachId == _currentUserId || gf.Goal.UserId == _currentUserId);
+
+            modelBuilder.Entity<ClientActivity>()
+                .HasQueryFilter(ca => _currentUserId == null || ca.ClientId == _currentUserId || ca.CoachId == _currentUserId);
+
+            // *** INDEXES ***
+            // (Indexes remain unchanged - they're not part of the shadow property issue)
+            // Configure indexes for better performance
+            modelBuilder.Entity<AlertThreshold>()
+                .HasIndex(at => at.MetricName);
+                
+            modelBuilder.Entity<Alert>()
+                .HasIndex(a => a.TriggeredAt);
+                
+            modelBuilder.Entity<AlertHistory>()
+                .HasIndex(ah => ah.TriggeredAt);
+                
+            modelBuilder.Entity<Notification>()
+                .HasIndex(n => new { n.UserId, n.IsRead });
+
             modelBuilder.Entity<WorkoutTemplate>()
                 .HasIndex(wt => wt.UserId);
                 
@@ -375,106 +466,6 @@ namespace WorkoutTrackerWeb.Data
             modelBuilder.Entity<WorkoutTemplateSet>()
                 .HasIndex(wts => wts.SequenceNum);
 
-            // Configure coaching relationships
-            
-            // Configure relationship between CoachClientRelationship and CoachClientPermission
-            modelBuilder.Entity<CoachClientRelationship>()
-                .HasOne(r => r.Permissions)
-                .WithOne(p => p.Relationship)
-                .HasForeignKey<CoachClientPermission>(p => p.CoachClientRelationshipId)
-                .OnDelete(DeleteBehavior.Cascade);
-                
-            // Configure CoachClientRelationship foreign keys to prevent cascading delete cycles
-            modelBuilder.Entity<CoachClientRelationship>()
-                .HasOne(r => r.Coach)
-                .WithMany()
-                .HasForeignKey(r => r.CoachId)
-                .OnDelete(DeleteBehavior.NoAction);
-                
-            modelBuilder.Entity<CoachClientRelationship>()
-                .HasOne(r => r.Client)
-                .WithMany()
-                .HasForeignKey(r => r.ClientId)
-                .OnDelete(DeleteBehavior.NoAction);
-                
-            // Configure relationships for ClientGroup
-            modelBuilder.Entity<ClientGroup>()
-                .HasOne(g => g.Coach)
-                .WithMany()
-                .HasForeignKey(g => g.CoachId)
-                .OnDelete(DeleteBehavior.Cascade);
-                
-            modelBuilder.Entity<ClientGroup>()
-                .HasMany(g => g.ClientRelationships)
-                .WithOne(r => r.ClientGroup)
-                .HasForeignKey(r => r.ClientGroupId)
-                .OnDelete(DeleteBehavior.SetNull);
-                
-            // Configure relationships for ClientGroupMember
-            modelBuilder.Entity<ClientGroupMember>()
-                .HasOne(m => m.ClientGroup)
-                .WithMany()
-                .HasForeignKey(m => m.ClientGroupId)
-                .OnDelete(DeleteBehavior.Cascade);
-                
-            modelBuilder.Entity<ClientGroupMember>()
-                .HasOne(m => m.Relationship)
-                .WithMany()
-                .HasForeignKey(m => m.CoachClientRelationshipId)
-                .OnDelete(DeleteBehavior.Cascade);
-                
-            // Query filter for ClientGroupMember
-            modelBuilder.Entity<ClientGroupMember>()
-                .HasQueryFilter(m => _currentUserId == null || 
-                              m.ClientGroup.CoachId == _currentUserId || 
-                              m.Relationship.ClientId == _currentUserId);
-                              
-            // Index for ClientGroupMember
-            modelBuilder.Entity<ClientGroupMember>()
-                .HasIndex(m => m.ClientGroupId);
-                
-            modelBuilder.Entity<ClientGroupMember>()
-                .HasIndex(m => m.CoachClientRelationshipId);
-                
-            // Configure relationships for CoachNote
-            modelBuilder.Entity<CoachNote>()
-                .HasOne(n => n.Relationship)
-                .WithMany(r => r.Notes)
-                .HasForeignKey(n => n.CoachClientRelationshipId)
-                .OnDelete(DeleteBehavior.Cascade);
-                
-            // Configure relationships for ClientGoal
-            modelBuilder.Entity<ClientGoal>()
-                .HasOne(g => g.Relationship)
-                .WithMany()
-                .HasForeignKey(g => g.CoachClientRelationshipId)
-                .OnDelete(DeleteBehavior.Cascade);
-                
-            // Configure relationships for CoachClientMessage
-            modelBuilder.Entity<CoachClientMessage>()
-                .HasOne(m => m.Relationship)
-                .WithMany()
-                .HasForeignKey(m => m.CoachClientRelationshipId)
-                .OnDelete(DeleteBehavior.Cascade);
-                
-            // Configure CoachClientRelationship query filter
-            modelBuilder.Entity<CoachClientRelationship>()
-                .HasQueryFilter(r => _currentUserId == null || r.CoachId == _currentUserId || r.ClientId == _currentUserId);
-                                    
-            // Configure query filters for other coaching models
-            modelBuilder.Entity<ClientGroup>()
-                .HasQueryFilter(g => _currentUserId == null || g.CoachId == _currentUserId);
-                
-            modelBuilder.Entity<CoachNote>()
-                .HasQueryFilter(n => _currentUserId == null || n.Relationship.CoachId == _currentUserId || n.Relationship.ClientId == _currentUserId);
-                                   
-            modelBuilder.Entity<ClientGoal>()
-                .HasQueryFilter(g => _currentUserId == null || g.Relationship.CoachId == _currentUserId || g.Relationship.ClientId == _currentUserId);
-                                   
-            modelBuilder.Entity<CoachClientMessage>()
-                .HasQueryFilter(m => _currentUserId == null || m.Relationship.CoachId == _currentUserId || m.Relationship.ClientId == _currentUserId);
-                                    
-            // Configure indexes for coaching models
             modelBuilder.Entity<CoachClientRelationship>()
                 .HasIndex(r => r.CoachId);
                 
@@ -485,7 +476,9 @@ namespace WorkoutTrackerWeb.Data
                 .HasIndex(r => r.Status);
                 
             modelBuilder.Entity<CoachClientRelationship>()
-                .HasIndex(r => new { r.CoachId, r.ClientId }).IsUnique();
+                .HasIndex(r => new { r.CoachId, r.ClientId })
+                .IsUnique()
+                .HasFilter("[ClientId] IS NOT NULL");
                 
             modelBuilder.Entity<ClientGroup>()
                 .HasIndex(g => g.CoachId);
@@ -502,158 +495,15 @@ namespace WorkoutTrackerWeb.Data
             modelBuilder.Entity<ClientGoal>()
                 .HasIndex(g => g.IsActive);
                 
-            // Configure GoalMilestone relationships
-            modelBuilder.Entity<GoalMilestone>()
-                .HasOne(m => m.Goal)
-                .WithMany()
-                .HasForeignKey(m => m.GoalId)
-                .OnDelete(DeleteBehavior.Cascade);
-                
-            // Add indexes for GoalMilestone for better performance
             modelBuilder.Entity<GoalMilestone>()
                 .HasIndex(m => m.GoalId);
                 
             modelBuilder.Entity<GoalMilestone>()
                 .HasIndex(m => m.Date);
                 
-            // Filter GoalMilestones based on associated goal's visibility
-            modelBuilder.Entity<GoalMilestone>()
-                .HasQueryFilter(m => _currentUserId == null || 
-                              m.Goal.UserId == _currentUserId || 
-                              (m.Goal.IsVisibleToCoach && m.Goal.Relationship.CoachId == _currentUserId));
-                
             modelBuilder.Entity<CoachClientMessage>()
                 .HasIndex(m => m.CoachClientRelationshipId);
                 
-            // Configure relationships and query filters for workout programming models
-            
-            // Explicitly configure TemplateAssignment.ClientRelationshipId
-            modelBuilder.Entity<TemplateAssignment>()
-                .HasOne(ta => ta.CoachClientRelationship)
-                .WithMany()
-                .HasForeignKey(ta => ta.ClientRelationshipId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.SetNull);
-                
-            // TemplateAssignment relationships
-            modelBuilder.Entity<TemplateAssignment>()
-                .HasOne(ta => ta.WorkoutTemplate)
-                .WithMany()
-                .HasForeignKey(ta => ta.WorkoutTemplateId)
-                .OnDelete(DeleteBehavior.Restrict);
-                
-            modelBuilder.Entity<TemplateAssignment>()
-                .HasOne(ta => ta.Client)
-                .WithMany()
-                .HasForeignKey(ta => ta.ClientUserId)
-                .OnDelete(DeleteBehavior.Restrict);
-                
-            modelBuilder.Entity<TemplateAssignment>()
-                .HasOne(ta => ta.Coach)
-                .WithMany()
-                .HasForeignKey(ta => ta.CoachUserId)
-                .OnDelete(DeleteBehavior.Restrict);
-                
-            // Fix WorkoutSchedule.TemplateAssignmentId1 shadow property issue
-            // Explicitly configure the relationship to avoid shadow property creation
-            modelBuilder.Entity<WorkoutSchedule>()
-                .HasOne(ws => ws.TemplateAssignment)
-                .WithMany()
-                .HasForeignKey(ws => ws.TemplateAssignmentId)
-                .OnDelete(DeleteBehavior.SetNull)
-                .IsRequired(false);
-                
-            modelBuilder.Entity<WorkoutSchedule>()
-                .HasOne(ws => ws.Client)
-                .WithMany()
-                .HasForeignKey(ws => ws.ClientUserId)
-                .OnDelete(DeleteBehavior.Restrict);
-                
-            modelBuilder.Entity<WorkoutSchedule>()
-                .HasOne(ws => ws.Coach)
-                .WithMany()
-                .HasForeignKey(ws => ws.CoachUserId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            // Configure the relationship between WorkoutSchedule and WorkoutSession
-            // This fixes the warning: "Navigations 'WorkoutSchedule.LastGeneratedSession' and 'WorkoutSession.Schedule' were separated into two relationships"
-            modelBuilder.Entity<WorkoutSchedule>()
-                .HasOne(ws => ws.LastGeneratedSession)
-                .WithOne()
-                .HasForeignKey<WorkoutSchedule>(ws => ws.LastGeneratedSessionId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.SetNull);
-
-            modelBuilder.Entity<WorkoutSession>()
-                .HasOne(s => s.Schedule)
-                .WithMany()
-                .HasForeignKey(s => s.ScheduleId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.SetNull);
-
-            // Configure global query filters to match between both sides of required relationships
-            // This resolves warnings about mismatches between required entities with global filters
-            modelBuilder.Entity<ExerciseFeedback>()
-                .HasQueryFilter(ef => _currentUserId == null || 
-                                ef.WorkoutFeedback.Client.IdentityUserId == _currentUserId ||
-                                ef.WorkoutSet.WorkoutExercise.WorkoutSession.User.IdentityUserId == _currentUserId);
-                                
-            modelBuilder.Entity<ProgressionHistory>()
-                .HasQueryFilter(ph => _currentUserId == null || 
-                               ph.ProgressionRule.Coach.IdentityUserId == _currentUserId || 
-                               (ph.ProgressionRule.Client != null && ph.ProgressionRule.Client.IdentityUserId == _currentUserId) ||
-                               (ph.WorkoutSession != null && ph.WorkoutSession.User.IdentityUserId == _currentUserId));
-                              
-            // Ensure WorkoutExercises have matching filters with WorkoutSession
-            modelBuilder.Entity<WorkoutExercise>()
-                .HasQueryFilter(we => _currentUserId == null || 
-                               we.WorkoutSession.User.IdentityUserId == _currentUserId);
-                               
-            // Fix for CoachClientPermission matching CoachClientRelationship filter
-            modelBuilder.Entity<CoachClientPermission>()
-                .HasQueryFilter(p => _currentUserId == null || 
-                               p.Relationship.CoachId == _currentUserId || 
-                               p.Relationship.ClientId == _currentUserId);
-
-            // Configure query filters for workout programming models
-            modelBuilder.Entity<TemplateAssignment>()
-                .HasQueryFilter(ta => _currentUserId == null || 
-                                  ta.Coach.IdentityUserId == _currentUserId || 
-                                  ta.Client.IdentityUserId == _currentUserId);
-                                     
-            modelBuilder.Entity<WorkoutSchedule>()
-                .HasQueryFilter(ws => _currentUserId == null || 
-                                 ws.Coach.IdentityUserId == _currentUserId || 
-                                 ws.Client.IdentityUserId == _currentUserId);
-                
-            // Fix WorkoutFeedback.WorkoutSessionId1 shadow property issue
-            // Explicitly configure the relationship to avoid shadow property creation
-            modelBuilder.Entity<WorkoutFeedback>()
-                .HasOne(wf => wf.WorkoutSession)
-                .WithMany()
-                .HasForeignKey(wf => wf.WorkoutSessionId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .IsRequired();
-                
-            modelBuilder.Entity<WorkoutFeedback>()
-                .HasQueryFilter(wf => _currentUserId == null || 
-                                 wf.Client.IdentityUserId == _currentUserId);
-                
-            modelBuilder.Entity<ProgressionRule>()
-                .HasQueryFilter(pr => _currentUserId == null || 
-                                 pr.Coach.IdentityUserId == _currentUserId || 
-                                 (pr.Client != null && pr.Client.IdentityUserId == _currentUserId));
-                
-            modelBuilder.Entity<ClientExerciseExclusion>()
-                .HasQueryFilter(cee => _currentUserId == null || 
-                                  cee.Client.IdentityUserId == _currentUserId || 
-                                  (cee.CreatedByCoach != null && cee.CreatedByCoach.IdentityUserId == _currentUserId));
-                
-            modelBuilder.Entity<ClientEquipment>()
-                .HasQueryFilter(ce => _currentUserId == null || 
-                                ce.Client.IdentityUserId == _currentUserId);
-                                                                     
-            // Add indexes for workout programming models
             modelBuilder.Entity<TemplateAssignment>()
                 .HasIndex(ta => ta.WorkoutTemplateId);
                 
@@ -749,107 +599,7 @@ namespace WorkoutTrackerWeb.Data
                 
             modelBuilder.Entity<ClientEquipment>()
                 .HasIndex(ce => ce.IsAvailable);
-
-            // ExerciseSubstitution relationships
-            modelBuilder.Entity<ExerciseSubstitution>()
-                .HasOne(es => es.PrimaryExercise)
-                .WithMany()
-                .HasForeignKey(es => es.PrimaryExerciseTypeId)
-                .OnDelete(DeleteBehavior.Restrict);
                 
-            modelBuilder.Entity<ExerciseSubstitution>()
-                .HasOne(es => es.SubstituteExercise)
-                .WithMany()
-                .HasForeignKey(es => es.SubstituteExerciseTypeId)
-                .OnDelete(DeleteBehavior.Restrict);
-                
-            modelBuilder.Entity<ExerciseSubstitution>()
-                .HasOne(es => es.CreatedByCoach)
-                .WithMany()
-                .HasForeignKey(es => es.CreatedByCoachId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            // WorkoutSession relationships and query filter
-            modelBuilder.Entity<WorkoutSession>()
-                .HasOne(ws => ws.User)
-                .WithMany(u => u.WorkoutSessions)
-                .HasForeignKey(ws => ws.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
-                
-            modelBuilder.Entity<WorkoutSession>()
-                .HasMany(ws => ws.WorkoutExercises)
-                .WithOne(we => we.WorkoutSession)
-                .HasForeignKey(we => we.WorkoutSessionId)
-                .OnDelete(DeleteBehavior.Cascade);
-                
-            modelBuilder.Entity<WorkoutSession>()
-                .HasQueryFilter(ws => _currentUserId == null || ws.User.IdentityUserId == _currentUserId);
-                
-            // Fix WorkoutExercise.ExerciseTypeId1 shadow property issue
-            // Explicitly configure the relationship to avoid shadow property creation
-            modelBuilder.Entity<WorkoutExercise>()
-                .HasOne(we => we.WorkoutSession)
-                .WithMany(ws => ws.WorkoutExercises)
-                .HasForeignKey(we => we.WorkoutSessionId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .IsRequired();
-                
-            modelBuilder.Entity<WorkoutExercise>()
-                .HasOne(we => we.ExerciseType)
-                .WithMany()
-                .HasForeignKey(we => we.ExerciseTypeId)
-                .OnDelete(DeleteBehavior.Restrict)
-                .IsRequired();
-                
-            modelBuilder.Entity<WorkoutExercise>()
-                .HasQueryFilter(we => _currentUserId == null || 
-                              we.WorkoutSession.User.IdentityUserId == _currentUserId);
-                
-            // WorkoutSet relationships
-            modelBuilder.Entity<WorkoutSet>()
-                .HasOne(ws => ws.WorkoutExercise)
-                .WithMany(we => we.WorkoutSets)
-                .HasForeignKey(ws => ws.WorkoutExerciseId)
-                .OnDelete(DeleteBehavior.Cascade);
-                
-            // ExerciseFeedback relationships
-            modelBuilder.Entity<ExerciseFeedback>()
-                .HasOne(ef => ef.WorkoutSet)
-                .WithMany()
-                .HasForeignKey(ef => ef.WorkoutSetId)
-                .OnDelete(DeleteBehavior.Restrict);
-                
-            modelBuilder.Entity<ExerciseFeedback>()
-                .HasOne(ef => ef.WorkoutFeedback)
-                .WithMany(wf => wf.ExerciseFeedbacks)
-                .HasForeignKey(ef => ef.WorkoutFeedbackId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .IsRequired();
-                
-            modelBuilder.Entity<ExerciseFeedback>()
-                .HasQueryFilter(ef => _currentUserId == null || 
-                               ef.WorkoutFeedback.Client.IdentityUserId == _currentUserId);
-                
-            // ProgressionHistory relationships
-            modelBuilder.Entity<ProgressionHistory>()
-                .HasOne(ph => ph.WorkoutSession)
-                .WithMany()
-                .HasForeignKey(ph => ph.WorkoutSessionId)
-                .OnDelete(DeleteBehavior.SetNull);
-                
-            modelBuilder.Entity<ProgressionHistory>()
-                .HasOne(ph => ph.ProgressionRule)
-                .WithMany(pr => pr.ProgressionHistory)
-                .HasForeignKey(ph => ph.ProgressionRuleId)
-                .OnDelete(DeleteBehavior.Cascade)
-                .IsRequired();
-                
-            modelBuilder.Entity<ProgressionHistory>()
-                .HasQueryFilter(ph => _currentUserId == null || 
-                               ph.ProgressionRule.Coach.IdentityUserId == _currentUserId || 
-                               (ph.ProgressionRule.Client != null && ph.ProgressionRule.Client.IdentityUserId == _currentUserId));
-                
-            // Add indexes for better performance
             modelBuilder.Entity<WorkoutSession>()
                 .HasIndex(ws => ws.UserId);
                 
@@ -864,34 +614,7 @@ namespace WorkoutTrackerWeb.Data
                 
             modelBuilder.Entity<WorkoutSet>()
                 .HasIndex(ws => ws.WorkoutExerciseId);
-
-            // Configure GoalFeedback relationships and query filters
-            modelBuilder.Entity<GoalFeedback>()
-                .HasOne(gf => gf.Goal)
-                .WithMany()
-                .HasForeignKey(gf => gf.GoalId)
-                .OnDelete(DeleteBehavior.Cascade);
                 
-            modelBuilder.Entity<GoalFeedback>()
-                .HasOne(gf => gf.Coach)
-                .WithMany()
-                .HasForeignKey(gf => gf.CoachId)
-                .OnDelete(DeleteBehavior.Restrict);
-                
-            // Configure ClientActivity relationships and query filters
-            modelBuilder.Entity<ClientActivity>()
-                .HasOne(ca => ca.Client)
-                .WithMany()
-                .HasForeignKey(ca => ca.ClientId)
-                .OnDelete(DeleteBehavior.Restrict);
-                
-            modelBuilder.Entity<ClientActivity>()
-                .HasOne(ca => ca.Coach)
-                .WithMany()
-                .HasForeignKey(ca => ca.CoachId)
-                .OnDelete(DeleteBehavior.SetNull);
-                
-            // Add indexes for better performance
             modelBuilder.Entity<GoalFeedback>()
                 .HasIndex(gf => gf.GoalId);
                 
@@ -912,17 +635,6 @@ namespace WorkoutTrackerWeb.Data
                 
             modelBuilder.Entity<ClientActivity>()
                 .HasIndex(ca => ca.IsViewedByCoach);
-                
-            // Set up query filters to ensure data security
-            modelBuilder.Entity<GoalFeedback>()
-                .HasQueryFilter(gf => _currentUserId == null || 
-                             gf.CoachId == _currentUserId ||
-                             gf.Goal.UserId == _currentUserId);
-                
-            modelBuilder.Entity<ClientActivity>()
-                .HasQueryFilter(ca => _currentUserId == null || 
-                              ca.ClientId == _currentUserId || 
-                              ca.CoachId == _currentUserId);
         }
     }
 }
