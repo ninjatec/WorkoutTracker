@@ -17,6 +17,7 @@
 - ALWAYS reference SoW, WiP, README, Inventory and Models to build context
 - ALWAYS ensure the codebase compiles without errors before considering a task complete
 - ALWAYS use --context flag on dotnet ef commands
+- Use the full name for db context --context --context WorkoutTrackerWeb.Data.WorkoutTrackerWebContext
 - AVOID repeating work already complete
 - Use the existing output cache for new pages
 - Make NO assumptions - always check the code

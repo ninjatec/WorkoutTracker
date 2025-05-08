@@ -19,15 +19,11 @@ namespace WorkoutTrackerWeb.Data
                 serviceProvider.GetRequiredService<DbContextOptions<WorkoutTrackerWebContext>>(),
                 serviceProvider.GetService<Microsoft.AspNetCore.Http.IHttpContextAccessor>());
 
-            // Get the application DB context for version management
-            using var appDbContext = new ApplicationDbContext(
-                serviceProvider.GetRequiredService<DbContextOptions<ApplicationDbContext>>());
-
             // Initialize roles and admin users first
             await InitializeRolesAndAdminUser(serviceProvider);
             
-            // Seed initial application version
-            await SeedInitialVersion(appDbContext);
+            // Seed initial application version directly in WorkoutTrackerWebContext
+            await SeedInitialVersion(context);
             
             // Seed exercise types
             await SeedExerciseTypes(context);
@@ -142,7 +138,7 @@ namespace WorkoutTrackerWeb.Data
             return new string(password.ToArray());
         }
 
-        private static async Task SeedInitialVersion(ApplicationDbContext context)
+        private static async Task SeedInitialVersion(WorkoutTrackerWebContext context)
         {
             // Check if any versions exist
             if (!await context.Versions.AnyAsync())

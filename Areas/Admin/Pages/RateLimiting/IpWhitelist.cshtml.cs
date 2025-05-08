@@ -22,12 +22,12 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.RateLimiting
     {
         private readonly ITokenRateLimiter _rateLimiter;
         private readonly ILogger<IpWhitelistModel> _logger;
-        private readonly ApplicationDbContext _dbContext;
+        private readonly WorkoutTrackerWebContext _dbContext;
 
         public IpWhitelistModel(
             ITokenRateLimiter rateLimiter, 
             ILogger<IpWhitelistModel> logger,
-            ApplicationDbContext dbContext)
+            WorkoutTrackerWebContext dbContext)
         {
             _rateLimiter = rateLimiter;
             _logger = logger;

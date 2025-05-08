@@ -9,10 +9,12 @@ using System.Security.Claims;
 using WorkoutTrackerWeb.Models.Alerting;
 using WorkoutTrackerWeb.Models.Coaching;
 using WorkoutTrackerWeb.Models.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using WorkoutTrackerWeb.Models.Logging;
 
 namespace WorkoutTrackerWeb.Data
 {
-    public class WorkoutTrackerWebContext : DbContext
+    public class WorkoutTrackerWebContext : IdentityDbContext<AppUser>
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
         
@@ -28,6 +30,12 @@ namespace WorkoutTrackerWeb.Data
         {
             _httpContextAccessor = httpContextAccessor;
         }
+
+        // Models from ApplicationDbContext that need to be added
+        public DbSet<AppVersion> Versions { get; set; } = default!;
+        public DbSet<LogLevelSettings> LogLevelSettings { get; set; } = default!;
+        public DbSet<LogLevelOverride> LogLevelOverrides { get; set; } = default!;
+        public DbSet<WhitelistedIp> WhitelistedIps { get; set; } = default!;
 
         public DbSet<WorkoutTrackerWeb.Models.User> User { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.ExerciseType> ExerciseType { get; set; } = default!;
@@ -99,6 +107,23 @@ namespace WorkoutTrackerWeb.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // Add index on UserName to enforce uniqueness (from ApplicationDbContext)
+            modelBuilder.Entity<AppUser>()
+                .HasIndex(u => u.UserName)
+                .IsUnique();
+
+            // Configure relationships for log level settings (from ApplicationDbContext)
+            modelBuilder.Entity<LogLevelSettings>()
+                .HasMany(s => s.Overrides)
+                .WithOne(o => o.LogLevelSettings)
+                .HasForeignKey(o => o.LogLevelSettingsId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Configure WhitelistedIp with unique index (from ApplicationDbContext)
+            modelBuilder.Entity<WhitelistedIp>()
+                .HasIndex(w => w.IpAddress)
+                .IsUnique();
 
             // Configure precision and scale for decimal properties to avoid truncation warnings
             modelBuilder.Entity<ClientGoal>()

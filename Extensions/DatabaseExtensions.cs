@@ -215,28 +215,13 @@ namespace WorkoutTrackerWeb.Extensions
             string userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId))
                 return null;
-                
-            // The WorkoutTrackerWebContext contains User records, not Identity users
-            // We need to retrieve the application user from ApplicationDbContext
-            using (var scope = new Microsoft.Extensions.DependencyInjection.ServiceCollection()
-                .AddEntityFrameworkSqlServer()
-                .BuildServiceProvider())
-            {
-                // Get connection info from current context to create a consistent connection
-                string connectionString = context.Database.GetDbConnection().ConnectionString;
-                
-                // Create options for ApplicationDbContext which has the AppUser entities
-                var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
-                optionsBuilder.UseSqlServer(connectionString);
-                
-                using (var identityContext = new ApplicationDbContext(optionsBuilder.Options))
-                {
-                    return await identityContext.Users
-                        .Where(u => u.Id == userId)
-                        .OrderBy(u => u.Id)
-                        .FirstOrDefaultAsync();
-                }
-            }
+            
+            // Since WorkoutTrackerWebContext now contains Identity users,
+            // we can directly access them from the current context
+            return await context.Users
+                .Where(u => u.Id == userId)
+                .OrderBy(u => u.Id)
+                .FirstOrDefaultAsync();
         }
     }
 }

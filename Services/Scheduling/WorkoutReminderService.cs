@@ -21,7 +21,6 @@ namespace WorkoutTrackerWeb.Services.Scheduling
     public class WorkoutReminderService
     {
         private readonly WorkoutTrackerWebContext _context;
-        private readonly ApplicationDbContext _identityContext;
         private readonly UserManager<AppUser> _userManager;
         private readonly IEmailService _emailService;
         private readonly ILogger<WorkoutReminderService> _logger;
@@ -31,7 +30,6 @@ namespace WorkoutTrackerWeb.Services.Scheduling
 
         public WorkoutReminderService(
             WorkoutTrackerWebContext context,
-            ApplicationDbContext identityContext,
             UserManager<AppUser> userManager,
             IEmailService emailService,
             ILogger<WorkoutReminderService> logger,
@@ -39,7 +37,6 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             IConfiguration configuration)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
-            _identityContext = identityContext ?? throw new ArgumentNullException(nameof(identityContext));
             _userManager = userManager ?? throw new ArgumentNullException(nameof(userManager));
             _emailService = emailService ?? throw new ArgumentNullException(nameof(emailService));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -146,9 +143,7 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                 }
                 
                 // Get the Identity user to access their email
-                var identityUser = await _identityContext.Users
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(u => u.Id == workout.Client.IdentityUserId);
+                var identityUser = await _userManager.FindByIdAsync(workout.Client.IdentityUserId);
                 
                 if (identityUser == null || string.IsNullOrEmpty(identityUser.Email))
                 {

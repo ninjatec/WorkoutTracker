@@ -14,7 +14,7 @@ namespace WorkoutTrackerWeb.Services.Logging
 {
     public class LoggingService : ILoggingService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger<LoggingService> _logger;
         private readonly LoggingLevelSwitch _levelSwitch;
         private readonly Dictionary<string, LoggingLevelSwitch> _sourceContextSwitches = new();
@@ -38,7 +38,7 @@ namespace WorkoutTrackerWeb.Services.Logging
         };
 
         public LoggingService(
-            ApplicationDbContext context,
+            WorkoutTrackerWebContext context,
             ILogger<LoggingService> logger)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));

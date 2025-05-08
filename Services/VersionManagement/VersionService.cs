@@ -10,9 +10,9 @@ namespace WorkoutTrackerWeb.Services.VersionManagement
 {
     public class VersionService : IVersionService
     {
-        private readonly ApplicationDbContext _context;
+        private readonly WorkoutTrackerWebContext _context;
 
-        public VersionService(ApplicationDbContext context)
+        public VersionService(WorkoutTrackerWebContext context)
         {
             _context = context;
         }
