@@ -147,8 +147,6 @@ namespace WorkoutTrackerWeb
             builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
 
             var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-            builder.Services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(connectionString));
             builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
             builder.Services.AddLoggingServices();
@@ -334,7 +332,7 @@ namespace WorkoutTrackerWeb
                 options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
             })
                 .AddRoles<IdentityRole>()
-                .AddEntityFrameworkStores<ApplicationDbContext>()
+                .AddEntityFrameworkStores<WorkoutTrackerWebContext>()
                 .AddUserValidator<CustomUserValidator>();
 
             builder.Services.AddScoped<CustomUsernameManager>();
@@ -412,7 +410,7 @@ namespace WorkoutTrackerWeb
 
             // Configure health checks
             var healthChecksBuilder = builder.Services.AddHealthChecks()
-                .AddDbContextCheck<ApplicationDbContext>("database_health_check", 
+                .AddDbContextCheck<WorkoutTrackerWebContext>("database_health_check", 
                     tags: new[] { "ready", "db" },
                     customTestQuery: async (db, ct) => await db.Database.CanConnectAsync(ct))
                 .AddDbContextCheck<DataProtectionKeysDbContext>("data_protection_health_check", 
@@ -601,7 +599,9 @@ namespace WorkoutTrackerWeb
                     sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "dbo");
                 })
                 .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
-                .EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
+                .EnableSensitiveDataLogging(builder.Environment.IsDevelopment())
+                // Suppress the warning about pending model changes
+                .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
             });
 
             // Register SqlNullSafetyService
@@ -745,7 +745,7 @@ namespace WorkoutTrackerWeb
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
-                var context = services.GetRequiredService<ApplicationDbContext>();
+                var context = services.GetRequiredService<WorkoutTrackerWebContext>();
                 context.Database.Migrate();
 
                 var logger = services.GetRequiredService<ILogger<Program>>();

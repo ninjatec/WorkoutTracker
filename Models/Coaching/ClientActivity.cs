@@ -1,6 +1,5 @@
 using System;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using WorkoutTrackerWeb.Models.Identity;
 
 namespace WorkoutTrackerWeb.Models.Coaching
@@ -45,11 +44,8 @@ namespace WorkoutTrackerWeb.Models.Coaching
         [Display(Name = "Related Entity ID")]
         public string RelatedEntityId { get; set; }
         
-        // Navigation properties
-        [ForeignKey("ClientId")]
+        // Navigation properties - removed ForeignKey attributes to rely on Fluent API configuration
         public AppUser Client { get; set; }
-        
-        [ForeignKey("CoachId")]
         public AppUser Coach { get; set; }
     }
 }

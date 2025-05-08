@@ -151,7 +151,7 @@ namespace WorkoutTrackerWeb.Services
             {
                 using (var scope = _serviceProvider.CreateScope())
                 {
-                    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    var dbContext = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
 
                     // Check if already exists in database
                     var existingEntry = await dbContext.WhitelistedIps
@@ -216,7 +216,7 @@ namespace WorkoutTrackerWeb.Services
             {
                 using (var scope = _serviceProvider.CreateScope())
                 {
-                    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    var dbContext = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
                     
                     var whitelistedIp = await dbContext.WhitelistedIps
                         .FirstOrDefaultAsync(w => w.IpAddress == ipAddress);
@@ -258,7 +258,7 @@ namespace WorkoutTrackerWeb.Services
             {
                 using (var scope = _serviceProvider.CreateScope())
                 {
-                    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    var dbContext = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
                     return await dbContext.WhitelistedIps.ToListAsync();
                 }
             }
@@ -277,7 +277,7 @@ namespace WorkoutTrackerWeb.Services
                 
                 using (var scope = _serviceProvider.CreateScope())
                 {
-                    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    var dbContext = scope.ServiceProvider.GetRequiredService<WorkoutTrackerWebContext>();
                     
                     // Check if dbContext is accessible
                     if (dbContext.Database.CanConnect())

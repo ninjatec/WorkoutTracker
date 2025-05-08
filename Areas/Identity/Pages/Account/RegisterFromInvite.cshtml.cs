@@ -28,7 +28,6 @@ namespace WorkoutTrackerWeb.Areas.Identity.Pages.Account
         private readonly ILogger<RegisterFromInviteModel> _logger;
         private readonly IEmailSender _emailSender;
         private readonly WorkoutTrackerWebContext _context;
-        private readonly ApplicationDbContext _identityContext;
         private readonly ICoachingService _coachingService;
 
         public RegisterFromInviteModel(
@@ -38,7 +37,6 @@ namespace WorkoutTrackerWeb.Areas.Identity.Pages.Account
             ILogger<RegisterFromInviteModel> logger,
             IEmailSender emailSender,
             WorkoutTrackerWebContext context,
-            ApplicationDbContext identityContext,
             ICoachingService coachingService)
         {
             _userManager = userManager;
@@ -48,7 +46,6 @@ namespace WorkoutTrackerWeb.Areas.Identity.Pages.Account
             _logger = logger;
             _emailSender = emailSender;
             _context = context;
-            _identityContext = identityContext;
             _coachingService = coachingService;
         }
 
@@ -126,9 +123,8 @@ namespace WorkoutTrackerWeb.Areas.Identity.Pages.Account
                 // Check if the email is already registered with direct database queries for more accurate results
                 var existingUserInIdentity = await _userManager.FindByEmailAsync(email);
                 
-                // Fix for "Cannot use multiple context instances within a single query execution" error
-                // Query the identity users first to get IDs
-                var identityUserIds = await _identityContext.Users
+                // Query the Users table directly using WorkoutTrackerWebContext since it now contains all Identity tables
+                var identityUserIds = await _context.Users
                     .Where(au => au.Email == email)
                     .Select(au => au.Id)
                     .ToListAsync();
@@ -608,8 +604,8 @@ namespace WorkoutTrackerWeb.Areas.Identity.Pages.Account
             var lowercaseMatch = await _userManager.FindByEmailAsync(email.ToLowerInvariant());
             sb.AppendLine($"Lowercase match in UserManager: {(lowercaseMatch != null ? "Found" : "Not found")}");
             
-            // Direct query to AspNetUsers
-            var directMatches = await _identityContext.Users
+            // Direct query to Users table in WorkoutTrackerWebContext
+            var directMatches = await _context.Users
                 .Where(u => u.NormalizedEmail == email.ToUpperInvariant() || u.Email == email)
                 .ToListAsync();
             
@@ -620,7 +616,7 @@ namespace WorkoutTrackerWeb.Areas.Identity.Pages.Account
             }
             
             // Check all users for similar emails
-            var similarEmails = await _identityContext.Users
+            var similarEmails = await _context.Users
                 .Where(u => u.Email.Contains(email) || email.Contains(u.Email))
                 .ToListAsync();
             

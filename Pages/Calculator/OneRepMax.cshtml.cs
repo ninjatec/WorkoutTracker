@@ -543,6 +543,67 @@ namespace WorkoutTrackerWeb.Pages.Calculator
             }
         }
 
+        private async Task<List<WorkoutSet>> GetRecentSetsAsync(int exerciseTypeId)
+        {
+            // Get all workout sessions for the current user with the specified exercise type
+            var userId = await _userService.GetCurrentUserIdAsync();
+            if (userId == null) return new List<WorkoutSet>();
+
+            // Query workout sessions and related data separately to avoid the ExerciseTypeId1 issue
+            var exercises = await _context.WorkoutExercises
+                .Where(we => we.ExerciseTypeId == exerciseTypeId)
+                .Select(we => we.WorkoutExerciseId)
+                .ToListAsync();
+                
+            // If no exercises found, return empty list
+            if (!exercises.Any()) return new List<WorkoutSet>();
+            
+            // Get the workout sets for these exercises
+            var sets = await _context.WorkoutSets
+                .Where(s => exercises.Contains(s.WorkoutExerciseId) && s.IsCompleted && s.Reps > 0 && s.Weight > 0)
+                .OrderByDescending(s => s.WorkoutExercise.WorkoutSession.StartDateTime)
+                .ThenBy(s => s.SequenceNum)
+                .Take(20)
+                .ToListAsync();
+                
+            // Get the workout exercise IDs from the sets
+            var exerciseIds = sets.Select(s => s.WorkoutExerciseId).Distinct().ToList();
+            
+            // Get the related workout exercises
+            var workoutExercises = await _context.WorkoutExercises
+                .Where(we => exerciseIds.Contains(we.WorkoutExerciseId))
+                .ToListAsync();
+                
+            // Get the related workout sessions
+            var sessionIds = workoutExercises.Select(we => we.WorkoutSessionId).Distinct().ToList();
+            var sessions = await _context.WorkoutSessions
+                .Where(ws => sessionIds.Contains(ws.WorkoutSessionId))
+                .ToListAsync();
+                
+            // Get the exercise type
+            var exerciseType = await _context.ExerciseType
+                .FirstOrDefaultAsync(et => et.ExerciseTypeId == exerciseTypeId);
+                
+            // Manually link the related entities to avoid navigation property issues
+            foreach (var set in sets)
+            {
+                var workoutExercise = workoutExercises.FirstOrDefault(we => we.WorkoutExerciseId == set.WorkoutExerciseId);
+                if (workoutExercise != null)
+                {
+                    set.WorkoutExercise = workoutExercise;
+                    workoutExercise.ExerciseType = exerciseType;
+                    
+                    var session = sessions.FirstOrDefault(ws => ws.WorkoutSessionId == workoutExercise.WorkoutSessionId);
+                    if (session != null)
+                    {
+                        workoutExercise.WorkoutSession = session;
+                    }
+                }
+            }
+
+            return sets;
+        }
+
         private async Task PopulateExerciseTypesAsync()
         {
             ExerciseTypeSelectList = new SelectList(

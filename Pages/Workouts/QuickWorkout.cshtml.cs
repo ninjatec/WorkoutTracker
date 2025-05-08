@@ -22,17 +22,20 @@ namespace WorkoutTrackerWeb.Pages.Workouts
         private readonly QuickWorkoutService _quickWorkoutService;
         private readonly ExerciseSelectionService _exerciseSelectionService;
         private readonly ILogger<QuickWorkoutModel> _logger;
+        private readonly UserService _userService;
 
         public QuickWorkoutModel(
             WorkoutTrackerWebContext context,
             QuickWorkoutService quickWorkoutService,
             ExerciseSelectionService exerciseSelectionService,
-            ILogger<QuickWorkoutModel> logger)
+            ILogger<QuickWorkoutModel> logger,
+            UserService userService)
         {
             _context = context;
             _quickWorkoutService = quickWorkoutService;
             _exerciseSelectionService = exerciseSelectionService;
             _logger = logger;
+            _userService = userService;
         }
 
         [BindProperty]
@@ -140,52 +143,76 @@ namespace WorkoutTrackerWeb.Pages.Workouts
             if (hasActiveSession)
             {
                 QuickWorkout.CurrentSession = await _quickWorkoutService.GetLatestQuickWorkoutSessionAsync();
+                await PopulateCurrentSessionDataAsync();
+            }
+        }
+
+        private async Task PopulateCurrentSessionDataAsync()
+        {
+            var userId = await _userService.GetCurrentUserIdAsync();
+            if (userId == null) return;
+
+            // Get the active workout session for this user
+            var activeSession = await _context.WorkoutSessions
+                .Where(ws => ws.UserId == userId && ws.EndDateTime == null)
+                .OrderByDescending(ws => ws.StartDateTime)
+                .FirstOrDefaultAsync();
+
+            if (activeSession == null)
+            {
+                QuickWorkout.HasActiveSession = false;
+                QuickWorkout.CurrentSession = null;
+                return;
+            }
+
+            QuickWorkout.HasActiveSession = true;
+            QuickWorkout.CurrentSession = activeSession;
+
+            // Changed: Load workout exercises and related data separately to avoid the ExerciseTypeId1 issue
+            // First load workout exercises for the session
+            var workoutExercises = await _context.WorkoutExercises
+                .Where(we => we.WorkoutSessionId == activeSession.WorkoutSessionId)
+                .OrderBy(we => we.OrderIndex)
+                .ToListAsync();
                 
-                if (QuickWorkout.CurrentSession != null)
-                {
-                    // Use explicit projection to avoid requesting columns that don't exist in the database
-                    var recentSets = await _context.WorkoutSets
-                        .Include(ws => ws.WorkoutExercise)
-                            .ThenInclude(we => we.ExerciseType)
-                        .Include(ws => ws.WorkoutExercise)
-                            .ThenInclude(we => we.WorkoutSession)
-                        .Where(ws => ws.WorkoutExercise.WorkoutSessionId == QuickWorkout.CurrentSession.WorkoutSessionId)
-                        .OrderByDescending(ws => ws.WorkoutSetId)
-                        .Take(5)
-                        .Select(ws => new WorkoutSet
-                        {
-                            WorkoutSetId = ws.WorkoutSetId,
-                            WorkoutExerciseId = ws.WorkoutExerciseId,
-                            SettypeId = ws.SettypeId,
-                            SequenceNum = ws.SequenceNum,
-                            SetNumber = ws.SetNumber,
-                            Reps = ws.Reps,
-                            TargetMinReps = ws.TargetMinReps,
-                            TargetMaxReps = ws.TargetMaxReps,
-                            Weight = ws.Weight,
-                            DurationSeconds = ws.DurationSeconds,
-                            Distance = ws.Distance,
-                            RPE = ws.RPE,
-                            RestSeconds = ws.RestSeconds,
-                            IsCompleted = ws.IsCompleted,
-                            Notes = ws.Notes,
-                            Timestamp = ws.Timestamp,
-                            Intensity = ws.Intensity,
-                            WorkoutExercise = new WorkoutExercise
-                            {
-                                WorkoutExerciseId = ws.WorkoutExercise.WorkoutExerciseId,
-                                ExerciseTypeId = ws.WorkoutExercise.ExerciseTypeId,
-                                WorkoutSessionId = ws.WorkoutExercise.WorkoutSessionId,
-                                SequenceNum = ws.WorkoutExercise.SequenceNum,
-                                Notes = ws.WorkoutExercise.Notes,
-                                ExerciseType = ws.WorkoutExercise.ExerciseType,
-                                WorkoutSession = ws.WorkoutExercise.WorkoutSession
-                            }
-                        })
-                        .ToListAsync();
-                        
-                    QuickWorkout.RecentWorkoutSets = recentSets;
-                }
+            if (!workoutExercises.Any()) return;
+            
+            // Get the exercise type IDs
+            var exerciseTypeIds = workoutExercises.Select(we => we.ExerciseTypeId).Distinct().ToList();
+            
+            // Load exercise types separately
+            var exerciseTypes = await _context.ExerciseType
+                .Where(et => exerciseTypeIds.Contains(et.ExerciseTypeId))
+                .ToListAsync();
+                
+            // Get workout exercise IDs
+            var workoutExerciseIds = workoutExercises.Select(we => we.WorkoutExerciseId).ToList();
+            
+            // Load workout sets separately
+            var workoutSets = await _context.WorkoutSets
+                .Where(ws => workoutExerciseIds.Contains(ws.WorkoutExerciseId))
+                .OrderByDescending(ws => ws.Timestamp)
+                .Take(10)  // Only get the 10 most recent sets
+                .ToListAsync();
+                
+            // Manually connect the entities
+            foreach (var exercise in workoutExercises)
+            {
+                exercise.ExerciseType = exerciseTypes.FirstOrDefault(et => et.ExerciseTypeId == exercise.ExerciseTypeId);
+            }
+            
+            // Get the most recently added exercise
+            var lastExercise = workoutExercises.OrderByDescending(we => we.OrderIndex).FirstOrDefault();
+            if (lastExercise != null)
+            {
+                QuickWorkout.LastAddedExercise = lastExercise;
+            }
+            
+            // Get the recent workout sets and link them to their exercises
+            QuickWorkout.RecentWorkoutSets = workoutSets;
+            foreach (var set in QuickWorkout.RecentWorkoutSets)
+            {
+                set.WorkoutExercise = workoutExercises.FirstOrDefault(we => we.WorkoutExerciseId == set.WorkoutExerciseId);
             }
         }
 

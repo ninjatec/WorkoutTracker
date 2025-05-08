@@ -193,14 +193,47 @@ namespace WorkoutTrackerWeb.Pages.Reports
         private async Task LoadUserMetricsAsync()
         {
             try {
+                // Modified query to avoid the problematic navigation property causing the "ExerciseTypeId1" error
+                // By first loading exercises and exercise types separately, then joining in memory
                 var sessions = await _context.WorkoutSessions
                     .Include(ws => ws.WorkoutExercises)
-                        .ThenInclude(we => we.ExerciseType)
-                    .Include(ws => ws.WorkoutExercises)
-                        .ThenInclude(we => we.WorkoutSets)
                     .Where(ws => ws.UserId == UserId)
                     .OrderByDescending(ws => ws.StartDateTime)
-                    .ToListAsync(); // Load data into memory first, then filter
+                    .ToListAsync();
+                    
+                // Then load exercise types separately and join in memory
+                var exerciseIds = sessions
+                    .SelectMany(ws => ws.WorkoutExercises.Select(we => we.ExerciseTypeId))
+                    .Distinct()
+                    .ToList();
+                    
+                var exerciseTypes = await _context.ExerciseType
+                    .Where(et => exerciseIds.Contains(et.ExerciseTypeId))
+                    .ToListAsync();
+                    
+                // Load workout sets separately
+                var workoutExerciseIds = sessions
+                    .SelectMany(ws => ws.WorkoutExercises.Select(we => we.WorkoutExerciseId))
+                    .ToList();
+                    
+                var workoutSets = await _context.WorkoutSets
+                    .Where(ws => workoutExerciseIds.Contains(ws.WorkoutExerciseId))
+                    .ToListAsync();
+                    
+                // Now manually join the data to create complete sessions
+                foreach (var session in sessions)
+                {
+                    foreach (var exercise in session.WorkoutExercises)
+                    {
+                        // Link exercise type
+                        exercise.ExerciseType = exerciseTypes.FirstOrDefault(et => et.ExerciseTypeId == exercise.ExerciseTypeId);
+                        
+                        // Link workout sets
+                        exercise.WorkoutSets = workoutSets
+                            .Where(ws => ws.WorkoutExerciseId == exercise.WorkoutExerciseId)
+                            .ToList();
+                    }
+                }
                     
                 // Process data in memory to safely handle null values
                 var processedSessions = sessions

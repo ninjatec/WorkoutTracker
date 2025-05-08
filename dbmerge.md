@@ -10,7 +10,7 @@ This document outlines the steps required to merge ApplicationDbContext into Wor
 
 ## Backup Strategy
 
-### 1. Create Database Backups
+### 1. Create Database Backups /
 ```bash
 # Create a full backup of the current database
 # Replace {ConnectionString} with actual connection parameters
@@ -28,7 +28,7 @@ sqlcmd -S {ServerName} -d {DatabaseName} -U {Username} -P {Password} -Q "BACKUP 
 
 ## Step 1: Identify and Copy Identity Tables to WorkoutTrackerWebContext
 
-### 1.1 Identity Tables to Migrate
+### 1.1 Identity Tables to Migrate / 
 - AspNetUsers
 - AspNetRoles
 - AspNetUserRoles
@@ -38,7 +38,7 @@ sqlcmd -S {ServerName} -d {DatabaseName} -U {Username} -P {Password} -Q "BACKUP 
 - AspNetRoleClaims
 - Versions table (if present in ApplicationDbContext)
 
-### 1.2 Create Migration to Add Identity Tables to WorkoutTrackerWebContext
+### 1.2 Create Migration to Add Identity Tables to WorkoutTrackerWebContext /
 ```bash
 # Create migration that will add Identity tables to WorkoutTrackerWebContext
 dotnet ef migrations add AddIdentityTablesToMainContext --context WorkoutTrackerWebContext

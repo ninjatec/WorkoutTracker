@@ -1,0 +1,30 @@
+Shadow property constraint FK_CoachClientRelationships_AppUser_AppUserId not found, continuing...
+Shadow property column AppUserId not found in CoachClientRelationships, continuing...
+(0 rows affected)
+(11 rows affected)
+TableName                                                                                                                                                                                                                                                       Status                                            
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------
+AspNetRoleClaims                                                                                                                                                                                                                                                Exists                                            
+AspNetRoles                                                                                                                                                                                                                                                     Exists                                            
+AspNetUserClaims                                                                                                                                                                                                                                                Exists                                            
+AspNetUserLogins                                                                                                                                                                                                                                                Exists                                            
+AspNetUserRoles                                                                                                                                                                                                                                                 Exists                                            
+AspNetUsers                                                                                                                                                                                                                                                     Exists                                            
+AspNetUserTokens                                                                                                                                                                                                                                                Exists                                            
+LogLevelOverrides                                                                                                                                                                                                                                               Exists                                            
+LogLevelSettings                                                                                                                                                                                                                                                Exists                                            
+Versions                                                                                                                                                                                                                                                        Exists                                            
+WhitelistedIps                                                                                                                                                                                                                                                  Exists                                            
+
+(11 rows affected)
+Migration was already marked as applied in __EFMigrationsHistory table
+Constraint FK_ClientActivities_AppUser_ClientId does not exist.
+Constraint FK_ClientActivities_AppUser_CoachId does not exist.
+Added constraint: FK_ClientActivities_AspNetUsers_ClientId
+Added constraint: FK_ClientActivities_AspNetUsers_CoachId
+ColumnName                                                                                                                       TableName                                                                                                                       
+-------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+
+(0 rows affected)
+Shadow property cleanup complete.
+Database shadow property cleanup completed successfully
