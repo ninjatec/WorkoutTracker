@@ -101,11 +101,33 @@ namespace WorkoutTrackerWeb.Services.Hangfire
         {
             var section = _configuration.GetSection("Hangfire");
             
-            // Determine if this instance should process jobs
-            IsProcessingEnabled = section.GetValue<bool>("Processing:Enabled", true);
+            // First check for environment variable overrides directly
+            var envProcessingEnabled = Environment.GetEnvironmentVariable("HANGFIRE_PROCESSING_ENABLED");
+            var envWorkerCount = Environment.GetEnvironmentVariable("HANGFIRE_WORKER_COUNT");
             
-            // Configure worker count based on settings or environment
-            WorkerCount = section.GetValue<int>("Processing:WorkerCount", Environment.ProcessorCount * 2);
+            // Determine if this instance should process jobs - prioritize environment variable
+            if (!string.IsNullOrEmpty(envProcessingEnabled))
+            {
+                IsProcessingEnabled = bool.TryParse(envProcessingEnabled, out var result) && result;
+                _logger.LogInformation("Using environment variable HANGFIRE_PROCESSING_ENABLED: {Value}", IsProcessingEnabled);
+            }
+            else
+            {
+                IsProcessingEnabled = section.GetValue<bool>("Processing:Enabled", true);
+                _logger.LogInformation("Using configuration value Hangfire:Processing:Enabled: {Value}", IsProcessingEnabled);
+            }
+            
+            // Configure worker count - prioritize environment variable
+            if (!string.IsNullOrEmpty(envWorkerCount) && int.TryParse(envWorkerCount, out var workerCount))
+            {
+                WorkerCount = workerCount;
+                _logger.LogInformation("Using environment variable HANGFIRE_WORKER_COUNT: {Value}", WorkerCount);
+            }
+            else
+            {
+                WorkerCount = section.GetValue<int>("Processing:WorkerCount", Environment.ProcessorCount * 2);
+                _logger.LogInformation("Using configuration value Hangfire:Processing:WorkerCount: {Value}", WorkerCount);
+            }
             
             // Configure job queues and their priorities
             var configuredQueues = section.GetSection("Processing:Queues").Get<string[]>();
