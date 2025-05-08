@@ -255,14 +255,17 @@ namespace WorkoutTrackerWeb
             builder.Services.AddScoped<WorkoutTrackerWeb.Services.Scheduling.WorkoutReminderService>();
             builder.Services.AddScoped<WorkoutTrackerWeb.Services.Scheduling.ScheduledWorkoutProcessorService>();
 
-            // Get Hangfire server configuration to check if processing is enabled
-            var serverConfig = builder.Services.BuildServiceProvider().GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.HangfireServerConfiguration>();
+            // Read environment variable directly instead of creating a temporary service provider
+            var hangfireProcessingEnabled = Environment.GetEnvironmentVariable("HANGFIRE_PROCESSING_ENABLED");
+            var isHangfireProcessingEnabled = string.IsNullOrEmpty(hangfireProcessingEnabled) || 
+                                              (bool.TryParse(hangfireProcessingEnabled, out var result) && result);
 
             // Only add Hangfire server when processing is enabled
-            if (serverConfig.IsProcessingEnabled)
+            if (isHangfireProcessingEnabled)
             {
                 // Add server after everything is configured
                 builder.Services.AddHangfireServer((provider, options) => {
+                    var serverConfig = provider.GetRequiredService<WorkoutTrackerWeb.Services.Hangfire.HangfireServerConfiguration>();
                     Log.Information("Configuring Hangfire server with {WorkerCount} workers", serverConfig.WorkerCount);
                     serverConfig.ConfigureServerOptions(options);
                 });
