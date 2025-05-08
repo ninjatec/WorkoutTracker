@@ -78,10 +78,8 @@ namespace WorkoutTrackerWeb.Pages.Sessions
 
             try
             {
-                // Find the workout session with all related entities
+                // Find the workout session first without including related entities
                 var workoutSession = await _context.WorkoutSessions
-                    .Include(ws => ws.WorkoutExercises)
-                        .ThenInclude(we => we.WorkoutSets)
                     .FirstOrDefaultAsync(ws => ws.WorkoutSessionId == id && ws.UserId == currentUserId);
                     
                 if (workoutSession == null)
@@ -94,28 +92,62 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 
                 await strategy.ExecuteAsync(async () =>
                 {
-                    // Delete workout sets first
-                    foreach (var exercise in workoutSession.WorkoutExercises ?? Enumerable.Empty<WorkoutExercise>())
+                    using (var transaction = await _context.Database.BeginTransactionAsync())
                     {
-                        if (exercise.WorkoutSets != null && exercise.WorkoutSets.Any())
+                        try
                         {
-                            _context.WorkoutSets.RemoveRange(exercise.WorkoutSets);
+                            // First find and delete the workout sets directly using SQL to avoid the problematic relationship
+                            var exerciseIds = await _context.WorkoutExercises
+                                .Where(we => we.WorkoutSessionId == id)
+                                .Select(we => we.WorkoutExerciseId)
+                                .ToListAsync();
+                            
+                            if (exerciseIds.Any())
+                            {
+                                // Delete all sets for these exercises
+                                foreach (var exerciseId in exerciseIds)
+                                {
+                                    var sets = await _context.WorkoutSets
+                                        .Where(ws => ws.WorkoutExerciseId == exerciseId)
+                                        .ToListAsync();
+                                        
+                                    if (sets.Any())
+                                    {
+                                        _context.WorkoutSets.RemoveRange(sets);
+                                    }
+                                }
+                                
+                                await _context.SaveChangesAsync();
+                                
+                                // Delete all workout exercises
+                                var exercises = await _context.WorkoutExercises
+                                    .Where(we => we.WorkoutSessionId == id)
+                                    .ToListAsync();
+                                    
+                                if (exercises.Any())
+                                {
+                                    _context.WorkoutExercises.RemoveRange(exercises);
+                                }
+                                
+                                await _context.SaveChangesAsync();
+                            }
+                            
+                            // Finally delete the workout session
+                            _context.WorkoutSessions.Remove(workoutSession);
+                            await _context.SaveChangesAsync();
+                            
+                            await transaction.CommitAsync();
+                            
+                            _logger.LogInformation("Successfully deleted workout session {WorkoutSessionId} for user {UserId}", 
+                                id, currentUserId);
+                        }
+                        catch (Exception innerEx)
+                        {
+                            _logger.LogError(innerEx, "Transaction failed when deleting workout session {WorkoutSessionId}", id);
+                            await transaction.RollbackAsync();
+                            throw;
                         }
                     }
-                    
-                    // Delete workout exercises
-                    if (workoutSession.WorkoutExercises != null && workoutSession.WorkoutExercises.Any())
-                    {
-                        _context.WorkoutExercises.RemoveRange(workoutSession.WorkoutExercises);
-                    }
-                    
-                    // Finally delete the workout session
-                    _context.WorkoutSessions.Remove(workoutSession);
-                    
-                    await _context.SaveChangesAsync();
-                    
-                    _logger.LogInformation("Successfully deleted workout session {WorkoutSessionId} for user {UserId}", 
-                        id, currentUserId);
                     
                     // Clear the change tracker
                     _context.ChangeTracker.Clear();
