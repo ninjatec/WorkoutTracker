@@ -115,4 +115,93 @@ BEGIN
     PRINT 'Migration was already marked as applied in __EFMigrationsHistory table';
 END
 
+-- Script to clean up shadow property foreign keys that may be causing conflicts
+-- This script safely checks for and drops problematic constraints
+
+-- Check and drop FK_ClientActivities_AppUser_ClientId if it exists
+IF EXISTS (
+    SELECT * 
+    FROM sys.foreign_keys 
+    WHERE name = 'FK_ClientActivities_AppUser_ClientId'
+)
+BEGIN
+    ALTER TABLE [ClientActivities] DROP CONSTRAINT [FK_ClientActivities_AppUser_ClientId];
+    PRINT 'Dropped constraint: FK_ClientActivities_AppUser_ClientId';
+END
+ELSE
+BEGIN
+    PRINT 'Constraint FK_ClientActivities_AppUser_ClientId does not exist.';
+END
+
+-- Check and drop FK_ClientActivities_AppUser_CoachId if it exists
+IF EXISTS (
+    SELECT * 
+    FROM sys.foreign_keys 
+    WHERE name = 'FK_ClientActivities_AppUser_CoachId'
+)
+BEGIN
+    ALTER TABLE [ClientActivities] DROP CONSTRAINT [FK_ClientActivities_AppUser_CoachId];
+    PRINT 'Dropped constraint: FK_ClientActivities_AppUser_CoachId';
+END
+ELSE
+BEGIN
+    PRINT 'Constraint FK_ClientActivities_AppUser_CoachId does not exist.';
+END
+
+-- Other shadow property constraints that might be causing issues
+-- Add any additional constraints here that need to be dropped
+
+-- Create the proper relationships if they don't exist
+-- This ensures the correct FK constraints are in place
+IF NOT EXISTS (
+    SELECT * 
+    FROM sys.foreign_keys 
+    WHERE name = 'FK_ClientActivities_AspNetUsers_ClientId'
+)
+BEGIN
+    ALTER TABLE [ClientActivities] 
+    ADD CONSTRAINT [FK_ClientActivities_AspNetUsers_ClientId] 
+    FOREIGN KEY ([ClientId]) REFERENCES [AspNetUsers]([Id])
+    ON DELETE NO ACTION;
+    
+    PRINT 'Added constraint: FK_ClientActivities_AspNetUsers_ClientId';
+END
+ELSE
+BEGIN
+    PRINT 'Constraint FK_ClientActivities_AspNetUsers_ClientId already exists.';
+END
+
+IF NOT EXISTS (
+    SELECT * 
+    FROM sys.foreign_keys 
+    WHERE name = 'FK_ClientActivities_AspNetUsers_CoachId'
+)
+BEGIN
+    ALTER TABLE [ClientActivities] 
+    ADD CONSTRAINT [FK_ClientActivities_AspNetUsers_CoachId] 
+    FOREIGN KEY ([CoachId]) REFERENCES [AspNetUsers]([Id])
+    ON DELETE NO ACTION;
+    
+    PRINT 'Added constraint: FK_ClientActivities_AspNetUsers_CoachId';
+END
+ELSE
+BEGIN
+    PRINT 'Constraint FK_ClientActivities_AspNetUsers_CoachId already exists.';
+END
+
+-- Final check for any remaining shadow properties in the ClientActivities table
+SELECT 
+    c.name AS ColumnName,
+    t.name AS TableName
+FROM 
+    sys.columns c
+    JOIN sys.tables t ON c.object_id = t.object_id
+WHERE 
+    t.name = 'ClientActivities' 
+    AND c.name LIKE '%1' -- Shadow properties often have numeric suffixes
+    AND c.name NOT IN ('ClientId', 'CoachId'); -- Exclude legitimate columns
+
+-- Print completion message
+PRINT 'Shadow property cleanup complete.';
+
 PRINT 'Database shadow property cleanup completed successfully';

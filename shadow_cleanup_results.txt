@@ -1,14 +1,6 @@
 Shadow property constraint FK_CoachClientRelationships_AppUser_AppUserId not found, continuing...
 Shadow property column AppUserId not found in CoachClientRelationships, continuing...
-(4 rows affected)
-Dropping constraint: FK_ClientActivities_AppUser_ClientId from table: ClientActivities
-Successfully dropped constraint: FK_ClientActivities_AppUser_ClientId
-Dropping constraint: FK_ClientActivities_AppUser_CoachId from table: ClientActivities
-Successfully dropped constraint: FK_ClientActivities_AppUser_CoachId
-Dropping constraint: FK_GoalFeedback_AppUser_CoachId from table: GoalFeedback
-Successfully dropped constraint: FK_GoalFeedback_AppUser_CoachId
-Dropping constraint: FK_ClientGroups_AppUser_CoachId from table: ClientGroups
-Successfully dropped constraint: FK_ClientGroups_AppUser_CoachId
+(0 rows affected)
 (11 rows affected)
 TableName                                                                                                                                                                                                                                                       Status                                            
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------
@@ -25,6 +17,14 @@ Versions                                                                        
 WhitelistedIps                                                                                                                                                                                                                                                  Exists                                            
 
 (11 rows affected)
-(1 row affected)
-Migration marked as applied in __EFMigrationsHistory table
+Migration was already marked as applied in __EFMigrationsHistory table
+Constraint FK_ClientActivities_AppUser_ClientId does not exist.
+Constraint FK_ClientActivities_AppUser_CoachId does not exist.
+Added constraint: FK_ClientActivities_AspNetUsers_ClientId
+Added constraint: FK_ClientActivities_AspNetUsers_CoachId
+ColumnName                                                                                                                       TableName                                                                                                                       
+-------------------------------------------------------------------------------------------------------------------------------- --------------------------------------------------------------------------------------------------------------------------------
+
+(0 rows affected)
+Shadow property cleanup complete.
 Database shadow property cleanup completed successfully

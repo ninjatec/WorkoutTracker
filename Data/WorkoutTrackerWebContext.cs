@@ -226,6 +226,20 @@ namespace WorkoutTrackerWeb.Data
                 .HasForeignKey(w => w.CoachUserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Configure entity relationships for ClientActivity
+            modelBuilder.Entity<ClientActivity>()
+                .HasOne(ca => ca.Client)
+                .WithMany()
+                .HasForeignKey(ca => ca.ClientId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            modelBuilder.Entity<ClientActivity>()
+                .HasOne(ca => ca.Coach)
+                .WithMany()
+                .HasForeignKey(ca => ca.CoachId)
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Restrict);
+                
             // *** OTHER RELATIONSHIP CONFIGURATIONS ***
             
             // Configure the relationship between Feedback and User

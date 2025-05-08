@@ -599,7 +599,9 @@ namespace WorkoutTrackerWeb
                     sqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "dbo");
                 })
                 .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
-                .EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
+                .EnableSensitiveDataLogging(builder.Environment.IsDevelopment())
+                // Suppress the warning about pending model changes
+                .ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
             });
 
             // Register SqlNullSafetyService
