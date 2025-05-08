@@ -9,7 +9,11 @@ namespace WorkoutTrackerWeb
     {
         public static async Task Main(string[] args)
         {
-            string connectionString = "Server=192.168.0.172;Database=WorkoutTrackerWeb;TrustServerCertificate=True;integrated security=False;User ID=marc.coxall;Password=Donald640060!";
+            string connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
+            if (string.IsNullOrEmpty(connectionString))
+            {
+                throw new InvalidOperationException("Database connection string is not set. Please configure the 'DB_CONNECTION_STRING' environment variable.");
+            }
             
             try
             {
