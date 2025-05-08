@@ -684,12 +684,12 @@ namespace WorkoutTrackerWeb
 
             builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
             {
-                options.Level = CompressionLevel.Fastest;
+                options.Level = CompressionLevel.Optimal;
             });
 
             builder.Services.Configure<GzipCompressionProviderOptions>(options =>
             {
-                options.Level = CompressionLevel.Fastest;
+                options.Level = CompressionLevel.Optimal;
             });
 
             builder.Services.AddResponseCompression(options =>
@@ -699,21 +699,23 @@ namespace WorkoutTrackerWeb
                 options.Providers.Add<GzipCompressionProvider>();
                 options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
                     new[] { 
-                        "application/json", 
-                        "application/javascript",
+                        "application/json",
+                        "application/javascript", 
                         "text/css",
                         "text/html",
+                        "text/javascript",
                         "text/json",
                         "text/plain",
                         "text/xml",
-                        "application/xml"
+                        "application/xml",
+                        "application/x-javascript"
                     });
                 // Add exclusion for already compressed content types
                 options.ExcludedMimeTypes = new[] {
-                    "image/png", 
                     "image/jpeg",
+                    "image/png",
                     "image/gif",
-                    "image/webp",
+                    "image/webp", 
                     "image/svg+xml",
                     "audio/mpeg",
                     "video/mp4",
@@ -721,11 +723,21 @@ namespace WorkoutTrackerWeb
                     "font/woff2",
                     "application/octet-stream",
                     "application/pdf",
-                    "application/zip"
+                    "application/zip",
+                    "application/x-gzip"
                 };
             });
 
             builder.Services.AddHostedService<VersionCacheInvalidationService>();
+
+            // Remove any built-in asset optimization
+            builder.Services.Configure<StaticFileOptions>(options =>
+            {
+                options.ServeUnknownFileTypes = true;
+            });
+
+            // Add proper cache control for static files
+            builder.Services.AddResponseCaching();
 
             var app = builder.Build();
 
@@ -871,17 +883,77 @@ namespace WorkoutTrackerWeb
 
             app.UseHttpsRedirection();
 
+            // Configure response compression
+            app.UseResponseCompression();
+            app.UseCompressionAnalytics();
+
+            // Configure static files with proper cache headers
+            var provider = new FileExtensionContentTypeProvider();
+            provider.Mappings[".webp"] = "image/webp";
+            provider.Mappings[".woff"] = "font/woff";
+            provider.Mappings[".woff2"] = "font/woff2";
+            provider.Mappings[".ttf"] = "font/ttf";
+            provider.Mappings[".eot"] = "application/vnd.ms-fontobject";
+            provider.Mappings[".otf"] = "font/otf";
+            provider.Mappings[".map"] = "application/json";
+
             app.UseStaticFiles(new StaticFileOptions
             {
-                ContentTypeProvider = new FileExtensionContentTypeProvider
+                ContentTypeProvider = provider,
+                OnPrepareResponse = ctx =>
                 {
-                    Mappings = 
+                    // Disable caching for development
+                    if (app.Environment.IsDevelopment())
                     {
-                        [".js"] = "application/javascript",
-                        [".min.js"] = "application/javascript"
+                        ctx.Context.Response.Headers["Cache-Control"] = "no-cache, no-store";
+                        return;
                     }
+
+                    // Set cache control headers for production
+                    var maxAge = TimeSpan.FromDays(7); // Default to 7 days
+                    var filePath = ctx.File.PhysicalPath;
+
+                    if (filePath != null)
+                    {
+                        if (filePath.EndsWith(".css") || filePath.EndsWith(".js"))
+                        {
+                            maxAge = TimeSpan.FromDays(7);
+                        }
+                        else if (filePath.EndsWith(".min.css") || filePath.EndsWith(".min.js"))
+                        {
+                            maxAge = TimeSpan.FromDays(30);
+                        }
+                        else if (filePath.EndsWith(".jpg") || filePath.EndsWith(".png") || 
+                                 filePath.EndsWith(".gif") || filePath.EndsWith(".ico") ||
+                                 filePath.EndsWith(".svg") || filePath.EndsWith(".webp"))
+                        {
+                            maxAge = TimeSpan.FromDays(30);
+                        }
+                        else if (filePath.EndsWith(".woff") || filePath.EndsWith(".woff2") || 
+                                 filePath.EndsWith(".ttf") || filePath.EndsWith(".eot") ||
+                                 filePath.EndsWith(".otf"))
+                        {
+                            maxAge = TimeSpan.FromDays(365);
+                        }
+                    }
+
+                    // Add immutable directive for versioned files
+                    var path = ctx.Context.Request.Path.Value?.ToLower() ?? "";
+                    if (path.Contains(".v") || path.Contains(".hash"))
+                    {
+                        ctx.Context.Response.Headers["Cache-Control"] = $"public, max-age={maxAge.TotalSeconds}, immutable";
+                    }
+                    else
+                    {
+                        ctx.Context.Response.Headers["Cache-Control"] = $"public, max-age={maxAge.TotalSeconds}";
+                    }
+
+                    // Add Vary header for proper caching with compression
+                    ctx.Context.Response.Headers["Vary"] = "Accept-Encoding";
                 }
             });
+
+            app.UseStaticAssetCacheHeaders();
 
             app.UseIpRateLimiting();
             
@@ -905,10 +977,6 @@ namespace WorkoutTrackerWeb
             app.UseAuthentication();
             app.UseAuthorization();
 
-            // Add compression middleware
-            app.UseResponseCompression();
-            app.UseCompressionAnalytics();
-            
             // Add cache headers for static assets
             app.UseStaticAssetCacheHeaders();
 
