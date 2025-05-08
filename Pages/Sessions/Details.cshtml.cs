@@ -10,6 +10,8 @@ using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Services.Calculations;
+using WorkoutTrackerWeb.Services.Users;
+using WorkoutTrackerWeb.ViewModels;
 
 namespace WorkoutTrackerWeb.Pages.Sessions
 {
@@ -96,7 +98,7 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 .Distinct()
                 .ToList();
                 
-            var equipment = await _context.Equipment
+            var equipment = await _context.Set<Equipment>()
                 .Where(e => equipmentIds.Contains(e.EquipmentId))
                 .ToListAsync();
                 
