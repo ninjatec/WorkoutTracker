@@ -882,7 +882,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
                                             ExerciseName = exerciseName,
                                             TotalVolume = totalVolume,
                                             // Add at least two data points for charting
-                                            Dates = new List<DateTime> { DateTime.Now.AddDays(-ReportPeriod), DateTime.Now },
+                                            Dates = new List<DateTime> { PeriodStart, DateTime.Now },
                                             Volumes = new List<double> { 0, totalVolume }
                                         };
                                         
@@ -909,7 +909,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
                             new VolumeData { 
                                 ExerciseName = "No workout data available", 
                                 TotalVolume = 0,
-                                Dates = new List<DateTime> { DateTime.Now.AddDays(-7), DateTime.Now },
+                                Dates = new List<DateTime> { PeriodStart, DateTime.Now },
                                 Volumes = new List<double> { 0, 0 }
                             }
                         };
@@ -923,7 +923,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
                         new VolumeData { 
                             ExerciseName = "No workout data available", 
                             TotalVolume = 0,
-                            Dates = new List<DateTime> { DateTime.Now.AddDays(-7), DateTime.Now },
+                            Dates = new List<DateTime> { PeriodStart, DateTime.Now },
                             Volumes = new List<double> { 0, 0 }
                         }
                     };
@@ -947,7 +947,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
                 { 
                     ExerciseName = "No workout data yet", 
                     TotalVolume = 0,
-                    Dates = new List<DateTime> { DateTime.Now.AddDays(-7), DateTime.Now },
+                    Dates = new List<DateTime> { PeriodStart, DateTime.Now },
                     Volumes = new List<double> { 0, 0 }
                 }
             };
@@ -1002,7 +1002,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
                     { 
                         ExerciseName = "No workout data yet", 
                         TotalVolume = 0,
-                        Dates = new List<DateTime> { DateTime.Now.AddDays(-7), DateTime.Now },
+                        Dates = new List<DateTime> { PeriodStart, DateTime.Now },
                         Volumes = new List<double> { 0, 0 }
                     }
                 };
