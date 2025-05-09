@@ -127,9 +127,13 @@ namespace WorkoutTrackerWeb.Pages.Sessions
             WorkoutSession = workoutSession;
             
             // Calculate total volume
-            TotalVolume = workoutSession.WorkoutExercises
-                .SelectMany(we => we.WorkoutSets)
-                .Sum(s => (s.Weight ?? 0) * (s.Reps ?? 0));
+            TotalVolume = _volumeCalculationService.CalculateWorkoutSessionVolume(workoutSession);
+
+            // Calculate volume by exercise
+            VolumeByExercise = _volumeCalculationService.CalculateSessionVolume(workoutSession);
+
+            // Calculate total calories
+            TotalCalories = _calorieCalculationService.CalculateCalories(workoutSession);
                 
             // Create a summary of the exercises in this session
             ExerciseSummaries = workoutSession.WorkoutExercises
