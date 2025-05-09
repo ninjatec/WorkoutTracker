@@ -33,15 +33,21 @@ namespace WorkoutTrackerWeb.Pages.Workouts
 
         public async Task<IActionResult> OnGetAsync(int? scheduleId)
         {
-            var userId = User.GetUserId();
-            if (userId == null)
-            {
+            var identityUserId = User.GetUserId();
+            if (identityUserId == null)
                 return RedirectToPage("/Account/Login");
+
+            // Map Identity GUID to internal int UserId
+            var appUser = await _context.User.FirstOrDefaultAsync(u => u.IdentityUserId == identityUserId);
+            if (appUser == null)
+            {
+                _logger.LogError("No AppUser found for IdentityUserId {IdentityUserId}", identityUserId);
+                return NotFound();
             }
 
-            // If scheduleId is not provided or invalid, return Not Found
             if (!scheduleId.HasValue || scheduleId.Value <= 0)
             {
+                _logger.LogError("No scheduleId provided for user {UserId}", appUser.UserId);
                 return NotFound();
             }
 
@@ -49,10 +55,11 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                 .Include(w => w.Template)
                 .Include(w => w.TemplateAssignment)
                     .ThenInclude(ta => ta != null ? ta.WorkoutTemplate : null)
-                .FirstOrDefaultAsync(w => w.WorkoutScheduleId == scheduleId.Value && w.ClientUserId.ToString() == userId);
+                .FirstOrDefaultAsync(w => w.WorkoutScheduleId == scheduleId.Value && w.ClientUserId == appUser.UserId);
 
             if (WorkoutSchedule == null)
             {
+                _logger.LogError("No Schedule found for user {UserId}", appUser.UserId);
                 return NotFound();
             }
 
@@ -61,25 +68,31 @@ namespace WorkoutTrackerWeb.Pages.Workouts
 
         public async Task<IActionResult> OnPostAsync(DateTime scheduleDate, TimeSpan scheduleTime)
         {
-            var userId = User.GetUserId();
-            if (userId == null)
-            {
+            var identityUserId = User.GetUserId();
+            if (identityUserId == null)
                 return RedirectToPage("/Account/Login");
+
+            // Map Identity GUID to internal int UserId
+            var appUser = await _context.User.FirstOrDefaultAsync(u => u.IdentityUserId == identityUserId);
+            if (appUser == null)
+            {
+                _logger.LogError("No AppUser found for IdentityUserId {IdentityUserId}", identityUserId);
+                return NotFound();
             }
 
-            // Get the original entity from the database
             var originalSchedule = await _context.WorkoutSchedules
                 .AsNoTracking()
-                .FirstOrDefaultAsync(w => w.WorkoutScheduleId == WorkoutSchedule.WorkoutScheduleId && w.ClientUserId.ToString() == userId);
+                .FirstOrDefaultAsync(w => w.WorkoutScheduleId == WorkoutSchedule.WorkoutScheduleId && w.ClientUserId == appUser.UserId);
 
             if (originalSchedule == null)
             {
+                _logger.LogError("No Schedule found for user {UserId}", appUser.UserId);
                 return NotFound();
             }
 
             // We can't change certain properties like recurrence pattern in the edit form
             // so we need to restore these from the original entity
-            WorkoutSchedule.ClientUserId = int.Parse(userId);
+            WorkoutSchedule.ClientUserId = appUser.UserId;
             WorkoutSchedule.IsRecurring = originalSchedule.IsRecurring;
             WorkoutSchedule.RecurrencePattern = originalSchedule.RecurrencePattern;
             WorkoutSchedule.RecurrenceDayOfWeek = originalSchedule.RecurrenceDayOfWeek;
@@ -102,7 +115,7 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                 await _context.SaveChangesAsync();
 
                 // Log the update
-                _logger.LogInformation("User {UserId} updated workout schedule {ScheduleId}", userId, WorkoutSchedule.WorkoutScheduleId);
+                _logger.LogInformation("User {UserId} updated workout schedule {ScheduleId}", appUser.UserId, WorkoutSchedule.WorkoutScheduleId);
 
                 TempData["SuccessMessage"] = "Workout schedule updated successfully.";
                 return RedirectToPage("./ScheduledWorkouts");
