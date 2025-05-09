@@ -23,9 +23,10 @@
         </div>
     </div>
 
+    <!-- First Row: User Management & Coach Management -->
     <div class="row">
-        <!-- User Management Card -->
-        <div class="col-md-3">
+        <div class="col-md-6">
+            <!-- User Management Card -->
             <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">User Management</h5>
@@ -51,9 +52,8 @@
                 </div>
             </div>
         </div>
-        
-        <!-- Coach Management Card -->
-        <div class="col-md-3">
+        <div class="col-md-6">
+            <!-- Coach Management Card -->
             <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">Coach Management</h5>
@@ -75,9 +75,12 @@
                 </div>
             </div>
         </div>
-        
-        <!-- System Status -->
-        <div class="col-md-3">
+    </div>
+
+    <!-- Second Row: System Status & Activity Stats -->
+    <div class="row">
+        <div class="col-md-6">
+            <!-- System Status Card -->
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">System Status</h5>
@@ -92,7 +95,6 @@
                             @(Model.DatabaseStatus ? "Connected" : "Disconnected")
                         </span>
                     </div>
-                    
                     <!-- Database connection details - Collapsible section -->
                     <div class="collapse mb-3" id="databaseDetails">
                         <div class="card card-body bg-light">
@@ -110,7 +112,6 @@
                                     <span>@Model.CircuitBreakerLastStateChange.Value.ToString("g")</span>
                                 </div>
                             }
-                            
                             <h6 class="card-subtitle mt-3 mb-2 text-muted">Connection Pool</h6>
                             @if (Model.ConnectionPoolInfo.Count > 0)
                             {
@@ -128,7 +129,6 @@
                             }
                         </div>
                     </div>
-                    
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="mb-0">API Services</h6>
                         <span class="badge @(Model.ApiStatus ? "bg-success" : "bg-danger")">
@@ -155,9 +155,8 @@
                 </div>
             </div>
         </div>
-        
-        <!-- Activity Stats -->
-        <div class="col-md-3">
+        <div class="col-md-6">
+            <!-- Activity Stats Card -->
             <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0">Activity Stats</h5>
