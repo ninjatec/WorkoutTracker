@@ -205,3 +205,149 @@ WHERE
 PRINT 'Shadow property cleanup complete.';
 
 PRINT 'Database shadow property cleanup completed successfully';
+
+-- Shadow Property Cleanup Script for WorkoutExercises table
+-- This script safely removes any shadow property columns that might be causing issues with Entity Framework
+-- Created: May 9, 2025
+
+-- First, check if the shadow property column exists in the WorkoutExercises table
+IF EXISTS (
+    SELECT 1 
+    FROM sys.columns 
+    WHERE name = 'ExerciseTypeId1'
+    AND object_id = OBJECT_ID('WorkoutExercises')
+)
+BEGIN
+    PRINT 'Found ExerciseTypeId1 shadow property column in WorkoutExercises table. Removing it...';
+    
+    -- Create a backup of any data that might be in the shadow property column
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'WorkoutExercises_Backup')
+    BEGIN
+        PRINT 'Creating backup table WorkoutExercises_Backup...';
+        SELECT * INTO WorkoutExercises_Backup FROM WorkoutExercises;
+        PRINT 'Backup created successfully.';
+    END
+    ELSE
+    BEGIN
+        PRINT 'Backup table WorkoutExercises_Backup already exists. Skipping backup creation.';
+    END
+    
+    -- Check if there's any data in the shadow property column
+    DECLARE @HasData INT;
+    SELECT @HasData = COUNT(*) 
+    FROM WorkoutExercises 
+    WHERE ExerciseTypeId1 IS NOT NULL;
+    
+    IF @HasData > 0
+    BEGIN
+        PRINT 'WARNING: Found ' + CAST(@HasData AS VARCHAR) + ' rows with data in ExerciseTypeId1 column.';
+        PRINT 'Backing up this data for reference...';
+        
+        -- Create a special backup just for the shadow property data
+        IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'ShadowPropertyData')
+        BEGIN
+            CREATE TABLE ShadowPropertyData (
+                WorkoutExerciseId INT PRIMARY KEY,
+                ExerciseTypeId INT,
+                ExerciseTypeId1 INT
+            );
+            
+            INSERT INTO ShadowPropertyData
+            SELECT WorkoutExerciseId, ExerciseTypeId, ExerciseTypeId1
+            FROM WorkoutExercises
+            WHERE ExerciseTypeId1 IS NOT NULL;
+            
+            PRINT 'Shadow property data backed up to ShadowPropertyData table.';
+        END
+    END
+    ELSE
+    BEGIN
+        PRINT 'No data found in ExerciseTypeId1 column. Safe to remove.';
+    END
+    
+    -- Drop the constraint if it exists (we'll need to check for foreign keys)
+    DECLARE @ConstraintName NVARCHAR(128);
+    SELECT @ConstraintName = name
+    FROM sys.foreign_keys
+    WHERE parent_object_id = OBJECT_ID('WorkoutExercises')
+    AND referenced_object_id = OBJECT_ID('ExerciseType')
+    AND COL_NAME(parent_object_id, parent_column_id) = 'ExerciseTypeId1';
+    
+    IF @ConstraintName IS NOT NULL
+    BEGIN
+        DECLARE @SQL NVARCHAR(MAX) = N'ALTER TABLE WorkoutExercises DROP CONSTRAINT ' + QUOTENAME(@ConstraintName);
+        PRINT 'Dropping foreign key constraint: ' + @ConstraintName;
+        EXEC sp_executesql @SQL;
+        PRINT 'Foreign key constraint dropped successfully.';
+    END
+    
+    -- Drop the shadow property column
+    PRINT 'Dropping ExerciseTypeId1 column...';
+    ALTER TABLE WorkoutExercises DROP COLUMN ExerciseTypeId1;
+    PRINT 'ExerciseTypeId1 column dropped successfully.';
+    
+    -- Log the completion
+    PRINT 'Shadow property cleanup completed successfully.';
+END
+ELSE
+BEGIN
+    PRINT 'ExerciseTypeId1 shadow property column does not exist in the WorkoutExercises table. No action needed.';
+END
+
+-- Also check for other shadow property columns that might cause similar issues
+IF EXISTS (
+    SELECT 1 
+    FROM sys.columns 
+    WHERE name = 'WorkoutSessionId1'
+    AND object_id = OBJECT_ID('WorkoutFeedback')
+)
+BEGIN
+    PRINT 'Found WorkoutSessionId1 shadow property column in WorkoutFeedback table. Removing it...';
+    
+    -- Similar process as above for WorkoutFeedback table
+    IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'WorkoutFeedback_Backup')
+    BEGIN
+        PRINT 'Creating backup table WorkoutFeedback_Backup...';
+        SELECT * INTO WorkoutFeedback_Backup FROM WorkoutFeedback;
+        PRINT 'Backup created successfully.';
+    END
+    
+    -- Check for constraint
+    DECLARE @FeedbackConstraintName NVARCHAR(128);
+    SELECT @FeedbackConstraintName = name
+    FROM sys.foreign_keys
+    WHERE parent_object_id = OBJECT_ID('WorkoutFeedback')
+    AND COL_NAME(parent_object_id, parent_column_id) = 'WorkoutSessionId1';
+    
+    IF @FeedbackConstraintName IS NOT NULL
+    BEGIN
+        DECLARE @FeedbackSQL NVARCHAR(MAX) = N'ALTER TABLE WorkoutFeedback DROP CONSTRAINT ' + QUOTENAME(@FeedbackConstraintName);
+        EXEC sp_executesql @FeedbackSQL;
+    END
+    
+    ALTER TABLE WorkoutFeedback DROP COLUMN WorkoutSessionId1;
+    PRINT 'WorkoutSessionId1 column dropped successfully.';
+END
+
+-- Verify relationship between WorkoutExercise and ExerciseType
+PRINT 'Verifying relationship between WorkoutExercise and ExerciseType...';
+
+-- Check if the ExerciseTypeId foreign key exists
+IF EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys fk
+    JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
+    WHERE fk.parent_object_id = OBJECT_ID('WorkoutExercises')
+    AND fk.referenced_object_id = OBJECT_ID('ExerciseType')
+    AND COL_NAME(fk.parent_object_id, fkc.parent_column_id) = 'ExerciseTypeId'
+)
+BEGIN
+    PRINT 'Foreign key relationship exists between WorkoutExercises.ExerciseTypeId and ExerciseType.ExerciseTypeId';
+END
+ELSE
+BEGIN
+    PRINT 'WARNING: Foreign key relationship does not exist between WorkoutExercises.ExerciseTypeId and ExerciseType.ExerciseTypeId';
+    PRINT 'Consider adding it manually if needed.';
+END
+
+PRINT 'Shadow property cleanup script completed.';
