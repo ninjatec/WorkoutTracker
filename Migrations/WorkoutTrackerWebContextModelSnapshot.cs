@@ -2197,9 +2197,6 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Property<int>("ExerciseTypeId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("ExerciseTypeId1")
-                        .HasColumnType("int");
-
                     b.Property<string>("Notes")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -2224,8 +2221,6 @@ namespace WorkoutTrackerWeb.Migrations
                     b.HasIndex("EquipmentId");
 
                     b.HasIndex("ExerciseTypeId");
-
-                    b.HasIndex("ExerciseTypeId1");
 
                     b.HasIndex("WorkoutSessionId");
 
@@ -3088,14 +3083,10 @@ namespace WorkoutTrackerWeb.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("WorkoutTrackerWeb.Models.ExerciseType", "ExerciseType")
-                        .WithMany()
+                        .WithMany("WorkoutExercises")
                         .HasForeignKey("ExerciseTypeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.HasOne("WorkoutTrackerWeb.Models.ExerciseType", null)
-                        .WithMany("WorkoutExercises")
-                        .HasForeignKey("ExerciseTypeId1");
 
                     b.HasOne("WorkoutTrackerWeb.Models.WorkoutSession", "WorkoutSession")
                         .WithMany("WorkoutExercises")
