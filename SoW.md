@@ -222,3 +222,6 @@ Implement a user-selectable dark/light theme using Bootstrap 5 utilities and per
 7. Documentation Updates:
    * Update `README.md`, `inventory.md`, and this `SoW.md` to reflect the new dark mode feature.
 
+## 2025-05-09
+- Security: Updated Content Security Policy to allow https://static.cloudflareinsights.com in script-src for Cloudflare Insights compatibility.
+

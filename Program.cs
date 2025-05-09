@@ -821,7 +821,7 @@ namespace WorkoutTrackerWeb
             {
                 context.Response.Headers["Content-Security-Policy"] = 
                     "default-src 'self'; " +
-                    "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net 'unsafe-inline'; " + 
+                    "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com 'unsafe-inline'; " + 
                     "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css 'unsafe-inline'; " + 
                     "img-src 'self' data: https://cdn.jsdelivr.net; " + 
                     "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +

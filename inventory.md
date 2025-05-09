@@ -544,3 +544,6 @@ This document maintains an up-to-date inventory of all features, components, and
   - Careful cascade delete behavior specification
   - OrderBy clauses with First/FirstOrDefault operators
 - **Documentation**: Comprehensive relationship configuration best practices are documented in `/Documentation/migrations/RelationshipBestPractices.md`
+
+## 2025-05-09
+- Content Security Policy (CSP) updated: Added https://static.cloudflareinsights.com to script-src to allow Cloudflare Insights beacon script.
