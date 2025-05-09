@@ -17,7 +17,6 @@ This document summarizes the current technical debt in the WorkoutTracker applic
       - `Notes` column in `WorkoutSessions` table
       - `Name` column in `WorkoutExercises` table
     - `ExerciseTypes` table is referenced in code but missing in the database.
-  - [ ] **Obsolete Session Model**: Legacy `Session` model and related code still exist in some places (see `SessionMigration/code-changes.md`).
     - Razor Pages, controllers, and services referencing `Session` need to be fully migrated to `WorkoutSession`.
     - Remove obsolete `Session`-related code and update documentation accordingly.
 
