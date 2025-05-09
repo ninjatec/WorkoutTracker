@@ -225,17 +225,20 @@
                     <div class="tab-content" id="exerciseTabsContent">
                         <!-- By Muscle Tab -->
                         <div class="tab-pane fade show active" id="by-muscle" role="tabpanel">
-                            <div class="d-flex flex-wrap gap-2 mb-3">
+                            <div id="muscle-group-list" class="d-flex flex-wrap gap-2 mb-3">
                                 @foreach (var muscleGroup in Model.QuickWorkout.MuscleGroups)
                                 {
-                                    <a asp-page="/Workouts/QuickWorkout" asp-route-muscleGroup="@muscleGroup" 
-                                       class="btn @(muscleGroup == Model.QuickWorkout.SelectedMuscleGroup ? "btn-primary" : "btn-outline-primary")">
+                                    <button type="button" class="btn btn-outline-primary wordcloud-btn" data-muscle="@muscleGroup">
                                         @muscleGroup.ToTitleCase()
-                                    </a>
+                                    </button>
                                 }
+                                <button type="button" class="btn btn-outline-secondary wordcloud-btn" data-muscle="Other">Other</button>
                             </div>
+                            <button id="back-to-muscles-btn" type="button" class="btn btn-link mb-2" style="display:none;">
+                                <i class="bi bi-arrow-left"></i> Back to Muscle Groups
+                            </button>
+                            <div id="exercise-list" class="list-group mb-2" style="display:none;"></div>
                         </div>
-                        
                         <!-- Recent Tab -->
                         <div class="tab-pane fade" id="recent" role="tabpanel">
                             <div class="list-group">
@@ -249,7 +252,6 @@
                                 }
                             </div>
                         </div>
-                        
                         <!-- Favorites Tab -->
                         <div class="tab-pane fade" id="favorites" role="tabpanel">
                             <div class="list-group">
@@ -304,3 +306,54 @@
         </div>
     </div>
 </div>
+
+<style>
+    /* Word cloud style for muscle group buttons */
+    #muscle-group-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5em 0.5em;
+        align-items: flex-end;
+        justify-content: flex-start;
+        margin-bottom: 1em;
+    }
+    .wordcloud-btn {
+        border-radius: 2em;
+        transition: box-shadow 0.2s, background 0.2s, color 0.2s;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        padding: 0.3em 1.2em;
+        line-height: 1.2;
+        margin-right: 0.2em;
+        margin-bottom: 0.2em;
+    }
+    .wordcloud-btn:hover, .wordcloud-btn:focus {
+        background: #0d6efd;
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(13,110,253,0.12);
+    }
+</style>
+
+@section Scripts {
+    <script src="~/js/quickworkout-drilldown.js"></script>
+    <script>
+        window.quickWorkoutAllExercises = [
+            @foreach (var ex in Model.QuickWorkout.ExerciseTypes)
+            {
+                <text>{ exerciseTypeId: @ex.ExerciseTypeId, name: '@ex.Name.Replace("'", "\'")', muscle: '@(ex.Muscle ?? ex.PrimaryMuscleGroup ?? "Other")' },</text>
+            }
+        ];
+        window.quickWorkoutMuscleGroups = [
+            @foreach (var mg in Model.QuickWorkout.MuscleGroups.Distinct())
+            {
+                <text>'@mg',</text>
+            }
+        ];
+        function selectExercise(id, name) {
+            var dropdown = document.querySelector('select[name="QuickWorkout.ExerciseTypeId"]');
+            if (dropdown) {
+                dropdown.value = id;
+                dropdown.dispatchEvent(new Event('change'));
+            }
+        }
+    </script>
+}
