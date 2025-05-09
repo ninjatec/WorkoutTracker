@@ -3,17 +3,20 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WorkoutTrackerWeb.Data;
 
 #nullable disable
 
-namespace WorkoutTrackerWeb.Migrations
+namespace WorkoutTrackerWeb.Data.Migrations.WorkoutTrackerWeb
 {
     [DbContext(typeof(WorkoutTrackerWebContext))]
-    partial class WorkoutTrackerWebContextModelSnapshot : ModelSnapshot
+    [Migration("20250509045518_FixExerciseTypeWorkoutExerciseRelationship")]
+    partial class FixExerciseTypeWorkoutExerciseRelationship
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3094,8 +3097,7 @@ namespace WorkoutTrackerWeb.Migrations
                 {
                     b.HasOne("WorkoutTrackerWeb.Models.Equipment", "Equipment")
                         .WithMany()
-                        .HasForeignKey("EquipmentId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("EquipmentId");
 
                     b.HasOne("WorkoutTrackerWeb.Models.ExerciseType", "ExerciseType")
                         .WithMany()
