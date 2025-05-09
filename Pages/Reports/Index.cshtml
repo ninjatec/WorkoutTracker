@@ -18,13 +18,24 @@
             <form method="get" class="d-flex align-items-center">
                 <input type="hidden" name="pageNumber" value="@Model.CurrentPage" />
                 <label for="period" class="me-2">Show data for last:</label>
+                @{
+                    var periodOptions = new List<(int value, string label)>
+                    {
+                        (30, "Last 30 Days"),
+                        (60, "Last 60 Days"),
+                        (90, "Last 90 Days"),
+                        (120, "Last 120 Days"),
+                        (int.MaxValue, "All Time")
+                    };
+                    var optionsHtml = new System.Text.StringBuilder();
+                    foreach (var opt in periodOptions)
+                    {
+                        var selected = Model.ReportPeriod == opt.value ? " selected" : "";
+                        optionsHtml.Append($"<option value=\"{opt.value}\"{selected}>{opt.label}</option>");
+                    }
+                }
                 <select id="period" name="period" class="form-select" style="width: auto;" onchange="this.form.submit()">
-                    <option value="30" selected="@(Model.ReportPeriod == 30)">30 Days</option>
-                    <option value="60" selected="@(Model.ReportPeriod == 60)">60 Days</option>
-                    <option value="90" selected="@(Model.ReportPeriod == 90)">90 Days</option>
-                    <option value="120" selected="@(Model.ReportPeriod == 120)">120 Days</option>
-                    <option value="365" selected="@(Model.ReportPeriod == 365)">1 Year</option>
-                    <option value="2147483647" selected="@(Model.ReportPeriod == 2147483647)">All Time</option>
+                    @Html.Raw(optionsHtml.ToString())
                 </select>
             </form>
         </div>

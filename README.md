@@ -495,3 +495,6 @@ The application provides comprehensive data portability features:
   - Added Redis-backed output caching for production environments
   - Configured memory-based output caching for development environments
   - Created specialized cache policies for different content types
+
+## 2025-05-09: CSP Update
+- Allowed https://static.cloudflareinsights.com in the script-src directive to support Cloudflare Insights beacon script loading (required for some analytics/monitoring integrations).

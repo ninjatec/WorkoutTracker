@@ -129,29 +129,27 @@
                                 }
                             </h5>
                             <div class="d-flex flex-wrap">
+                                @{
+
+                                    var periodOptions = new List<(int value, string label)>
+                                    {
+                                        (30, "Last 30 Days"),
+                                        (60, "Last 60 Days"),
+                                        (90, "Last 90 Days"),
+                                        (120, "Last 120 Days"),
+                                        (int.MaxValue, "All Time")
+                                    };
+                                    var optionsHtml = new System.Text.StringBuilder();
+                                    foreach (var opt in periodOptions)
+                                    {
+                                        var selected = Model.ReportPeriod == opt.value ? " selected" : "";
+                                        optionsHtml.Append($"<option value=\"{opt.value}\"{selected}>{opt.label}</option>");
+                                    }
+                                }
                                 <form method="get" class="d-flex align-items-center me-3">
-                                    <input type="hidden" name="currentPage" value="@Model.CurrentPage" />
-                                    <input type="hidden" name="pageSize" value="@Model.PageSize" />
-                                    <input type="hidden" name="selectedFormula" value="@Model.SelectedFormula" />
-                                    <label for="reportPeriod" class="me-2 text-white">Period:</label>
+                                    <label for="reportPeriod" class="me-2">Show data for:</label>
                                     <select id="reportPeriod" name="reportPeriod" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;">
-                                        @foreach (var period in Model.ReportPeriodOptions)
-                                        {
-                                            <option value="@period" selected="@(Model.ReportPeriod == period)">
-                                                @if (period == int.MaxValue)
-                                                {
-                                                    @:All Time
-                                                }
-                                                else if (period == 365)
-                                                {
-                                                    @:1 Year
-                                                }
-                                                else
-                                                {
-                                                    @:@period Days
-                                                }
-                                            </option>
-                                        }
+                                        @Html.Raw(optionsHtml.ToString())
                                     </select>
                                 </form>
                                 <!-- New formula filter dropdown -->
