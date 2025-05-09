@@ -58,6 +58,7 @@ using System.Linq;
 using Hangfire.Common;
 using Hangfire.States;
 using Hangfire.Storage;
+using WorkoutTrackerWeb.Utilities;
 
 namespace WorkoutTrackerWeb
 {
@@ -763,6 +764,30 @@ namespace WorkoutTrackerWeb
                     int rowsFixed = await sqlNullSafetyService.FixNullStringValuesAsync();
                     logger.LogInformation("Fixed {RowCount} NULL string values in database", rowsFixed);
                     
+                    // Analyze DbContext for shadow property conflicts if in development environment
+                    if (app.Environment.IsDevelopment())
+                    {
+                        logger.LogInformation("Analyzing DbContext for shadow property conflicts...");
+                        var analyzer = new ShadowPropertyAnalyzer(logger);
+                        var conflicts = analyzer.AnalyzeContext(context).ToList();
+                        
+                        if (conflicts.Any())
+                        {
+                            logger.LogWarning("Found {Count} shadow property conflicts in DbContext:", conflicts.Count);
+                            foreach (var conflict in conflicts)
+                            {
+                                logger.LogWarning("Entity {EntityType} has conflicting navigations to {TargetType}: {Navigations}",
+                                    conflict.EntityType,
+                                    conflict.TargetEntityType,
+                                    string.Join(", ", conflict.ConflictingNavigations));
+                            }
+                        }
+                        else
+                        {
+                            logger.LogInformation("No shadow property conflicts detected in DbContext");
+                        }
+                    }
+                    
                     await SeedData.InitializeAsync(services);
                 }
                 catch (Exception ex)
@@ -775,6 +800,8 @@ namespace WorkoutTrackerWeb
             if (app.Environment.IsDevelopment())
             {
                 app.UseMigrationsEndPoint();
+                // Enable shadow property analyzer middleware in development environment
+                app.UseShadowPropertyAnalyzer();
             }
             else
             {
