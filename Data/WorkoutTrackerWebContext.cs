@@ -198,7 +198,7 @@ namespace WorkoutTrackerWeb.Data
             // 4. Fix WorkoutExercise <-> ExerciseType relationship to prevent ExerciseTypeId1 shadow property
             modelBuilder.Entity<WorkoutExercise>()
                 .HasOne(we => we.ExerciseType)
-                .WithMany()
+                .WithMany(et => et.WorkoutExercises)
                 .HasForeignKey(we => we.ExerciseTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
             

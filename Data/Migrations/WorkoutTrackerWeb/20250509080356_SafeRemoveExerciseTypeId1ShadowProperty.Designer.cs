@@ -12,8 +12,8 @@ using WorkoutTrackerWeb.Data;
 namespace WorkoutTrackerWeb.Data.Migrations.WorkoutTrackerWeb
 {
     [DbContext(typeof(WorkoutTrackerWebContext))]
-    [Migration("20250509072237_RemoveExerciseTypeId1ShadowProperty")]
-    partial class RemoveExerciseTypeId1ShadowProperty
+    [Migration("20250509080356_SafeRemoveExerciseTypeId1ShadowProperty")]
+    partial class SafeRemoveExerciseTypeId1ShadowProperty
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -2200,9 +2200,6 @@ namespace WorkoutTrackerWeb.Data.Migrations.WorkoutTrackerWeb
                     b.Property<int>("ExerciseTypeId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("ExerciseTypeId1")
-                        .HasColumnType("int");
-
                     b.Property<string>("Notes")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -2227,8 +2224,6 @@ namespace WorkoutTrackerWeb.Data.Migrations.WorkoutTrackerWeb
                     b.HasIndex("EquipmentId");
 
                     b.HasIndex("ExerciseTypeId");
-
-                    b.HasIndex("ExerciseTypeId1");
 
                     b.HasIndex("WorkoutSessionId");
 
@@ -3091,14 +3086,10 @@ namespace WorkoutTrackerWeb.Data.Migrations.WorkoutTrackerWeb
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("WorkoutTrackerWeb.Models.ExerciseType", "ExerciseType")
-                        .WithMany()
+                        .WithMany("WorkoutExercises")
                         .HasForeignKey("ExerciseTypeId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.HasOne("WorkoutTrackerWeb.Models.ExerciseType", null)
-                        .WithMany("WorkoutExercises")
-                        .HasForeignKey("ExerciseTypeId1");
 
                     b.HasOne("WorkoutTrackerWeb.Models.WorkoutSession", "WorkoutSession")
                         .WithMany("WorkoutExercises")
