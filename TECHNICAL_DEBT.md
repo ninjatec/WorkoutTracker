@@ -30,11 +30,8 @@ This document summarizes the current technical debt in the WorkoutTracker applic
 
 ## 2. **Codebase Cleanup**
 
-### 2.1. **Obsolete Code & Dead Files**
-- [ ] Remove any unused or obsolete files, especially after major migrations (see `dbmerge.md`, `SessionMigration/migration-plan.md`).
-- [ ] Remove or archive `ApplicationDbContext.cs` and old migration files if no longer needed.
 
-### 2.2. **Documentation Consistency**
+### 2.1. **Documentation Consistency**
 - [ ] Ensure all documentation (`README.md`, `inventory.md`, `SoW.md`) is updated after major refactors or migrations.
 - [ ] Remove references to deprecated models or features.
 
