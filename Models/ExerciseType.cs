@@ -73,8 +73,15 @@ namespace WorkoutTrackerWeb.Models
         [Display(Name = "Calories Per Minute")]
         public decimal? CaloriesPerMinute { get; set; }
         
-        // WorkoutSession-based collection navigation properties
-        public ICollection<WorkoutExercise> WorkoutExercises { get; set; } = new List<WorkoutExercise>();
+        // Use JsonIgnore to break circular references in APIs
+        [JsonIgnore]
+        // Using InverseProperty to explicitly define the relationship
+        [InverseProperty("ExerciseType")]
         public ICollection<WorkoutTemplateExercise> TemplateExercises { get; set; } = new List<WorkoutTemplateExercise>();
+        
+        // Using JsonIgnore and InverseProperty to explicitly define the relationship
+        [JsonIgnore]
+        [InverseProperty("ExerciseType")]
+        public ICollection<WorkoutExercise> WorkoutExercises { get; set; } = new List<WorkoutExercise>();
     }
 }
