@@ -167,16 +167,14 @@ namespace WorkoutTrackerWeb.Data
             modelBuilder.Entity<WorkoutSession>()
                 .HasOne(ws => ws.WorkoutFeedback)
                 .WithOne(wf => wf.WorkoutSession)
-                .HasForeignKey<WorkoutFeedback>(wf => wf.WorkoutSessionId)
-                .OnDelete(DeleteBehavior.Cascade);
-                
-            // If needed, configure the relationship from the other direction separately
-            modelBuilder.Entity<WorkoutSession>()
-                .HasMany<WorkoutFeedback>()  // Use generic parameter without property name
-                .WithOne(wf => wf.WorkoutSession)
-                .HasForeignKey(wf => wf.WorkoutSessionId)
-                .IsRequired(true)
-                .OnDelete(DeleteBehavior.Cascade);
+                .HasForeignKey<WorkoutFeedback>(wf => wf.WorkoutSessionId);
+
+            // Configure WorkoutExercise <-> ExerciseType relationship
+            modelBuilder.Entity<WorkoutExercise>()
+                .HasOne(we => we.ExerciseType)
+                .WithMany(et => et.WorkoutExercises)
+                .HasForeignKey(we => we.ExerciseTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
             
             // 3. Fix ProgressionRule <-> ProgressionHistory relationship
             modelBuilder.Entity<ProgressionRule>()
