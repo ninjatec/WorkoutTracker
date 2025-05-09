@@ -266,18 +266,18 @@ BEGIN
     END
     
     -- Drop the constraint if it exists (we'll need to check for foreign keys)
-    DECLARE @ConstraintName NVARCHAR(128);
-    SELECT @ConstraintName = name
+    DECLARE @ExerciseConstraintName NVARCHAR(128);
+    SELECT @ExerciseConstraintName = name
     FROM sys.foreign_keys
     WHERE parent_object_id = OBJECT_ID('WorkoutExercises')
     AND referenced_object_id = OBJECT_ID('ExerciseType')
     AND COL_NAME(parent_object_id, parent_column_id) = 'ExerciseTypeId1';
     
-    IF @ConstraintName IS NOT NULL
+    IF @ExerciseConstraintName IS NOT NULL
     BEGIN
-        DECLARE @SQL NVARCHAR(MAX) = N'ALTER TABLE WorkoutExercises DROP CONSTRAINT ' + QUOTENAME(@ConstraintName);
-        PRINT 'Dropping foreign key constraint: ' + @ConstraintName;
-        EXEC sp_executesql @SQL;
+        DECLARE @ExerciseDropSQL NVARCHAR(MAX) = N'ALTER TABLE WorkoutExercises DROP CONSTRAINT ' + QUOTENAME(@ExerciseConstraintName);
+        PRINT 'Dropping foreign key constraint: ' + @ExerciseConstraintName;
+        EXEC sp_executesql @ExerciseDropSQL;
         PRINT 'Foreign key constraint dropped successfully.';
     END
     
@@ -321,8 +321,8 @@ BEGIN
     
     IF @FeedbackConstraintName IS NOT NULL
     BEGIN
-        DECLARE @FeedbackSQL NVARCHAR(MAX) = N'ALTER TABLE WorkoutFeedback DROP CONSTRAINT ' + QUOTENAME(@FeedbackConstraintName);
-        EXEC sp_executesql @FeedbackSQL;
+        DECLARE @FeedbackDropSQL NVARCHAR(MAX) = N'ALTER TABLE WorkoutFeedback DROP CONSTRAINT ' + QUOTENAME(@FeedbackConstraintName);
+        EXEC sp_executesql @FeedbackDropSQL;
     END
     
     ALTER TABLE WorkoutFeedback DROP COLUMN WorkoutSessionId1;

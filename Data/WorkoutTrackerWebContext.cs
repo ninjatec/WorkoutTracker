@@ -184,33 +184,30 @@ namespace WorkoutTrackerWeb.Data
                 .HasForeignKey(we => we.WorkoutSessionId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Configure WorkoutExercise relationships
-            // IMPORTANT FIX: Breaking the circular reference to prevent ExerciseTypeId1 shadow property
+            // *** FIX FOR WORKOUT EXERCISE SHADOW PROPERTY ISSUE ***
+            // Remove duplicated configurations and make a clean solution
+
+            // Clear existing configurations for WorkoutExercise <-> ExerciseType relationship
+            var workoutExerciseEntityType = modelBuilder.Entity<WorkoutExercise>().Metadata;
+            var exerciseTypeNavigation = workoutExerciseEntityType.FindNavigation(nameof(WorkoutExercise.ExerciseType));
+            if (exerciseTypeNavigation != null)
+            {
+                exerciseTypeNavigation.SetPropertyAccessMode(PropertyAccessMode.Field);
+            }
+            
+            // Configure the relationship explicitly 
             modelBuilder.Entity<WorkoutExercise>()
                 .HasOne(we => we.ExerciseType)
-                .WithMany() // Explicitly use empty collection, don't reference WorkoutExercises
+                .WithMany() // Key fix: Don't reference back to WorkoutExercises
                 .HasForeignKey(we => we.ExerciseTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
-
-            // Explicitly ignore the inverse relationship
-            modelBuilder.Entity<ExerciseType>()
-                .Ignore(et => et.WorkoutExercises);
-
+            
+            // Configure Equipment relationship separately
             modelBuilder.Entity<WorkoutExercise>()
                 .HasOne(we => we.Equipment)
                 .WithMany()
                 .HasForeignKey(we => we.EquipmentId)
                 .OnDelete(DeleteBehavior.Restrict);
-
-            modelBuilder.Entity<WorkoutExercise>()
-                .HasOne(we => we.WorkoutSession)
-                .WithMany(ws => ws.WorkoutExercises)
-                .HasForeignKey(we => we.WorkoutSessionId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            // Remove any existing shadow property configuration
-            modelBuilder.Entity<WorkoutExercise>()
-                .Property(we => we.ExerciseTypeId).Metadata.SetAfterSaveBehavior(Microsoft.EntityFrameworkCore.Metadata.PropertySaveBehavior.Save);
 
             // 5. Fix WorkoutSchedule <-> TemplateAssignment relationship to prevent TemplateAssignmentId1 shadow property
             // UPDATED: Keep only one configuration for this relationship to avoid ambiguity
