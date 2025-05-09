@@ -68,7 +68,6 @@ namespace WorkoutTrackerWeb.Extensions
             try
             {
                 stats["ConnectionString"] = SanitizeConnectionString(connection.ConnectionString);
-                stats["ServerVersion"] = connection.ServerVersion ?? "Unknown";
                 
                 // Track if we need to open the connection
                 if (connection.State == System.Data.ConnectionState.Closed)
@@ -81,29 +80,32 @@ namespace WorkoutTrackerWeb.Extensions
                 // Verify connection is open before proceeding
                 if (connection.State == System.Data.ConnectionState.Open)
                 {
-                    // Get connection pool statistics using SQL Server dynamic management views
+                    stats["ServerVersion"] = connection.ServerVersion ?? "Unknown";
+
+                    // Get total connections from sys.dm_exec_connections
                     using (var command = connection.CreateCommand())
                     {
-                        command.CommandText = @"
-                            SELECT 
-                                COUNT(*) as connections,
-                                SUM(CASE WHEN status = 'sleeping' THEN 1 ELSE 0 END) as idle_connections,
-                                SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as active_connections
-                            FROM sys.dm_exec_connections
-                            WHERE session_id > 50"; // Exclude system sessions
-                            
+                        command.CommandText = @"SELECT COUNT(*) as connections FROM sys.dm_exec_connections WHERE session_id > 50;";
                         using (var reader = await command.ExecuteReaderAsync())
                         {
                             if (await reader.ReadAsync())
                             {
-                                // Handle potentially null values safely
-                                stats["TotalConnections"] = !reader.IsDBNull(reader.GetOrdinal("connections")) ? 
+                                stats["TotalConnections"] = !reader.IsDBNull(reader.GetOrdinal("connections")) ?
                                     reader["connections"].ToString() : "0";
-                                    
-                                stats["IdleConnections"] = !reader.IsDBNull(reader.GetOrdinal("idle_connections")) ? 
+                            }
+                        }
+                    }
+                    // Get idle/active connections from sys.dm_exec_sessions
+                    using (var command = connection.CreateCommand())
+                    {
+                        command.CommandText = @"SELECT SUM(CASE WHEN status = 'sleeping' THEN 1 ELSE 0 END) as idle_connections, SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) as active_connections FROM sys.dm_exec_sessions WHERE session_id > 50;";
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            if (await reader.ReadAsync())
+                            {
+                                stats["IdleConnections"] = !reader.IsDBNull(reader.GetOrdinal("idle_connections")) ?
                                     reader["idle_connections"].ToString() : "0";
-                                    
-                                stats["ActiveConnections"] = !reader.IsDBNull(reader.GetOrdinal("active_connections")) ? 
+                                stats["ActiveConnections"] = !reader.IsDBNull(reader.GetOrdinal("active_connections")) ?
                                     reader["active_connections"].ToString() : "0";
                             }
                         }
