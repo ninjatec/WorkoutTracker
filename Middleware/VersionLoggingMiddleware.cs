@@ -23,8 +23,8 @@ namespace WorkoutTrackerWeb.Middleware
             
             if (versionService != null)
             {
-                // Get current version string
-                var versionString = versionService.GetVersionDisplayString();
+                // Get current version string asynchronously
+                var versionString = await versionService.GetVersionDisplayStringAsync();
                 
                 // Add version to logging context
                 using (LogContext.PushProperty("AppVersion", versionString))

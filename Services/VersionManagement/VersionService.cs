@@ -10,22 +10,23 @@ namespace WorkoutTrackerWeb.Services.VersionManagement
 {
     public class VersionService : IVersionService
     {
-        private readonly WorkoutTrackerWebContext _context;
+        private readonly IDbContextFactory<WorkoutTrackerWebContext> _contextFactory;
 
-        public VersionService(WorkoutTrackerWebContext context)
+        public VersionService(IDbContextFactory<WorkoutTrackerWebContext> contextFactory)
         {
-            _context = context;
+            _contextFactory = contextFactory;
         }
 
         public async Task<AppVersion> GetCurrentVersionAsync()
         {
-            var currentVersion = await _context.Versions
+            await using var context = _contextFactory.CreateDbContext();
+            var currentVersion = await context.Versions
                 .FirstOrDefaultAsync(v => v.IsCurrent);
 
             // If no version is set as current, return the latest version
             if (currentVersion == null)
             {
-                currentVersion = await _context.Versions
+                currentVersion = await context.Versions
                     .OrderByDescending(v => v.Major)
                     .ThenByDescending(v => v.Minor)
                     .ThenByDescending(v => v.Patch)
@@ -36,7 +37,7 @@ namespace WorkoutTrackerWeb.Services.VersionManagement
                 if (currentVersion != null)
                 {
                     currentVersion.IsCurrent = true;
-                    await _context.SaveChangesAsync();
+                    await context.SaveChangesAsync();
                 }
             }
 
@@ -45,7 +46,8 @@ namespace WorkoutTrackerWeb.Services.VersionManagement
 
         public async Task<IEnumerable<AppVersion>> GetVersionHistoryAsync()
         {
-            return await _context.Versions
+            await using var context = _contextFactory.CreateDbContext();
+            return await context.Versions
                 .OrderByDescending(v => v.Major)
                 .ThenByDescending(v => v.Minor)
                 .ThenByDescending(v => v.Patch)
@@ -55,8 +57,8 @@ namespace WorkoutTrackerWeb.Services.VersionManagement
 
         public async Task<AppVersion> UpdateVersionAsync(int major, int minor, int patch, int build, string description, string gitCommitHash = null)
         {
-            // First, remove current flag from all versions
-            var currentVersions = await _context.Versions
+            await using var context = _contextFactory.CreateDbContext();
+            var currentVersions = await context.Versions
                 .Where(v => v.IsCurrent)
                 .ToListAsync();
 
@@ -65,7 +67,6 @@ namespace WorkoutTrackerWeb.Services.VersionManagement
                 version.IsCurrent = false;
             }
 
-            // Create new version as current
             var newVersion = new AppVersion
             {
                 Major = major,
@@ -78,8 +79,8 @@ namespace WorkoutTrackerWeb.Services.VersionManagement
                 IsCurrent = true
             };
 
-            _context.Versions.Add(newVersion);
-            await _context.SaveChangesAsync();
+            context.Versions.Add(newVersion);
+            await context.SaveChangesAsync();
 
             return newVersion;
         }
@@ -87,6 +88,7 @@ namespace WorkoutTrackerWeb.Services.VersionManagement
         public async Task<AppVersion> AddVersionHistoryAsync(int major, int minor, int patch, int build, 
             string description, string gitCommitHash = null, string releaseNotes = null)
         {
+            await using var context = _contextFactory.CreateDbContext();
             var newVersion = new AppVersion
             {
                 Major = major,
@@ -100,8 +102,8 @@ namespace WorkoutTrackerWeb.Services.VersionManagement
                 IsCurrent = false
             };
 
-            _context.Versions.Add(newVersion);
-            await _context.SaveChangesAsync();
+            context.Versions.Add(newVersion);
+            await context.SaveChangesAsync();
 
             return newVersion;
         }
@@ -109,6 +111,16 @@ namespace WorkoutTrackerWeb.Services.VersionManagement
         public string GetVersionDisplayString()
         {
             var version = GetCurrentVersionAsync().Result;
+            if (version != null)
+            {
+                return version.GetVersionString();
+            }
+            return "0.0.0.0"; // Default version if none exists
+        }
+
+        public async Task<string> GetVersionDisplayStringAsync()
+        {
+            var version = await GetCurrentVersionAsync();
             if (version != null)
             {
                 return version.GetVersionString();

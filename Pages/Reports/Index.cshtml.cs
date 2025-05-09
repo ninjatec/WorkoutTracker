@@ -32,6 +32,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
         private readonly IVolumeCalculationService _volumeCalculationService;
         private readonly ICalorieCalculationService _calorieCalculationService;
         private readonly IServiceProvider _serviceProvider;
+        private readonly IConfiguration _configuration;
         public const int PageSize = 10;
         private const int CacheDurationMinutes = 5;
         private const int QueryTimeoutSeconds = 10;
@@ -44,7 +45,8 @@ namespace WorkoutTrackerWeb.Pages.Reports
             IDistributedCache cache,
             IVolumeCalculationService volumeCalculationService,
             ICalorieCalculationService calorieCalculationService,
-            IServiceProvider serviceProvider)
+            IServiceProvider serviceProvider,
+            IConfiguration configuration)
         {
             _context = context;
             _cache = cache;
@@ -52,6 +54,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
             _volumeCalculationService = volumeCalculationService;
             _calorieCalculationService = calorieCalculationService;
             _serviceProvider = serviceProvider;
+            _configuration = configuration;
         }
 
         // Class for pagination info to replace tuple
@@ -653,7 +656,8 @@ namespace WorkoutTrackerWeb.Pages.Reports
             using (var scope = _serviceProvider.CreateScope())
             {
                 var optionsBuilder = new DbContextOptionsBuilder<WorkoutTrackerWebContext>();
-                optionsBuilder.UseSqlServer(_context.Database.GetConnectionString(), 
+                var connectionString = _configuration.GetConnectionString("WorkoutTrackerWebContext");
+                optionsBuilder.UseSqlServer(connectionString, 
                     options => options.CommandTimeout(QueryTimeoutSeconds));
 
                 using (var timeoutContext = new WorkoutTrackerWebContext(optionsBuilder.Options))
@@ -878,7 +882,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
                                             ExerciseName = exerciseName,
                                             TotalVolume = totalVolume,
                                             // Add at least two data points for charting
-                                            Dates = new List<DateTime> { DateTime.Now.AddDays(-ReportPeriod), DateTime.Now },
+                                            Dates = new List<DateTime> { PeriodStart, DateTime.Now },
                                             Volumes = new List<double> { 0, totalVolume }
                                         };
                                         
@@ -905,7 +909,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
                             new VolumeData { 
                                 ExerciseName = "No workout data available", 
                                 TotalVolume = 0,
-                                Dates = new List<DateTime> { DateTime.Now.AddDays(-7), DateTime.Now },
+                                Dates = new List<DateTime> { PeriodStart, DateTime.Now },
                                 Volumes = new List<double> { 0, 0 }
                             }
                         };
@@ -919,7 +923,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
                         new VolumeData { 
                             ExerciseName = "No workout data available", 
                             TotalVolume = 0,
-                            Dates = new List<DateTime> { DateTime.Now.AddDays(-7), DateTime.Now },
+                            Dates = new List<DateTime> { PeriodStart, DateTime.Now },
                             Volumes = new List<double> { 0, 0 }
                         }
                     };
@@ -943,7 +947,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
                 { 
                     ExerciseName = "No workout data yet", 
                     TotalVolume = 0,
-                    Dates = new List<DateTime> { DateTime.Now.AddDays(-7), DateTime.Now },
+                    Dates = new List<DateTime> { PeriodStart, DateTime.Now },
                     Volumes = new List<double> { 0, 0 }
                 }
             };
@@ -998,7 +1002,7 @@ namespace WorkoutTrackerWeb.Pages.Reports
                     { 
                         ExerciseName = "No workout data yet", 
                         TotalVolume = 0,
-                        Dates = new List<DateTime> { DateTime.Now.AddDays(-7), DateTime.Now },
+                        Dates = new List<DateTime> { PeriodStart, DateTime.Now },
                         Volumes = new List<double> { 0, 0 }
                     }
                 };

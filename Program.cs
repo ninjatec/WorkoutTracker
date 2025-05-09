@@ -647,7 +647,8 @@ namespace WorkoutTrackerWeb
                 .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking) 
                 .EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
                 
-                return new DbContextFactory<WorkoutTrackerWebContext>(optionsBuilder.Options);
+                var httpContextAccessor = serviceProvider.GetService<IHttpContextAccessor>();
+                return new DbContextFactory<WorkoutTrackerWebContext>(optionsBuilder.Options, httpContextAccessor);
             });
 
             builder.Services.ConfigureApplicationCookie(options =>
