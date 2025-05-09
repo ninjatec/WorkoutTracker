@@ -40,18 +40,19 @@ namespace WorkoutTrackerWeb.Models
         [Display(Name = "Rest Period (seconds)")]
         public int? RestPeriodSeconds { get; set; }
         
-        // Navigation properties
-        [ForeignKey("WorkoutSessionId")]
-        public WorkoutSession WorkoutSession { get; set; }
+        // Navigation properties - Use ForeignKey attribute to be explicit
+        [ForeignKey(nameof(WorkoutSessionId))]
+        public virtual WorkoutSession WorkoutSession { get; set; }
         
-        [ForeignKey("ExerciseTypeId")]
-        public ExerciseType ExerciseType { get; set; }
+        // Remove ForeignKey attribute to rely on convention and DbContext configuration
+        // This prevents conflicting with the shadow property configuration in the DbContext
+        public virtual ExerciseType ExerciseType { get; set; }
         
-        [ForeignKey("EquipmentId")]
-        public Equipment Equipment { get; set; }
+        [ForeignKey(nameof(EquipmentId))]
+        public virtual Equipment Equipment { get; set; }
         
         // Collection navigation properties
-        public ICollection<WorkoutSet> WorkoutSets { get; set; } = new List<WorkoutSet>();
+        public virtual ICollection<WorkoutSet> WorkoutSets { get; set; } = new List<WorkoutSet>();
         
         // Compatibility property for code that expects Sets
         [NotMapped]
