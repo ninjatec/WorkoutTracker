@@ -15,8 +15,9 @@ namespace WorkoutTrackerWeb.Models.Coaching
         // Foreign key for WorkoutSession
         public int WorkoutSessionId { get; set; }
         
-        [ForeignKey("WorkoutSessionId")]
-        public WorkoutSession WorkoutSession { get; set; }
+        // Remove ForeignKey attribute to rely on DbContext configuration
+        // This prevents the creation of the WorkoutSessionId1 shadow property
+        public virtual WorkoutSession WorkoutSession { get; set; }
         
         // Foreign key for client User
         public int ClientUserId { get; set; }
@@ -55,7 +56,7 @@ namespace WorkoutTrackerWeb.Models.Coaching
         
         // Navigation properties
         [ForeignKey("ClientUserId")]
-        public User Client { get; set; }
+        public virtual User Client { get; set; }
         
         // Navigation to per-exercise feedback
         // Making this virtual to optimize lazy loading behavior
@@ -98,6 +99,6 @@ namespace WorkoutTrackerWeb.Models.Coaching
         public virtual WorkoutFeedback WorkoutFeedback { get; set; }
         
         [ForeignKey("WorkoutSetId")]
-        public WorkoutSet WorkoutSet { get; set; }
+        public virtual WorkoutSet WorkoutSet { get; set; }
     }
 }

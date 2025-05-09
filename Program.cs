@@ -152,6 +152,8 @@ namespace WorkoutTrackerWeb
 
             builder.Services.AddLoggingServices();
             builder.Services.AddHostedService<WorkoutTrackerWeb.Services.Logging.LogLevelConfigurationHostedService>();
+            // Add shadow property cleanup service to detect and verify shadow property issues
+            builder.Services.AddHostedService<WorkoutTrackerWeb.CleanupShadowProperties>();
 
             builder.Services.AddHttpClient();
 

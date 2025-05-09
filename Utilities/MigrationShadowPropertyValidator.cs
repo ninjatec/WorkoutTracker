@@ -44,7 +44,7 @@ namespace WorkoutTrackerWeb.Utilities
             
             // Find pending migrations
             var pendingMigrations = definedMigrations
-                .Where(m => !appliedMigrations.Contains(m.Key))
+                .Where(m => !appliedMigrations.Any(am => am.MigrationId == m.Key))
                 .OrderBy(m => m.Value.GetType().GetCustomAttributes(typeof(MigrationAttribute), false).Cast<MigrationAttribute>().First().Id)
                 .ToList();
 
@@ -54,7 +54,7 @@ namespace WorkoutTrackerWeb.Utilities
                 return true;
             }
 
-            _logger.LogInformation("Validating {Count} pending migrations for shadow property conflicts...", pendingMigrations.Count);
+            _logger.LogInformation("Validating {0} pending migrations for shadow property conflicts...", pendingMigrations.Count);
 
             // Analyze the model for potential shadow property issues
             var analyzer = new ShadowPropertyAnalyzer(_logger);
@@ -62,12 +62,11 @@ namespace WorkoutTrackerWeb.Utilities
 
             if (conflicts.Any())
             {
-                _logger.LogError("Found {Count} shadow property conflicts that would be included in pending migrations:", conflicts.Count);
+                _logger.LogError("Found {0} shadow property conflicts that would be included in pending migrations:", conflicts.Count);
                 
                 foreach (var conflict in conflicts)
                 {
-                    _logger.LogError("Entity {EntityType} has conflicting navigations to {TargetType}: {Navigations}. " +
-                                    "This will create shadow properties like {ShadowProps}.",
+                    _logger.LogError("Entity {0} has conflicting navigations to {1}: {2}. This will create shadow properties like {3}.",
                         conflict.EntityType,
                         conflict.TargetEntityType,
                         string.Join(", ", conflict.ConflictingNavigations),

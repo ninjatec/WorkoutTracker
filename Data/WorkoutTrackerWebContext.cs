@@ -185,30 +185,22 @@ namespace WorkoutTrackerWeb.Data
                 .HasForeignKey(ph => ph.ProgressionRuleId)
                 .OnDelete(DeleteBehavior.Cascade);
             
-            // 4. Fix WorkoutSession <-> WorkoutExercise relationship to prevent ExerciseTypeId1 shadow property
-            modelBuilder.Entity<WorkoutSession>()
-                .HasMany(ws => ws.WorkoutExercises)
-                .WithOne(we => we.WorkoutSession)
-                .HasForeignKey(we => we.WorkoutSessionId)
-                .OnDelete(DeleteBehavior.Cascade);
-
+            // 4. Fix WorkoutExercise <-> ExerciseType relationship to prevent ExerciseTypeId1 shadow property
             // *** FIX FOR WORKOUT EXERCISE SHADOW PROPERTY ISSUE ***
-            // Remove duplicated configurations and make a clean solution
-
-            // Clear existing configurations for WorkoutExercise <-> ExerciseType relationship
-            var workoutExerciseEntityType = modelBuilder.Entity<WorkoutExercise>().Metadata;
-            var exerciseTypeNavigation = workoutExerciseEntityType.FindNavigation(nameof(WorkoutExercise.ExerciseType));
-            if (exerciseTypeNavigation != null)
-            {
-                exerciseTypeNavigation.SetPropertyAccessMode(PropertyAccessMode.Field);
-            }
+            // Updated configuration to fully eliminate shadow property ExerciseTypeId1
             
-            // Configure the relationship explicitly 
+            // Configure the relationship explicitly without inverse property
+            // Instead of removing the navigation, we'll just configure it correctly from scratch
             modelBuilder.Entity<WorkoutExercise>()
                 .HasOne(we => we.ExerciseType)
-                .WithMany() // Key fix: Don't reference back to WorkoutExercises
+                .WithMany()  // Don't specify the inverse navigation property
                 .HasForeignKey(we => we.ExerciseTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
+            
+            // Configure Property Access Mode
+            modelBuilder.Entity<WorkoutExercise>()
+                .Navigation(we => we.ExerciseType)
+                .UsePropertyAccessMode(PropertyAccessMode.Property);
             
             // Configure Equipment relationship separately
             modelBuilder.Entity<WorkoutExercise>()
