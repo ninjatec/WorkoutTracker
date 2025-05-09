@@ -164,20 +164,30 @@ namespace WorkoutTrackerWeb.Data
                 .IsRequired(false); // Allow null for invited users who are not registered yet
             
             // 2. Fix WorkoutFeedback <-> WorkoutSession relationship to prevent WorkoutSessionId1 shadow property
-            modelBuilder.Entity<WorkoutFeedback>()
-                .HasOne(wf => wf.WorkoutSession)
-                .WithMany()  // Don't specify inverse navigation to avoid circular reference
-                .HasForeignKey(wf => wf.WorkoutSessionId)
-                .OnDelete(DeleteBehavior.Cascade);
-                
-            // If needed, configure the relationship from the other direction separately
             modelBuilder.Entity<WorkoutSession>()
-                .HasMany<WorkoutFeedback>()  // Use generic parameter without property name
+                .HasOne(ws => ws.WorkoutFeedback)
                 .WithOne(wf => wf.WorkoutSession)
-                .HasForeignKey(wf => wf.WorkoutSessionId)
-                .IsRequired(true)
-                .OnDelete(DeleteBehavior.Cascade);
+                .HasForeignKey<WorkoutFeedback>(wf => wf.WorkoutSessionId);
+
+            // Configure WorkoutExercise <-> ExerciseType relationship
+            modelBuilder.Entity<WorkoutExercise>()
+                .HasOne(we => we.ExerciseType)
+                .WithMany(et => et.WorkoutExercises)
+                .HasForeignKey(we => we.ExerciseTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure Property Access Mode for navigation property
+            modelBuilder.Entity<WorkoutExercise>()
+                .Navigation(we => we.ExerciseType)
+                .UsePropertyAccessMode(PropertyAccessMode.Property);
             
+            // Configure Equipment relationship separately
+            modelBuilder.Entity<WorkoutExercise>()
+                .HasOne(we => we.Equipment)
+                .WithMany()
+                .HasForeignKey(we => we.EquipmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // 3. Fix ProgressionRule <-> ProgressionHistory relationship
             modelBuilder.Entity<ProgressionRule>()
                 .HasMany(pr => pr.ProgressionHistory)
@@ -186,14 +196,9 @@ namespace WorkoutTrackerWeb.Data
                 .OnDelete(DeleteBehavior.Cascade);
             
             // 4. Fix WorkoutExercise <-> ExerciseType relationship to prevent ExerciseTypeId1 shadow property
-            // *** FIX FOR WORKOUT EXERCISE SHADOW PROPERTY ISSUE ***
-            // Updated configuration to fully eliminate shadow property ExerciseTypeId1
-            
-            // Configure the relationship explicitly without inverse property
-            // Instead of removing the navigation, we'll just configure it correctly from scratch
             modelBuilder.Entity<WorkoutExercise>()
                 .HasOne(we => we.ExerciseType)
-                .WithMany()  // Don't specify the inverse navigation property
+                .WithMany()
                 .HasForeignKey(we => we.ExerciseTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
             

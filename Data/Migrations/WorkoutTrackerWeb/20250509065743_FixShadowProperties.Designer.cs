@@ -3,17 +3,20 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WorkoutTrackerWeb.Data;
 
 #nullable disable
 
-namespace WorkoutTrackerWeb.Migrations
+namespace WorkoutTrackerWeb.Data.Migrations.WorkoutTrackerWeb
 {
     [DbContext(typeof(WorkoutTrackerWebContext))]
-    partial class WorkoutTrackerWebContextModelSnapshot : ModelSnapshot
+    [Migration("20250509065743_FixShadowProperties")]
+    partial class FixShadowProperties
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1398,6 +1401,9 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Property<int>("WorkoutSessionId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("WorkoutSessionId1")
+                        .HasColumnType("int");
+
                     b.HasKey("WorkoutFeedbackId");
 
                     b.HasIndex("ClientUserId");
@@ -1406,8 +1412,11 @@ namespace WorkoutTrackerWeb.Migrations
 
                     b.HasIndex("CoachViewed");
 
-                    b.HasIndex("WorkoutSessionId")
-                        .IsUnique();
+                    b.HasIndex("WorkoutSessionId");
+
+                    b.HasIndex("WorkoutSessionId1")
+                        .IsUnique()
+                        .HasFilter("[WorkoutSessionId1] IS NOT NULL");
 
                     b.ToTable("WorkoutFeedbacks");
                 });
@@ -2960,10 +2969,14 @@ namespace WorkoutTrackerWeb.Migrations
                         .IsRequired();
 
                     b.HasOne("WorkoutTrackerWeb.Models.WorkoutSession", "WorkoutSession")
-                        .WithOne("WorkoutFeedback")
-                        .HasForeignKey("WorkoutTrackerWeb.Models.Coaching.WorkoutFeedback", "WorkoutSessionId")
+                        .WithMany()
+                        .HasForeignKey("WorkoutSessionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.WorkoutSession", null)
+                        .WithOne("WorkoutFeedback")
+                        .HasForeignKey("WorkoutTrackerWeb.Models.Coaching.WorkoutFeedback", "WorkoutSessionId1");
 
                     b.Navigation("Client");
 

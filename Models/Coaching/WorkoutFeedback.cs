@@ -15,8 +15,7 @@ namespace WorkoutTrackerWeb.Models.Coaching
         // Foreign key for WorkoutSession
         public int WorkoutSessionId { get; set; }
         
-        // Remove ForeignKey attribute to rely on DbContext configuration
-        // This prevents the creation of the WorkoutSessionId1 shadow property
+        // Navigation property - relationship configured in DbContext
         public virtual WorkoutSession WorkoutSession { get; set; }
         
         // Foreign key for client User
@@ -54,8 +53,7 @@ namespace WorkoutTrackerWeb.Models.Coaching
         [Display(Name = "Coach Viewed")]
         public bool CoachViewed { get; set; } = false;
         
-        // Navigation properties
-        [ForeignKey("ClientUserId")]
+        // Navigation property
         public virtual User Client { get; set; }
         
         // Navigation to per-exercise feedback
