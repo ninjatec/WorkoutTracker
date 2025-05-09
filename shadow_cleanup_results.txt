@@ -1,5 +1,0 @@
-ExerciseTypeId1 shadow property column does not exist in the WorkoutExercises table. No action needed.
-WorkoutSessionId1 shadow property column does not exist in the WorkoutFeedbacks table. No action needed.
-Successfully queried WorkoutExercises.ExerciseTypeId without errors.
-Successfully queried WorkoutFeedbacks.WorkoutSessionId without errors.
-Shadow property cleanup completed successfully.
