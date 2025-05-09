@@ -37,5 +37,11 @@ namespace WorkoutTrackerWeb.Services.VersionManagement
         /// </summary>
         /// <returns>String representation of the current version</returns>
         string GetVersionDisplayString();
+
+        /// <summary>
+        /// Gets a formatted string of the current version asynchronously
+        /// </summary>
+        /// <returns>String representation of the current version</returns>
+        Task<string> GetVersionDisplayStringAsync();
     }
 }
