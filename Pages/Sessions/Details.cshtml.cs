@@ -9,8 +9,8 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
+using WorkoutTrackerWeb.Services;
 using WorkoutTrackerWeb.Services.Calculations;
-using WorkoutTrackerWeb.Services.Users;
 using WorkoutTrackerWeb.ViewModels;
 
 namespace WorkoutTrackerWeb.Pages.Sessions
