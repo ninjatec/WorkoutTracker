@@ -175,7 +175,19 @@ namespace WorkoutTrackerWeb.Data
                 .WithMany(et => et.WorkoutExercises)
                 .HasForeignKey(we => we.ExerciseTypeId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure Property Access Mode for navigation property
+            modelBuilder.Entity<WorkoutExercise>()
+                .Navigation(we => we.ExerciseType)
+                .UsePropertyAccessMode(PropertyAccessMode.Property);
             
+            // Configure Equipment relationship separately
+            modelBuilder.Entity<WorkoutExercise>()
+                .HasOne(we => we.Equipment)
+                .WithMany()
+                .HasForeignKey(we => we.EquipmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // 3. Fix ProgressionRule <-> ProgressionHistory relationship
             modelBuilder.Entity<ProgressionRule>()
                 .HasMany(pr => pr.ProgressionHistory)
