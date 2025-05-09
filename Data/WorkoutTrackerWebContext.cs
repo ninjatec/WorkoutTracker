@@ -166,8 +166,16 @@ namespace WorkoutTrackerWeb.Data
             // 2. Fix WorkoutFeedback <-> WorkoutSession relationship to prevent WorkoutSessionId1 shadow property
             modelBuilder.Entity<WorkoutFeedback>()
                 .HasOne(wf => wf.WorkoutSession)
-                .WithMany() // Explicitly define empty collection to ensure separate relationship
+                .WithMany()  // Don't specify inverse navigation to avoid circular reference
                 .HasForeignKey(wf => wf.WorkoutSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            // If needed, configure the relationship from the other direction separately
+            modelBuilder.Entity<WorkoutSession>()
+                .HasMany<WorkoutFeedback>()  // Use generic parameter without property name
+                .WithOne(wf => wf.WorkoutSession)
+                .HasForeignKey(wf => wf.WorkoutSessionId)
+                .IsRequired(true)
                 .OnDelete(DeleteBehavior.Cascade);
             
             // 3. Fix ProgressionRule <-> ProgressionHistory relationship
