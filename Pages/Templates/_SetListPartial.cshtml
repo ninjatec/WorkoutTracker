@@ -1,0 +1,127 @@
+@model WorkoutTemplateExercise
+
+@{
+    var exercise = Model;
+}
+
+@if (!exercise.TemplateSets.Any())
+{
+    <p class="text-muted">No sets defined for this exercise.</p>
+}
+else
+{
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Type</th>
+                <th>Reps</th>
+                <th>Weight</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var set in exercise.TemplateSets.OrderBy(s => s.SequenceNum))
+            {
+                <tr>
+                    <td>@set.SequenceNum</td>
+                    <td>@set.Settype.Name</td>
+                    <td>@set.DefaultReps</td>
+                    <td>@set.DefaultWeight kg</td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                    data-bs-toggle="collapse" data-bs-target="#editSet-@set.WorkoutTemplateSetId" 
+                                    aria-expanded="false" aria-controls="editSet-@set.WorkoutTemplateSetId">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <form method="post" asp-page-handler="CloneSet" class="d-inline">
+                                <input type="hidden" name="TemplateId" value="@exercise.WorkoutTemplateId" />
+                                <input type="hidden" name="SetId" value="@set.WorkoutTemplateSetId" />
+                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Clone this set">
+                                    <i class="bi bi-files"></i>
+                                </button>
+                            </form>
+                            <form method="post" asp-page-handler="DeleteSet" class="d-inline">
+                                <input type="hidden" name="TemplateId" value="@exercise.WorkoutTemplateId" />
+                                <input type="hidden" name="SetId" value="@set.WorkoutTemplateSetId" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="5" class="p-0">
+                        <div class="collapse" id="editSet-@set.WorkoutTemplateSetId">
+                            <div class="card card-body border-primary m-2">
+                                <h6 class="card-title">Edit Set</h6>
+                                <form method="post" asp-page-handler="EditSet">
+                                    <input type="hidden" name="TemplateId" value="@exercise.WorkoutTemplateId" />
+                                    <input type="hidden" name="SetId" value="@set.WorkoutTemplateSetId" />
+                                    
+                                    <div class="mb-2">
+                                        <label for="editSettypeId-@set.WorkoutTemplateSetId" class="form-label">Set Type</label>
+                                        <select id="editSettypeId-@set.WorkoutTemplateSetId" name="SettypeId" class="form-select form-select-sm" required>
+                                            @foreach (var setType in ViewBag.SetTypes)
+                                            {
+                                                @if (setType.SettypeId == set.SettypeId)
+                                                {
+                                                    <option value="@setType.SettypeId" selected>@setType.Name</option>
+                                                }
+                                                else
+                                                {
+                                                    <option value="@setType.SettypeId">@setType.Name</option>
+                                                }
+                                            }
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="row mb-2">
+                                        <div class="col">
+                                            <label for="editDefaultReps-@set.WorkoutTemplateSetId" class="form-label">Reps</label>
+                                            <input type="number" id="editDefaultReps-@set.WorkoutTemplateSetId" name="DefaultReps" 
+                                                   class="form-control form-control-sm" value="@set.DefaultReps" min="0" required />
+                                        </div>
+                                        <div class="col">
+                                            <label for="editDefaultWeight-@set.WorkoutTemplateSetId" class="form-label">Weight (kg)</label>
+                                            <input type="number" id="editDefaultWeight-@set.WorkoutTemplateSetId" name="DefaultWeight" 
+                                                   class="form-control form-control-sm" value="@set.DefaultWeight" min="0" step="0.5" required />
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-2">
+                                        <label for="editSequenceNum-@set.WorkoutTemplateSetId" class="form-label">Sequence #</label>
+                                        <input type="number" id="editSequenceNum-@set.WorkoutTemplateSetId" name="SequenceNum" 
+                                               class="form-control form-control-sm" value="@set.SequenceNum" min="1" required />
+                                    </div>
+                                    
+                                    <div class="mb-2">
+                                        <label for="editDescription-@set.WorkoutTemplateSetId" class="form-label">Description</label>
+                                        <input type="text" id="editDescription-@set.WorkoutTemplateSetId" name="Description" 
+                                               class="form-control form-control-sm" value="@set.Description" />
+                                    </div>
+                                    
+                                    <div class="mb-2">
+                                        <label for="editNotes-@set.WorkoutTemplateSetId" class="form-label">Notes</label>
+                                        <textarea id="editNotes-@set.WorkoutTemplateSetId" name="Notes" 
+                                                  class="form-control form-control-sm" rows="2">@set.Notes</textarea>
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-end">
+                                        <button type="button" class="btn btn-sm btn-secondary me-2" 
+                                                data-bs-toggle="collapse" data-bs-target="#editSet-@set.WorkoutTemplateSetId">
+                                            Cancel
+                                        </button>
+                                        <button type="submit" class="btn btn-sm btn-primary">Save Changes</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
