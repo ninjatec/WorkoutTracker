@@ -1,4 +1,6 @@
-﻿<!DOCTYPE html>
+﻿@inject WorkoutTrackerWeb.Services.UserPreferenceService UserPreferenceService
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -28,7 +30,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body class="mobile-bottom-nav-active">
+<body class="mobile-bottom-nav-active" data-theme="@UserPreferenceService.GetThemePreferenceAsync(User.Identity?.Name).Result">
     @await Component.InvokeAsync("MaintenanceBanner")
     
     <header>
@@ -127,31 +129,36 @@
                             </li>
                         }
                     </ul>
-                    @if (User.Identity != null && User.Identity.IsAuthenticated)
-                    {
-                        <ul class="navbar-nav">
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="Identity" asp-page="/Account/Manage/Index" title="Manage">Hello @User.Identity?.Name!</a>
-                            </li>
-                            <li class="nav-item">
-                                <form id="logoutForm" class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/Index", new { area = "" })" method="post">
-                                    @Html.AntiForgeryToken()
-                                    <button type="submit" class="nav-link btn btn-link text-light">Logout</button>
-                                </form>
-                            </li>
-                        </ul>
-                    }
-                    else
-                    {
-                        <ul class="navbar-nav">
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="Identity" asp-page="/Account/Register" asp-route-returnUrl="@Context.Request.Path">Register</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="Identity" asp-page="/Account/Login" asp-route-returnUrl="@Context.Request.Path">Login</a>
-                            </li>
-                        </ul>
-                    }
+                    <div class="d-flex align-items-center">
+                        <button id="themeToggle" class="btn btn-outline-light me-2">
+                            <i class="bi bi-moon"></i>
+                        </button>
+                        @if (User.Identity != null && User.Identity.IsAuthenticated)
+                        {
+                            <ul class="navbar-nav">
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-area="Identity" asp-page="/Account/Manage/Index" title="Manage">Hello @User.Identity?.Name!</a>
+                                </li>
+                                <li class="nav-item">
+                                    <form id="logoutForm" class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/Index", new { area = "" })" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="nav-link btn btn-link text-light">Logout</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        }
+                        else
+                        {
+                            <ul class="navbar-nav">
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-area="Identity" asp-page="/Account/Register" asp-route-returnUrl="@Context.Request.Path">Register</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-area="Identity" asp-page="/Account/Login" asp-route-returnUrl="@Context.Request.Path">Login</a>
+                                </li>
+                            </ul>
+                        }
+                    </div>
                 </div>
             </div>
         </nav>
