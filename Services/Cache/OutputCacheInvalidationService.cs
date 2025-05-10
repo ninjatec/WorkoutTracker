@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using WorkoutTrackerWeb.Models.Identity;
 
 namespace WorkoutTrackerWeb.Services.Cache
 {
@@ -161,6 +162,14 @@ namespace WorkoutTrackerWeb.Services.Cache
                 _logger.LogError(ex, "Failed to invalidate output cache entries for tags: {Tags}", 
                     string.Join(", ", tags));
             }
+        }
+
+        /// <summary>
+        /// Register the ThemePreference property for output cache invalidation
+        /// </summary>
+        public void RegisterThemePreferenceCacheInvalidation()
+        {
+            RegisterEntityType<AppUser>("ThemePreference");
         }
     }
 }
