@@ -186,42 +186,15 @@ Provide users with a dynamic dashboard visualizing workout metrics—volume, con
 
 ## Feature: Dark Mode / Theming Toggle
 
-### Overview
-Implement a user-selectable dark/light theme using Bootstrap 5 utilities and persist preference in the user profile.
+### Status: Complete
 
-1. Data Model & Persistence:
-   * Extend `ApplicationUser` model to include `ThemePreference` (string or enum: "light" | "dark").
-   * Create EF Core migration:
-     ```bash
-     dotnet ef migrations add AddThemePreferenceToUser --context ApplicationDbContext
-     dotnet ef database update --context ApplicationDbContext
-     ```
-
-2. Service Layer:
-   * Add or extend `UserPreferenceService` with:
-     - `Task<string> GetThemePreferenceAsync(Guid userId)`
-     - `Task SetThemePreferenceAsync(Guid userId, string theme)`
-   * Register the service in DI (e.g., in `Program.cs`).
-
-3. UI & Razor Layout:
-   * In `Views/Shared/_Layout.cshtml`, add a theme toggle control (e.g., switch or icon button) in the navbar.
-   * Render the current theme on `<body>` via a `data-theme` attribute bound to the user preference.
-
-4. JavaScript & UI Behavior:
-   * Include a small JS module to:
-     - Handle toggle clicks: switch `data-theme` on `<body>` and update Bootstrap utility classes.
-     - Call an MVC/Razor Page handler via AJAX to persist the new preference.
-   * On page load, read the `data-theme` attribute and apply any necessary CSS classes.
-
-5. Styling & Bootstrap Integration:
-   * Define CSS custom properties in `wwwroot/css/site.css` under `[data-theme="dark"]` selector to override colors.
-   * Leverage Bootstrap 5 utility classes (`.bg-dark`, `.text-light`, etc.) conditionally based on `data-theme`.
-
-6. Caching & Performance:
-   * Use existing output cache for pages; ensure theme changes invalidate cached entries when appropriate.
-
-7. Documentation Updates:
-   * Update `README.md`, `inventory.md`, and this `SoW.md` to reflect the new dark mode feature.
+This feature allows users to toggle between light and dark themes. The implementation includes:
+- A `ThemePreference` property in the `AppUser` model.
+- A `UserPreferenceService` to manage theme preferences.
+- A theme toggle control in the navigation bar.
+- Dynamic theme switching using JavaScript and Razor Pages.
+- Dark mode styles integrated with Bootstrap 5.
+- Output caching support for theme preferences.
 
 ## 2025-05-09
 - Security: Updated Content Security Policy to allow https://static.cloudflareinsights.com in script-src for Cloudflare Insights compatibility.

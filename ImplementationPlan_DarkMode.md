@@ -67,7 +67,7 @@ This document outlines the steps required to implement the Dark Mode / Theming T
 
 ---
 
-### 9. Documentation Updates
+### 8. Documentation Updates
 1. Update `README.md` to include instructions for using the dark mode feature.
 2. Update `inventory.md` with details of the new `ThemePreference` property and related changes.
 3. Update `SoW.md` to mark the feature as complete.

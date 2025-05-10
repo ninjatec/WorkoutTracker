@@ -559,3 +559,8 @@ This document maintains an up-to-date inventory of all features, components, and
 - Reviewed all Razor Pages for Bootstrap 5 and output caching consistency.
 - Reports/Index now uses [OutputCache] with a 5-minute duration and policy.
 - Bootstrap 5 usage and layout confirmed consistent in Reports/Index and shared layouts.
+
+### User Preference Management
+- Includes `ThemePreference` property in the `AppUser` model to store user-selected theme (light or dark).
+- Integrated with the Razor Pages layout to dynamically apply the selected theme.
+- Supports caching and output invalidation for seamless user experience.
