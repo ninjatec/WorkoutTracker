@@ -738,7 +738,10 @@ namespace WorkoutTrackerWeb
             // Add proper cache control for static files
             builder.Services.AddResponseCaching();
 
-            builder.Services.AddScoped<UserPreferenceService>();
+            builder.Services.AddScoped<UserPreferenceService>(sp => 
+                new UserPreferenceService(
+                    sp.GetRequiredService<IDbContextFactory<WorkoutTrackerWebContext>>(), 
+                    sp.GetRequiredService<ILogger<UserPreferenceService>>()));
 
             var app = builder.Build();
 

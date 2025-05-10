@@ -30,7 +30,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body class="mobile-bottom-nav-active" data-theme="@(await UserPreferenceService.GetThemePreferenceAsync(User.Identity?.Name))">
+<body class="mobile-bottom-nav-active" data-theme="@(User.Identity?.IsAuthenticated == true ? await UserPreferenceService.GetThemePreferenceAsync(User.Identity?.Name) : "light")">
     @await Component.InvokeAsync("MaintenanceBanner")
     
     <header>
