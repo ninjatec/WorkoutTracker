@@ -554,3 +554,8 @@ This document maintains an up-to-date inventory of all features, components, and
 - No remaining code or documentation references to legacy Session entity
 - See logs/remove_obsolete_session_view_20250510.txt for details
 - 2025-05-10: Removed all hardcoded and environment-specific configuration from source code. See TECHNICAL_DEBT.md for details.
+
+## 2025-05-10: UI Consistency & Output Caching
+- Reviewed all Razor Pages for Bootstrap 5 and output caching consistency.
+- Reports/Index now uses [OutputCache] with a 5-minute duration and policy.
+- Bootstrap 5 usage and layout confirmed consistent in Reports/Index and shared layouts.

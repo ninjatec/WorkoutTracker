@@ -48,24 +48,9 @@ This document summarizes the current technical debt in the WorkoutTracker applic
 
 ---
 
-## 5. **Performance & Resilience**
-- [ ] Continue to monitor and optimize database queries after model changes.
-- [ ] Review and tune connection resilience patterns (circuit breaker, pooling) for multi-pod Kubernetes deployments.
-- [ ] Benchmark application performance after major migrations (see `SessionMigration/migration-plan.md`).
-
----
-
-## 6. **Feature Parity & UI Consistency**
-- [ ] Ensure all features available in the legacy Session model are present in the new WorkoutSession implementation.
-- [ ] Review all Razor Pages for consistency in using Bootstrap 5 and output caching.
-- [ ] Complete dark mode/theming toggle and ensure cache invalidation works as intended (see `SoW.md`).
-
----
-
-## 7. **General Recommendations**
-- [ ] Regularly review and update the technical debt report after each major release.
-- [ ] Use the existing logging and health check frameworks to proactively detect issues.
-- [ ] Continue to follow best practices for EF Core relationship configuration (see `/Documentation/migrations/RelationshipBestPractices.md`).
+## 5. **Feature Parity & UI Consistency**
+- [x] Ensure all features available in the legacy Session model are present in the new WorkoutSession implementation.
+- [x] Review all Razor Pages for consistency in using Bootstrap 5 and output caching. **(DONE 2025-05-10)**
 
 ---
 

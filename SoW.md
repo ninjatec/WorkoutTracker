@@ -234,3 +234,8 @@ Implement a user-selectable dark/light theme using Bootstrap 5 utilities and per
 - See logs/remove_obsolete_session_view_20250510.txt
 - All hardcoded and environment-specific configuration removed from source code. Configuration is now managed via appsettings.json, environment variables, and user secrets.
 
+## 2025-05-10: UI Consistency & Output Caching
+- All Razor Pages reviewed for Bootstrap 5 and output caching consistency.
+- Reports/Index updated to use [OutputCache] with a 5-minute duration and policy.
+- Bootstrap 5 usage and layout confirmed consistent in Reports/Index and shared layouts.
+

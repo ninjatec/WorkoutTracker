@@ -513,3 +513,8 @@ The application provides comprehensive data portability features:
 
 ## 2025-05-10: Configuration Cleanup
 - All hardcoded and environment-specific configuration has been removed from the source code. All sensitive and environment-specific values are now managed via appsettings.json, environment variables, and user secrets. See Technical Debt section for details.
+
+## 2025-05-10: UI Consistency & Output Caching
+- Reviewed all Razor Pages for Bootstrap 5 consistency and output caching.
+- Updated Reports/Index to use [OutputCache] with a 5-minute duration and policy, matching other static/report pages.
+- Verified Bootstrap 5 usage and layout consistency in Reports/Index and shared layouts.
