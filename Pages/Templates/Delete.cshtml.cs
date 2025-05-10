@@ -72,34 +72,38 @@ namespace WorkoutTrackerWeb.Pages.Templates
                 return Forbid();
             }
 
-            // Start a transaction for consistent deletion
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
+            // Use the execution strategy to handle transactional operations
+            var strategy = _context.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () => 
             {
-                // Remove sets first, then exercises, then the template
-                foreach (var exercise in template.TemplateExercises)
+                // Start a transaction for consistent deletion within the strategy
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
                 {
-                    _context.WorkoutTemplateSet.RemoveRange(exercise.TemplateSets);
+                    // Remove sets first, then exercises, then the template
+                    foreach (var exercise in template.TemplateExercises)
+                    {
+                        _context.WorkoutTemplateSet.RemoveRange(exercise.TemplateSets);
+                    }
+
+                    _context.WorkoutTemplateExercise.RemoveRange(template.TemplateExercises);
+                    _context.WorkoutTemplate.Remove(template);
+
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
                 }
+                catch
+                {
+                    // Transaction will automatically be rolled back when the using block exits
+                    throw;
+                }
+            });
 
-                _context.WorkoutTemplateExercise.RemoveRange(template.TemplateExercises);
-                _context.WorkoutTemplate.Remove(template);
+            // Invalidate related caches (outside the transaction)
+            await _cacheStore.EvictByTagAsync($"template-{id}", default);
+            await _cacheStore.EvictByTagAsync("templates", default);
 
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                // Invalidate related caches
-                await _cacheStore.EvictByTagAsync($"template-{id}", default);
-                await _cacheStore.EvictByTagAsync("templates", default);
-
-                return RedirectToPage("./Index");
-            }
-            catch (Exception)
-            {
-                // If anything goes wrong, roll back the transaction
-                await transaction.RollbackAsync();
-                throw;
-            }
+            return RedirectToPage("./Index");
         }
     }
 }
