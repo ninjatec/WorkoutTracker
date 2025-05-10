@@ -87,6 +87,12 @@ Current Version: 2.1.0.1
   - **Advanced goal progress tracking with automated calculations**
   - **Goal visibility controls between coaches and clients**
 
+- **Dark Mode / Theming Toggle**: Provides users with the ability to switch between light and dark themes for better accessibility and user experience.
+  - User preferences are saved and applied automatically on subsequent visits.
+  - Fully integrated with Bootstrap 5 and custom styles.
+  - Dynamic theme switching without page reloads.
+  - Accessible toggle control in the navigation bar.
+
 - **User Authentication**: Secure login and registration using ASP.NET Core Identity with email confirmation
 - **Admin Dashboard**: Comprehensive admin dashboard with system metrics, user statistics, and quick actions
 - **Admin User Management**: Complete CRUD operations for user accounts with:
