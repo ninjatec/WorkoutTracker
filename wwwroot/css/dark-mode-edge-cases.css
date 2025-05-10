@@ -102,3 +102,23 @@
 [data-theme="dark"] .border-start {
   border-color: #333 !important;
 }
+
+/* Fix for p-0 class elements with white background in dark mode */
+[data-theme="dark"] .p-0,
+[data-theme="dark"] td.p-0 {
+  background-color: var(--card-bg) !important;
+  color: var(--text-light);
+}
+
+/* Fix for action-class elements with white background in dark mode */
+[data-theme="dark"] .action-class {
+  background-color: var(--card-bg) !important;
+  color: var(--text-light);
+}
+
+/* Fix for table-sm and table-responsive-stack td elements in dark mode */
+[data-theme="dark"] .table-sm td,
+[data-theme="dark"] .table-responsive-stack td {
+  background-color: var(--card-bg) !important;
+  color: var(--text-light);
+}
