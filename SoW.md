@@ -144,7 +144,7 @@ This feature aims to provide users with robust tools for planning their workouts
 Provide users with a dynamic dashboard visualizing workout metrics—volume, consistency, intensity—over time using Chart.js or D3.
 
 1. Data Model & Persistence:
-   * Extend or create entities to track aggregated metrics, e.g., `WorkoutMetric` with `UserId`, `Date`, `Volume`, `Intensity`, `ConsistencyScore`.
+   * Extend or create entities to track aggregated metrics, e.g., `WorkoutMetric` with `UserId`, `Date`, `Volume`, `Consistency`.
    * Update `ApplicationDbContext` with a `DbSet<WorkoutMetric>`.
    * Add EF Core migration with context flag:
      ```bash
@@ -190,7 +190,7 @@ Provide users with a dynamic dashboard visualizing workout metrics—volume, con
 Implement a user-selectable dark/light theme using Bootstrap 5 utilities and persist preference in the user profile.
 
 1. Data Model & Persistence:
-   * Extend `ApplicationUser` model in `ApplicationDbContext` to include `ThemePreference` (string or enum: "light" | "dark").
+   * Extend `ApplicationUser` model to include `ThemePreference` (string or enum: "light" | "dark").
    * Create EF Core migration:
      ```bash
      dotnet ef migrations add AddThemePreferenceToUser --context ApplicationDbContext
