@@ -116,6 +116,7 @@
                     else
                     {
                         <form method="post" asp-page-handler="AddSet" id="addSetForm">
+                            @Html.AntiForgeryToken()
                             <div class="row g-2">
                                 <div class="col-md-6">
                                     <div class="mb-2">
@@ -552,22 +553,19 @@
                     payload[key] = item.value;
                 });
                 
-                // Format payload for API
-                const apiPayload = {
-                    workoutSessionId: sessionId,
-                    exerciseTypeId: parseInt(payload.ExerciseTypeId),
-                    settypeId: payload.SettypeId ? parseInt(payload.SettypeId) : null,
-                    weight: parseFloat(payload.Weight) || 0,
-                    reps: parseInt(payload.NumberReps) || 0,
-                    notes: "",
-                    isCompleted: true
-                };
-                
+                // Instead of using the API directly, use the page handler that already has proper auth
                 $.ajax({
-                    url: '/api/WorkoutSetsApi',
+                    url: '?handler=AddSet',
                     method: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify(apiPayload),
+                    headers: {
+                        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    data: {
+                        'QuickWorkout.ExerciseTypeId': payload.ExerciseTypeId,
+                        'QuickWorkout.SettypeId': payload.SettypeId,
+                        'QuickWorkout.Weight': payload.Weight,
+                        'QuickWorkout.NumberReps': payload.NumberReps
+                    },
                     success: function(data) {
                         showAlert('Set added successfully!', 'success');
                         
