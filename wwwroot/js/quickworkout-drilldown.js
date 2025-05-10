@@ -2,11 +2,17 @@
 // Populates the exercise dropdown when an exercise is selected
 
 document.addEventListener('DOMContentLoaded', function () {
+    // Check if we have an active session (elements only exist when session is active)
     const muscleListContainer = document.getElementById('muscle-group-list');
     const exerciseListContainer = document.getElementById('exercise-list');
     const backToMusclesBtn = document.getElementById('back-to-muscles-btn');
     const exerciseDropdown = document.querySelector('select[name="QuickWorkout.ExerciseTypeId"]');
     const allExercises = window.quickWorkoutAllExercises || [];
+    
+    // If there's no active session, these elements won't exist, so we can return early
+    if (!muscleListContainer || !exerciseListContainer) {
+        return; // Exercise selection is hidden because no active session
+    }
 
     // Group exercises by muscle (use all muscle groups from window.quickWorkoutMuscleGroups if available)
     let muscleGroups = {};

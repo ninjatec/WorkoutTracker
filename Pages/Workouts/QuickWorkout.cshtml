@@ -201,74 +201,91 @@
         }
     </div>
 
-    <!-- Exercise selection tabs -->
-    <div class="row g-3 mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm">
-                <div class="card-header bg-light p-0">
-                    <ul class="nav nav-tabs nav-fill card-header-tabs border-bottom-0" id="exerciseTabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="by-muscle-tab" data-bs-toggle="tab" 
-                                    data-bs-target="#by-muscle" type="button" role="tab">By Muscle</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="recent-tab" data-bs-toggle="tab" 
-                                    data-bs-target="#recent" type="button" role="tab">Recent</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="favorites-tab" data-bs-toggle="tab" 
-                                    data-bs-target="#favorites" type="button" role="tab">Favorites</button>
-                        </li>
-                    </ul>
-                </div>
-                <div class="card-body">
-                    <div class="tab-content" id="exerciseTabsContent">
-                        <!-- By Muscle Tab -->
-                        <div class="tab-pane fade show active" id="by-muscle" role="tabpanel">
-                            <div id="muscle-group-list" class="d-flex flex-wrap gap-2 mb-3">
-                                @foreach (var muscleGroup in Model.QuickWorkout.MuscleGroups)
-                                {
-                                    <button type="button" class="btn btn-outline-primary wordcloud-btn" data-muscle="@muscleGroup">
-                                        @muscleGroup.ToTitleCase()
-                                    </button>
-                                }
-                                <button type="button" class="btn btn-outline-secondary wordcloud-btn" data-muscle="Other">Other</button>
+    <!-- Exercise selection tabs - Only shown when a workout is active -->
+    @if (Model.QuickWorkout.HasActiveSession)
+    {
+        <div class="row g-3 mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light p-0">
+                        <ul class="nav nav-tabs nav-fill card-header-tabs border-bottom-0" id="exerciseTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="by-muscle-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#by-muscle" type="button" role="tab">By Muscle</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="recent-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#recent" type="button" role="tab">Recent</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="favorites-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#favorites" type="button" role="tab">Favorites</button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content" id="exerciseTabsContent">
+                            <!-- By Muscle Tab -->
+                            <div class="tab-pane fade show active" id="by-muscle" role="tabpanel">
+                                <div id="muscle-group-list" class="d-flex flex-wrap gap-2 mb-3">
+                                    @foreach (var muscleGroup in Model.QuickWorkout.MuscleGroups)
+                                    {
+                                        <button type="button" class="btn btn-outline-primary wordcloud-btn" data-muscle="@muscleGroup">
+                                            @muscleGroup.ToTitleCase()
+                                        </button>
+                                    }
+                                    <button type="button" class="btn btn-outline-secondary wordcloud-btn" data-muscle="Other">Other</button>
+                                </div>
+                                <button id="back-to-muscles-btn" type="button" class="btn btn-link mb-2" style="display:none;">
+                                    <i class="bi bi-arrow-left"></i> Back to Muscle Groups
+                                </button>
+                                <div id="exercise-list" class="list-group mb-2" style="display:none;"></div>
                             </div>
-                            <button id="back-to-muscles-btn" type="button" class="btn btn-link mb-2" style="display:none;">
-                                <i class="bi bi-arrow-left"></i> Back to Muscle Groups
-                            </button>
-                            <div id="exercise-list" class="list-group mb-2" style="display:none;"></div>
-                        </div>
-                        <!-- Recent Tab -->
-                        <div class="tab-pane fade" id="recent" role="tabpanel">
-                            <div class="list-group">
-                                @foreach (var exercise in Model.QuickWorkout.RecentExercises)
-                                {
-                                    <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" 
-                                            onclick="selectExercise(@exercise.ExerciseType.ExerciseTypeId, '@exercise.ExerciseType.Name')">
-                                        @exercise.ExerciseType.Name
-                                        <span class="badge bg-primary rounded-pill">@exercise.UseCount</span>
-                                    </button>
-                                }
+                            <!-- Recent Tab -->
+                            <div class="tab-pane fade" id="recent" role="tabpanel">
+                                <div class="list-group">
+                                    @foreach (var exercise in Model.QuickWorkout.RecentExercises)
+                                    {
+                                        <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" 
+                                                onclick="selectExercise(@exercise.ExerciseType.ExerciseTypeId, '@exercise.ExerciseType.Name')">
+                                            @exercise.ExerciseType.Name
+                                            <span class="badge bg-primary rounded-pill">@exercise.UseCount</span>
+                                        </button>
+                                    }
+                                </div>
                             </div>
-                        </div>
-                        <!-- Favorites Tab -->
-                        <div class="tab-pane fade" id="favorites" role="tabpanel">
-                            <div class="list-group">
-                                @foreach (var exercise in Model.QuickWorkout.FavoriteExercises)
-                                {
-                                    <button type="button" class="list-group-item list-group-item-action" 
-                                            onclick="selectExercise(@exercise.ExerciseTypeId, '@exercise.Name')">
-                                        @exercise.Name
-                                    </button>
-                                }
+                            <!-- Favorites Tab -->
+                            <div class="tab-pane fade" id="favorites" role="tabpanel">
+                                <div class="list-group">
+                                    @foreach (var exercise in Model.QuickWorkout.FavoriteExercises)
+                                    {
+                                        <button type="button" class="list-group-item list-group-item-action" 
+                                                onclick="selectExercise(@exercise.ExerciseTypeId, '@exercise.Name')">
+                                            @exercise.Name
+                                        </button>
+                                    }
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    }
+    else
+    {
+        <div class="row g-3 mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-play-circle text-muted" style="font-size: 2.5rem;"></i>
+                        <h4 class="text-muted mt-3">Start a workout to see exercise options</h4>
+                        <p class="text-muted">Exercise selection will be available once you begin your session</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 <!-- Finish Workout Modal -->
