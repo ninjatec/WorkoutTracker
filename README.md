@@ -350,7 +350,7 @@ The application features a comprehensive help center:
 - **Glossary**: Definitions of workout and fitness terminology
 - **Frequently Asked Questions**: Categorized common questions and answers
 - **Contextual Help**: Access relevant help from any page in the application
-- **Printable Resources**: Printer-friendly help content for offline reference
+- **Printable Resources**: Printer-friendly help content for reference
 
 ## Monitoring & Health Checks
 

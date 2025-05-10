@@ -1,40 +1,37 @@
 @page
 @model WorkoutTrackerWeb.Pages.OfflineModel
 @{
-    ViewData["Title"] = "Offline";
+    ViewData["Title"] = "Connection Required";
+    Layout = "_Layout";
 }
 
 <div class="text-center offline-page">
-    <h1 class="display-4 mb-4">You're Offline</h1>
+    <h1 class="display-4 mb-4">Internet Connection Required</h1>
     
     <div class="offline-icon mb-4">
         <i class="bi bi-wifi-off"></i>
     </div>
     
     <p class="lead mb-5">
-        It seems you're not connected to the internet right now.
+        WorkoutTracker requires an internet connection to function.
     </p>
     
     <div class="card mb-4">
         <div class="card-body">
-            <h5 class="card-title">What You Can Do</h5>
+            <h5 class="card-title">Please check your connection</h5>
             <ul class="list-group list-group-flush text-start">
-                <li class="list-group-item">Check your internet connection and try again</li>
-                <li class="list-group-item">Access your recent workouts (if previously loaded)</li>
-                <li class="list-group-item">Use the 1RM Calculator (works offline)</li>
+                <li class="list-group-item">Ensure you are connected to the internet</li>
+                <li class="list-group-item">Refresh the page once your connection is restored</li>
             </ul>
         </div>
     </div>
     
     <div class="offline-actions mt-4">
-        <a href="/" class="btn btn-primary me-2">
-            <i class="bi bi-house-door"></i> Go to Home
-        </a>
-        <a href="/Sessions/Index" class="btn btn-secondary me-2">
-            <i class="bi bi-list-check"></i> My Workouts
-        </a>
-        <a href="/Calculator/OneRepMax" class="btn btn-outline-primary">
-            <i class="bi bi-calculator"></i> 1RM Calculator
+        <button onclick="window.location.reload()" class="btn btn-primary me-2">
+            <i class="bi bi-arrow-clockwise"></i> Refresh Page
+        </button>
+        <a href="/" class="btn btn-secondary">
+            <i class="bi bi-house-door"></i> Try Homepage
         </a>
     </div>
 </div>
@@ -54,23 +51,4 @@
             margin-top: 2rem;
         }
     </style>
-}
-
-@section Scripts {
-    <script>
-        // Check if we're online now
-        window.addEventListener('online', function() {
-            // If we come back online, try to reload the page they were trying to access
-            if (sessionStorage.getItem('lastAttemptedPage')) {
-                window.location.href = sessionStorage.getItem('lastAttemptedPage');
-            }
-        });
-        
-        // Store the current page attempt if we go offline
-        window.addEventListener('offline', function() {
-            if (window.location.pathname !== '/offline') {
-                sessionStorage.setItem('lastAttemptedPage', window.location.pathname);
-            }
-        });
-    </script>
 }
