@@ -738,6 +738,8 @@ namespace WorkoutTrackerWeb
             // Add proper cache control for static files
             builder.Services.AddResponseCaching();
 
+            builder.Services.AddScoped<UserPreferenceService>();
+
             var app = builder.Build();
 
             // Initialize database
