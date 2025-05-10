@@ -188,8 +188,9 @@ namespace WorkoutTrackerWeb.Pages.Workouts
             // Get workout exercise IDs
             var workoutExerciseIds = workoutExercises.Select(we => we.WorkoutExerciseId).ToList();
             
-            // Load workout sets separately
+            // Load workout sets separately including set types
             var workoutSets = await _context.WorkoutSets
+                .Include(ws => ws.Settype)
                 .Where(ws => workoutExerciseIds.Contains(ws.WorkoutExerciseId))
                 .OrderByDescending(ws => ws.Timestamp)
                 .Take(10)  // Only get the 10 most recent sets
