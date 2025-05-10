@@ -199,8 +199,7 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 
             return Page();
         }
-        
-        public async Task<IActionResult> OnPostUpdateDetailsAsync(int id, string name, DateTime startDateTime, DateTime? endDateTime, string description)
+          public async Task<IActionResult> OnPostUpdateDetails(int id, string name, DateTime startDateTime, DateTime? endDateTime, string description)
         {
             var currentUserId = await _userService.GetCurrentUserIdAsync();
             if (currentUserId == null)
@@ -215,7 +214,9 @@ namespace WorkoutTrackerWeb.Pages.Sessions
             if (workoutSession == null)
             {
                 return NotFound();
-            }
+            }            // Log the current state before any changes
+            _logger.LogInformation("Before update - Session ID: {SessionId}, Status: {Status}, EndDateTime: {EndDateTime}, CompletedDate: {CompletedDate}", 
+                workoutSession.WorkoutSessionId, workoutSession.Status, workoutSession.EndDateTime, workoutSession.CompletedDate);
 
             // Update the fields
             workoutSession.Name = name;
@@ -231,11 +232,39 @@ namespace WorkoutTrackerWeb.Pages.Sessions
                 // Update status to "Completed" when end date is set
                 workoutSession.Status = "Completed";
                 workoutSession.CompletedDate = workoutSession.EndDateTime;
-            }
-
-            try
+                
+                // Explicitly set IsCompleted flag as well
+                workoutSession.IsCompleted = true;
+                
+                _logger.LogInformation("Setting workout to completed - EndDateTime: {EndDateTime}, Status: {Status}, CompletedDate: {CompletedDate}, IsCompleted: {IsCompleted}", 
+                    workoutSession.EndDateTime, workoutSession.Status, workoutSession.CompletedDate, workoutSession.IsCompleted);
+            }            try
             {
-                await _context.SaveChangesAsync();
+                // Explicitly mark the entity as modified
+                _context.Entry(workoutSession).State = EntityState.Modified;
+                
+                // Log the entity state before saving
+                _logger.LogInformation("Entity State: {EntityState}, Tracked: {IsTracked}", 
+                    _context.Entry(workoutSession).State, 
+                    _context.Entry(workoutSession).IsKeySet);
+                
+                // Save changes
+                var rowsAffected = await _context.SaveChangesAsync();
+                
+                _logger.LogInformation("SaveChanges completed - Rows affected: {RowsAffected}", rowsAffected);
+                
+                // Verify the data was actually updated by retrieving it again
+                var verifySession = await _context.WorkoutSessions
+                    .AsNoTracking() // No tracking to get fresh data
+                    .FirstOrDefaultAsync(ws => ws.WorkoutSessionId == id);
+                
+                if (verifySession != null)
+                {
+                    _logger.LogInformation("After SaveChanges - Session ID: {SessionId}, Status: {Status}, EndDateTime: {EndDateTime}, CompletedDate: {CompletedDate}, IsCompleted: {IsCompleted}",
+                        verifySession.WorkoutSessionId, verifySession.Status, verifySession.EndDateTime, 
+                        verifySession.CompletedDate, verifySession.IsCompleted);
+                }
+                
                 StatusMessage = "Workout details updated successfully.";
             }
             catch (Exception ex)
