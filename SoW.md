@@ -225,3 +225,9 @@ Implement a user-selectable dark/light theme using Bootstrap 5 utilities and per
 ## 2025-05-09
 - Security: Updated Content Security Policy to allow https://static.cloudflareinsights.com in script-src for Cloudflare Insights compatibility.
 
+# 2025-05-10: Session to WorkoutSession migration complete
+- All code, pages, and services now use WorkoutSession exclusively
+- Obsolete MVC view removed
+- SessionExport class marked as legacy only (see code comments)
+- See logs/remove_obsolete_session_view_20250510.txt
+

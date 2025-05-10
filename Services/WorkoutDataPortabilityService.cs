@@ -339,6 +339,8 @@ namespace WorkoutTrackerWeb.Services
         public string Email { get; set; }
     }
 
+    // SessionExport is a legacy export class. All new exports should use WorkoutSession as the source.
+    // This class is retained only for backward compatibility with old exports. Remove when all consumers are migrated.
     public class SessionExport
     {
         public string Name { get; set; }

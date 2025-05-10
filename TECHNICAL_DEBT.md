@@ -16,9 +16,8 @@ This document summarizes the current technical debt in the WorkoutTracker applic
     - Notes column in `WorkoutSessions` table (**FIXED 2025-05-10**)
     - Name column in `WorkoutExercises` table (**FIXED 2025-05-10**)
 
-    - Razor Pages, controllers, and services referencing `Session` need to be fully migrated to `WorkoutSession`.
-
-    - Remove obsolete `Session`-related code and update documentation accordingly.
+    - Razor Pages, controllers, and services referencing `Session` need to be fully migrated to `WorkoutSession`. **(DONE 2025-05-10)**
+    - Remove obsolete `Session`-related code and update documentation accordingly. **(DONE 2025-05-10)**
 
 ### 1.2. **Shadow Property Conflicts**
 - **Status:** _Middleware and utilities exist to detect shadow property issues._

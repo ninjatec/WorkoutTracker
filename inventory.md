@@ -547,3 +547,10 @@ This document maintains an up-to-date inventory of all features, components, and
 
 ## 2025-05-09
 - Content Security Policy (CSP) updated: Added https://static.cloudflareinsights.com to script-src to allow Cloudflare Insights beacon script.
+
+## 2025-05-10
+- Obsolete MVC view Views/Shared/Session.cshtml removed (2025-05-10)
+- All controllers, Razor Pages, and services now reference WorkoutSession exclusively
+- SessionExport class marked as legacy (see code comments)
+- No remaining code or documentation references to legacy Session entity
+- See logs/remove_obsolete_session_view_20250510.txt for details
