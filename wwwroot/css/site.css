@@ -320,3 +320,43 @@ a:focus, button:focus {
   color: var(--error-color);
   font-weight: bold;
 }
+
+[data-theme="dark"] {
+  --primary-color: #1E272E;     /* Darker steel blue-gray */
+  --primary-dark: #0A0A0A;      /* Near black */
+  --primary-light: #2F3E46;     /* Dark steel blue */
+  --secondary-color: #3A3A3A;   /* Dark gray */
+  --accent-color: #4A4A4A;      /* Medium gray */
+  --background-light: #121212;  /* Dark background */
+  --text-dark: #FAFAFA;         /* Light text */
+  --text-light: #E0E0E0;        /* Slightly darker light text */
+  --text-muted: #B0B0B0;        /* Muted light gray */
+  --error-color: #CF6679;       /* Muted red for errors */
+  --success-color: #80CBC4;     /* Muted teal for success */
+  --tab-active-color: #6e8895;  /* Color for active tabs */
+  --tab-active-border: #6e8895; /* Border color for active tabs */
+
+  background-color: var(--background-light);
+  color: var(--text-dark);
+}
+
+[data-theme="dark"] .navbar {
+  background-image: linear-gradient(to bottom, #1E272E, #0A0A0A) !important;
+}
+
+[data-theme="dark"] .footer {
+  background-image: linear-gradient(to bottom, #0A0A0A, #1E272E);
+  border-top: 1px solid var(--primary-dark);
+}
+
+[data-theme="dark"] .btn-primary {
+  background-image: linear-gradient(to bottom, var(--primary-color), var(--primary-dark));
+  border-color: var(--primary-dark);
+  color: var(--text-light);
+}
+
+[data-theme="dark"] .btn-primary:hover {
+  background-image: linear-gradient(to bottom, var(--primary-dark), #0A0A0A);
+  border-color: var(--primary-dark);
+  color: var(--text-light);
+}
