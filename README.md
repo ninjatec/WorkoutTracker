@@ -264,6 +264,11 @@ The application uses the following entity relationships:
   - Contains default values for reps and weight
   - Properties: WorkoutTemplateSetId, WorkoutTemplateExerciseId, SettypeId, DefaultReps, DefaultWeight, SequenceNum, Description, Notes
 
+- **WorkoutExercise**: Represents an exercise performed during a workout session
+  - Belongs to a WorkoutSession
+  - Has a Name and Notes property
+  - Properties: WorkoutExerciseId, WorkoutSessionId, ExerciseTypeId, SequenceNum, Name, Notes
+
 ## Workout Sharing
 
 The application provides a secure system for sharing workout data with others:

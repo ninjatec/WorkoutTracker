@@ -1,6 +1,6 @@
 # Technical Debt Report: WorkoutTracker
 
-_Last updated: 2025-05-09_
+_Last updated: 2025-05-10_
 
 ## Overview
 This document summarizes the current technical debt in the WorkoutTracker application, based on analysis of the codebase, documentation, and inventory. It highlights known issues, areas for improvement, and recommendations for future refactoring or cleanup.
@@ -12,12 +12,12 @@ This document summarizes the current technical debt in the WorkoutTracker applic
 ### 1.1. **Model Relationship Issues**
 - **Status:** _Most previously reported issues are marked as FIXED in `inventory.md`._
 - **Current Issues:**
-  - [ ] **Database Schema Migration Issues** (see `inventory.md`):
-    - Some columns referenced in code do not exist in the database schema:
-      - `Notes` column in `WorkoutSessions` table
-      - `Name` column in `WorkoutExercises` table
-    - `ExerciseTypes` table is referenced in code but missing in the database.
+  - [x] **Database Schema Migration Issues** (see `inventory.md`):
+    - Notes column in `WorkoutSessions` table (**FIXED 2025-05-10**)
+    - Name column in `WorkoutExercises` table (**FIXED 2025-05-10**)
+
     - Razor Pages, controllers, and services referencing `Session` need to be fully migrated to `WorkoutSession`.
+
     - Remove obsolete `Session`-related code and update documentation accordingly.
 
 ### 1.2. **Shadow Property Conflicts**

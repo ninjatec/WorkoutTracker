@@ -133,7 +133,7 @@ This document maintains an up-to-date inventory of all features, components, and
 
 #### WorkoutSession
 - Represents a workout session
-- Properties: WorkoutSessionId, Name, Description, StartDateTime, EndDateTime
+- Properties: WorkoutSessionId, Name, Description, StartDateTime, EndDateTime, Notes
   CompletedDate, Duration, IsCompleted, TemplatesUsed, WorkoutTemplateId
   TemplateAssignmentId, IsFromCoach, Status, UserId
 - Relationships: 
@@ -143,7 +143,7 @@ This document maintains an up-to-date inventory of all features, components, and
 
 #### WorkoutExercise
 - Represents an exercise performed during a workout session
-- Properties: WorkoutExerciseId, WorkoutSessionId, ExerciseTypeId, SequenceNum, Notes
+- Properties: WorkoutExerciseId, WorkoutSessionId, ExerciseTypeId, SequenceNum, Name, Notes
 - Relationships:
   - Many-to-one with WorkoutSession
   - Many-to-one with ExerciseType
@@ -532,8 +532,8 @@ This document maintains an up-to-date inventory of all features, components, and
 
 #### Database Schema Migration Issues
 - **Missing Columns**: Some columns referenced in code don't exist in the database schema:
-  - Notes column in WorkoutSessions table
-  - Name column in WorkoutExercises table
+  - Notes column in WorkoutSessions table (now exists)
+  - Name column in WorkoutExercises table (now exists)
 - **Missing Tables**: ExerciseTypes table doesn't exist in the database but is referenced in code.
 
 ### Entity Framework Core Best Practices

@@ -17,7 +17,7 @@ This feature aims to provide users with robust tools for planning their workouts
         *   `CustomWorkoutTitle` (string, if not using a template)
         *   `ScheduledDateTime` (datetime)
         *   `DurationMinutes` (int, optional)
-        *   `Notes` (string, optional)
+        *   `Notes` (string, optional) — now present in WorkoutSessions table
         *   `IsCompleted` (bool, default false)
         *   `CompletedDateTime` (datetime, nullable)
     *   Ensure relationships are correctly configured in the relevant `DbContext`.
@@ -88,7 +88,7 @@ This feature aims to provide users with robust tools for planning their workouts
     *   `WorkoutProgram` entity:
         *   `Id` (Primary Key)
         *   `UserId` (Foreign Key to User, creator of the program)
-        *   `Name` (string)
+        *   `Name` (string) — now present in WorkoutExercises table
         *   `Description` (string, optional)
         *   `DurationWeeks` (int)
         *   `IsPublic` (bool, for potential future sharing)
