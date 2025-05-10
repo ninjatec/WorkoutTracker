@@ -36,8 +36,8 @@ jobs:
 
       - name: Push changes (if any)
         run: |
-          git config user.name "CI Bot"
-          git config user.email "ci-bot@example.com"
+          git config user.name "Marc Coxall"
+          git config user.email "marc.coxall@ninjatec.co.uk"
           git add .
           git commit -m "CI: Update k8s manifests and version after deploy" || echo "No changes to commit"
           git push
