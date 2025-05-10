@@ -7,6 +7,7 @@
 @import url('./responsive/responsive-tables.css');
 @import url('./responsive/responsive-forms.css');
 @import url('./responsive/mobile-layouts.css');
+@import url('./responsive/dark-mode-overrides.css');
 
 /* Global touch-friendly adjustments */
 html {

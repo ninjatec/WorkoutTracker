@@ -18,7 +18,6 @@ namespace WorkoutTrackerWeb.Pages.Templates
     {
         private readonly WorkoutTrackerWebContext _context;
         private readonly IOutputCacheStore _cacheStore;
-
         public EditModel(WorkoutTrackerWebContext context, IOutputCacheStore cacheStore)
         {
             _context = context;
@@ -258,6 +257,10 @@ namespace WorkoutTrackerWeb.Pages.Templates
             var currentUser = await _context.GetCurrentUserAsync();
             if (currentUser == null)
             {
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return new JsonResult(new { success = false, message = "Not authenticated" });
+                }
                 return RedirectToPage("/Account/Login");
             }
 
@@ -266,6 +269,10 @@ namespace WorkoutTrackerWeb.Pages.Templates
 
             if (template == null || template.UserId != currentUser.UserId)
             {
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return new JsonResult(new { success = false, message = "Not authorized" });
+                }
                 return Forbid();
             }
 
@@ -275,6 +282,10 @@ namespace WorkoutTrackerWeb.Pages.Templates
 
             if (exercise == null)
             {
+                if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+                {
+                    return new JsonResult(new { success = false, message = "Exercise not found" });
+                }
                 return NotFound();
             }
 
@@ -299,6 +310,38 @@ namespace WorkoutTrackerWeb.Pages.Templates
             
             // Invalidate output cache for this template
             await _cacheStore.EvictByTagAsync($"template-{templateId}", default);
+
+            // If it's an AJAX request, return JSON with the set data
+            if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+            {
+                // Reload the exercise with sets and settype info
+                exercise = await _context.WorkoutTemplateExercise
+                    .Include(e => e.TemplateSets)
+                    .ThenInclude(s => s.Settype)
+                    .Include(e => e.ExerciseType)
+                    .FirstOrDefaultAsync(e => e.WorkoutTemplateExerciseId == exerciseId);
+
+                // Get all sets for this exercise, ordered by sequence number
+                var sets = exercise.TemplateSets
+                    .OrderBy(s => s.SequenceNum)
+                    .Select(s => new {
+                        id = s.WorkoutTemplateSetId,
+                        sequenceNum = s.SequenceNum,
+                        type = s.Settype.Name,
+                        reps = s.DefaultReps,
+                        weight = s.DefaultWeight,
+                        description = s.Description,
+                        settypeId = s.SettypeId
+                    })
+                    .ToList();
+                
+                return new JsonResult(new { 
+                    success = true, 
+                    sets = sets,
+                    exerciseId = exerciseId,
+                    newSetId = set.WorkoutTemplateSetId
+                });
+            }
 
             return RedirectToPage("./Edit", new { id = templateId });
         }
@@ -455,6 +498,8 @@ namespace WorkoutTrackerWeb.Pages.Templates
 
             return RedirectToPage("./Edit", new { id = templateId });
         }
+
+
 
         private bool TemplateExists(int id)
         {

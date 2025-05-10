@@ -80,9 +80,7 @@
                 </td>
                 <td>
                     @Html.DisplayFor(modelItem => item.User.Name)
-                </td>
-                <td>
-                    <a asp-page="./Edit" asp-route-id="@item.WorkoutSessionId">Edit</a> |
+                </td>                <td>
                     <a asp-page="./Details" asp-route-id="@item.WorkoutSessionId">Details</a> |
                     <a asp-page="./Delete" asp-route-id="@item.WorkoutSessionId">Delete</a>
                     @if (item.Status == "Missed")

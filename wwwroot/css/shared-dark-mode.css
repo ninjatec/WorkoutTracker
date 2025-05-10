@@ -1,0 +1,127 @@
+/* Dark Mode Overrides for Shared Components
+ * Extends dark mode theme for shared components across the app
+ */
+
+/* Session card */
+[data-theme="dark"] .session-card .card-header {
+  background-color: #1e3040;
+}
+
+[data-theme="dark"] .session-date {
+  color: #B0B0B0;
+}
+
+/* Stat card */
+[data-theme="dark"] .stat-card {
+  background-color: #1E1E1E;
+}
+
+/* Token info */
+[data-theme="dark"] .token-info,
+[data-theme="dark"] .shared-user-info,
+[data-theme="dark"] .shared-info-box {
+  background-color: #212121;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Charts and data visualization */
+[data-theme="dark"] .chart-container {
+  filter: brightness(0.9);
+}
+
+/* Exercise list styling */
+[data-theme="dark"] .exercise-list-item {
+  border-left-color: #4A4A4A;
+}
+
+[data-theme="dark"] .rep-badge {
+  background-color: #2C2C2C;
+  color: #B0B0B0;
+}
+
+[data-theme="dark"] .rep-badge.success {
+  background-color: rgba(40, 167, 69, 0.3);
+  color: #a0e5b0;
+}
+
+[data-theme="dark"] .rep-badge.fail {
+  background-color: rgba(220, 53, 69, 0.3);
+  color: #f5a9b0;
+}
+
+/* Pagination controls - both standard and older styled pagers */
+[data-theme="dark"] .pagination .page-item .page-link {
+  background-color: #1E1E1E;
+  border-color: #333;
+  color: #B0B0B0;
+}
+
+[data-theme="dark"] .pagination .page-item.active .page-link {
+  background-color: var(--primary-color);
+  border-color: var(--primary-dark);
+  color: white;
+}
+
+[data-theme="dark"] .pagination .page-item.disabled .page-link {
+  background-color: #1A1A1A;
+  border-color: #333;
+  color: #5A5A5A;
+}
+
+/* Support for older pager style links */
+[data-theme="dark"] .pager-item a,
+[data-theme="dark"] a.btn-default {
+  background-color: #1E1E1E;
+  border-color: #333;
+  color: #B0B0B0;
+}
+
+[data-theme="dark"] .pager-item.active a,
+[data-theme="dark"] a.btn-default.active {
+  background-color: var(--primary-color);
+  border-color: var(--primary-dark);
+  color: white;
+}
+
+[data-theme="dark"] .pager-item.disabled a,
+[data-theme="dark"] a.btn-default.disabled {
+  background-color: #1A1A1A;
+  border-color: #333;
+  color: #5A5A5A;
+}
+
+/* Status indicators */
+[data-theme="dark"] .token-expiry, 
+[data-theme="dark"] .access-count {
+  background-color: rgba(25, 135, 84, 0.3);
+}
+
+[data-theme="dark"] .expiring-soon {
+  background-color: rgba(220, 53, 69, 0.3);
+}
+
+/* Reports */
+[data-theme="dark"] .report-card .card-header {
+  background-color: #1e3040;
+}
+
+[data-theme="dark"] .stats-grid .stat-card {
+  background-color: #212121;
+}
+
+/* Exercise types */
+[data-theme="dark"] .set-type-warm-up {
+  background-color: rgba(255, 193, 7, 0.15);
+}
+
+[data-theme="dark"] .set-type-regular {
+  background-color: rgba(13, 110, 253, 0.15);
+}
+
+[data-theme="dark"] .set-type-drop {
+  background-color: rgba(220, 53, 69, 0.15);
+}
+
+[data-theme="dark"] .set-type-super {
+  background-color: rgba(111, 66, 193, 0.15);
+}

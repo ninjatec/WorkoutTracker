@@ -12,6 +12,14 @@
   --success-color: #80CBC4;     /* Muted teal for success */
   --tab-active-color: #6e8895;  /* Color for active tabs - matches primary */
   --tab-active-border: #6e8895; /* Border color for active tabs */
+  --container-bg: white;        /* Default container background */
+  --card-bg: white;             /* Default card background */
+  --component-bg: white;        /* Default component background */
+  --table-row-odd-bg: #f9f9f9;  /* Light table row odd background */
+  --table-row-even-bg: white;   /* Light table row even background */
+  
+  /* Add smooth transition when switching between themes */
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 html {
@@ -38,7 +46,7 @@ body {
 
 /* Container styling */
 .container {
-  background-color: white;
+  background-color: var(--container-bg);
   box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
   border-radius: 5px;
   padding: 1.5rem;
@@ -112,7 +120,7 @@ footer .container {
 
 /* Card and container styling */
 .card {
-  background-color: white;
+  background-color: var(--card-bg);
   border-radius: 5px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -128,7 +136,7 @@ footer .container {
 /* Style for text-center sections */
 .text-center {
   padding: 1.5rem;
-  background-color: white;
+  background-color: var(--component-bg);
   border-radius: 5px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
@@ -141,13 +149,17 @@ footer .container {
 
 /* Table styling */
 table {
-  background-color: white;
+  background-color: var(--container-bg);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
 }
 
 .table-striped tbody tr:nth-of-type(odd) {
-  background-color: var(--primary-light);
+  background-color: var(--table-row-odd-bg);
+}
+
+.table-striped tbody tr:nth-of-type(even) {
+  background-color: var(--table-row-even-bg);
 }
 
 .table thead {
@@ -268,6 +280,33 @@ table {
   box-shadow: 0 0 0 0.2rem rgba(70, 90, 101, 0.25);
 }
 
+/* Form controls in dark mode */
+[data-theme="dark"] .form-control {
+  border-color: #4A4A4A;
+  background-color: #2C2C2C;
+  color: var(--text-light);
+}
+
+/* Ensure form controls render properly across different states */
+[data-theme="dark"] .form-control:focus {
+  border-color: var(--primary-light);
+  background-color: #353535;
+  color: var(--text-light);
+  box-shadow: 0 0 0 0.2rem rgba(70, 90, 101, 0.5);
+}
+
+[data-theme="dark"] .form-control:disabled,
+[data-theme="dark"] .form-control[readonly] {
+  background-color: #252525;
+  border-color: #333;
+  color: #808080;
+}
+
+[data-theme="dark"] .form-control:focus {
+  border-color: var(--primary-light);
+  background-color: #353535;
+}
+
 /* Improve accessibility with focus indicators */
 a:focus, button:focus {
   outline: 2px solid var(--accent-color);
@@ -335,13 +374,31 @@ a:focus, button:focus {
   --success-color: #80CBC4;     /* Muted teal for success */
   --tab-active-color: #6e8895;  /* Color for active tabs */
   --tab-active-border: #6e8895; /* Border color for active tabs */
+  --container-bg: #1A1A1A;      /* Dark container background */
+  --card-bg: #1E1E1E;           /* Dark card background */
+  --component-bg: #212121;      /* Dark component background */
+  --table-row-odd-bg: #1A1A1A;  /* Dark table row odd background */
+  --table-row-even-bg: #121212; /* Dark table row even background */
 
   background-color: var(--background-light);
   color: var(--text-dark);
+  
+  /* Add smooth transition when switching between themes */
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Override main container styles in dark mode */
+[data-theme="dark"] .container {
+  background-color: var(--container-bg);
+  border-color: #333;
 }
 
 [data-theme="dark"] .navbar {
   background-image: linear-gradient(to bottom, #1E272E, #0A0A0A) !important;
+}
+
+[data-theme="dark"] .navbar-brand {
+  color: white !important; /* Ensure brand text has good contrast in dark mode */
 }
 
 [data-theme="dark"] .footer {
@@ -358,5 +415,218 @@ a:focus, button:focus {
 [data-theme="dark"] .btn-primary:hover {
   background-image: linear-gradient(to bottom, var(--primary-dark), #0A0A0A);
   border-color: var(--primary-dark);
+  color: var(--text-light);
+}
+
+/* Additional dark theme overrides for Bootstrap components */
+
+/* Dropdown menus */
+[data-theme="dark"] .dropdown-menu {
+  background-color: #212121;
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .dropdown-item {
+  color: var(--text-light);
+}
+
+[data-theme="dark"] .dropdown-item:hover, 
+[data-theme="dark"] .dropdown-item:focus {
+  background-color: #2C2C2C;
+  color: white;
+}
+
+[data-theme="dark"] .dropdown-divider {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Select and options */
+[data-theme="dark"] select.form-select {
+  background-color: #2C2C2C;
+  border-color: #4A4A4A;
+  color: var(--text-light);
+}
+
+[data-theme="dark"] select.form-select option {
+  background-color: #2C2C2C;
+  color: var(--text-light);
+}
+
+/* Modals */
+[data-theme="dark"] .modal-content {
+  background-color: var(--container-bg);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .modal-header {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .modal-footer {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Input groups */
+[data-theme="dark"] .input-group-text {
+  background-color: #2C2C2C;
+  border-color: #4A4A4A;
+  color: var(--text-light);
+}
+
+/* Dark mode table styling */
+[data-theme="dark"] table,
+[data-theme="dark"] .table {
+  background-color: var(--container-bg);
+  color: var(--text-light);
+  border-color: #333;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.4);
+  /* Apply a more distinct border for better differentiation between cells */
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+[data-theme="dark"] .table-striped tbody tr:nth-of-type(odd) {
+  background-color: #1E1E1E;
+}
+
+[data-theme="dark"] .table-striped tbody tr:nth-of-type(even) {
+  background-color: #141414;
+}
+
+[data-theme="dark"] .table-striped tbody tr:hover {
+  background-color: #2a2a2a !important;
+}
+
+/* Bootstrap contextual classes for tables in dark mode */
+[data-theme="dark"] .table-warning,
+[data-theme="dark"] .table-warning > th,
+[data-theme="dark"] .table-warning > td,
+[data-theme="dark"] tr.table-warning > td {
+  background-color: #483D16;
+  color: #ffeb99;
+}
+
+[data-theme="dark"] .table-danger,
+[data-theme="dark"] .table-danger > th,
+[data-theme="dark"] .table-danger > td,
+[data-theme="dark"] tr.table-danger > td {
+  background-color: #4B1C21;
+  color: #ffa3aa;
+}
+
+[data-theme="dark"] .table-success,
+[data-theme="dark"] .table-success > th,
+[data-theme="dark"] .table-success > td,
+[data-theme="dark"] tr.table-success > td {
+  background-color: #1E402B;
+  color: #a3ffb9;
+}
+
+[data-theme="dark"] .table td, 
+[data-theme="dark"] .table th {
+  border-color: #333;
+  color: var(--text-light);
+}
+
+[data-theme="dark"] tbody,
+[data-theme="dark"] td,
+[data-theme="dark"] tfoot,
+[data-theme="dark"] th,
+[data-theme="dark"] thead,
+[data-theme="dark"] tr {
+  border-color: #333;
+}
+
+/* Improve table-hover in dark mode */
+[data-theme="dark"] .table-hover tbody tr:hover {
+  background-color: #2a2a2a;
+  color: var(--text-light);
+}
+
+/* Additional table row styling in dark mode */
+[data-theme="dark"] .table tr.border-top {
+  border-top-color: #444 !important;
+}
+
+[data-theme="dark"] .table tr.border-bottom {
+  border-bottom-color: #444 !important;
+}
+
+/* Bold cells in dark mode */
+[data-theme="dark"] .table td.font-weight-bold,
+[data-theme="dark"] .table td.fw-bold,
+[data-theme="dark"] .table th.font-weight-bold,
+[data-theme="dark"] .table th.fw-bold {
+  color: #fff;
+}
+
+/* Style table links in dark mode */
+[data-theme="dark"] .table a {
+  color: #5a9de9;
+}
+
+[data-theme="dark"] .table a:hover {
+  color: #7fb1ee;
+  text-decoration: underline;
+}
+
+/* Ensure pagination has proper dark mode styling */
+[data-theme="dark"] .page-link {
+  background-color: #252525;
+  border-color: #333;
+  color: var(--text-light);
+}
+
+[data-theme="dark"] .page-item.disabled .page-link {
+  background-color: #1A1A1A;
+  border-color: #333;
+  color: #666;
+}
+
+/* Additional dark mode overrides for form elements and containers */
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="password"],
+[data-theme="dark"] input[type="search"],
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] textarea {
+  background-color: #2C2C2C;
+  border-color: #4A4A4A;
+  color: var(--text-light);
+}
+
+/* Ensure background color on any additional content containers */
+[data-theme="dark"] .container-mobile-friendly {
+  background-color: var(--container-bg);
+}
+
+/* Fix search input and other form controls */
+[data-theme="dark"] .form-control::placeholder {
+  color: #888;
+}
+
+/* Make sure all buttons have proper contrast */
+[data-theme="dark"] .btn-outline-secondary {
+  color: var(--text-light);
+  border-color: #555;
+}
+
+[data-theme="dark"] .btn-outline-secondary:hover {
+  background-color: #333;
+  color: var(--text-light);
+}
+
+/* Style search boxes in dark mode */
+[data-theme="dark"] input[type="search"] {
+  background-color: #2C2C2C;
+  border-color: #4A4A4A;
+  color: var(--text-light);
+}
+
+[data-theme="dark"] .input-group-text {
+  background-color: #1E1E1E;
+  border-color: #4A4A4A;
   color: var(--text-light);
 }

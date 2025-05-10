@@ -1,0 +1,124 @@
+/* Dark Mode Edge Cases Fixes
+ * These styles address specific edge cases and components in dark mode
+ */
+
+/* Fix for any Bootstrap cards with white background hardcoded */
+[data-theme="dark"] .card {
+  background-color: var(--card-bg) !important;
+  color: var(--text-light);
+}
+
+/* Fix for any backgrounded elements with white backgrounds */
+[data-theme="dark"] .bg-white {
+  background-color: var(--card-bg) !important;
+}
+
+/* Fix container-fluid backgrounds */
+[data-theme="dark"] .container-fluid {
+  background-color: var(--container-bg);
+}
+
+/* Fix for input fields in forms created with input helper */
+[data-theme="dark"] input.form-control,
+[data-theme="dark"] select.form-select,
+[data-theme="dark"] textarea.form-control {
+  background-color: #2C2C2C;
+  color: var(--text-light);
+  border-color: #4A4A4A;
+}
+
+/* Form checkboxes and radios */
+[data-theme="dark"] .form-check-input {
+  background-color: #2C2C2C;
+  border-color: #4A4A4A;
+}
+
+[data-theme="dark"] .form-check-input:checked {
+  background-color: var(--primary-color);
+}
+
+/* Code blocks and pre elements */
+[data-theme="dark"] pre,
+[data-theme="dark"] code {
+  background-color: #1A1A1A;
+  color: #E0E0E0;
+  border-color: #333;
+}
+
+/* Fix any hr elements */
+[data-theme="dark"] hr {
+  border-top-color: #333;
+}
+
+/* Fix any card tables */
+[data-theme="dark"] .card .table {
+  color: var(--text-light);
+}
+
+/* Text color classes */
+[data-theme="dark"] .text-dark {
+  color: #E0E0E0 !important;
+}
+
+[data-theme="dark"] .text-body {
+  color: #E0E0E0 !important;
+}
+
+/* Modal dialog fixes */
+[data-theme="dark"] .modal-backdrop {
+  background-color: #000;
+}
+
+[data-theme="dark"] .close {
+  color: #E0E0E0;
+  text-shadow: 0 1px 0 #000;
+}
+
+/* Data grid fixes */
+[data-theme="dark"] .table-hover tbody tr:hover {
+  background-color: #333;
+  color: var(--text-light);
+}
+
+/* Better contrast for inputs */
+[data-theme="dark"] .form-control:focus {
+  box-shadow: 0 0 0 0.25rem rgba(128, 128, 128, 0.25);
+}
+
+/* Override generic styles in workout tables */
+[data-theme="dark"] .table {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+[data-theme="dark"] .table thead th {
+  border-bottom-color: #333;
+}
+
+/* Fix for borders and dividers */
+[data-theme="dark"] .border,
+[data-theme="dark"] .border-top,
+[data-theme="dark"] .border-end,
+[data-theme="dark"] .border-bottom,
+[data-theme="dark"] .border-start {
+  border-color: #333 !important;
+}
+
+/* Fix for p-0 class elements with white background in dark mode */
+[data-theme="dark"] .p-0,
+[data-theme="dark"] td.p-0 {
+  background-color: var(--card-bg) !important;
+  color: var(--text-light);
+}
+
+/* Fix for action-class elements with white background in dark mode */
+[data-theme="dark"] .action-class {
+  background-color: var(--card-bg) !important;
+  color: var(--text-light);
+}
+
+/* Fix for table-sm and table-responsive-stack td elements in dark mode */
+[data-theme="dark"] .table-sm td,
+[data-theme="dark"] .table-responsive-stack td {
+  background-color: var(--card-bg) !important;
+  color: var(--text-light);
+}

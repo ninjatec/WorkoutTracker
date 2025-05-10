@@ -1,0 +1,77 @@
+/* Status badge styling for both light and dark modes */
+
+/* Light mode badges */
+.badge.badge-success,
+.badge.bg-success {
+  background-color: #198754;
+  color: white;
+}
+
+.badge.badge-warning,
+.badge.bg-warning {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.badge.badge-info,
+.badge.bg-info {
+  background-color: #0dcaf0;
+  color: #212529;
+}
+
+.badge.badge-secondary,
+.badge.bg-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+/* Dark mode badge styling */
+[data-theme="dark"] .badge.badge-success,
+[data-theme="dark"] .badge.bg-success {
+  background-color: #157347;
+  color: white;
+}
+
+[data-theme="dark"] .badge.badge-warning,
+[data-theme="dark"] .badge.bg-warning {
+  background-color: #cc9a06;
+  color: #000;
+}
+
+[data-theme="dark"] .badge.badge-info,
+[data-theme="dark"] .badge.bg-info {
+  background-color: #0aa2c0;
+  color: #000;
+}
+
+[data-theme="dark"] .badge.badge-secondary,
+[data-theme="dark"] .badge.bg-secondary {
+  background-color: #565e64;
+  color: white;
+}
+
+/* Status text styling */
+.status-completed {
+  color: #198754;
+}
+
+.status-missed {
+  color: #dc3545;
+}
+
+.status-scheduled {
+  color: #0dcaf0;
+}
+
+/* Dark mode status text */
+[data-theme="dark"] .status-completed {
+  color: #20c997;
+}
+
+[data-theme="dark"] .status-missed {
+  color: #ff6b81;
+}
+
+[data-theme="dark"] .status-scheduled {
+  color: #5bc0de;
+}

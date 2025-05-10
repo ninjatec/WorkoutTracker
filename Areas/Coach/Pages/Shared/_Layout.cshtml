@@ -16,7 +16,14 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/responsive.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/shared-dark-mode.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/bootstrap-dark-overrides.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/status-badges.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/dark-mode-edge-cases.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/table-dark-mode.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/responsive/dark-mode-overrides.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/coach.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/coach-dark-mode.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/WorkoutTrackerWeb.styles.css" asp-append-version="true" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
     <!-- DataTables CSS (Bootstrap 5 version) -->
@@ -25,8 +32,29 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body class="coach-portal-body">
+@inject WorkoutTrackerWeb.Services.UserPreferenceService UserPreferenceService
+<body class="coach-portal-body" data-theme="@(User.Identity?.IsAuthenticated == true ? await UserPreferenceService.GetThemePreferenceAsync(User.Identity?.Name) : "light")">
     @await Component.InvokeAsync("MaintenanceBanner")
+    
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-dark border-bottom box-shadow mb-3">
+            <div class="container-fluid">
+                <a class="navbar-brand" asp-area="Coach" asp-page="/Index">
+                    <img src="~/images/Logo_Without_Words.png" alt="Workout Tracker Logo" class="navbar-logo" />
+                    Coach Portal
+                </a>
+                
+                <div class="d-flex">
+                    <button id="themeToggle" class="btn btn-outline-light me-2">
+                        <i class="bi @(User.Identity?.IsAuthenticated == true && await UserPreferenceService.GetThemePreferenceAsync(User.Identity?.Name) == "dark" ? "bi-sun" : "bi-moon")"></i>
+                    </button>
+                    <a class="btn btn-outline-light" asp-area="" asp-page="/Index">
+                        <i class="bi bi-house-door"></i> Main App
+                    </a>
+                </div>
+            </div>
+        </nav>
+    </header>
     
     <div class="d-flex coach-layout">
         <!-- Coach Sidebar -->
@@ -56,6 +84,7 @@
     <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
     
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="~/js/theme-toggle.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

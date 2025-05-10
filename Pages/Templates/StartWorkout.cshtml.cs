@@ -173,7 +173,7 @@ namespace WorkoutTrackerWeb.Pages.Templates
 
             await _context.SaveChangesAsync();
 
-            return RedirectToPage("/WorkoutSessions/Edit", new { id = WorkoutSession.WorkoutSessionId });
+            return RedirectToPage("/Sessions/Details", new { id = WorkoutSession.WorkoutSessionId });
         }
     }
 }
