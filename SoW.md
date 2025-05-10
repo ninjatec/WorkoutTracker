@@ -9,6 +9,7 @@ This feature aims to provide users with robust tools for planning their workouts
 ### Phase 1: Core Calendar and Scheduling Enhancements
 
 1.  **Data Model Refinements & New Entities:**
+    > **Note:** As of 2025-05-10, the legacy `Session` model has been fully replaced by `WorkoutSession`. All new features, services, and documentation use `WorkoutSession` exclusively. The `Session` entity is retained only for backward compatibility in data exports (see code comments).
     *   Review existing models (e.g., `WorkoutSession`, `WorkoutTemplate`) for suitability.
     *   Define a `PlannedWorkout` entity:
         *   `Id` (Primary Key)

@@ -30,8 +30,8 @@ This document summarizes the current technical debt in the WorkoutTracker applic
 
 
 ### 2.1. **Documentation Consistency**
-- [ ] Ensure all documentation (`README.md`, `inventory.md`, `SoW.md`) is updated after major refactors or migrations.
-- [ ] Remove references to deprecated models or features.
+- [x] Ensure all documentation (`README.md`, `inventory.md`, `SoW.md`) is updated after major refactors or migrations.
+- [x] Remove references to deprecated models or features.
 
 ---
 

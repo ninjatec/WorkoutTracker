@@ -219,11 +219,10 @@ This document maintains an up-to-date inventory of all features, components, and
   - Id, Token, CreatedAt, ExpiresAt, IsActive
   - AccessCount, MaxAccessCount
   - AllowSessionAccess, AllowReportAccess, AllowCalculatorAccess
-  - UserId, SessionId (optional), WorkoutSessionId (optional)
+  - UserId, WorkoutSessionId (optional)
   - Name, Description
 - Relationships:
   - Many-to-one with User (creator)
-  - Many-to-one with Session (legacy, optional)
   - Many-to-one with WorkoutSession (optional)
 - Features:
   - Time-limited access via expiration date
