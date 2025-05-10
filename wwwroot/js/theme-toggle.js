@@ -2,6 +2,12 @@ document.addEventListener("DOMContentLoaded", function () {
     const themeToggle = document.getElementById("themeToggle");
     const body = document.body;
 
+    // Apply theme from local storage as a fallback
+    const storedTheme = localStorage.getItem("theme");
+    if (storedTheme) {
+        body.setAttribute("data-theme", storedTheme);
+    }
+
     themeToggle.addEventListener("click", function () {
         const currentTheme = body.getAttribute("data-theme");
         const newTheme = currentTheme === "dark" ? "light" : "dark";
@@ -20,6 +26,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 "X-CSRF-TOKEN": document.querySelector('input[name="__RequestVerificationToken"]').value
             },
             body: JSON.stringify({ theme: newTheme })
+        }).then(() => {
+            // Save the theme in local storage as a fallback
+            localStorage.setItem("theme", newTheme);
         }).catch((error) => console.error("Error updating theme preference:", error));
     });
 });
