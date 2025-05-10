@@ -17,5 +17,8 @@ namespace WorkoutTrackerWeb.Models.Identity
         // Audit fields
         public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
         public DateTime LastModifiedDate { get; set; } = DateTime.UtcNow;
+
+        // User theme preference
+        public string ThemePreference { get; set; } = "light"; // Default to light theme
     }
 }

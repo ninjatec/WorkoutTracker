@@ -94,6 +94,36 @@ namespace WorkoutTrackerWeb.Controllers
             return View(workoutSession);
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetTheme([FromBody] ThemePreferenceDto themePreferenceDto)
+        {
+            if (string.IsNullOrEmpty(themePreferenceDto.Theme) || (themePreferenceDto.Theme != "light" && themePreferenceDto.Theme != "dark"))
+            {
+                return BadRequest("Invalid theme preference.");
+            }
+
+            if (User.Identity?.Name == null)
+            {
+                return Unauthorized();
+            }
+
+            try
+            {
+                var userId = User.Identity.Name;
+                var userPreferenceService = HttpContext.RequestServices.GetService<UserPreferenceService>();
+                if (userPreferenceService != null)
+                {
+                    await userPreferenceService.SetThemePreferenceAsync(userId, themePreferenceDto.Theme);
+                }
+                return Ok();
+            }
+            catch
+            {
+                return StatusCode(500, "An error occurred while updating the theme preference.");
+            }
+        }
+
         private async Task<ShareTokenValidationResponse> ValidateTokenFromRequest(string token)
         {
             if (string.IsNullOrEmpty(token))
