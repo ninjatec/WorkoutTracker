@@ -448,7 +448,7 @@ The application provides comprehensive data portability features:
   - Fixed foreign key attribute conflicts between WorkoutSchedule and WorkoutSession
   - Properly configured relationships between CoachClientRelationship and AppUser
   - Added matching query filters for required relationship endpoints
-  - Resolved shadow property conflicts with explicit configurations
+  - Resolved shadow property conflicts with explicit configurations (see Technical Debt and Relationship Best Practices)
   - Added OrderBy clauses to ensure consistent query results
   - Created comprehensive documentation of EF Core relationship best practices
   - Improved performance and stability in multi-container deployments

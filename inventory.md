@@ -517,7 +517,7 @@ This document maintains an up-to-date inventory of all features, components, and
 
 #### Entity Framework Model Relationship Issues
 - ~~**ForeignKey Attribute Conflicts**: Navigation properties 'WorkoutSchedule.LastGeneratedSession' and 'WorkoutSession.Schedule' have ForeignKey attributes on both sides, causing Entity Framework to create two separate relationships.~~ **FIXED**
-- ~~**Undefined Foreign Key Properties**: Multiple relationships between 'CoachClientRelationship' and 'AppUser' lack properly configured foreign key properties, resulting in shadow property creation.~~ **FIXED**
+- ~~**Undefined Foreign Key Properties**: Multiple relationships between 'CoachClientRelationship' and 'AppUser' lack properly configured foreign key properties, resulting in shadow property creation.~~ **FIXED & MONITORED (2025-05-10)**
 - ~~**Global Query Filter Conflicts**: Several entities have global query filters defined but are the required end of relationships, potentially leading to missing data in query results:~~ **FIXED**
   - ~~CoachClientRelationship → CoachClientPermission~~ **FIXED**
   - ~~WorkoutFeedback → ExerciseFeedback~~ **FIXED**
