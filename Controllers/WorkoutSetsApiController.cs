@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -11,6 +12,13 @@ using WorkoutTrackerWeb.Services;
 
 namespace WorkoutTrackerWeb.Controllers
 {
+    // Request model for reordering sets
+    public class ReorderSetsRequest
+    {
+        public int WorkoutExerciseId { get; set; }
+        public List<int> SetIds { get; set; } = new List<int>();
+    }
+
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
@@ -187,6 +195,67 @@ namespace WorkoutTrackerWeb.Controllers
             }
 
             return NoContent();
+        }
+
+        // PUT: api/WorkoutSetsApi/ReorderSets
+        [HttpPut("ReorderSets")]
+        public async Task<IActionResult> ReorderSets([FromBody] ReorderSetsRequest request)
+        {
+            if (request == null || request.SetIds == null || !request.SetIds.Any())
+            {
+                return BadRequest("No sets to reorder");
+            }
+
+            // Get current user ID for ownership verification
+            var userId = await _userService.GetCurrentUserIdAsync();
+            if (userId == null)
+            {
+                return Unauthorized();
+            }
+
+            // Verify user owns all sets in the batch
+            var setIds = request.SetIds;
+            var exerciseId = request.WorkoutExerciseId;
+
+            // First check if the user owns the workout session
+            var sessionUserId = await _context.WorkoutExercises
+                .Where(we => we.WorkoutExerciseId == exerciseId)
+                .Join(_context.WorkoutSessions,
+                    we => we.WorkoutSessionId,
+                    ws => ws.WorkoutSessionId,
+                    (we, ws) => ws.UserId)
+                .FirstOrDefaultAsync();
+
+            if (sessionUserId != userId)
+            {
+                return Forbid();
+            }
+
+            // Get all sets for this exercise
+            var sets = await _context.WorkoutSets
+                .Where(ws => ws.WorkoutExerciseId == exerciseId)
+                .ToListAsync();
+
+            // Verify all sets exist and are part of this exercise
+            foreach (var setId in setIds)
+            {
+                if (!sets.Any(s => s.WorkoutSetId == setId))
+                {
+                    return BadRequest($"Set with id {setId} not found or doesn't belong to this exercise");
+                }
+            }
+
+            // Update the sequence numbers
+            for (int i = 0; i < setIds.Count; i++)
+            {
+                var set = sets.First(s => s.WorkoutSetId == setIds[i]);
+                set.SequenceNum = i + 1;
+                set.SetNumber = i + 1;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Sets reordered successfully" });
         }
 
         // DELETE: api/WorkoutSetsApi/5

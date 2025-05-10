@@ -112,8 +112,7 @@
                         </button>
                     </div>
                     <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
+                        <table class="table table-sm">                            <thead>
                                 <tr>
                                     <th>#</th>
                                     <th>Weight (kg)</th>
@@ -121,24 +120,39 @@
                                     <th>Type</th>
                                     <th>Notes</th>
                                     <th>Actions</th>
+                                    <th>Order</th>
                                 </tr>
                             </thead>
                             <tbody class="exercise-sets" data-exercise-id="@exercise.WorkoutExerciseId">
                                 @foreach (var set in exercise.WorkoutSets.OrderBy(x => x.SequenceNum))
-                                {
-                                    <tr id="set-row-@set.WorkoutSetId" data-set-id="@set.WorkoutSetId">
-                                        <td>@set.SequenceNum</td>
+                                {                                    <tr id="set-row-@set.WorkoutSetId" data-set-id="@set.WorkoutSetId" class="set-row">
+                                        <td class="set-sequence">@set.SequenceNum</td>
                                         <td>@(set.Weight?.ToString("N1") ?? "-")</td>
                                         <td>@(set.Reps?.ToString() ?? "-")</td>
                                         <td>@(set.Settype?.Name ?? "Regular")</td>
                                         <td>@set.Notes</td>
                                         <td>
-                                            <button class="btn btn-sm btn-primary edit-set-btn" data-set-id="@set.WorkoutSetId">
-                                                <i class="bi bi-pencil"></i>
-                                            </button>
-                                            <button class="btn btn-sm btn-danger delete-set-btn" data-set-id="@set.WorkoutSetId">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
+                                            <div class="btn-group">
+                                                <button class="btn btn-sm btn-primary edit-set-btn" data-set-id="@set.WorkoutSetId" title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-info clone-set-btn" data-set-id="@set.WorkoutSetId" title="Clone">
+                                                    <i class="bi bi-files"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-danger delete-set-btn" data-set-id="@set.WorkoutSetId" title="Delete">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group-vertical">
+                                                <button class="btn btn-sm btn-outline-secondary move-up-btn" data-set-id="@set.WorkoutSetId" title="Move Up">
+                                                    <i class="bi bi-arrow-up"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-secondary move-down-btn" data-set-id="@set.WorkoutSetId" title="Move Down">
+                                                    <i class="bi bi-arrow-down"></i>
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 }
@@ -329,6 +343,22 @@
                 $('#confirmDeleteModal').modal('show');
             });
             
+            $('.clone-set-btn').click(function() {
+                const setId = $(this).data('set-id');
+                cloneSet(setId);
+            });
+            
+            // Add event handlers for move up/down buttons
+            $('.move-up-btn').click(function() {
+                const setId = $(this).data('set-id');
+                moveSet(setId, 'up');
+            });
+            
+            $('.move-down-btn').click(function() {
+                const setId = $(this).data('set-id');
+                moveSet(setId, 'down');
+            });
+            
             $('#saveNewSet').click(function() {
                 addNewSet();
             });
@@ -410,7 +440,8 @@
                 }
             });
         }
-          function addNewSet() {
+        
+        function addNewSet() {
             const exerciseId = $('#addExerciseId').val();
             const weight = $('#addWeight').val();
             const reps = $('#addReps').val();
@@ -450,7 +481,8 @@
                 }
             });
         }
-          function updateSet() {
+        
+        function updateSet() {
             const setId = $('#editSetId').val();
             const exerciseId = $('#editExerciseId').val();
             const weight = $('#editWeight').val();
@@ -519,6 +551,112 @@
         function showToast(title, message, type) {
             // Implement toast notifications or alerts
             alert(`${title}: ${message}`);
+        }
+        
+        function cloneSet(setId) {
+            $.ajax({
+                url: `/api/WorkoutSetsApi/${setId}`,
+                method: 'GET',
+                success: function(data) {
+                    // Create a new payload without the ID
+                    const payload = {
+                        workoutExerciseId: data.workoutExerciseId,
+                        weight: data.weight,
+                        reps: data.reps,
+                        settypeId: data.settypeId,
+                        notes: data.notes ? `${data.notes} (copy)` : '(copy)',
+                        isCompleted: true,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    // Send POST request to create a clone
+                    $.ajax({
+                        url: '/api/WorkoutSetsApi',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        data: JSON.stringify(payload),
+                        success: function() {
+                            showToast('Success', 'Set cloned successfully. Refreshing page...', 'success');
+                            // Reload page to see the new set
+                            location.reload();
+                        },
+                        error: function(xhr) {
+                            console.error('Error cloning set:', xhr);
+                            showToast('Error', 'Failed to clone set. Please try again.', 'error');
+                        }
+                    });
+                },
+                error: function(xhr) {
+                    console.error('Error fetching set details:', xhr);
+                    showToast('Error', 'Failed to fetch set details for cloning. Please try again.', 'error');
+                }
+            });
+        }
+        
+        function moveSet(setId, direction) {
+            const setRow = $(`#set-row-${setId}`);
+            const exerciseId = setRow.closest('.exercise-sets').data('exercise-id');
+            const tbody = setRow.closest('tbody');
+            
+            // Get all set rows for this exercise
+            const rows = tbody.find('tr.set-row');
+            const currentIndex = rows.index(setRow);
+            
+            if (direction === 'up' && currentIndex > 0) {
+                // Move up
+                const newIndex = currentIndex - 1;
+                const targetRow = $(rows[newIndex]);
+                
+                // Swap visual positions
+                targetRow.before(setRow);
+                
+                // Reorder in the database
+                reorderSets(exerciseId, tbody);
+            } else if (direction === 'down' && currentIndex < rows.length - 1) {
+                // Move down
+                const newIndex = currentIndex + 1;
+                const targetRow = $(rows[newIndex]);
+                
+                // Swap visual positions
+                targetRow.after(setRow);
+                
+                // Reorder in the database
+                reorderSets(exerciseId, tbody);
+            }
+        }
+        
+        function reorderSets(exerciseId, tbody) {
+            // Get all set IDs in their current order
+            const setIds = tbody.find('tr.set-row').map(function() {
+                return $(this).data('set-id');
+            }).get();
+            
+            // Update sequence numbers in the UI first
+            tbody.find('tr.set-row').each(function(index) {
+                $(this).find('.set-sequence').text(index + 1);
+            });
+            
+            // Send the reordering request to the API
+            const payload = {
+                workoutExerciseId: exerciseId,
+                setIds: setIds
+            };
+            
+            $.ajax({
+                url: '/api/WorkoutSetsApi/ReorderSets',
+                method: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify(payload),
+                success: function(response) {
+                    showToast('Success', 'Sets reordered successfully', 'success');
+                },
+                error: function(xhr) {
+                    console.error('Error reordering sets:', xhr);
+                    showToast('Error', 'Failed to reorder sets. Please try again.', 'error');
+                    // Reload page to reset UI to server state
+                    location.reload();
+                }
+            });
         }
     </script>
 }
