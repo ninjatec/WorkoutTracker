@@ -95,24 +95,16 @@ namespace WorkoutTrackerWeb
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            string[] trustedDomains = new[] {
-                "workouttracker.online", 
-                "www.workouttracker.online",
-                "wot.ninjatec.co.uk",
-                "localhost",
-                "localhost:5001",
-                "localhost:5000"
-            };
+            var allowedHosts = builder.Configuration["AllowedHosts"]?.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? Array.Empty<string>();
 
             builder.Host.UseSerilog();
 
             builder.Services.AddHostFiltering(options => {
-                options.AllowedHosts = trustedDomains;
+                options.AllowedHosts = allowedHosts;
                 options.AllowEmptyHosts = true;
-                options.IncludeFailureMessage = true;
             });
 
-            Log.Information("Host filtering configured with allowed hosts: {AllowedHosts}", string.Join(", ", trustedDomains));
+            Log.Information("Host filtering configured with allowed hosts: {AllowedHosts}", string.Join(", ", allowedHosts));
 
             builder.Services.Configure<ForwardedHeadersOptions>(options =>
             {

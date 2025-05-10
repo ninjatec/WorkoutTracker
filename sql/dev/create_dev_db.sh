@@ -3,8 +3,11 @@
 
 echo "Creating development database from production..."
 
+# Use environment variable for password
+password="$DB_PASSWORD"
+
 # Run the SQL script using sqlcmd
-sqlcmd -S 192.168.0.172 -U marc.coxall -P Donald640060! -i create_dev_database.sql
+sqlcmd -S 192.168.0.172 -U marc.coxall -P "$password" -i create_dev_database.sql
 
 if [ $? -eq 0 ]; then
     echo "Database copy completed successfully."

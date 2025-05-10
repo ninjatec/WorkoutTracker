@@ -9,6 +9,7 @@ This feature aims to provide users with robust tools for planning their workouts
 ### Phase 1: Core Calendar and Scheduling Enhancements
 
 1.  **Data Model Refinements & New Entities:**
+    > **Note:** As of 2025-05-10, the legacy `Session` model has been fully replaced by `WorkoutSession`. All new features, services, and documentation use `WorkoutSession` exclusively. The `Session` entity is retained only for backward compatibility in data exports (see code comments).
     *   Review existing models (e.g., `WorkoutSession`, `WorkoutTemplate`) for suitability.
     *   Define a `PlannedWorkout` entity:
         *   `Id` (Primary Key)
@@ -17,7 +18,7 @@ This feature aims to provide users with robust tools for planning their workouts
         *   `CustomWorkoutTitle` (string, if not using a template)
         *   `ScheduledDateTime` (datetime)
         *   `DurationMinutes` (int, optional)
-        *   `Notes` (string, optional)
+        *   `Notes` (string, optional) — now present in WorkoutSessions table
         *   `IsCompleted` (bool, default false)
         *   `CompletedDateTime` (datetime, nullable)
     *   Ensure relationships are correctly configured in the relevant `DbContext`.
@@ -88,7 +89,7 @@ This feature aims to provide users with robust tools for planning their workouts
     *   `WorkoutProgram` entity:
         *   `Id` (Primary Key)
         *   `UserId` (Foreign Key to User, creator of the program)
-        *   `Name` (string)
+        *   `Name` (string) — now present in WorkoutExercises table
         *   `Description` (string, optional)
         *   `DurationWeeks` (int)
         *   `IsPublic` (bool, for potential future sharing)
@@ -224,4 +225,17 @@ Implement a user-selectable dark/light theme using Bootstrap 5 utilities and per
 
 ## 2025-05-09
 - Security: Updated Content Security Policy to allow https://static.cloudflareinsights.com in script-src for Cloudflare Insights compatibility.
+
+## 2025-05-10
+- Session to WorkoutSession migration complete
+- All code, pages, and services now use WorkoutSession exclusively
+- Obsolete MVC view removed
+- SessionExport class marked as legacy only (see code comments)
+- See logs/remove_obsolete_session_view_20250510.txt
+- All hardcoded and environment-specific configuration removed from source code. Configuration is now managed via appsettings.json, environment variables, and user secrets.
+
+## 2025-05-10: UI Consistency & Output Caching
+- All Razor Pages reviewed for Bootstrap 5 and output caching consistency.
+- Reports/Index updated to use [OutputCache] with a 5-minute duration and policy.
+- Bootstrap 5 usage and layout confirmed consistent in Reports/Index and shared layouts.
 

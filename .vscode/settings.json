@@ -1,0 +1,23 @@
+{
+    "dbcode.connections": [
+        {
+            "connectionId": "2Eh3m3AtL4bkiMiKd3qIT",
+            "name": "WorkoutTrackerProd",
+            "driver": "mssql",
+            "host": "192.168.0.172",
+            "port": 1433,
+            "ssl": true,
+            "sslTrustCertificate": true,
+            "driverOptions": {
+                "authType": "sql"
+            },
+            "username": "marc.coxall",
+            "password": "",
+            "savePassword": "secretStorage",
+            "database": "WorkoutTrackerWeb",
+            "readOnly": false,
+            "connectionTimeout": 30,
+            "connectionType": "host"
+        }
+    ]
+}

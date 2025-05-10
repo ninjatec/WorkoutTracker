@@ -22,7 +22,7 @@ dotnet ef database drop --force --context WorkoutTrackerWebContext
 dotnet ef migrations add InitialCreate
 
 dotnet ef database drop --force --context WorkoutTrackerWebContext
-dotnet sql-cache create "Server=192.168.0.172;Database=WorkoutTrackerWeb;TrustServerCertificate=True;integrated security=False;User ID=marc.coxall;Password=Donald640060!" dbo SessionCache
+dotnet sql-cache create "Server=192.168.0.172;Database=WorkoutTrackerWeb;TrustServerCertificate=True;integrated security=False;User ID=marc.coxall;Password=$DB_PASSWORD" dbo SessionCache
 dotnet ef database update --context WorkoutTrackerWebContext
 
 Add Import and Export functionality

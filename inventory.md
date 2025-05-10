@@ -133,7 +133,7 @@ This document maintains an up-to-date inventory of all features, components, and
 
 #### WorkoutSession
 - Represents a workout session
-- Properties: WorkoutSessionId, Name, Description, StartDateTime, EndDateTime
+- Properties: WorkoutSessionId, Name, Description, StartDateTime, EndDateTime, Notes
   CompletedDate, Duration, IsCompleted, TemplatesUsed, WorkoutTemplateId
   TemplateAssignmentId, IsFromCoach, Status, UserId
 - Relationships: 
@@ -143,7 +143,7 @@ This document maintains an up-to-date inventory of all features, components, and
 
 #### WorkoutExercise
 - Represents an exercise performed during a workout session
-- Properties: WorkoutExerciseId, WorkoutSessionId, ExerciseTypeId, SequenceNum, Notes
+- Properties: WorkoutExerciseId, WorkoutSessionId, ExerciseTypeId, SequenceNum, Name, Notes
 - Relationships:
   - Many-to-one with WorkoutSession
   - Many-to-one with ExerciseType
@@ -219,11 +219,10 @@ This document maintains an up-to-date inventory of all features, components, and
   - Id, Token, CreatedAt, ExpiresAt, IsActive
   - AccessCount, MaxAccessCount
   - AllowSessionAccess, AllowReportAccess, AllowCalculatorAccess
-  - UserId, SessionId (optional), WorkoutSessionId (optional)
+  - UserId, WorkoutSessionId (optional)
   - Name, Description
 - Relationships:
   - Many-to-one with User (creator)
-  - Many-to-one with Session (legacy, optional)
   - Many-to-one with WorkoutSession (optional)
 - Features:
   - Time-limited access via expiration date
@@ -517,7 +516,7 @@ This document maintains an up-to-date inventory of all features, components, and
 
 #### Entity Framework Model Relationship Issues
 - ~~**ForeignKey Attribute Conflicts**: Navigation properties 'WorkoutSchedule.LastGeneratedSession' and 'WorkoutSession.Schedule' have ForeignKey attributes on both sides, causing Entity Framework to create two separate relationships.~~ **FIXED**
-- ~~**Undefined Foreign Key Properties**: Multiple relationships between 'CoachClientRelationship' and 'AppUser' lack properly configured foreign key properties, resulting in shadow property creation.~~ **FIXED**
+- ~~**Undefined Foreign Key Properties**: Multiple relationships between 'CoachClientRelationship' and 'AppUser' lack properly configured foreign key properties, resulting in shadow property creation.~~ **FIXED & MONITORED (2025-05-10)**
 - ~~**Global Query Filter Conflicts**: Several entities have global query filters defined but are the required end of relationships, potentially leading to missing data in query results:~~ **FIXED**
   - ~~CoachClientRelationship → CoachClientPermission~~ **FIXED**
   - ~~WorkoutFeedback → ExerciseFeedback~~ **FIXED**
@@ -532,8 +531,8 @@ This document maintains an up-to-date inventory of all features, components, and
 
 #### Database Schema Migration Issues
 - **Missing Columns**: Some columns referenced in code don't exist in the database schema:
-  - Notes column in WorkoutSessions table
-  - Name column in WorkoutExercises table
+  - Notes column in WorkoutSessions table (now exists)
+  - Name column in WorkoutExercises table (now exists)
 - **Missing Tables**: ExerciseTypes table doesn't exist in the database but is referenced in code.
 
 ### Entity Framework Core Best Practices
@@ -547,3 +546,16 @@ This document maintains an up-to-date inventory of all features, components, and
 
 ## 2025-05-09
 - Content Security Policy (CSP) updated: Added https://static.cloudflareinsights.com to script-src to allow Cloudflare Insights beacon script.
+
+## 2025-05-10
+- Obsolete MVC view Views/Shared/Session.cshtml removed (2025-05-10)
+- All controllers, Razor Pages, and services now reference WorkoutSession exclusively
+- SessionExport class marked as legacy (see code comments)
+- No remaining code or documentation references to legacy Session entity
+- See logs/remove_obsolete_session_view_20250510.txt for details
+- 2025-05-10: Removed all hardcoded and environment-specific configuration from source code. See TECHNICAL_DEBT.md for details.
+
+## 2025-05-10: UI Consistency & Output Caching
+- Reviewed all Razor Pages for Bootstrap 5 and output caching consistency.
+- Reports/Index now uses [OutputCache] with a 5-minute duration and policy.
+- Bootstrap 5 usage and layout confirmed consistent in Reports/Index and shared layouts.

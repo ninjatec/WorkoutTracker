@@ -4,8 +4,11 @@ $ErrorActionPreference = 'Stop'
 Write-Host "Creating development database from production..." -ForegroundColor Cyan
 
 try {
+    # Retrieve password from environment variable
+    $password = $env:DB_PASSWORD
+
     # Run the SQL script using sqlcmd
-    sqlcmd -S 192.168.0.172 -U marc.coxall -P Donald640060! -i create_dev_database.sql
+    sqlcmd -S 192.168.0.172 -U marc.coxall -P $password -i create_dev_database.sql
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Database copy completed successfully." -ForegroundColor Green

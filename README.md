@@ -44,7 +44,7 @@ Current Version: 2.1.0.1
   - Granular access controls for specific workout data
   - Usage limits with maximum view count options
   - Time-limited access with automatic expiration
-  - Session-specific or account-wide sharing options
+  - Account-wide sharing options
   - User control to revoke access at any time
   - Read-only reports for shared workout data
   - Cookie-based token persistence for better navigation
@@ -99,9 +99,9 @@ Current Version: 2.1.0.1
   - Login history tracking with device and location information
   - Security controls to prevent removing the last admin user
 - **Session Management**: Create and manage workout sessions with timestamps
-- **Exercise Tracking**: Track exercises performed during each session
+- **Exercise Tracking**: Track exercises performed during each workout session
 - **Set & Rep Management**: Record sets and repetitions for each exercise with weight tracking
-- **Exercise Library**: Maintain a database of exercise types for reuse across sessions
+- **Exercise Library**: Maintain a database of exercise types for reuse across workout sessions
 - **Data Visualization**: Track progress over time through intuitive charts and graphs
 - **Performance Analytics**: View success/failure rates for exercises with detailed breakdowns
 - **One Rep Max Calculator**: Estimate maximum strength using seven scientific formulas based on weight and reps
@@ -165,42 +165,44 @@ Current Version: 2.1.0.1
 
 The application follows a clean architecture pattern with Razor Pages:
 
-- **Models**: Define the core domain entities (User, Session, Set, Rep, ExerciseType, SetType, Feedback, HelpArticle, HelpCategory, GlossaryTerm)
+- **Models**: Define the core domain entities (User, WorkoutSession, WorkoutSet, Rep, ExerciseType, SetType, Feedback, HelpArticle, HelpCategory, GlossaryTerm)
 - **Pages**: Razor Pages for the user interface, organized by feature areas
 - **Services**: Business logic services for user management, email notifications, help content, and other functionality
 - **Data Access**: Entity Framework Core for database operations
 
 ## Data Model
 
+> **Note:** As of 2025-05-10, the legacy `Session` model has been fully replaced by `WorkoutSession`. All features, data access, and documentation now use `WorkoutSession`. The `Session` entity is retained only for backward compatibility in data exports (see `SessionExport` class in code comments).
+
 The application uses the following entity relationships:
 
 - **User**: Represents a registered user of the application
   - Contains personal information and is linked to ASP.NET Identity
-  - Has many Sessions
+  - Has many WorkoutSessions
   - Can submit Feedback
   
-- **Session**: Represents a workout session
+- **WorkoutSession**: Represents a workout session
   - Belongs to a User
-  - Has many Sets
-  - Includes date, time, name, and notes
-  - Properties: SessionId, Name, datetime, UserId, Notes (for workout session comments)
+  - Has many WorkoutExercises and WorkoutSets
+  - Includes date, time, name, description, and notes
+  - Properties: WorkoutSessionId, Name, Description, StartDateTime, EndDateTime, Notes, UserId, etc.
   
-- **Set**: Represents a set of exercises within a session
-  - Belongs to a Session
+- **WorkoutSet**: Represents a set of exercises within a workout session
+  - Belongs to a WorkoutSession
   - Associated with an ExerciseType
   - Has a SetType (e.g., warm-up, normal, drop set)
   - Contains weight information
   - Has many Reps
   
 - **Rep**: Represents individual repetitions within a set
-  - Belongs to a Set
+  - Belongs to a WorkoutSet
   - Includes weight and success tracking
   
 - **ExerciseType**: Represents a type of exercise (e.g., bench press, squat)
-  - Referenced by many Sets
+  - Referenced by many WorkoutSets and WorkoutExercises
   
 - **SetType**: Represents a type of set (e.g., regular, warm-up, drop set)
-  - Referenced by many Sets
+  - Referenced by many WorkoutSets
   
 - **Feedback**: Represents user-submitted feedback
   - Can be linked to a User
@@ -235,7 +237,7 @@ The application uses the following entity relationships:
   
 - **ShareToken**: Represents a secure sharing link for workout data
   - Associated with a specific User who created the share
-  - Can be linked to a specific Session or share all user sessions
+  - Can be linked to a specific WorkoutSession or share all user sessions
   - Contains expiration date for time-limited access
   - Includes usage tracking with access count
   - Optional maximum usage limit with automatic deactivation
@@ -263,6 +265,11 @@ The application uses the following entity relationships:
   - Associated with a SetType
   - Contains default values for reps and weight
   - Properties: WorkoutTemplateSetId, WorkoutTemplateExerciseId, SettypeId, DefaultReps, DefaultWeight, SequenceNum, Description, Notes
+
+- **WorkoutExercise**: Represents an exercise performed during a workout session
+  - Belongs to a WorkoutSession
+  - Has a Name and Notes property
+  - Properties: WorkoutExerciseId, WorkoutSessionId, ExerciseTypeId, SequenceNum, Name, Notes
 
 ## Workout Sharing
 
@@ -443,17 +450,16 @@ The application provides comprehensive data portability features:
   - Fixed foreign key attribute conflicts between WorkoutSchedule and WorkoutSession
   - Properly configured relationships between CoachClientRelationship and AppUser
   - Added matching query filters for required relationship endpoints
-  - Resolved shadow property conflicts with explicit configurations
+  - Resolved shadow property conflicts with explicit configurations (see Technical Debt and Relationship Best Practices)
   - Added OrderBy clauses to ensure consistent query results
   - Created comprehensive documentation of EF Core relationship best practices
   - Improved performance and stability in multi-container deployments
 
 - **Completed Session to WorkoutSession Migration**:
   - Migrated from legacy Session model to improved WorkoutSession structure
-  - Redesigned data model with improved relationships and organization
-  - Ensured backward compatibility with existing data
-  - Updated all controllers, pages, and services to use new model
-  - Improved query performance with optimized data structures
+  - All features and data access now use WorkoutSession
+  - No remaining code or documentation references to legacy Session entity
+  - SessionExport class is legacy only (see code comments)
 
 - **Enhanced Coach-Client Features**:
   - Implemented robust goal management system with progress tracking
@@ -498,3 +504,17 @@ The application provides comprehensive data portability features:
 
 ## 2025-05-09: CSP Update
 - Allowed https://static.cloudflareinsights.com in the script-src directive to support Cloudflare Insights beacon script loading (required for some analytics/monitoring integrations).
+
+## 2025-05-10: Session to WorkoutSession migration complete
+- All code, pages, and services now use WorkoutSession exclusively
+- Obsolete MVC view removed
+- SessionExport class marked as legacy only (see code comments)
+- See logs/remove_obsolete_session_view_20250510.txt
+
+## 2025-05-10: Configuration Cleanup
+- All hardcoded and environment-specific configuration has been removed from the source code. All sensitive and environment-specific values are now managed via appsettings.json, environment variables, and user secrets. See Technical Debt section for details.
+
+## 2025-05-10: UI Consistency & Output Caching
+- Reviewed all Razor Pages for Bootstrap 5 consistency and output caching.
+- Updated Reports/Index to use [OutputCache] with a 5-minute duration and policy, matching other static/report pages.
+- Verified Bootstrap 5 usage and layout consistency in Reports/Index and shared layouts.

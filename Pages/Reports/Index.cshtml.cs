@@ -19,11 +19,12 @@ using WorkoutTrackerWeb.Services.Calculations;
 using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using System.Data.SqlTypes;
+using Microsoft.AspNetCore.OutputCaching;
 
 namespace WorkoutTrackerWeb.Pages.Reports
 {
     [Authorize]
-    [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Client, NoStore = false)]
+    [OutputCache(Duration = 300, PolicyName = "ReportsContent")]
     public class IndexModel : PageModel
     {
         private readonly WorkoutTrackerWebContext _context;
