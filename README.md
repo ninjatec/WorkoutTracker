@@ -510,3 +510,6 @@ The application provides comprehensive data portability features:
 - Obsolete MVC view removed
 - SessionExport class marked as legacy only (see code comments)
 - See logs/remove_obsolete_session_view_20250510.txt
+
+## 2025-05-10: Configuration Cleanup
+- All hardcoded and environment-specific configuration has been removed from the source code. All sensitive and environment-specific values are now managed via appsettings.json, environment variables, and user secrets. See Technical Debt section for details.

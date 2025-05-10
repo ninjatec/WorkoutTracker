@@ -553,3 +553,4 @@ This document maintains an up-to-date inventory of all features, components, and
 - SessionExport class marked as legacy (see code comments)
 - No remaining code or documentation references to legacy Session entity
 - See logs/remove_obsolete_session_view_20250510.txt for details
+- 2025-05-10: Removed all hardcoded and environment-specific configuration from source code. See TECHNICAL_DEBT.md for details.

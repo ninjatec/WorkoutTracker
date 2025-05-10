@@ -42,9 +42,9 @@ This document summarizes the current technical debt in the WorkoutTracker applic
 ---
 
 ## 4. **Configuration & Containerization**
-- [ ] Validate all configuration files for Linux container compatibility (case sensitivity, pathing, etc.).
-- [ ] Ensure all connection strings and secrets are managed securely (see `README.md` on secrets management).
-- [ ] Remove any hardcoded or environment-specific configuration from source code.
+- [x] Validate all configuration files for Linux container compatibility (case sensitivity, pathing, etc.).
+- [x] Ensure all connection strings and secrets are managed securely (see `README.md` on secrets management).
+- [x] Remove any hardcoded or environment-specific configuration from source code. **(DONE 2025-05-10)**
 
 ---
 
