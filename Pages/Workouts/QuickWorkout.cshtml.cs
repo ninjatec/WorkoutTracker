@@ -249,6 +249,13 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                 QuickWorkout.SetTypes = await _context.Settype
                     .OrderBy(s => s.Name)
                     .ToListAsync();
+                
+                // Set default SetTypeId to "Working" type
+                var workingSetType = QuickWorkout.SetTypes.FirstOrDefault(st => st.Name == "Working");
+                if (workingSetType != null)
+                {
+                    QuickWorkout.SettypeId = workingSetType.SettypeId;
+                }
 
                 // Get all available muscle groups with improved error handling
                 try
