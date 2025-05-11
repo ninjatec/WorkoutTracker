@@ -206,6 +206,7 @@ namespace WorkoutTrackerWeb.Services
             session.EndDateTime = endTime ?? DateTime.Now;
             session.Status = "Completed";
             session.CompletedDate = session.EndDateTime;
+            session.IsCompleted = true; // Set the IsCompleted flag
             session.Duration = (int)(session.EndDateTime.Value - session.StartDateTime).TotalMinutes;
             
             _context.Update(session);
