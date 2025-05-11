@@ -20,7 +20,8 @@ namespace WorkoutTrackerWeb.Services.Dashboard
                 builder.Expire(TimeSpan.FromMinutes(CacheDurationMinutes))
                        .SetVaryByQuery("startDate", "endDate")
                        .Tag("dashboard")
-                       .Tag("user");
+                       .Tag("user")
+                       .Tag("content:dashboard"); // Add proper content type tag
             });
         }
     }

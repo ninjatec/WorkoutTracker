@@ -32,18 +32,22 @@
                 </div>
             </div>
         </div>
-        <div class="card-body">
-            <div class="row">
+        <div class="card-body py-4">
+            <div class="row g-3">
                 <div class="col-md-4">
                     <div class="form-group">
                         <label for="dateRange">Date Range</label>
-                        <input type="text" class="form-control" id="dateRange" />
+                        <div class="input-group">
+                            <input type="date" class="form-control" id="startDate" name="startDate" />
+                            <span class="input-group-text">to</span>
+                            <input type="date" class="form-control" id="endDate" name="endDate" />
+                        </div>
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="form-group">
-                        <label for="exerciseType">Exercise Type</label>
-                        <select class="form-control" id="exerciseType" multiple>
+                    <div class="mb-3">
+                        <label for="exerciseType" class="form-label">Exercise Type</label>
+                        <select class="form-select" id="exerciseType" multiple>
                             <option value="">All Exercises</option>
                             @foreach (var exercise in Model.ExerciseTypes)
                             {
@@ -53,9 +57,9 @@
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="form-group">
-                        <label for="metricType">Metrics</label>
-                        <select class="form-control" id="metricType" multiple>
+                    <div class="mb-3">
+                        <label for="metricType" class="form-label">Metrics</label>
+                        <select class="form-select" id="metricType" multiple>
                             <option value="volume" selected>Volume</option>
                             <option value="calories" selected>Calories</option>
                             <option value="frequency" selected>Frequency</option>

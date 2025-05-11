@@ -31,9 +31,9 @@ namespace WorkoutTrackerWeb.Services.Dashboard
                         .ThenInclude(e => e.ExerciseType)
                     .Where(s => s.UserId == userId &&
                                s.StartDateTime >= startDate &&
-                               s.StartDateTime <= endDate &&
-                               s.IsCompleted)
-                    .OrderBy(s => s.StartDateTime)
+                               s.StartDateTime <= endDate)
+                    .OrderByDescending(s => s.StartDateTime)
+                    .ThenBy(s => s.WorkoutSessionId) // Ensure consistent ordering
                     .ToListAsync();
             }
             catch (Exception ex)
