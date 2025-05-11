@@ -80,6 +80,15 @@ namespace WorkoutTrackerWeb.Middleware
                         context.AddOutputCacheTags($"content:reports:user:{userId.Value}");
                     }
                 }
+                else if (path.StartsWith("/dashboard") || path.Contains("/dashboard/"))
+                {
+                    context.AddOutputCacheTags("content:dashboard");
+                    
+                    if (userId.HasValue)
+                    {
+                        context.AddOutputCacheTags($"content:dashboard:user:{userId.Value}");
+                    }
+                }
                 else if (path == "/" || path == "/index" || path == "/home" || path == "/home/index")
                 {
                     context.AddOutputCacheTags("content:home");
@@ -169,6 +178,10 @@ namespace WorkoutTrackerWeb.Middleware
                         else if (path.StartsWith("/reports"))
                         {
                             cachePrefix = "output:reports";
+                        }
+                        else if (path.StartsWith("/dashboard"))
+                        {
+                            cachePrefix = "output:dashboard";
                         }
                         else if (path == "/" || path == "/index" || path == "/home" || path == "/home/index")
                         {

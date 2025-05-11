@@ -1,0 +1,216 @@
+@page
+@model WorkoutTrackerWeb.Pages.Dashboard.IndexModel
+@{
+    ViewData["Title"] = "Progress Dashboard";
+}
+
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Progress Dashboard</h1>
+        <div class="d-none d-sm-inline-block">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-primary" id="exportCsv">
+                    <i class="fas fa-download fa-sm"></i> Export CSV
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="exportPdf">
+                    <i class="fas fa-file-pdf fa-sm"></i> Export PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Period selector at the top of the page (match Reports page) -->
+    <div class="card mb-4">
+        <div class="card-body d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Dashboard Period</h5>
+            <form method="get" class="d-flex align-items-center">
+                <label for="dashboardPeriod" class="me-2">Show data for last:</label>
+                <select id="dashboardPeriod" name="period" class="form-select" style="width: auto;">
+                    <option value="30">Last 30 Days</option>
+                    <option value="60">Last 60 Days</option>
+                    <option value="90">Last 90 Days</option>
+                    <option value="120">Last 120 Days</option>
+                    <option value="2147483647">All Time</option>
+                </select>
+            </form>
+        </div>
+    </div>
+
+    <!-- Filters (hidden by default, can be toggled if needed) -->
+    <div class="card shadow mb-4 d-none" id="dashboardFiltersCard">
+        <div class="card-header d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Filters</h6>
+            <div class="dropdown no-arrow">
+                <a class="dropdown-toggle" role="button" id="filterDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                </a>
+                <div class="dropdown-menu dropdown-menu-end shadow animated--fade-in" aria-labelledby="filterDropdown">
+                    <a class="dropdown-item" href="#" id="resetFilters">Reset Filters</a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="dateStart">Start Date</label>
+                        <input type="date" class="form-control" id="dateStart" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="dateEnd">End Date</label>
+                        <input type="date" class="form-control" id="dateEnd" />
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="exerciseType">Exercise Type</label>
+                        <select class="form-control" id="exerciseType" multiple>
+                            <option value="">All Exercises</option>
+                            @foreach (var exercise in Model.ExerciseTypes)
+                            {
+                                <option value="@exercise.Value">@exercise.Text</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="metricType">Metrics</label>
+                        <select class="form-control" id="metricType" multiple>
+                            <option value="volume" selected>Volume</option>
+                            <option value="calories" selected>Calories</option>
+                            <option value="frequency" selected>Frequency</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3 mb-md-0">
+            <div class="card text-center h-100 shadow">
+                <div class="card-body">
+                    <div class="stat-icon text-primary mb-2"><i class="fas fa-calendar fa-2x"></i></div>
+                    <div class="stat-value">@Model.Metrics.TotalWorkouts</div>
+                    <div class="stat-label">Total Workouts</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3 mb-md-0">
+            <div class="card text-center h-100 shadow">
+                <div class="card-body">
+                    <div class="stat-icon text-success mb-2"><i class="fas fa-dumbbell fa-2x"></i></div>
+                    <div class="stat-value">@Model.Metrics.TotalVolume.ToString("N0") kg</div>
+                    <div class="stat-label">Total Volume</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3 mb-md-0">
+            <div class="card text-center h-100 shadow">
+                <div class="card-body">
+                    <div class="stat-icon text-info mb-2"><i class="fas fa-fire fa-2x"></i></div>
+                    <div class="stat-value">@Model.Metrics.TotalCalories.ToString("N0")</div>
+                    <div class="stat-label">Total Calories</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center h-100 shadow">
+                <div class="card-body">
+                    <div class="stat-icon text-warning mb-2"><i class="fas fa-clock fa-2x"></i></div>
+                    <div class="stat-value">@Model.Metrics.AverageDuration.TotalMinutes.ToString("N0") min</div>
+                    <div class="stat-label">Avg Duration</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-xl-8 col-lg-7 mb-4 mb-lg-0">
+            <div class="card shadow h-100">
+                <div class="card-header chart-card-header">
+                    <h6 class="mb-0 font-weight-bold text-primary">Volume Progress</h6>
+                </div>
+                <div class="card-body chart-card-body">
+                    <div class="chart-container">
+                        <canvas id="volumeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow h-100">
+                <div class="card-header chart-card-header">
+                    <h6 class="mb-0 font-weight-bold text-primary">Exercise Distribution</h6>
+                </div>
+                <div class="card-body chart-card-body">
+                    <div class="chart-container">
+                        <canvas id="exerciseDistributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Workout Frequency -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow h-100">
+                <div class="card-header chart-card-header">
+                    <h6 class="mb-0 font-weight-bold text-primary">Workout Frequency</h6>
+                </div>
+                <div class="card-body chart-card-body">
+                    <div class="chart-container">
+                        <canvas id="frequencyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Personal Bests -->
+    <div class="card shadow mb-4">
+        <div class="card-header">
+            <h6 class="m-0 font-weight-bold text-primary">Personal Bests</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive table-responsive-improved">
+                <table class="table table-bordered table-striped" id="personalBestsTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Exercise</th>
+                            <th>Weight</th>
+                            <th>Reps</th>
+                            <th>Estimated 1RM</th>
+                            <th>Date Achieved</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var pb in Model.Metrics.PersonalBests)
+                        {
+                            <tr>
+                                <td>@pb.ExerciseName</td>
+                                <td>@pb.Weight kg</td>
+                                <td>@pb.Reps</td>
+                                <td>@pb.EstimatedOneRM.ToString("N1") kg</td>
+                                <td>@pb.AchievedDate.ToShortDateString()</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+    <script src="~/js/dashboard/dashboard-new.js"></script>
+}
