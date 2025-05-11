@@ -235,10 +235,7 @@ function setupAccessibleFormElements() {
         }
     });
     
-    // Add bolder contrast to placeholders
-    document.querySelectorAll('input::placeholder, textarea::placeholder').forEach(element => {
-        element.style.opacity = '0.7';
-    });
+    // Add bolder contrast to placeholders (moved to CSS)
     
     // Add labels to inputs that only have placeholders
     document.querySelectorAll('input[placeholder]:not([aria-label])').forEach(input => {
