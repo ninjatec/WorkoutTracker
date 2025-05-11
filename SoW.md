@@ -138,52 +138,6 @@ This feature aims to provide users with robust tools for planning their workouts
     *   Update `README.md` to reflect the new workout planning and calendar features.
     *   Update `inventory.md` with new entities, services, and Razor Pages.
 
-## Feature: Interactive Progress Dashboard
-
-### Overview
-Provide users with a dynamic dashboard visualizing workout metrics—volume, consistency, intensity—over time using Chart.js or D3.
-
-1. Data Model & Persistence:
-   * Extend or create entities to track aggregated metrics, e.g., `WorkoutMetric` with `UserId`, `Date`, `Volume`, `Consistency`.
-   * Update `ApplicationDbContext` with a `DbSet<WorkoutMetric>`.
-   * Add EF Core migration with context flag:
-     ```bash
-     dotnet ef migrations add AddWorkoutMetrics --context ApplicationDbContext
-     dotnet ef database update --context ApplicationDbContext
-     ```
-
-2. Service Layer:
-   * Create `ProgressDashboardService`:
-     - `Task<IEnumerable<MetricDto>> GetVolumeSeriesAsync(Guid userId, DateTime start, DateTime end)`
-     - `Task<IEnumerable<MetricDto>> GetIntensitySeriesAsync(Guid userId, DateTime start, DateTime end)`
-     - `Task<IEnumerable<MetricDto>> GetConsistencySeriesAsync(Guid userId, DateTime start, DateTime end)`
-   * Register service in DI (Program.cs).
-
-3. Razor Page & API Handler:
-   * Add new Razor Page `/Progress/Index.cshtml` and `ProgressModel.cs`:
-     - `OnGetAsync()` renders page shell.
-     - `OnGetDataAsync(string metric, DateTime from, DateTime to)` returns JSON via `JsonResult`.
-   * Use output caching for page; configure caching headers for data endpoint.
-
-4. UI & Chart Integration:
-   * Install Chart.js via libman or npm (client-side only).
-   * In the page, include `<canvas>` elements for each chart.
-   * Create a JavaScript module to:
-     - Fetch `/Progress?handler=Data&metric=volume&from=...&to=...`.
-     - Initialize Chart.js instances with returned JSON.
-     - Provide date-range picker controls (e.g., Bootstrap Datepicker) to update charts.
-
-5. Styling & Layout:
-   * Use Bootstrap 5 grid to arrange charts responsively.
-   * Style axis labels, tooltips, and legends for clarity.
-
-6. Caching & Performance:
-   * Cache computed metric series in memory or distributed cache (Redis) for short durations.
-   * Invalidate cache when new workout data is logged.
-
-7. Documentation Updates:
-   * Update `README.md`, `inventory.md`, and this `SoW.md` with dashboard details.
-
 ## Feature: Dark Mode / Theming Toggle
 
 ### Status: Complete
@@ -206,6 +160,10 @@ This feature allows users to toggle between light and dark themes. The implement
 - SessionExport class marked as legacy only (see code comments)
 - See logs/remove_obsolete_session_view_20250510.txt
 - All hardcoded and environment-specific configuration removed from source code. Configuration is now managed via appsettings.json, environment variables, and user secrets.
+
+## 2025-05-11
+- Added Exercise Types and Set Types links to the Data dropdown in navigation menu for easier access
+- Fixed syntax error in QuickWorkout.cshtml that was causing build failures
 
 ## 2025-05-10: UI Consistency & Output Caching
 - All Razor Pages reviewed for Bootstrap 5 and output caching consistency.

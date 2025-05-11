@@ -137,7 +137,14 @@
                                             <option value="">-- Select Type --</option>
                                             @foreach (var setType in Model.QuickWorkout.SetTypes)
                                             {
-                                                <option value="@setType.SettypeId">@setType.Name</option>
+                                                @if (setType.Name == "Working")
+                                                {
+                                                    <option value="@setType.SettypeId" selected>@setType.Name</option>
+                                                }
+                                                else
+                                                {
+                                                    <option value="@setType.SettypeId">@setType.Name</option>
+                                                }
                                             }
                                         </select>
                                     </div>
