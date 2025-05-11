@@ -21,33 +21,29 @@
 
     <!-- Filters -->
     <div class="card shadow mb-4">
-        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <div class="card-header d-flex flex-row align-items-center justify-content-between">
             <h6 class="m-0 font-weight-bold text-primary">Filters</h6>
             <div class="dropdown no-arrow">
                 <a class="dropdown-toggle" role="button" id="filterDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
                 </a>
-                <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" aria-labelledby="filterDropdown">
+                <div class="dropdown-menu dropdown-menu-end shadow animated--fade-in" aria-labelledby="filterDropdown">
                     <a class="dropdown-item" href="#" id="resetFilters">Reset Filters</a>
                 </div>
             </div>
         </div>
-        <div class="card-body py-4">
+        <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-4">
                     <div class="form-group">
                         <label for="dateRange">Date Range</label>
-                        <div class="input-group">
-                            <input type="date" class="form-control" id="startDate" name="startDate" />
-                            <span class="input-group-text">to</span>
-                            <input type="date" class="form-control" id="endDate" name="endDate" />
-                        </div>
+                        <input type="text" class="form-control" id="dateRange" />
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="mb-3">
-                        <label for="exerciseType" class="form-label">Exercise Type</label>
-                        <select class="form-select" id="exerciseType" multiple>
+                    <div class="form-group">
+                        <label for="exerciseType">Exercise Type</label>
+                        <select class="form-control" id="exerciseType" multiple>
                             <option value="">All Exercises</option>
                             @foreach (var exercise in Model.ExerciseTypes)
                             {
@@ -57,9 +53,9 @@
                     </div>
                 </div>
                 <div class="col-md-4">
-                    <div class="mb-3">
-                        <label for="metricType" class="form-label">Metrics</label>
-                        <select class="form-select" id="metricType" multiple>
+                    <div class="form-group">
+                        <label for="metricType">Metrics</label>
+                        <select class="form-control" id="metricType" multiple>
                             <option value="volume" selected>Volume</option>
                             <option value="calories" selected>Calories</option>
                             <option value="frequency" selected>Frequency</option>
@@ -71,96 +67,50 @@
     </div>
 
     <!-- Quick Stats -->
-    <div class="row">
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Workouts</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Metrics.TotalWorkouts</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-calendar fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <div class="stats-grid mb-4">
+        <div class="stat-card">
+            <div class="stat-icon text-primary mb-2"><i class="fas fa-calendar fa-2x"></i></div>
+            <div class="stat-value">@Model.Metrics.TotalWorkouts</div>
+            <div class="stat-label">Total Workouts</div>
         </div>
-        
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Volume</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Metrics.TotalVolume.ToString("N0") kg</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-dumbbell fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="stat-card">
+            <div class="stat-icon text-success mb-2"><i class="fas fa-dumbbell fa-2x"></i></div>
+            <div class="stat-value">@Model.Metrics.TotalVolume.ToString("N0") kg</div>
+            <div class="stat-label">Total Volume</div>
         </div>
-        
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Calories</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Metrics.TotalCalories.ToString("N0")</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-fire fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="stat-card">
+            <div class="stat-icon text-info mb-2"><i class="fas fa-fire fa-2x"></i></div>
+            <div class="stat-value">@Model.Metrics.TotalCalories.ToString("N0")</div>
+            <div class="stat-label">Total Calories</div>
         </div>
-        
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Avg Duration</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Metrics.AverageDuration.TotalMinutes.ToString("N0") min</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-clock fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div class="stat-card">
+            <div class="stat-icon text-warning mb-2"><i class="fas fa-clock fa-2x"></i></div>
+            <div class="stat-value">@Model.Metrics.AverageDuration.TotalMinutes.ToString("N0") min</div>
+            <div class="stat-label">Avg Duration</div>
         </div>
     </div>
 
     <!-- Charts Row -->
-    <div class="row">
-        <!-- Volume Progress -->
-        <div class="col-xl-8 col-lg-7">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Volume Progress</h6>
+    <div class="row mb-4">
+        <div class="col-xl-8 col-lg-7 mb-4 mb-lg-0">
+            <div class="card shadow h-100">
+                <div class="card-header chart-card-header">
+                    <h6 class="mb-0 font-weight-bold text-primary">Volume Progress</h6>
                 </div>
-                <div class="card-body">
-                    <div class="chart-area">
+                <div class="card-body chart-card-body">
+                    <div class="chart-container">
                         <canvas id="volumeChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- Exercise Distribution -->
         <div class="col-xl-4 col-lg-5">
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Exercise Distribution</h6>
+            <div class="card shadow h-100">
+                <div class="card-header chart-card-header">
+                    <h6 class="mb-0 font-weight-bold text-primary">Exercise Distribution</h6>
                 </div>
-                <div class="card-body">
-                    <div class="chart-pie">
+                <div class="card-body chart-card-body">
+                    <div class="chart-container">
                         <canvas id="exerciseDistributionChart"></canvas>
                     </div>
                 </div>
@@ -170,12 +120,12 @@
 
     <!-- Personal Bests -->
     <div class="card shadow mb-4">
-        <div class="card-header py-3">
+        <div class="card-header">
             <h6 class="m-0 font-weight-bold text-primary">Personal Bests</h6>
         </div>
         <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered" id="personalBestsTable" width="100%" cellspacing="0">
+            <div class="table-responsive table-responsive-improved">
+                <table class="table table-bordered table-striped" id="personalBestsTable" width="100%" cellspacing="0">
                     <thead>
                         <tr>
                             <th>Exercise</th>
