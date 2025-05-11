@@ -38,24 +38,17 @@ namespace WorkoutTrackerWeb.Services.Dashboard
                 var workoutFrequency = await _repository.GetWorkoutCountByDateAsync(userId, startDate, endDate);
                 var personalBestsByExercise = await _repository.GetPersonalBestsAsync(userId, startDate, endDate);
 
+                var sessionsList = sessions.ToList(); // Materialize the query once
+
                 var metrics = new DashboardMetrics
                 {
-                    TotalWorkouts = sessions.Count(),
-                    TotalVolume = sessions.Sum(s => _volumeService.CalculateWorkoutSessionVolume(s)),
-                    TotalCalories = sessions.Sum(s => _calorieService.CalculateCalories(s)),
-                    AverageDuration = TimeSpan.FromMinutes(sessions.Average(s => s.Duration)),
-                    VolumeByExercise = volumeByExercise,
-                    WorkoutFrequency = workoutFrequency,
-                    PersonalBests = personalBestsByExercise.Select(kvp => new PersonalBest
-                    {
-                        ExerciseName = kvp.Key,
-                        Weight = kvp.Value.Max(s => s.Weight ?? 0),
-                        Reps = kvp.Value.First(s => (s.Weight ?? 0) == kvp.Value.Max(x => x.Weight ?? 0)).Reps ?? 0,
-                        AchievedDate = kvp.Value.First().WorkoutExercise?.WorkoutSession?.StartDateTime ?? DateTime.Now,
-                        EstimatedOneRM = CalculateEstimatedOneRM(
-                            kvp.Value.Max(s => s.Weight ?? 0),
-                            kvp.Value.First(s => (s.Weight ?? 0) == kvp.Value.Max(x => x.Weight ?? 0)).Reps ?? 0)
-                    }).ToList()
+                    TotalWorkouts = sessionsList.Count,
+                    TotalVolume = sessionsList.Any() ? sessionsList.Sum(s => _volumeService.CalculateWorkoutSessionVolume(s)) : 0,
+                    TotalCalories = sessionsList.Any() ? sessionsList.Sum(s => _calorieService.CalculateCalories(s)) : 0,
+                    AverageDuration = sessionsList.Any() ? TimeSpan.FromMinutes(sessionsList.Average(s => s.Duration)) : TimeSpan.Zero,
+                    VolumeByExercise = volumeByExercise ?? new Dictionary<string, decimal>(),
+                    WorkoutFrequency = workoutFrequency ?? new Dictionary<DateTime, int>(),
+                    PersonalBests = (await GetPersonalBestsAsync(userId, startDate, endDate)).ToList()
                 };
 
                 return metrics;
@@ -73,15 +66,18 @@ namespace WorkoutTrackerWeb.Services.Dashboard
             {
                 var sessions = await _repository.GetUserSessionsAsync(userId, startDate, endDate);
                 
+                if (!sessions.Any())
+                {
+                    return Enumerable.Empty<ChartData>();
+                }
+
                 return sessions
-                    .GroupBy(s => s.StartDateTime.Date)
-                    .Select(g => new ChartData
+                    .OrderBy(s => s.StartDateTime)
+                    .Select(s => new ChartData
                     {
-                        Date = g.Key,
-                        Value = g.Sum(s => _volumeService.CalculateWorkoutSessionVolume(s)),
-                        Label = "Volume"
-                    })
-                    .OrderBy(d => d.Date);
+                        Label = s.StartDateTime.ToString("MM/dd"),
+                        Value = _volumeService.CalculateWorkoutSessionVolume(s)
+                    });
             }
             catch (Exception ex)
             {
@@ -94,16 +90,20 @@ namespace WorkoutTrackerWeb.Services.Dashboard
         {
             try
             {
-                var workoutCounts = await _repository.GetWorkoutCountByDateAsync(userId, startDate, endDate);
+                var frequency = await _repository.GetWorkoutCountByDateAsync(userId, startDate, endDate);
                 
-                return workoutCounts
+                if (frequency == null || !frequency.Any())
+                {
+                    return Enumerable.Empty<ChartData>();
+                }
+
+                return frequency
+                    .OrderBy(kvp => kvp.Key)
                     .Select(kvp => new ChartData
                     {
-                        Date = kvp.Key,
-                        Value = kvp.Value,
-                        Label = "Workouts"
-                    })
-                    .OrderBy(d => d.Date);
+                        Label = kvp.Key.ToString("MM/dd"),
+                        Value = kvp.Value
+                    });
             }
             catch (Exception ex)
             {
@@ -116,18 +116,8 @@ namespace WorkoutTrackerWeb.Services.Dashboard
         {
             try
             {
-                var personalBestsByExercise = await _repository.GetPersonalBestsAsync(userId, startDate, endDate);
-                
-                return personalBestsByExercise.Select(kvp => new PersonalBest
-                {
-                    ExerciseName = kvp.Key,
-                    Weight = kvp.Value.Max(s => s.Weight ?? 0),
-                    Reps = kvp.Value.First(s => (s.Weight ?? 0) == kvp.Value.Max(x => x.Weight ?? 0)).Reps ?? 0,
-                    AchievedDate = kvp.Value.First().WorkoutExercise?.WorkoutSession?.StartDateTime ?? DateTime.Now,
-                    EstimatedOneRM = CalculateEstimatedOneRM(
-                        kvp.Value.Max(s => s.Weight ?? 0),
-                        kvp.Value.First(s => (s.Weight ?? 0) == kvp.Value.Max(x => x.Weight ?? 0)).Reps ?? 0)
-                });
+                var personalBests = await _repository.GetPersonalBestsAsync(userId, startDate, endDate);
+                return PopulatePersonalBests(personalBests);
             }
             catch (Exception ex)
             {
@@ -136,10 +126,43 @@ namespace WorkoutTrackerWeb.Services.Dashboard
             }
         }
 
-        private decimal CalculateEstimatedOneRM(decimal weight, int reps)
+        private IEnumerable<PersonalBest> PopulatePersonalBests(Dictionary<string, List<WorkoutSet>> personalBestsByExercise)
         {
-            // Brzycki Formula
-            return weight * (decimal)(1 + (0.033 * reps));
+            if (personalBestsByExercise == null || !personalBestsByExercise.Any())
+            {
+                return Enumerable.Empty<PersonalBest>();
+            }
+
+            return personalBestsByExercise.Select(kvp =>
+            {
+                var bestSet = kvp.Value
+                    .OrderByDescending(s => s.Weight * s.Reps)
+                    .FirstOrDefault();
+
+                if (bestSet == null)
+                {
+                    return null;
+                }
+
+                if (!bestSet.Weight.HasValue || !bestSet.Reps.HasValue) 
+                    return null;
+
+                return new PersonalBest
+                {
+                    ExerciseName = kvp.Key,
+                    Weight = bestSet.Weight.Value,
+                    Reps = bestSet.Reps.Value,
+                    AchievedDate = bestSet.WorkoutExercise?.WorkoutSession?.StartDateTime ?? DateTime.UtcNow,
+                    EstimatedOneRM = CalculateOneRepMax(bestSet.Weight.Value, bestSet.Reps.Value)
+                };
+            }).Where(pb => pb != null);
+        }
+
+        private static decimal CalculateOneRepMax(decimal weight, int reps)
+        {
+            if (reps == 0) return 0;
+            // Using the Brzycki formula: 1RM = weight × (36 / (37 - reps))
+            return weight * 36m / (37m - reps);
         }
     }
 }

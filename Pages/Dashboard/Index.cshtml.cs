@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Services.Dashboard;
-using WorkoutTrackerWeb.Services.Users;
+using WorkoutTrackerWeb.Services;
 using WorkoutTrackerWeb.ViewModels.Dashboard;
 
 namespace WorkoutTrackerWeb.Pages.Dashboard

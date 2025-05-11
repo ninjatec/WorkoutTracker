@@ -13,6 +13,7 @@
 - The containers a created with dotnet publish and not dockerfile
 
 ## Development Practices
+- AVOID code duplication
 - The application is currently in development so dataloss and downtime are acceptable
 - ALWAYS reference SoW, WiP, README, Inventory and Models to build context
 - ALWAYS ensure the codebase compiles without errors before considering a task complete

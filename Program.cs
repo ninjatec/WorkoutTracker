@@ -743,6 +743,20 @@ namespace WorkoutTrackerWeb
                     sp.GetRequiredService<IDbContextFactory<WorkoutTrackerWebContext>>(), 
                     sp.GetRequiredService<ILogger<UserPreferenceService>>()));
 
+            builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IWorkoutIterationService, WorkoutIterationService>();
+            
+            // Dashboard services
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Dashboard.IDashboardService, WorkoutTrackerWeb.Services.Dashboard.DashboardService>();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Dashboard.IDashboardRepository, WorkoutTrackerWeb.Services.Dashboard.DashboardRepository>();
+
+            // Configure output cache for dashboard data
+            builder.Services.AddOutputCache(options => 
+            {
+                // Add the dashboard cache policy with custom configuration
+                WorkoutTrackerWeb.Services.Dashboard.DashboardCachePolicy.Configure(options);
+            });
+
             var app = builder.Build();
 
             // Initialize database
