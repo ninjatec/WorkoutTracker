@@ -1,0 +1,79 @@
+@* 
+    Toast notifications component 
+    Displays user feedback messages in a non-intrusive way
+*@
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    @* Toasts will be dynamically added here via JavaScript *@
+</div>
+
+<script>
+    // Global toast notification function
+    function showToast(message, type = 'info', autoHide = true, delay = 5000) {
+        const toastContainer = document.querySelector('.toast-container');
+        
+        // Create a unique ID for the toast
+        const toastId = 'toast-' + Date.now();
+        
+        // Determine the background color class based on type
+        let bgClass = 'bg-info';
+        switch (type) {
+            case 'success':
+                bgClass = 'bg-success';
+                break;
+            case 'warning':
+                bgClass = 'bg-warning';
+                break;
+            case 'error':
+            case 'danger':
+                bgClass = 'bg-danger';
+                break;
+            default:
+                bgClass = 'bg-info';
+        }
+        
+        // Create toast HTML
+        const toast = document.createElement('div');
+        toast.className = `toast ${bgClass} text-white`;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+        toast.setAttribute('id', toastId);
+        
+        // Set the content
+        toast.innerHTML = `
+            <div class="toast-header">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong class="me-auto">Workout Tracker</strong>
+                <small>${new Date().toLocaleTimeString()}</small>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                ${message}
+            </div>
+        `;
+        
+        // Append the toast to the container
+        toastContainer.appendChild(toast);
+        
+        // Initialize the Bootstrap toast
+        const bsToast = new bootstrap.Toast(toast, {
+            delay: delay,
+            autohide: autoHide
+        });
+        
+        // Show the toast
+        bsToast.show();
+        
+        // Remove toast from DOM when hidden
+        toast.addEventListener('hidden.bs.toast', () => {
+            toast.remove();
+        });
+        
+        // Return the toast object in case needed for further manipulation
+        return { id: toastId, element: toast, bsToast: bsToast };
+    }
+    
+    // Make available globally
+    window.showToast = showToast;
+</script>
