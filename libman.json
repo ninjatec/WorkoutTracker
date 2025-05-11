@@ -10,6 +10,44 @@
         "dist/browser/signalr.min.js"
       ],
       "provider": "unpkg"
+    },
+    {
+      "library": "Chart.js@4.3.0",
+      "destination": "wwwroot/lib/chartjs"
+    },
+    {
+      "library": "moment.js@2.29.4",
+      "destination": "wwwroot/lib/moment"
+    },
+    {
+      "provider": "unpkg",
+      "library": "daterangepicker@3.1.0",
+      "destination": "wwwroot/lib/daterangepicker",
+      "files": [
+        "daterangepicker.js",
+        "daterangepicker.css"
+      ]
+    },
+    {
+      "library": "toastr.js@2.1.4",
+      "destination": "wwwroot/lib/toastr",
+      "files": [
+        "toastr.min.js",
+        "toastr.min.css"
+      ]
+    },
+    {
+      "library": "datatables@1.10.21",
+      "destination": "wwwroot/lib/datatables",
+      "files": [
+        "js/jquery.dataTables.min.js",
+        "css/jquery.dataTables.min.css"
+      ]
+    },
+    {
+      "provider": "unpkg",
+      "library": "chartjs-adapter-date-fns@3.0.0",
+      "destination": "wwwroot/lib/chartjs-adapter-date-fns"
     }
   ]
 }

@@ -1,0 +1,206 @@
+@page
+@model WorkoutTrackerWeb.Pages.Dashboard.IndexModel
+@{
+    ViewData["Title"] = "Progress Dashboard";
+}
+
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Progress Dashboard</h1>
+        <div class="d-none d-sm-inline-block">
+            <div class="btn-group" role="group">
+                <button type="button" class="btn btn-outline-primary" id="exportCsv">
+                    <i class="fas fa-download fa-sm"></i> Export CSV
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="exportPdf">
+                    <i class="fas fa-file-pdf fa-sm"></i> Export PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Filters</h6>
+            <div class="dropdown no-arrow">
+                <a class="dropdown-toggle" role="button" id="filterDropdown" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                </a>
+                <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in" aria-labelledby="filterDropdown">
+                    <a class="dropdown-item" href="#" id="resetFilters">Reset Filters</a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="dateRange">Date Range</label>
+                        <input type="text" class="form-control" id="dateRange" />
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="exerciseType">Exercise Type</label>
+                        <select class="form-control" id="exerciseType" multiple>
+                            <option value="">All Exercises</option>
+                            @foreach (var exercise in Model.ExerciseTypes)
+                            {
+                                <option value="@exercise.Value">@exercise.Text</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-group">
+                        <label for="metricType">Metrics</label>
+                        <select class="form-control" id="metricType" multiple>
+                            <option value="volume" selected>Volume</option>
+                            <option value="calories" selected>Calories</option>
+                            <option value="frequency" selected>Frequency</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Workouts</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Metrics.TotalWorkouts</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-calendar fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Volume</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Metrics.TotalVolume.ToString("N0") kg</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-dumbbell fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Calories</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Metrics.TotalCalories.ToString("N0")</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-fire fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Avg Duration</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">@Model.Metrics.AverageDuration.TotalMinutes.ToString("N0") min</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row">
+        <!-- Volume Progress -->
+        <div class="col-xl-8 col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Volume Progress</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area">
+                        <canvas id="volumeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Exercise Distribution -->
+        <div class="col-xl-4 col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Exercise Distribution</h6>
+                </div>
+                <div class="card-body">
+                    <div class="chart-pie">
+                        <canvas id="exerciseDistributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Personal Bests -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Personal Bests</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="personalBestsTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Exercise</th>
+                            <th>Weight</th>
+                            <th>Reps</th>
+                            <th>Estimated 1RM</th>
+                            <th>Date Achieved</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var pb in Model.Metrics.PersonalBests)
+                        {
+                            <tr>
+                                <td>@pb.ExerciseName</td>
+                                <td>@pb.Weight kg</td>
+                                <td>@pb.Reps</td>
+                                <td>@pb.EstimatedOneRM.ToString("N1") kg</td>
+                                <td>@pb.AchievedDate.ToShortDateString()</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="~/js/dashboard.js"></script>
+}
