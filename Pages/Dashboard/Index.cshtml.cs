@@ -102,6 +102,10 @@ namespace WorkoutTrackerWeb.Pages.Dashboard
                 var metrics = await _dashboardService.GetDashboardMetricsAsync(userId, start, end);
                 var volumeByExercise = metrics.VolumeByExercise;
 
+                // Log data for debugging
+                _logger.LogInformation("Dashboard data: VolumeProgress count: {VolumeProgressCount}, WorkoutFrequency count: {WorkoutFrequencyCount}, PersonalBests count: {PersonalBestsCount}, VolumeByExercise count: {VolumeByExerciseCount}",
+                    volumeProgress.Count(), workoutFrequency.Count(), personalBests.Count(), volumeByExercise.Count);
+
                 return new JsonResult(new
                 {
                     volumeProgress,

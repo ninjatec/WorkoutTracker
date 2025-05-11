@@ -19,8 +19,25 @@
         </div>
     </div>
 
-    <!-- Filters -->
-    <div class="card shadow mb-4">
+    <!-- Period selector at the top of the page (match Reports page) -->
+    <div class="card mb-4">
+        <div class="card-body d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Dashboard Period</h5>
+            <form method="get" class="d-flex align-items-center">
+                <label for="dashboardPeriod" class="me-2">Show data for last:</label>
+                <select id="dashboardPeriod" name="period" class="form-select" style="width: auto;">
+                    <option value="30">Last 30 Days</option>
+                    <option value="60">Last 60 Days</option>
+                    <option value="90">Last 90 Days</option>
+                    <option value="120">Last 120 Days</option>
+                    <option value="2147483647">All Time</option>
+                </select>
+            </form>
+        </div>
+    </div>
+
+    <!-- Filters (hidden by default, can be toggled if needed) -->
+    <div class="card shadow mb-4 d-none" id="dashboardFiltersCard">
         <div class="card-header d-flex flex-row align-items-center justify-content-between">
             <h6 class="m-0 font-weight-bold text-primary">Filters</h6>
             <div class="dropdown no-arrow">
@@ -139,6 +156,22 @@
             </div>
         </div>
     </div>
+    
+    <!-- Workout Frequency -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow h-100">
+                <div class="card-header chart-card-header">
+                    <h6 class="mb-0 font-weight-bold text-primary">Workout Frequency</h6>
+                </div>
+                <div class="card-body chart-card-body">
+                    <div class="chart-container">
+                        <canvas id="frequencyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Personal Bests -->
     <div class="card shadow mb-4">
@@ -178,5 +211,6 @@
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-    <script src="~/js/dashboard.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+    <script src="~/js/dashboard/dashboard-new.js"></script>
 }

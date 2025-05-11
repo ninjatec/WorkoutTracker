@@ -72,45 +72,81 @@ $(document).ready(function () {
         }
     });
 
-    // Helper to get current date picker values
-    function getDateRange() {
-        return {
-            start: $('#dateStart').val() || moment().subtract(30, 'days').format('YYYY-MM-DD'),
-            end: $('#dateEnd').val() || moment().format('YYYY-MM-DD')
-        };
+    // Period selector logic (match Reports page)
+    $('#dashboardPeriod').val('30'); // Default to 30 days
+    $('#dashboardPeriod').on('change', function() {
+        const period = $(this).val();
+        // Optionally update the URL/query string for server-side reload
+        // For now, just reload chart data via AJAX
+        loadChartDataByPeriod(period);
+    });
+
+    function loadChartDataByPeriod(period) {
+        let days = parseInt(period);
+        if (days === 2147483647) days = 3650; // All Time: 10 years fallback
+        const endDate = moment().format('YYYY-MM-DD');
+        const startDate = moment().subtract(days, 'days').format('YYYY-MM-DD');
+        loadChartData(startDate, endDate);
     }
 
-    // Load initial chart data
-    const initialRange = getDateRange();
-    loadChartData(initialRange.start, initialRange.end);
+    // On page load, trigger initial chart load for default period
+    loadChartDataByPeriod($('#dashboardPeriod').val());
 
-    // Listen for date picker changes
-    $('#dateStart, #dateEnd').on('change', function() {
-        const range = getDateRange();
-        loadChartData(range.start, range.end);
-    });
+    // Ensure charts are cleared if no data is returned
+    function clearChartsAndTable() {
+        volumeChart.data.labels = [];
+        volumeChart.data.datasets[0].data = [];
+        volumeChart.update();
+        distributionChart.data.labels = [];
+        distributionChart.data.datasets[0].data = [];
+        distributionChart.update();
+        const table = $('#personalBestsTable').DataTable();
+        table.clear().draw();
+    }
 
     // Function to load chart data
     function loadChartData(startDate, endDate) {
         $.get(`?handler=ChartData&startDate=${startDate}&endDate=${endDate}`)
             .done(function(data) {
                 // Update Volume Progress Chart
-                volumeChart.data.labels = data.volumeProgress.map(d => d.date);
-                volumeChart.data.datasets[0].data = data.volumeProgress.map(d => d.value);
+                if (data.volumeProgress && data.volumeProgress.length > 0) {
+                    volumeChart.data.labels = data.volumeProgress.map(d => d.date);
+                    volumeChart.data.datasets[0].data = data.volumeProgress.map(d => d.value);
+                } else {
+                    volumeChart.data.labels = [];
+                    volumeChart.data.datasets[0].data = [];
+                }
                 volumeChart.update();
 
-                // Update Exercise Distribution Chart
-                const volumeByExercise = Object.entries(data.volumeProgress.reduce((acc, curr) => {
-                    if (!acc[curr.label]) acc[curr.label] = 0;
-                    acc[curr.label] += curr.value;
-                    return acc;
-                }, {}));
-
-                distributionChart.data.labels = volumeByExercise.map(([label]) => label);
-                distributionChart.data.datasets[0].data = volumeByExercise.map(([, value]) => value);
+                // Update Exercise Distribution Chart using volumeByExercise from backend
+                if (data.volumeByExercise && Object.keys(data.volumeByExercise).length > 0) {
+                    const volumeByExercise = Object.entries(data.volumeByExercise);
+                    distributionChart.data.labels = volumeByExercise.map(([label]) => label);
+                    distributionChart.data.datasets[0].data = volumeByExercise.map(([, value]) => value);
+                } else {
+                    distributionChart.data.labels = [];
+                    distributionChart.data.datasets[0].data = [];
+                }
                 distributionChart.update();
+
+                // Update Personal Bests Table
+                const table = $('#personalBestsTable').DataTable();
+                table.clear();
+                if (data.personalBests && data.personalBests.length > 0) {
+                    data.personalBests.forEach(pb => {
+                        table.row.add([
+                            pb.exerciseName,
+                            pb.weight + ' kg',
+                            pb.reps,
+                            pb.estimatedOneRM ? pb.estimatedOneRM.toFixed(1) + ' kg' : '',
+                            pb.achievedDate ? new Date(pb.achievedDate).toLocaleDateString() : ''
+                        ]);
+                    });
+                }
+                table.draw();
             })
             .fail(function(jqXHR, textStatus, errorThrown) {
+                clearChartsAndTable();
                 console.error('Error loading chart data:', errorThrown);
                 toastr.error('Failed to load chart data. Please try again.');
             });
@@ -118,22 +154,27 @@ $(document).ready(function () {
 
     // Export handlers
     $('#exportCsv').click(function() {
-        const range = getDateRange();
-        window.location.href = `/api/dashboard/export/csv?startDate=${range.start}&endDate=${range.end}`;
+        const period = $('#dashboardPeriod').val();
+        let days = parseInt(period);
+        if (days === 2147483647) days = 3650;
+        const endDate = moment().format('YYYY-MM-DD');
+        const startDate = moment().subtract(days, 'days').format('YYYY-MM-DD');
+        window.location.href = `/api/dashboard/export/csv?startDate=${startDate}&endDate=${endDate}`;
     });
 
     $('#exportPdf').click(function() {
-        const range = getDateRange();
-        window.location.href = `/api/dashboard/export/pdf?startDate=${range.start}&endDate=${range.end}`;
+        const period = $('#dashboardPeriod').val();
+        let days = parseInt(period);
+        if (days === 2147483647) days = 3650;
+        const endDate = moment().format('YYYY-MM-DD');
+        const startDate = moment().subtract(days, 'days').format('YYYY-MM-DD');
+        window.location.href = `/api/dashboard/export/pdf?startDate=${startDate}&endDate=${endDate}`;
     });
 
     // Reset filters
     $('#resetFilters').click(function() {
-        $('#dateStart').val(moment().subtract(30, 'days').format('YYYY-MM-DD'));
-        $('#dateEnd').val(moment().format('YYYY-MM-DD'));
+        $('#dashboardPeriod').val('30').trigger('change');
         $('#exerciseType').val(null).trigger('change');
         $('#metricType').val(['volume', 'calories', 'frequency']).trigger('change');
-        const range = getDateRange();
-        loadChartData(range.start, range.end);
     });
 });
