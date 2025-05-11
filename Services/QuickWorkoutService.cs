@@ -133,7 +133,8 @@ namespace WorkoutTrackerWeb.Services
                 WorkoutExerciseId = workoutExercise.WorkoutExerciseId,
                 SetNumber = 1,
                 Weight = weight,
-                Reps = numberOfReps
+                Reps = numberOfReps,
+                SettypeId = settypeId
             };
 
             _context.WorkoutSets.Add(workoutSet);

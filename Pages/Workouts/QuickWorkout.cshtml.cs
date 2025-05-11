@@ -48,6 +48,18 @@ namespace WorkoutTrackerWeb.Pages.Workouts
         {
             await CheckForActiveSessionAsync();
             await PopulateFormDataAsync(muscleGroup);
+            
+            // Always ensure we have a valid SetTypeId set to "Working" if possible
+            if (QuickWorkout.SettypeId == 0)
+            {
+                var workingSetType = QuickWorkout.SetTypes.FirstOrDefault(st => st.Name == "Working");
+                if (workingSetType != null)
+                {
+                    QuickWorkout.SettypeId = workingSetType.SettypeId;
+                    _logger.LogInformation("SetType reset to 'Working' with ID: {SettypeId}", workingSetType.SettypeId);
+                }
+            }
+            
             return Page();
         }
 
@@ -101,6 +113,27 @@ namespace WorkoutTrackerWeb.Pages.Workouts
             {
                 await CheckForActiveSessionAsync();
                 await PopulateFormDataAsync();
+                
+                // If there's an issue with SettypeId not being set, try to set it to "Working"
+                if (!ModelState.IsValid && QuickWorkout.SettypeId == 0)
+                {
+                    // Get set types
+                    if (QuickWorkout.SetTypes == null || !QuickWorkout.SetTypes.Any())
+                    {
+                        QuickWorkout.SetTypes = await _context.Settype
+                            .OrderBy(s => s.Name)
+                            .ToListAsync();
+                    }
+                    
+                    var workingSetType = QuickWorkout.SetTypes.FirstOrDefault(st => st.Name == "Working");
+                    if (workingSetType != null)
+                    {
+                        QuickWorkout.SettypeId = workingSetType.SettypeId;
+                        ModelState.Remove("QuickWorkout.SettypeId"); // Remove the validation error
+                        _logger.LogInformation("Set default SetType to 'Working' after validation failure");
+                    }
+                }
+                
                 return Page();
             }
             
@@ -112,6 +145,18 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                 {
                     StatusMessage = "No active session found. Please create one first.";
                     return RedirectToPage();
+                }
+                
+                // Double check we have a valid SetTypeId
+                if (QuickWorkout.SettypeId == 0)
+                {
+                    var setTypes = await _context.Settype.OrderBy(s => s.Name).ToListAsync();
+                    var workingSetType = setTypes.FirstOrDefault(st => st.Name == "Working");
+                    if (workingSetType != null)
+                    {
+                        QuickWorkout.SettypeId = workingSetType.SettypeId;
+                        _logger.LogInformation("Set default SetType to 'Working' before adding exercise");
+                    }
                 }
                 
                 var workoutExercise = await _quickWorkoutService.AddQuickWorkoutExerciseAsync(
@@ -255,6 +300,7 @@ namespace WorkoutTrackerWeb.Pages.Workouts
                 if (workingSetType != null)
                 {
                     QuickWorkout.SettypeId = workingSetType.SettypeId;
+                    _logger.LogInformation("Default SetType set to 'Working' with ID: {SettypeId}", workingSetType.SettypeId);
                 }
 
                 // Get all available muscle groups with improved error handling
