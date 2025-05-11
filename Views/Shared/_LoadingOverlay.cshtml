@@ -1,0 +1,17 @@
+@* 
+    Global loading overlay component
+    Displays a loading spinner with message when triggered via JavaScript
+*@
+
+<div class="loading-overlay" id="globalLoadingOverlay">
+    <div class="loading-spinner-container">
+        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <div class="loading-message mt-3" id="loadingMessage">Processing your request...</div>
+    </div>
+</div>
+
+@* Add hidden form field for AntiForgery token access in JS *@
+<input type="hidden" id="RequestVerificationToken" 
+    name="RequestVerificationToken" value="@Html.AntiForgeryToken()" />
