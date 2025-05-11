@@ -1,0 +1,333 @@
+/* 
+ * UI/UX Enhancement Styles for WorkoutTracker
+ * Implements styles needed for the UI/UX Enhancement Plan
+ */
+
+/* 1. Global UI/UX Improvements */
+
+/* 1.1 Enhanced Responsive Navigation */
+/* Desktop Navigation Enhancements */
+@media (min-width: 768px) {
+    .navbar-expand-md .navbar-nav .nav-link {
+        padding: 0.75rem 1rem;
+        margin: 0 0.125rem;
+        border-radius: 0.25rem;
+        transition: all 0.2s ease;
+    }
+    
+    .navbar-expand-md .navbar-nav .nav-link:hover {
+        background-color: var(--bs-gray-200);
+    }
+    
+    /* Active state for current page */
+    .navbar-expand-md .navbar-nav .nav-link.active {
+        font-weight: 600;
+        background-color: var(--bs-primary-bg-subtle);
+        color: var(--bs-primary-text) !important;
+    }
+}
+
+/* Mobile Bottom Navigation */
+.mobile-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--bs-body-bg);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1030;
+    padding: 0.5rem;
+    display: none;
+}
+
+.mobile-nav-item {
+    text-align: center;
+    padding: 0.5rem 0;
+}
+
+.mobile-nav-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+    display: block;
+}
+
+.mobile-nav-text {
+    font-size: 0.75rem;
+}
+
+@media (max-width: 767.98px) {
+    .mobile-nav {
+        display: flex;
+    }
+    
+    /* Add padding to main content to prevent overlap with bottom nav */
+    body {
+        padding-bottom: 80px;
+    }
+    
+    /* Hide certain nav items on mobile that should be in the bottom bar */
+    .navbar-nav .mobile-hidden {
+        display: none;
+    }
+}
+
+/* 1.2 Consistent Visual Hierarchy and Readability */
+/* Standardized typography scales */
+:root {
+    --font-scale-ratio: 1.25;
+    --font-base-size: 1rem;
+    --font-sm: calc(var(--font-base-size) / var(--font-scale-ratio));
+    --font-xs: calc(var(--font-sm) / var(--font-scale-ratio));
+    --font-lg: calc(var(--font-base-size) * var(--font-scale-ratio));
+    --font-xl: calc(var(--font-lg) * var(--font-scale-ratio));
+    --font-2xl: calc(var(--font-xl) * var(--font-scale-ratio));
+    --font-3xl: calc(var(--font-2xl) * var(--font-scale-ratio));
+    
+    /* Text spacings */
+    --line-height-tight: 1.2;
+    --line-height-normal: 1.5;
+    --line-height-loose: 1.8;
+    
+    /* Consistent spacing */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 1rem;
+    --space-4: 1.5rem;
+    --space-5: 3rem;
+}
+
+/* Apply consistent text styles */
+h1, .h1 { 
+    font-size: var(--font-3xl); 
+    margin-bottom: var(--space-4);
+    line-height: var(--line-height-tight);
+    font-weight: 700;
+}
+
+h2, .h2 { 
+    font-size: var(--font-2xl); 
+    margin-bottom: var(--space-3);
+    line-height: var(--line-height-tight);
+    font-weight: 700;
+}
+
+h3, .h3 { 
+    font-size: var(--font-xl); 
+    margin-bottom: var(--space-3);
+    font-weight: 600;
+}
+
+h4, .h4 { 
+    font-size: var(--font-lg); 
+    margin-bottom: var(--space-2);
+    font-weight: 600;
+}
+
+h5, .h5 { 
+    font-size: var(--font-base-size); 
+    margin-bottom: var(--space-2);
+    font-weight: 600;
+}
+
+h6, .h6 { 
+    font-size: var(--font-sm); 
+    margin-bottom: var(--space-2);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Ensure adequate contrast */
+[data-theme="light"] {
+    --text-default: #212529;
+    --text-muted: #6c757d;
+    --text-bright: #000;
+    --bg-surface: #ffffff;
+    --bg-hover: #f8f9fa;
+}
+
+[data-theme="dark"] {
+    --text-default: #dee2e6;
+    --text-muted: #adb5bd;
+    --text-bright: #fff;
+    --bg-surface: #212529;
+    --bg-hover: #2c3034;
+}
+
+.text-high-contrast {
+    color: var(--text-bright) !important;
+}
+
+/* 1.3 Improved Form UX */
+.form-floating > .form-control:focus ~ label,
+.form-floating > .form-control:not(:placeholder-shown) ~ label {
+    color: var(--bs-primary);
+    opacity: 1;
+}
+
+.form-control:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* Mobile optimized form fields */
+@media (max-width: 767.98px) {
+    .form-control, .form-select, .form-check, .btn {
+        min-height: 48px; /* Optimal touch target size */
+    }
+    
+    .input-group .btn {
+        padding-top: 0.625rem;
+        padding-bottom: 0.625rem;
+    }
+    
+    .form-label {
+        font-size: var(--font-lg);
+        margin-top: var(--space-3);
+    }
+}
+
+/* Multi-step form styles */
+.form-step {
+    display: none;
+}
+
+.form-step.active {
+    display: block;
+}
+
+.form-steps-indicator {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: var(--space-4);
+    position: relative;
+}
+
+.form-steps-indicator::before {
+    content: '';
+    position: absolute;
+    height: 2px;
+    background-color: var(--bs-gray-300);
+    width: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1;
+}
+
+.step-circle {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: var(--bs-gray-300);
+    color: var(--bs-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 2;
+}
+
+.step-circle.active {
+    background-color: var(--bs-primary);
+}
+
+.step-circle.completed {
+    background-color: var(--bs-success);
+}
+
+/* 1.4. Enhanced Feedback and Load States */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+}
+
+.loading-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.loading-spinner-container {
+    background-color: var(--bs-body-bg);
+    padding: 2rem;
+    border-radius: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 80%;
+}
+
+.loading-message {
+    margin-top: 1rem;
+    text-align: center;
+}
+
+/* Animated button click feedback */
+.btn:active {
+    transform: scale(0.97);
+    transition: transform 0.1s;
+}
+
+/* Toast notifications */
+.toast-container {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 1070;
+}
+
+@media (max-width: 767.98px) {
+    .toast-container {
+        bottom: 5rem; /* Adjust for mobile nav */
+        left: 1rem;
+        right: 1rem;
+        width: auto;
+    }
+}
+
+/* Mobile-specific enhancements */
+.touch-friendly-btn {
+    min-height: 48px;
+    min-width: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Card Design System */
+.card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin-bottom: var(--space-4);
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.card-interactive {
+    cursor: pointer;
+}
+
+/* Additional utilities */
+.icon-md {
+    font-size: 1.25rem;
+}
+
+.icon-lg {
+    font-size: 1.5rem;
+}
+
+.icon-xl {
+    font-size: 2rem;
+}

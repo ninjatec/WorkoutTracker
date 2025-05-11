@@ -3,9 +3,12 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#7952b3" />
     <title>@ViewData["Title"] - Workout Tracker</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" />
+    <link rel="stylesheet" href="~/css/ui-enhancements.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/form-enhancements.css" asp-append-version="true" />
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
     <!-- DataTables CSS (Bootstrap 5 version) -->
@@ -15,60 +18,130 @@
     @await Component.InvokeAsync("MaintenanceBanner")
     
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+        <nav class="navbar navbar-expand-md navbar-toggleable-md navbar-light bg-white border-bottom box-shadow mb-3">
             <div class="container">
-                <a class="navbar-brand" asp-area="" asp-page="/Index">Workout Tracker</a>
+                <a class="navbar-brand d-flex align-items-center" asp-area="" asp-page="/Index">
+                    <i class="bi bi-activity me-2 text-primary"></i>
+                    Workout Tracker
+                </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
                         aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                <div class="navbar-collapse collapse d-md-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Index">Home</a>
+                        <li class="nav-item mobile-hidden">
+                            <a class="nav-link @(ViewContext.RouteData.Values["Page"]?.ToString() == "/Index" ? "active" : "")" aria-current="page" asp-area="" asp-page="/Index">
+                                <i class="bi bi-house d-md-none me-2"></i>Home
+                            </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Sessions/Index">Sessions</a>
+                        <li class="nav-item dropdown mobile-hidden">
+                            <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["Page"]?.ToString()?.Contains("/Workouts/") == true ? "active" : "")" 
+                               href="#" id="workoutsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-heart-pulse d-md-none me-2"></i>Workouts
+                            </a>
+                            <ul class="dropdown-menu shadow-sm" aria-labelledby="workoutsDropdown">
+                                <li>
+                                    <a class="dropdown-item" asp-area="" asp-page="/Workouts/QuickWorkout">
+                                        <i class="bi bi-plus-circle me-2"></i> Quick Workout
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" asp-area="" asp-page="/Workouts/Index">
+                                        <i class="bi bi-list-ul me-2"></i> My Workouts
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" asp-area="" asp-page="/WorkoutTemplates/Index">
+                                        <i class="bi bi-collection me-2"></i> Templates
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" asp-area="" asp-page="/Workouts/ScheduledWorkouts">
+                                        <i class="bi bi-calendar3 me-2"></i> Schedule
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Sets/Index">Sets</a>
+                        <li class="nav-item mobile-hidden">
+                            <a class="nav-link @(ViewContext.RouteData.Values["Page"]?.ToString()?.Contains("/ExerciseTypes/") == true ? "active" : "")" 
+                               asp-area="" asp-page="/ExerciseTypes/Index">
+                                <i class="bi bi-trophy d-md-none me-2"></i>Exercises
+                            </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/ExerciseTypes/Index">Exercises</a>
+                        <li class="nav-item dropdown mobile-hidden">
+                            <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["Page"]?.ToString()?.Contains("/Reports") == true ? "active" : "")" 
+                               href="#" id="reportsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-bar-chart d-md-none me-2"></i>Progress
+                            </a>
+                            <ul class="dropdown-menu shadow-sm" aria-labelledby="reportsDropdown">
+                                <li>
+                                    <a class="dropdown-item" asp-area="" asp-page="/Reports">
+                                        <i class="bi bi-graph-up me-2"></i> Dashboard
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" asp-area="" asp-page="/Goals/Index">
+                                        <i class="bi bi-flag me-2"></i> Goals
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Settypes/Index">Set Types</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Privacy">Privacy</a>
+                        <li class="nav-item dropdown mobile-hidden">
+                            <a class="nav-link dropdown-toggle" href="#" id="dataDropdown" role="button" 
+                               data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-gear d-md-none me-2"></i>Data
+                            </a>
+                            <ul class="dropdown-menu shadow-sm" aria-labelledby="dataDropdown">
+                                <li>
+                                    <a class="dropdown-item" asp-area="" asp-page="/Sessions/Index">
+                                        <i class="bi bi-clock-history me-2"></i> Sessions
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" asp-area="" asp-page="/Sets/Index">
+                                        <i class="bi bi-layers me-2"></i> Sets
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" asp-area="" asp-page="/Settypes/Index">
+                                        <i class="bi bi-tags me-2"></i> Set Types
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" asp-area="" asp-page="/ShareToken/Manage">
+                                        <i class="bi bi-share me-2"></i> Sharing
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
                         @if(User.IsInRole("Admin"))
                         {
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle text-dark" href="#" id="adminDropdown" role="button" 
-                                   data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="bi bi-shield-lock"></i> Admin
+                                <a class="nav-link dropdown-toggle @(ViewContext.RouteData.Values["Area"]?.ToString() == "Admin" ? "active" : "")" 
+                                   href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-shield-lock me-md-1"></i><span class="d-none d-md-inline"> Admin</span>
                                 </a>
-                                <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                                <ul class="dropdown-menu shadow-sm" aria-labelledby="adminDropdown">
                                     <li>
                                         <a class="dropdown-item" asp-area="Admin" asp-controller="Dashboard" asp-action="Index">
-                                            <i class="bi bi-speedometer2"></i> Dashboard
+                                            <i class="bi bi-speedometer2 me-2"></i> Dashboard
                                         </a>
                                     </li>
                                     <li>
                                         <a class="dropdown-item" asp-area="Admin" asp-controller="Cache" asp-action="Index">
-                                            <i class="bi bi-hdd-rack"></i> Cache Management
+                                            <i class="bi bi-hdd-rack me-2"></i> Cache Management
                                         </a>
                                     </li>
                                     <li>
                                         <a class="dropdown-item" asp-area="Admin" asp-controller="Dashboard" asp-action="Statistics">
-                                            <i class="bi bi-database-check"></i> Connection Pool Stats
+                                            <i class="bi bi-database-check me-2"></i> Connection Pool Stats
                                         </a>
                                     </li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li>
                                         <a class="dropdown-item" asp-area="" asp-page="/HangfireDiagnostics/Index">
-                                            <i class="bi bi-wrench"></i> Hangfire Diagnostics
+                                            <i class="bi bi-wrench me-2"></i> Hangfire Diagnostics
                                         </a>
                                     </li>
                                 </ul>
@@ -91,6 +164,15 @@
             &copy; 2025 - Workout Tracker - <a asp-area="" asp-page="/Privacy">Privacy</a>
         </div>
     </footer>
+    
+    @* Include mobile navigation *@
+    <partial name="_MobileNavigation" />
+    
+    @* Include loading overlay for better UX during operations *@
+    <partial name="_LoadingOverlay" />
+    
+    @* Include toast notification system *@
+    <partial name="_ToastNotifications" />
 
     <!-- jQuery with CDN and local fallback -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" 
@@ -110,6 +192,8 @@
     <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
     
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/ui-enhancements.js" asp-append-version="true"></script>
+    <script src="~/js/form-enhancements.js" asp-append-version="true"></script>
     
     @await RenderSectionAsync("Scripts", required: false)
 </body>

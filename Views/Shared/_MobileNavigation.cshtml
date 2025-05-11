@@ -1,0 +1,78 @@
+@* Mobile bottom navigation for small screens *@
+<div class="mobile-nav">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col mobile-nav-item">
+                <a href="/" class="mobile-nav-link text-decoration-none">
+                    <i class="bi bi-house mobile-nav-icon"></i>
+                    <span class="mobile-nav-text">Home</span>
+                </a>
+            </div>
+            <div class="col mobile-nav-item">
+                <a href="/Workouts/QuickWorkout" class="mobile-nav-link text-decoration-none">
+                    <i class="bi bi-plus-circle mobile-nav-icon"></i>
+                    <span class="mobile-nav-text">Workout</span>
+                </a>
+            </div>
+            <div class="col mobile-nav-item">
+                <a href="/Calendar/Index" class="mobile-nav-link text-decoration-none">
+                    <i class="bi bi-calendar3 mobile-nav-icon"></i>
+                    <span class="mobile-nav-text">Schedule</span>
+                </a>
+            </div>
+            <div class="col mobile-nav-item">
+                <a href="/Reports" class="mobile-nav-link text-decoration-none">
+                    <i class="bi bi-bar-chart mobile-nav-icon"></i>
+                    <span class="mobile-nav-text">Progress</span>
+                </a>
+            </div>
+            <div class="col mobile-nav-item">
+                <button type="button" class="btn p-0 border-0 bg-transparent mobile-hamburger">
+                    <i class="bi bi-three-dots mobile-nav-icon"></i>
+                    <span class="mobile-nav-text">More</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mobile secondary navigation (off-canvas menu) -->
+<div class="offcanvas offcanvas-bottom secondary-mobile-nav h-auto" tabindex="-1" id="mobileSecondaryNav">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title">Menu</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div class="list-group list-group-flush">
+            <a href="/ExerciseTypes/Index" class="list-group-item list-group-item-action">
+                <i class="bi bi-trophy me-2"></i> Exercises
+            </a>
+            <a href="/WorkoutTemplates/Index" class="list-group-item list-group-item-action">
+                <i class="bi bi-collection me-2"></i> Templates
+            </a>
+            <a href="/Goals/Index" class="list-group-item list-group-item-action">
+                <i class="bi bi-flag me-2"></i> Goals
+            </a>
+            <a href="/ShareToken/Manage" class="list-group-item list-group-item-action">
+                <i class="bi bi-share me-2"></i> Sharing
+            </a>
+            @if(User.IsInRole("Coach"))
+            {
+                <a href="/Coach/Dashboard" class="list-group-item list-group-item-action">
+                    <i class="bi bi-people me-2"></i> Coaching
+                </a>
+            }
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const mobileHamburger = document.querySelector('.mobile-hamburger');
+        const offcanvasMenu = new bootstrap.Offcanvas(document.getElementById('mobileSecondaryNav'));
+        
+        mobileHamburger.addEventListener('click', function() {
+            offcanvasMenu.show();
+        });
+    });
+</script>
