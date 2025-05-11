@@ -2,7 +2,7 @@
 
 ## Objective
 To create an Interactive Progress Dashboard linked from the Reports dropdown. The dashboard will minimize data entry by utilizing existing data for metrics such as:
-- Number of workouts per time perdiod
+- Number of workouts per time period
 - Sets and reps
 - Calculated volume
 - Calories burned
