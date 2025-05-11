@@ -748,6 +748,8 @@ namespace WorkoutTrackerWeb
             
             // Dashboard services
             builder.Services.AddScoped<WorkoutTrackerWeb.Services.Dashboard.IDashboardService, WorkoutTrackerWeb.Services.Dashboard.DashboardService>();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Export.IPdfExportService, WorkoutTrackerWeb.Services.Export.PdfExportService>();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Export.ICsvExportService, WorkoutTrackerWeb.Services.Export.CsvExportService>();
             builder.Services.AddScoped<WorkoutTrackerWeb.Services.Dashboard.IDashboardRepository, WorkoutTrackerWeb.Services.Dashboard.DashboardRepository>();
 
             // Configure output cache for dashboard data
