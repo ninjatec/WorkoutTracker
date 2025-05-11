@@ -1,22 +1,5 @@
 // JavaScript for the interactive dashboard
 $(document).ready(function () {
-    // Initialize date range picker
-    $('#dateRange').daterangepicker({
-        startDate: moment().subtract(30, 'days'),
-        endDate: moment(),
-        ranges: {
-            'Last 7 Days': [moment().subtract(6, 'days'), moment()],
-            'Last 30 Days': [moment().subtract(29, 'days'), moment()],
-            'This Month': [moment().startOf('month'), moment().endOf('month')],
-            'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
-            'Last 3 Months': [moment().subtract(3, 'months'), moment()],
-            'Last 6 Months': [moment().subtract(6, 'months'), moment()],
-            'This Year': [moment().startOf('year'), moment()]
-        }
-    }, function(start, end) {
-        loadChartData(start.format('YYYY-MM-DD'), end.format('YYYY-MM-DD'));
-    });
-
     // Initialize select2 for multiple select
     $('#exerciseType, #metricType').select2({
         theme: 'bootstrap-5'
@@ -89,11 +72,23 @@ $(document).ready(function () {
         }
     });
 
+    // Helper to get current date picker values
+    function getDateRange() {
+        return {
+            start: $('#dateStart').val() || moment().subtract(30, 'days').format('YYYY-MM-DD'),
+            end: $('#dateEnd').val() || moment().format('YYYY-MM-DD')
+        };
+    }
+
     // Load initial chart data
-    loadChartData(
-        moment().subtract(30, 'days').format('YYYY-MM-DD'),
-        moment().format('YYYY-MM-DD')
-    );
+    const initialRange = getDateRange();
+    loadChartData(initialRange.start, initialRange.end);
+
+    // Listen for date picker changes
+    $('#dateStart, #dateEnd').on('change', function() {
+        const range = getDateRange();
+        loadChartData(range.start, range.end);
+    });
 
     // Function to load chart data
     function loadChartData(startDate, endDate) {
@@ -123,26 +118,22 @@ $(document).ready(function () {
 
     // Export handlers
     $('#exportCsv').click(function() {
-        const startDate = $('#dateRange').data('daterangepicker').startDate.format('YYYY-MM-DD');
-        const endDate = $('#dateRange').data('daterangepicker').endDate.format('YYYY-MM-DD');
-        window.location.href = `/api/dashboard/export/csv?startDate=${startDate}&endDate=${endDate}`;
+        const range = getDateRange();
+        window.location.href = `/api/dashboard/export/csv?startDate=${range.start}&endDate=${range.end}`;
     });
 
     $('#exportPdf').click(function() {
-        const startDate = $('#dateRange').data('daterangepicker').startDate.format('YYYY-MM-DD');
-        const endDate = $('#dateRange').data('daterangepicker').endDate.format('YYYY-MM-DD');
-        window.location.href = `/api/dashboard/export/pdf?startDate=${startDate}&endDate=${endDate}`;
+        const range = getDateRange();
+        window.location.href = `/api/dashboard/export/pdf?startDate=${range.start}&endDate=${range.end}`;
     });
 
     // Reset filters
     $('#resetFilters').click(function() {
-        $('#dateRange').data('daterangepicker').setStartDate(moment().subtract(30, 'days'));
-        $('#dateRange').data('daterangepicker').setEndDate(moment());
+        $('#dateStart').val(moment().subtract(30, 'days').format('YYYY-MM-DD'));
+        $('#dateEnd').val(moment().format('YYYY-MM-DD'));
         $('#exerciseType').val(null).trigger('change');
         $('#metricType').val(['volume', 'calories', 'frequency']).trigger('change');
-        loadChartData(
-            moment().subtract(30, 'days').format('YYYY-MM-DD'),
-            moment().format('YYYY-MM-DD')
-        );
+        const range = getDateRange();
+        loadChartData(range.start, range.end);
     });
 });

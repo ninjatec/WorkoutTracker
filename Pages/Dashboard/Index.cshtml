@@ -34,13 +34,19 @@
         </div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="form-group">
-                        <label for="dateRange">Date Range</label>
-                        <input type="text" class="form-control" id="dateRange" />
+                        <label for="dateStart">Start Date</label>
+                        <input type="date" class="form-control" id="dateStart" />
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
+                    <div class="form-group">
+                        <label for="dateEnd">End Date</label>
+                        <input type="date" class="form-control" id="dateEnd" />
+                    </div>
+                </div>
+                <div class="col-md-3">
                     <div class="form-group">
                         <label for="exerciseType">Exercise Type</label>
                         <select class="form-control" id="exerciseType" multiple>
@@ -52,7 +58,7 @@
                         </select>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <div class="form-group">
                         <label for="metricType">Metrics</label>
                         <select class="form-control" id="metricType" multiple>
@@ -67,26 +73,42 @@
     </div>
 
     <!-- Quick Stats -->
-    <div class="stats-grid mb-4">
-        <div class="stat-card">
-            <div class="stat-icon text-primary mb-2"><i class="fas fa-calendar fa-2x"></i></div>
-            <div class="stat-value">@Model.Metrics.TotalWorkouts</div>
-            <div class="stat-label">Total Workouts</div>
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3 mb-md-0">
+            <div class="card text-center h-100 shadow">
+                <div class="card-body">
+                    <div class="stat-icon text-primary mb-2"><i class="fas fa-calendar fa-2x"></i></div>
+                    <div class="stat-value">@Model.Metrics.TotalWorkouts</div>
+                    <div class="stat-label">Total Workouts</div>
+                </div>
+            </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon text-success mb-2"><i class="fas fa-dumbbell fa-2x"></i></div>
-            <div class="stat-value">@Model.Metrics.TotalVolume.ToString("N0") kg</div>
-            <div class="stat-label">Total Volume</div>
+        <div class="col-md-3 mb-3 mb-md-0">
+            <div class="card text-center h-100 shadow">
+                <div class="card-body">
+                    <div class="stat-icon text-success mb-2"><i class="fas fa-dumbbell fa-2x"></i></div>
+                    <div class="stat-value">@Model.Metrics.TotalVolume.ToString("N0") kg</div>
+                    <div class="stat-label">Total Volume</div>
+                </div>
+            </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon text-info mb-2"><i class="fas fa-fire fa-2x"></i></div>
-            <div class="stat-value">@Model.Metrics.TotalCalories.ToString("N0")</div>
-            <div class="stat-label">Total Calories</div>
+        <div class="col-md-3 mb-3 mb-md-0">
+            <div class="card text-center h-100 shadow">
+                <div class="card-body">
+                    <div class="stat-icon text-info mb-2"><i class="fas fa-fire fa-2x"></i></div>
+                    <div class="stat-value">@Model.Metrics.TotalCalories.ToString("N0")</div>
+                    <div class="stat-label">Total Calories</div>
+                </div>
+            </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon text-warning mb-2"><i class="fas fa-clock fa-2x"></i></div>
-            <div class="stat-value">@Model.Metrics.AverageDuration.TotalMinutes.ToString("N0") min</div>
-            <div class="stat-label">Avg Duration</div>
+        <div class="col-md-3">
+            <div class="card text-center h-100 shadow">
+                <div class="card-body">
+                    <div class="stat-icon text-warning mb-2"><i class="fas fa-clock fa-2x"></i></div>
+                    <div class="stat-value">@Model.Metrics.AverageDuration.TotalMinutes.ToString("N0") min</div>
+                    <div class="stat-label">Avg Duration</div>
+                </div>
+            </div>
         </div>
     </div>
 
