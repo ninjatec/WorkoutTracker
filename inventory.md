@@ -49,6 +49,18 @@ This document maintains an up-to-date inventory of all features, components, and
 - Exercise Library
 - Authentication System
 - Sharing System with Secure Tokens
+- Interactive Progress Dashboard
+  - Components:
+    - Volume Progress visualization
+    - Exercise Distribution charts
+    - Personal Bests tracking
+    - Workout Frequency visualization
+  - Features:
+    - Period-based filtering
+    - Visual workout data analysis
+    - Personal record tracking
+    - Interactive charts with Chart.js
+    - PDF/CSV export options
 - Reporting Engine
 - Admin Area
 - Import/Export System
@@ -73,6 +85,9 @@ This document maintains an up-to-date inventory of all features, components, and
 - ReportsApiController - API for workout report data
 
 ### Services
+- DashboardService - Service providing dashboard metrics and chart data with caching
+- DashboardRepository - Repository for dashboard-specific data access optimized for performance
+- DashboardCachePolicy - Output cache configuration for dashboard data
 - GoalOperationsService - Shared service for centralized goal operations with permission checking
 - GoalQueryService - Service for optimized goal-related queries
 - GoalProgressService - Service for tracking and updating goal progress

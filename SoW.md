@@ -170,3 +170,11 @@ This feature allows users to toggle between light and dark themes. The implement
 - Reports/Index updated to use [OutputCache] with a 5-minute duration and policy.
 - Bootstrap 5 usage and layout confirmed consistent in Reports/Index and shared layouts.
 
+## 2025-05-11: Interactive Progress Dashboard
+- Fixed dashboard display issues affecting Volume Progress, Exercise Distribution, and Personal Bests sections
+- Implemented proper JavaScript initialization for dashboard charts and data loading
+- Added workout frequency visualization to dashboard display
+- Enhanced dashboard data loading with better error handling and diagnostics
+- Dashboard now correctly uses the period selector for filtering data
+- Added debug logging for dashboard data service
+
