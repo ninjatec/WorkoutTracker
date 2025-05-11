@@ -160,7 +160,7 @@ namespace WorkoutTrackerWeb.Services.Dashboard
 
         private static decimal CalculateOneRepMax(decimal weight, int reps)
         {
-            if (reps == 0) return 0;
+            if (reps == 0 || reps >= 37) return 0;
             // Using the Brzycki formula: 1RM = weight × (36 / (37 - reps))
             return weight * 36m / (37m - reps);
         }
