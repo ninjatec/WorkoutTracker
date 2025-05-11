@@ -16,6 +16,9 @@ namespace WorkoutTrackerWeb.Services.Scheduling
     /// </summary>
     public class ScheduledWorkoutProcessorService
     {
+        // Static object for concurrency control across multiple instances of this service
+        private static readonly SemaphoreSlim _processLock = new SemaphoreSlim(1, 1);
+        
         private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger<ScheduledWorkoutProcessorService> _logger;
         private readonly ScheduledWorkoutProcessorOptions _options;
@@ -45,42 +48,58 @@ namespace WorkoutTrackerWeb.Services.Scheduling
         /// <returns>Number of workouts created</returns>
         public async Task<int> ProcessScheduledWorkoutsAsync()
         {
-            var workoutsCreated = 0;
-            var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, _timeZone);
-            
-            _logger.LogInformation("Starting scheduled workout processing at {Now}", now);
+            // Try to acquire the lock but don't block forever
+            // This prevents multiple instances of the service from running concurrently
+            if (!await _processLock.WaitAsync(TimeSpan.FromSeconds(5)))
+            {
+                _logger.LogWarning("Could not acquire process lock for scheduled workouts - another process is already running");
+                return 0;
+            }
             
             try
             {
-                // Get all due workouts
-                var dueWorkouts = await GetDueWorkoutsAsync(now);
+                var workoutsCreated = 0;
+                var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, _timeZone);
                 
-                _logger.LogInformation("Found {Count} due workouts that need processing", dueWorkouts.Count);
+                _logger.LogInformation("Starting scheduled workout processing at {Now}", now);
                 
-                // Process each due workout
-                foreach (var workout in dueWorkouts)
+                try
                 {
-                    try
+                    // Get all due workouts
+                    var dueWorkouts = await GetDueWorkoutsAsync(now);
+                    
+                    _logger.LogInformation("Found {Count} due workouts that need processing", dueWorkouts.Count);
+                    
+                    // Process each due workout
+                    foreach (var workout in dueWorkouts)
                     {
-                        _logger.LogDebug("Processing workout {Id}: {Name}", workout.WorkoutScheduleId, workout.Name);
-                        
-                        // Convert the scheduled workout to an actual session
-                        await ProcessScheduledWorkoutAsync(workout);
-                        workoutsCreated++;
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error processing scheduled workout {Id}", workout.WorkoutScheduleId);
+                        try
+                        {
+                            _logger.LogDebug("Processing workout {Id}: {Name}", workout.WorkoutScheduleId, workout.Name);
+                            
+                            // Convert the scheduled workout to an actual session
+                            await ProcessScheduledWorkoutAsync(workout);
+                            workoutsCreated++;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Error processing scheduled workout {Id}", workout.WorkoutScheduleId);
+                        }
                     }
                 }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error in ProcessScheduledWorkoutsAsync");
+                }
+                
+                _logger.LogInformation("Completed scheduled workout processing. Created {Count} workouts", workoutsCreated);
+                return workoutsCreated;
             }
-            catch (Exception ex)
+            finally
             {
-                _logger.LogError(ex, "Error in ProcessScheduledWorkoutsAsync");
+                // Always release the lock
+                _processLock.Release();
             }
-            
-            _logger.LogInformation("Completed scheduled workout processing. Created {Count} workouts", workoutsCreated);
-            return workoutsCreated;
         }
 
         /// <summary>
@@ -95,11 +114,21 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                 _logger.LogInformation("Missed workout processing is disabled. Skipping.");
                 return 0;
             }
-
-            var workoutsCreated = 0;
-            var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, _timeZone);
             
-            _logger.LogInformation("Starting missed workout processing at {Now}", now);
+            // Try to acquire the lock but don't block forever
+            // This prevents multiple instances of the service from running concurrently
+            if (!await _processLock.WaitAsync(TimeSpan.FromSeconds(5)))
+            {
+                _logger.LogWarning("Could not acquire process lock for missed workouts - another process is already running");
+                return 0;
+            }
+            
+            try
+            {
+                var workoutsCreated = 0;
+                var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, _timeZone);
+                
+                _logger.LogInformation("Starting missed workout processing at {Now}", now);
             
             try
             {
@@ -192,6 +221,12 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             
             _logger.LogInformation("Completed missed workout processing. Created {Count} workouts", workoutsCreated);
             return workoutsCreated;
+            }
+            finally
+            {
+                // Always release the lock
+                _processLock.Release();
+            }
         }
 
         /// <summary>
@@ -455,9 +490,23 @@ namespace WorkoutTrackerWeb.Services.Scheduling
         {
             // Check if the specific day already has a workout session from this schedule
             var date = occurrence.Date;
+            var timeOfDay = occurrence.TimeOfDay;
             
-            // More comprehensive check that considers multiple ways a workout might be linked
-            return await _context.WorkoutSessions
+            // First check by direct schedule link (most accurate)
+            if (workout.WorkoutScheduleId > 0)
+            {
+                var directMatch = await _context.WorkoutSessions
+                    .AnyAsync(s => s.ScheduleId == workout.WorkoutScheduleId && s.StartDateTime.Date == date);
+                
+                if (directMatch)
+                {
+                    return true;
+                }
+            }
+            
+            // Then check by client, template, and date (more comprehensive)
+            // This helps catch cases where the schedule ID might have changed but it's the same workout
+            var hasMatchingWorkout = await _context.WorkoutSessions
                 .AnyAsync(s => 
                     s.UserId == workout.ClientUserId && 
                     s.StartDateTime.Date == date && 
@@ -465,10 +514,10 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                         // Check if created from the same template
                         (workout.TemplateId.HasValue && s.WorkoutTemplateId == workout.TemplateId) ||
                         // Check if created from the same assignment
-                        (workout.TemplateAssignmentId.HasValue && s.TemplateAssignmentId == workout.TemplateAssignmentId) ||
-                        // Check if this specific schedule already generated a session for this date
-                        (workout.WorkoutScheduleId > 0 && s.ScheduleId == workout.WorkoutScheduleId)
+                        (workout.TemplateAssignmentId.HasValue && s.TemplateAssignmentId == workout.TemplateAssignmentId)
                     ));
+            
+            return hasMatchingWorkout;
         }
 
         /// <summary>
@@ -481,6 +530,40 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             {
                 _logger.LogError("Cannot convert missed workout {Id} without a template", workout.WorkoutScheduleId);
                 return null;
+            }
+            
+            // Check if a workout session (either normal or missed) already exists for this schedule and date
+            // This prevents duplicate missed workouts
+            if (workout.WorkoutScheduleId > 0 && workout.ScheduledDateTime.HasValue)
+            {
+                var existingWorkout = await _context.WorkoutSessions
+                    .FirstOrDefaultAsync(s => 
+                        s.ScheduleId == workout.WorkoutScheduleId && 
+                        s.StartDateTime.Date == workout.ScheduledDateTime.Value.Date);
+                        
+                if (existingWorkout != null)
+                {
+                    _logger.LogInformation("Workout session already exists for missed schedule {Id} on {Date}. Skipping duplicate creation.", 
+                        workout.WorkoutScheduleId, workout.ScheduledDateTime.Value.Date);
+                    return existingWorkout;
+                }
+            }
+            else if (workout.ScheduledDateTime.HasValue)
+            {
+                // For temporary schedule clones, check by user, template and date
+                var existingWorkout = await _context.WorkoutSessions
+                    .FirstOrDefaultAsync(s => 
+                        s.UserId == workout.ClientUserId && 
+                        s.StartDateTime.Date == workout.ScheduledDateTime.Value.Date && 
+                        ((workout.TemplateId.HasValue && s.WorkoutTemplateId == workout.TemplateId) ||
+                         (workout.TemplateAssignmentId.HasValue && s.TemplateAssignmentId == workout.TemplateAssignmentId)));
+                         
+                if (existingWorkout != null)
+                {
+                    _logger.LogInformation("Missed workout session already exists for user {UserId} with template {TemplateId} on {Date}. Skipping duplicate creation.", 
+                        workout.ClientUserId, workout.TemplateId, workout.ScheduledDateTime.Value.Date);
+                    return existingWorkout;
+                }
             }
 
             var workoutSession = new WorkoutSession
@@ -559,6 +642,40 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             {
                 _logger.LogError("Cannot convert scheduled workout {Id} without a template", workout.WorkoutScheduleId);
                 return null;
+            }
+            
+            // Check if a workout session already exists for this schedule and date
+            // This prevents duplicate workouts when handling recurring schedule occurrences
+            if (workout.WorkoutScheduleId > 0 && workout.ScheduledDateTime.HasValue)
+            {
+                var existingWorkout = await _context.WorkoutSessions
+                    .FirstOrDefaultAsync(s => 
+                        s.ScheduleId == workout.WorkoutScheduleId && 
+                        s.StartDateTime.Date == workout.ScheduledDateTime.Value.Date);
+                        
+                if (existingWorkout != null)
+                {
+                    _logger.LogInformation("Workout session already exists for schedule {Id} on {Date}. Skipping duplicate creation.", 
+                        workout.WorkoutScheduleId, workout.ScheduledDateTime.Value.Date);
+                    return existingWorkout;
+                }
+            }
+            else if (workout.ScheduledDateTime.HasValue)
+            {
+                // For temporary schedule clones, check by user, template and date
+                var existingWorkout = await _context.WorkoutSessions
+                    .FirstOrDefaultAsync(s => 
+                        s.UserId == workout.ClientUserId && 
+                        s.StartDateTime.Date == workout.ScheduledDateTime.Value.Date && 
+                        ((workout.TemplateId.HasValue && s.WorkoutTemplateId == workout.TemplateId) ||
+                         (workout.TemplateAssignmentId.HasValue && s.TemplateAssignmentId == workout.TemplateAssignmentId)));
+                         
+                if (existingWorkout != null)
+                {
+                    _logger.LogInformation("Workout session already exists for user {UserId} with template {TemplateId} on {Date}. Skipping duplicate creation.", 
+                        workout.ClientUserId, workout.TemplateId, workout.ScheduledDateTime.Value.Date);
+                    return existingWorkout;
+                }
             }
 
             var workoutSession = new WorkoutSession
@@ -1053,6 +1170,51 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                         await _context.SaveChangesAsync();
                     }
                 }
+                return;
+            }
+            
+            // Check if a workout has already been created for this schedule and date
+            // This prevents duplicate workouts from being created when multiple scheduler jobs run
+            bool workoutAlreadyExists = false;
+            DateTime scheduledDate = schedule.ScheduledDateTime?.Date ?? DateTime.UtcNow.Date;
+            
+            if (schedule.WorkoutScheduleId > 0)
+            {
+                // Check for existing workout session with the same schedule ID
+                workoutAlreadyExists = await _context.WorkoutSessions
+                    .AnyAsync(s => s.ScheduleId == schedule.WorkoutScheduleId && 
+                                  s.StartDateTime.Date == scheduledDate);
+            }
+            else
+            {
+                // For temporary schedules (clones of recurring schedules), check by template and date
+                workoutAlreadyExists = await _context.WorkoutSessions
+                    .AnyAsync(s => s.UserId == schedule.ClientUserId && 
+                                  s.StartDateTime.Date == scheduledDate &&
+                                  ((schedule.TemplateId.HasValue && s.WorkoutTemplateId == schedule.TemplateId) ||
+                                   (schedule.TemplateAssignmentId.HasValue && s.TemplateAssignmentId == schedule.TemplateAssignmentId)));
+            }
+            
+            if (workoutAlreadyExists)
+            {
+                _logger.LogInformation(
+                    "Skipping duplicate workout creation for schedule {ScheduleId}, user {UserId}, date {Date}", 
+                    schedule.WorkoutScheduleId, 
+                    schedule.ClientUserId,
+                    scheduledDate);
+                
+                // Still update the schedule status to prevent attempting to process it again
+                if (schedule.WorkoutScheduleId > 0)
+                {
+                    var scheduleToUpdate = await _context.WorkoutSchedules.FindAsync(schedule.WorkoutScheduleId);
+                    if (scheduleToUpdate != null && scheduleToUpdate.LastGenerationStatus != "Processed")
+                    {
+                        scheduleToUpdate.LastGenerationStatus = "Processed";
+                        scheduleToUpdate.LastGeneratedWorkoutDate = DateTime.UtcNow;
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                
                 return;
             }
 

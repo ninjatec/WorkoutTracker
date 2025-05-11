@@ -44,16 +44,10 @@ namespace WorkoutTrackerWeb.Services.Hangfire
             
             try
             {
-                // Register a recurring job to process scheduled workouts hourly
+                // Register a single recurring job to process scheduled workouts every 15 minutes
+                // This is a more efficient approach than having two jobs with different frequencies
                 _recurringJobManager.AddOrUpdate(
-                    "process-scheduled-workouts-hourly",
-                    () => _serviceProvider.GetRequiredService<ScheduledWorkoutProcessorService>().ProcessScheduledWorkoutsAsync(),
-                    "0 * * * *", // Run every hour at minute 0
-                    TimeZoneInfo.Local);
-                
-                // Add a more frequent job to handle time-sensitive workouts
-                _recurringJobManager.AddOrUpdate(
-                    "process-urgent-workouts",
+                    "process-scheduled-workouts",
                     () => _serviceProvider.GetRequiredService<ScheduledWorkoutProcessorService>().ProcessScheduledWorkoutsAsync(),
                     "*/15 * * * *", // Run every 15 minutes
                     TimeZoneInfo.Local);
