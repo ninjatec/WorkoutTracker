@@ -536,3 +536,8 @@ The application provides comprehensive data portability features:
 - Reviewed all Razor Pages for Bootstrap 5 consistency and output caching.
 - Updated Reports/Index to use [OutputCache] with a 5-minute duration and policy, matching other static/report pages.
 - Verified Bootstrap 5 usage and layout consistency in Reports/Index and shared layouts.
+
+## 2025-05-12: Scheduled Workout Duplicates Fix
+- Fixed an issue where Hangfire's scheduled job was creating duplicate workout sessions after the original workout had been edited or completed.
+- Enhanced the duplicate workout detection logic to properly check for existing workouts regardless of status.
+- Improved logging across scheduled workout processing to provide better diagnostics.

@@ -193,3 +193,8 @@ This feature allows users to toggle between light and dark themes. The implement
 - Optimized layout components for both desktop and mobile views
 - Updated README.md and inventory.md to reflect UI/UX enhancements
 
+### 2025-05-12 - Background Job Bug Fixes
+- Fixed issue with Hangfire scheduled job creating duplicate workout sessions.
+- Enhanced workout session duplicate detection to correctly handle workouts that have been edited or completed.
+- Improved logging in the workout scheduling service for better diagnostic information.
+
