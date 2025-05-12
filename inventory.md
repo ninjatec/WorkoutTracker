@@ -589,6 +589,12 @@ This document maintains an up-to-date inventory of all features, components, and
 - Reports/Index now uses [OutputCache] with a 5-minute duration and policy.
 - Bootstrap 5 usage and layout confirmed consistent in Reports/Index and shared layouts.
 
+## 2025-05-12: Hangfire Background Job Fixes
+- Fixed issue with Hangfire scheduled job creating duplicate workout sessions for edited/completed workouts.
+- Enhanced workout session duplicate detection in `ScheduledWorkoutProcessorService.cs` to handle all workout statuses.
+- Improved logging in workout scheduling services to provide better diagnostic information.
+- Verified all scheduled job registration and processing workflows.
+
 ### User Preference Management
 - Includes `ThemePreference` property in the `AppUser` model to store user-selected theme (light or dark).
 - Integrated with the Razor Pages layout to dynamically apply the selected theme.

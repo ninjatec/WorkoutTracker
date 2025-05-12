@@ -66,7 +66,7 @@
                             }
                         </div>
                         <div class="card-footer bg-transparent">
-                            <div class="btn-group w-100" role="group">
+                            <div class="btn-group w-100 mb-2" role="group">
                                 <a asp-page="Details" asp-route-id="@template.WorkoutTemplateId" class="btn btn-outline-primary">
                                     <i class="bi bi-eye"></i> View
                                 </a>
@@ -75,6 +75,11 @@
                                 </a>
                                 <a asp-page="StartWorkout" asp-route-id="@template.WorkoutTemplateId" class="btn btn-success">
                                     <i class="bi bi-play-circle"></i> Start / Schedule Workout
+                                </a>
+                            </div>
+                            <div class="text-end">
+                                <a asp-page="Delete" asp-route-id="@template.WorkoutTemplateId" class="btn btn-outline-danger btn-sm">
+                                    <i class="bi bi-trash"></i> Delete
                                 </a>
                             </div>
                         </div>

@@ -493,6 +493,7 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             var timeOfDay = occurrence.TimeOfDay;
             
             // First check by direct schedule link (most accurate)
+            // This check includes any workout with matching schedule ID, regardless of status
             if (workout.WorkoutScheduleId > 0)
             {
                 var directMatch = await _context.WorkoutSessions
@@ -506,6 +507,7 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             
             // Then check by client, template, and date (more comprehensive)
             // This helps catch cases where the schedule ID might have changed but it's the same workout
+            // This check includes any workout, regardless of status (scheduled, completed, etc.)
             var hasMatchingWorkout = await _context.WorkoutSessions
                 .AnyAsync(s => 
                     s.UserId == workout.ClientUserId && 
@@ -655,8 +657,8 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                         
                 if (existingWorkout != null)
                 {
-                    _logger.LogInformation("Workout session already exists for schedule {Id} on {Date}. Skipping duplicate creation.", 
-                        workout.WorkoutScheduleId, workout.ScheduledDateTime.Value.Date);
+                    _logger.LogInformation("Workout session already exists for schedule {Id} on {Date} with status {Status}. Skipping duplicate creation.", 
+                        workout.WorkoutScheduleId, workout.ScheduledDateTime.Value.Date, existingWorkout.Status);
                     return existingWorkout;
                 }
             }
@@ -672,8 +674,8 @@ namespace WorkoutTrackerWeb.Services.Scheduling
                          
                 if (existingWorkout != null)
                 {
-                    _logger.LogInformation("Workout session already exists for user {UserId} with template {TemplateId} on {Date}. Skipping duplicate creation.", 
-                        workout.ClientUserId, workout.TemplateId, workout.ScheduledDateTime.Value.Date);
+                    _logger.LogInformation("Workout session already exists for user {UserId} with template {TemplateId} on {Date} with status {Status}. Skipping duplicate creation.", 
+                        workout.ClientUserId, workout.TemplateId, workout.ScheduledDateTime.Value.Date, existingWorkout.Status);
                     return existingWorkout;
                 }
             }
@@ -1180,14 +1182,16 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             
             if (schedule.WorkoutScheduleId > 0)
             {
-                // Check for existing workout session with the same schedule ID
+                // Check for existing workout session with the same schedule ID, regardless of status
+                // This prevents creating duplicates when workouts have been edited or completed
                 workoutAlreadyExists = await _context.WorkoutSessions
                     .AnyAsync(s => s.ScheduleId == schedule.WorkoutScheduleId && 
                                   s.StartDateTime.Date == scheduledDate);
             }
             else
             {
-                // For temporary schedules (clones of recurring schedules), check by template and date
+                // For temporary schedules (clones of recurring schedules), check by user, template and date
+                // regardless of the workout status
                 workoutAlreadyExists = await _context.WorkoutSessions
                     .AnyAsync(s => s.UserId == schedule.ClientUserId && 
                                   s.StartDateTime.Date == scheduledDate &&
@@ -1198,7 +1202,7 @@ namespace WorkoutTrackerWeb.Services.Scheduling
             if (workoutAlreadyExists)
             {
                 _logger.LogInformation(
-                    "Skipping duplicate workout creation for schedule {ScheduleId}, user {UserId}, date {Date}", 
+                    "Skipping duplicate workout creation for schedule {ScheduleId}, user {UserId}, date {Date} - a workout already exists (possibly edited or completed)", 
                     schedule.WorkoutScheduleId, 
                     schedule.ClientUserId,
                     scheduledDate);

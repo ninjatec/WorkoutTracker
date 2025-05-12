@@ -7,6 +7,22 @@
 
 <h1>Workouts</h1>
 
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @Model.SuccessMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @Model.ErrorMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
 <p>
     <a asp-page="Create" class="btn btn-primary mb-3">Create New</a>
 </p>
@@ -87,6 +103,13 @@
                     {
                         <text> | </text>
                         <a asp-page="./Reschedule" asp-route-id="@item.WorkoutSessionId" class="text-primary">Reschedule</a>
+                    }
+                    @if (item.Status != "Completed" && item.Status != "Missed")
+                    {
+                        <text> | </text>
+                        <form method="post" asp-page-handler="CompleteWorkout" asp-route-id="@item.WorkoutSessionId" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-success">Complete</button>
+                        </form>
                     }
                 </td>
             </tr>
