@@ -10,6 +10,7 @@ using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Services;
 using Microsoft.AspNetCore.Authorization;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.Extensions.Logging;
 
 namespace WorkoutTrackerWeb.Pages.Sessions
 {
@@ -18,14 +19,23 @@ namespace WorkoutTrackerWeb.Pages.Sessions
     {
         private readonly WorkoutTrackerWebContext _context;
         private readonly UserService _userService;
+        private readonly ILogger<IndexModel> _logger;
 
         public IndexModel(
             WorkoutTrackerWebContext context,
-            UserService userService)
+            UserService userService,
+            ILogger<IndexModel> logger)
         {
             _context = context;
             _userService = userService;
+            _logger = logger;
         }
+        
+        [TempData]
+        public string SuccessMessage { get; set; }
+        
+        [TempData]
+        public string ErrorMessage { get; set; }
 
         public PaginatedList<WorkoutSession> WorkoutSessions { get; set; }
         public string DateSort { get; set; }
@@ -81,6 +91,55 @@ namespace WorkoutTrackerWeb.Pages.Sessions
             {
                 WorkoutSessions = new PaginatedList<WorkoutSession>(new List<WorkoutSession>(), 0, 1, 1);
             }
+        }
+
+        public async Task<IActionResult> OnPostCompleteWorkoutAsync(int id)
+        {
+            var currentUserId = await _userService.GetCurrentUserIdAsync();
+            if (currentUserId == null)
+            {
+                return Challenge();
+            }
+
+            // Get the workout session with ownership check
+            var workoutSession = await _context.WorkoutSessions
+                .FirstOrDefaultAsync(ws => ws.WorkoutSessionId == id && ws.UserId == currentUserId);
+
+            if (workoutSession == null)
+            {
+                return NotFound();
+            }
+
+            // Set end time to current time
+            workoutSession.EndDateTime = DateTime.Now;
+            
+            // Update status to "Completed"
+            workoutSession.Status = "Completed";
+            
+            // Set completed date
+            workoutSession.CompletedDate = workoutSession.EndDateTime;
+            
+            // Set IsCompleted flag
+            workoutSession.IsCompleted = true;
+            
+            // Calculate duration in minutes
+            workoutSession.Duration = (int)(workoutSession.EndDateTime.Value - workoutSession.StartDateTime).TotalMinutes;
+
+            try
+            {
+                // Update the session
+                _context.Update(workoutSession);
+                await _context.SaveChangesAsync();
+                
+                TempData["SuccessMessage"] = $"Workout '{workoutSession.Name}' marked as complete.";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error completing workout session {SessionId}", id);
+                TempData["ErrorMessage"] = "Error marking workout as complete.";
+            }
+
+            return RedirectToPage();
         }
     }
 }
