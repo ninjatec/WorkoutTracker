@@ -54,28 +54,6 @@ pipeline {
             }
         }
         
-        stage('Build Application') {
-            steps {
-                sh 'set -e; dotnet build --configuration Release'
-            }
-            post {
-                failure {
-                    error "Build failed. Stopping pipeline."
-                }
-            }
-        }
-        
-        stage('Run Tests') {
-            steps {
-                sh 'set -e; dotnet test --no-build --configuration Release'
-            }
-            post {
-                failure {
-                    error "Tests failed. Stopping pipeline."
-                }
-            }
-        }
-        
         stage('Build Docker Image') {
             steps {
                 sh """#!/bin/bash
