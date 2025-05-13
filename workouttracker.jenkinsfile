@@ -7,7 +7,7 @@ pipeline {
         choice(
             name: 'VERSION_TYPE',
             choices: ['build', 'patch', 'minor', 'major'],
-            description: 'Type of version update to perform'
+            description: 'Type of version update to perform',
             defaultValue: 'build'
         )
     }
