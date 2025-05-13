@@ -166,7 +166,7 @@ EOF
         
         stage('Push to Git Repository') {
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'github-ssh-key', keyFileVariable: 'SSH_KEY')]) {
+                withCredentials([sshUserPrivateKey(credentialsId: 'jenkins', keyFileVariable: 'SSH_KEY')]) {
                     sh """#!/bin/bash
                     mkdir -p ~/.ssh
                     cp \$SSH_KEY ~/.ssh/id_rsa
@@ -178,21 +178,6 @@ EOF
             }
         }
         
-        stage('Deploy to Kubernetes') {
-            steps {
-                withKubeConfig([credentialsId: 'kubernetes-config']) {
-                    sh """#!/bin/bash
-                    kubectl apply -f ./k8s/namespace.yaml
-                    kubectl apply -f ./k8s/regcred.yaml
-                    kubectl apply -f ./k8s/secrets.yaml
-                    kubectl apply -f ./k8s/deployment.yaml
-                    kubectl apply -f ./k8s/service.yaml
-                    kubectl apply -f ./k8s/mapping.yaml
-                    kubectl apply -f ./k8s/hangfire-worker.yaml
-                    """
-                }
-            }
-        }
         
     }
     
