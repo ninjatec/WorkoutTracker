@@ -38,6 +38,7 @@ pipeline {
         stage('Update Version') {
             steps {
                 sh "#!/bin/bash\nset -e\n./scripts/update-version.sh ${params.VERSION_TYPE}"
+                sh "type jq"
                 script {
                     def versionJson = readJSON file: 'version.json'
                     env.VERSION_MAJOR = versionJson.major
