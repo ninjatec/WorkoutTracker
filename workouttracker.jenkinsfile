@@ -148,7 +148,16 @@ VALUES ('${env.VERSION}', '${env.GIT_COMMIT}', CURRENT_TIMESTAMP);
 EOF
                 """
                 
-                sh '#!/bin/bash\n./scripts/update-database-version.sh'
+                withCredentials([usernamePassword(credentialsId: 'wot-db', usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
+                    sh '''#!/bin/bash
+                    # Export database credentials to environment variables
+                    export DB_USER=${DB_USER}
+                    export DB_PASSWORD=${DB_PASSWORD}
+                    
+                    # Run the database update script
+                    ./scripts/update-database-version.sh
+                    '''
+                }
             }
         }
         
