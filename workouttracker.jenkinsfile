@@ -455,7 +455,7 @@ EOF
                     export DB_PASSWORD=${DB_PASSWORD}
                     
                     # Run the database update script
-                    sqlcmd
+                    /opt/mssql-tools18/bin/sqlcmd
                     ./scripts/update-database-version.sh
                     
                     # Verify the script completed successfully

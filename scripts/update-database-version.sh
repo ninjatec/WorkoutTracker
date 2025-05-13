@@ -19,7 +19,7 @@ echo -e "${BLUE}  WorkoutTracker Database Version Update Script       ${NC}"
 echo -e "${BLUE}======================================================${NC}"
 
 # Check if sqlcmd is installed
-if ! command -v sqlcmd &> /dev/null; then
+if ! command -v /opt/mssql-tools18/bin/sqlcmd &> /dev/null; then
     echo -e "${RED}Error: sqlcmd is not installed. Please install the SQL Server command-line tools.${NC}"
     echo -e "${YELLOW}For macOS: brew install microsoft/mssql-release/mssql-tools${NC}"
     exit 1
@@ -106,7 +106,7 @@ if [ -z "$DB_USER" ] && [ -z "$DB_PASSWORD" ]; then
     sqlcmd -S "$DB_SERVER" -d "$DB_NAME" -E -i "$SQL_FILE"
 else
     # SQL Auth
-    sqlcmd -S "$DB_SERVER" -d "$DB_NAME" -U "$DB_USER" -P "$DB_PASSWORD" -i "$SQL_FILE"
+    /opt/mssql-tools18/bin/sqlcmd -S "$DB_SERVER" -d "$DB_NAME" -U "$DB_USER" -P "$DB_PASSWORD" -i "$SQL_FILE"
 fi
 
 if [ $? -eq 0 ]; then
