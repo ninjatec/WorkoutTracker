@@ -53,6 +53,27 @@ pipeline {
             }
         }
         
+        stage('Build Application') {
+            steps {
+                sh 'set -e; dotnet build --configuration Release'
+            }
+            post {
+                failure {
+                    error "Build failed. Stopping pipeline."
+                }
+            }
+        }
+        
+        stage('Run Tests') {
+            steps {
+                sh 'set -e; dotnet test --no-build --configuration Release'
+            }
+            post {
+                failure {
+                    error "Tests failed. Stopping pipeline."
+                }
+            }
+        }
         
         stage('Build Docker Image') {
             steps {
@@ -112,21 +133,142 @@ pipeline {
         
         stage('Push Docker Images') {
             steps {
+                // First, verify we can access Docker Hub and the repository
+                script {
+                    echo "Verifying Docker Hub repository access..."
+                    try {
+                        sh """#!/bin/bash
+                        # Simple check to see if we can reach Docker Hub
+                        curl -s -f -m 10 https://hub.docker.com/v2/ > /dev/null
+                        if [ \$? -ne 0 ]; then
+                            echo "Cannot reach Docker Hub API. Check network connectivity."
+                            exit 1
+                        fi
+                        """
+                    } catch(Exception e) {
+                        error "Failed to connect to Docker Hub: ${e.message}"
+                    }
+                }
+                
                 withCredentials([usernamePassword(credentialsId: 'Ninjatec-Docker', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
                     sh '''#!/bin/bash
                     set -e # Exit immediately if a command exits with a non-zero status
+                    
                     # Using single quotes for the outer script to avoid variable expansion
                     # Then explicitly handling the environment variables within
-                    echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin registry.hub.docker.com
+                    echo "Logging into Docker Hub..."
+                    
+                    # First logout to ensure we don't have stale credentials
+                    docker logout
+                    
+                    # Try logging in with explicit registry URL
+                    echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin docker.io
+                    
+                    # Store login status
+                    LOGIN_STATUS=$?
+                    
+                    # Check if login succeeded
+                    if [ $LOGIN_STATUS -ne 0 ]; then
+                        echo "Failed to login with registry URL. Trying without registry URL..."
+                        # Try alternative login method
+                        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                        
+                        # Update login status
+                        LOGIN_STATUS=$?
+                        
+                        if [ $LOGIN_STATUS -ne 0 ]; then
+                            echo "Docker login failed with both methods. Check credentials."
+                            exit 1
+                        fi
+                    fi
+                    
+                    echo "Docker login successful!"
+                    
+                    # Verify Docker config and credentials
+                    if [ -f ~/.docker/config.json ]; then
+                        echo "Docker config exists."
+                        # Safely print parts of config without showing secrets
+                        echo "Config auths section exists: $(grep -q "auths" ~/.docker/config.json && echo "Yes" || echo "No")"
+                    else
+                        echo "Warning: Docker config file not found after login."
+                        exit 1
+                    fi
+                    
+                    # Verify we can pull a public image (tests auth system)
+                    echo "Testing Docker credentials with a simple pull..."
+                    docker pull hello-world:latest
+                    if [ $? -ne 0 ]; then
+                        echo "Failed to pull test image. Docker registry access may be restricted."
+                        exit 1
+                    fi
                     '''
                     
-                    retry(3) {
-                        sh "cat /home/jenkins/.docker/config.json"
-                        sh "docker push ${env.DOCKER_REPO}:${env.VERSION}"
+                    // After successful validation, push the images
+                    script {
+                        // Push versioned image with retry logic
+                        def pushSuccess = false
+                        def attemptCount = 0
+                        def maxAttempts = 3
+                        
+                        while (!pushSuccess && attemptCount < maxAttempts) {
+                            attemptCount++
+                            echo "Pushing image ${env.DOCKER_REPO}:${env.VERSION} (Attempt ${attemptCount}/${maxAttempts})"
+                            
+                            try {
+                                sh """#!/bin/bash
+                                set -e
+                                docker push ${env.DOCKER_REPO}:${env.VERSION}
+                                """
+                                pushSuccess = true
+                                echo "Successfully pushed ${env.DOCKER_REPO}:${env.VERSION}"
+                            } catch (Exception e) {
+                                echo "Attempt ${attemptCount} failed: ${e.message}"
+                                if (attemptCount >= maxAttempts) {
+                                    error "Failed to push ${env.DOCKER_REPO}:${env.VERSION} after ${maxAttempts} attempts"
+                                }
+                                // Try to refresh the Docker login before next attempt
+                                withCredentials([usernamePassword(credentialsId: 'Ninjatec-Docker', passwordVariable: 'REFRESH_DOCKER_PASSWORD', usernameVariable: 'REFRESH_DOCKER_USERNAME')]) {
+                                    sh """#!/bin/bash
+                                    echo "\${REFRESH_DOCKER_PASSWORD}" | docker login -u "\${REFRESH_DOCKER_USERNAME}" --password-stdin
+                                    """
+                                }
+                                sleep 10 // Wait 10 seconds before next attempt
+                            }
+                        }
+                        
+                        // Push latest tag with retry logic
+                        pushSuccess = false
+                        attemptCount = 0
+                        maxAttempts = 2
+                        
+                        while (!pushSuccess && attemptCount < maxAttempts) {
+                            attemptCount++
+                            echo "Pushing image ${env.DOCKER_REPO}:latest (Attempt ${attemptCount}/${maxAttempts})"
+                            
+                            try {
+                                sh """#!/bin/bash
+                                set -e
+                                docker push ${env.DOCKER_REPO}:latest
+                                """
+                                pushSuccess = true
+                                echo "Successfully pushed ${env.DOCKER_REPO}:latest"
+                            } catch (Exception e) {
+                                echo "Attempt ${attemptCount} failed: ${e.message}"
+                                if (attemptCount >= maxAttempts) {
+                                    error "Failed to push ${env.DOCKER_REPO}:latest after ${maxAttempts} attempts"
+                                }
+                                sleep 10 // Wait 10 seconds before next attempt
+                            }
+                        }
                     }
-                    
-                    retry(2) {
-                        sh "docker push ${env.DOCKER_REPO}:latest"
+                }
+            }
+            
+            post {
+                failure {
+                    script {
+                        currentBuild.result = 'FAILURE'
+                        error "Docker image push failed. Stopping pipeline."
                     }
                 }
             }
