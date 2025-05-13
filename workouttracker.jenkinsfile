@@ -108,9 +108,9 @@ pipeline {
         stage('Push Docker Images') {
             steps {
                 docker.withRegistry('https://registry.hub.docker.com', 'Ninjatec-Docker') {
-                def customImage = docker.build(${env.DOCKER_REPO}/${env.BUILT_IMAGE_NAME}:${env.VERSION})
+                def customImage = docker.build('${env.DOCKER_REPO}/${env.BUILT_IMAGE_NAME}:${env.VERSION}')
                 customImage.push()
-                def latestImage = docker.build(${env.DOCKER_REPO}/${env.BUILT_IMAGE_NAME}:latest)
+                def latestImage = docker.build('${env.DOCKER_REPO}/${env.BUILT_IMAGE_NAME}:latest')
                 latestImage.push()
                 }
                 }
