@@ -121,7 +121,7 @@ pipeline {
                     '''
                     
                     retry(3) {
-                        sh "echo /home/jenkins/.docker/config.json"
+                        sh "cat /home/jenkins/.docker/config.json"
                         sh "docker push ${env.DOCKER_REPO}:${env.VERSION}"
                     }
                     
