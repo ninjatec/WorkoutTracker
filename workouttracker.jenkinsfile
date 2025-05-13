@@ -121,11 +121,12 @@ pipeline {
                     '''
                     
                     retry(3) {
-                        sh "docker push ${env.DOCKER_REPO}\/${env.BUILT_IMAGE_NAME}:${env.VERSION}"
+                        echo /home/jenkins/.docker/config.json
+                        sh "docker push ${env.DOCKER_REPO}:${env.VERSION}"
                     }
                     
                     retry(2) {
-                        sh "docker push ${env.DOCKER_REPO}\/${env.BUILT_IMAGE_NAME}:latest"
+                        sh "docker push ${env.DOCKER_REPO}:latest"
                     }
                 }
             }
