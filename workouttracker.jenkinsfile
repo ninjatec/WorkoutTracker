@@ -17,18 +17,27 @@ pipeline {
         DOTNET_RUNTIME_IDENTIFIER = "linux-x64"
     }
     
+    options {
+        // Stop the pipeline if any command returns a non-zero exit code
+        skipDefaultCheckout(false)
+        timestamps()
+        ansiColor('xterm')
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+    }
+    
     stages {
         stage('Setup') {
             steps {
                 checkout scm
-                sh 'git config --global user.email "marc.coxall@ninjatec.co.uk"'
-                sh 'git config --global user.name "Ninjatec CI"'
+                sh 'set -e; git config --global user.email "marc.coxall@ninjatec.co.uk"'
+                sh 'set -e; git config --global user.name "Ninjatec CI"'
             }
         }
         
         stage('Update Version') {
             steps {
-                sh "#!/bin/bash\n./scripts/update-version.sh ${params.VERSION_TYPE}"
+                sh "#!/bin/bash\nset -e\n./scripts/update-version.sh ${params.VERSION_TYPE}"
                 script {
                     def versionJson = readJSON file: 'version.json'
                     env.VERSION_MAJOR = versionJson.major
@@ -46,19 +55,31 @@ pipeline {
         
         stage('Build Application') {
             steps {
-                sh 'dotnet build --configuration Release'
+                sh 'set -e; dotnet build --configuration Release'
+            }
+            post {
+                failure {
+                    error "Build failed. Stopping pipeline."
+                }
             }
         }
         
         stage('Run Tests') {
             steps {
-                sh 'dotnet test --no-build --configuration Release'
+                sh 'set -e; dotnet test --no-build --configuration Release'
+            }
+            post {
+                failure {
+                    error "Tests failed. Stopping pipeline."
+                }
             }
         }
         
         stage('Build Docker Image') {
             steps {
                 sh """#!/bin/bash
+                set -e # Exit immediately if a command exits with a non-zero status
+                
                 dotnet publish \\
                   --os linux \\
                   --arch x64 \\
@@ -100,8 +121,13 @@ pipeline {
         
         stage('Tag Docker Images') {
             steps {
-                sh "docker tag ${env.BUILT_IMAGE_NAME} ${env.DOCKER_REPO}:${env.VERSION}"
-                sh "docker tag ${env.BUILT_IMAGE_NAME} ${env.DOCKER_REPO}:latest"
+                sh "set -e; docker tag ${env.BUILT_IMAGE_NAME} ${env.DOCKER_REPO}:${env.VERSION}"
+                sh "set -e; docker tag ${env.BUILT_IMAGE_NAME} ${env.DOCKER_REPO}:latest"
+            }
+            post {
+                failure {
+                    error "Docker image tagging failed. Stopping pipeline."
+                }
             }
         }
         
@@ -109,6 +135,7 @@ pipeline {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'Ninjatec-Docker', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
                     sh '''#!/bin/bash
+                    set -e # Exit immediately if a command exits with a non-zero status
                     # Using single quotes for the outer script to avoid variable expansion
                     # Then explicitly handling the environment variables within
                     echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin registry.hub.docker.com
@@ -130,8 +157,24 @@ pipeline {
                 script {
                     // Update the image tag in deployment.yaml
                     sh """#!/bin/bash
+                    set -e # Exit immediately if a command exits with a non-zero status
                     sed -i "s|image: ${env.DOCKER_REPO}:.*|image: ${env.DOCKER_REPO}:${env.VERSION}|" ./k8s/deployment.yaml
                     sed -i "s|image: ${env.DOCKER_REPO}:.*|image: ${env.DOCKER_REPO}:${env.VERSION}|" ./k8s/hangfire-worker.yaml
+                    """
+                }
+                
+                // Verify file changes were successful
+                script {
+                    sh """#!/bin/bash
+                    set -e
+                    if ! grep -q "image: ${env.DOCKER_REPO}:${env.VERSION}" ./k8s/deployment.yaml; then
+                        echo "Failed to update deployment.yaml"
+                        exit 1
+                    fi
+                    if ! grep -q "image: ${env.DOCKER_REPO}:${env.VERSION}" ./k8s/hangfire-worker.yaml; then
+                        echo "Failed to update hangfire-worker.yaml"
+                        exit 1
+                    fi
                     """
                 }
             }
@@ -140,6 +183,8 @@ pipeline {
         stage('Update Database Version') {
             steps {
                 sh """#!/bin/bash
+                set -e # Exit immediately if a command exits with a non-zero status
+                
                 # Create the SQL file to update the version in the database
                 cat > version_update.sql << EOF
 -- Recording deployment version
@@ -150,13 +195,30 @@ EOF
                 
                 withCredentials([usernamePassword(credentialsId: 'wot-db', usernameVariable: 'DB_USER', passwordVariable: 'DB_PASSWORD')]) {
                     sh '''#!/bin/bash
+                    set -e # Exit immediately if a command exits with a non-zero status
+                    
                     # Export database credentials to environment variables
                     export DB_USER=${DB_USER}
                     export DB_PASSWORD=${DB_PASSWORD}
                     
                     # Run the database update script
                     ./scripts/update-database-version.sh
+                    
+                    # Verify the script completed successfully
+                    if [ $? -ne 0 ]; then
+                        echo "Database update failed"
+                        exit 1
+                    fi
                     '''
+                }
+            }
+            
+            post {
+                failure {
+                    script {
+                        currentBuild.result = 'FAILURE'
+                        error "Database update failed. Stopping pipeline."
+                    }
                 }
             }
         }
@@ -164,6 +226,7 @@ EOF
         stage('Commit Version Changes') {
             steps {
                 sh """#!/bin/bash
+                set -e # Exit immediately if a command exits with a non-zero status
                 git add ./k8s/deployment.yaml
                 git add ./k8s/hangfire-worker.yaml
                 git add ./version.json
@@ -171,18 +234,28 @@ EOF
                 git commit -m "Deploy version ${env.VERSION}"
                 """
             }
+            post {
+                failure {
+                    error "Failed to commit version changes. Stopping pipeline."
+                }
+            }
         }
         
         stage('Push to Git Repository') {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'jenkins', keyFileVariable: 'SSH_KEY')]) {
                     sh """#!/bin/bash
+                    set -e # Exit immediately if a command exits with a non-zero status
                     mkdir -p ~/.ssh
                     cp \$SSH_KEY ~/.ssh/id_rsa
                     chmod 600 ~/.ssh/id_rsa
                     ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
                     git push origin HEAD:main
                     """
+                }
+                
+                script {
+                    echo "Git push completed successfully"
                 }
             }
         }
@@ -199,10 +272,17 @@ EOF
 ===================================================="""
         }
         failure {
-            echo "Deployment failed!"
+            echo """====================================================
+  Deployment FAILED!
+  Version: ${env.VERSION}
+  Commit: ${env.GIT_COMMIT}
+===================================================="""
             
             // Optional: Add notification system here (e.g., email, Slack)
             // slackSend channel: '#deployments', color: 'danger', message: "Deployment of WorkoutTracker v${env.VERSION} failed!"
+        }
+        aborted {
+            echo "Pipeline was aborted"
         }
         always {
             // Clean up Docker images to avoid disk space issues
