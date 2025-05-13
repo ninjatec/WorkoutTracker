@@ -107,12 +107,20 @@ pipeline {
         
         stage('Push Docker Images') {
             steps {
-                docker.withRegistry('https://registry.hub.docker.com', 'Ninjatec-Docker') {
-                def customImage = docker.build('${env.DOCKER_REPO}/${env.BUILT_IMAGE_NAME}:${env.VERSION}')
-                customImage.push()
-                def latestImage = docker.build('${env.DOCKER_REPO}/${env.BUILT_IMAGE_NAME}:latest')
-                latestImage.push()
-                }
+                withCredentials([usernamePassword(credentialsId: 'Ninjatec-Docker', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                    sh '''#!/bin/bash
+                    # Using single quotes for the outer script to avoid variable expansion
+                    # Then explicitly handling the environment variables within
+                    echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin registry.hub.docker.com
+                    '''
+                    
+                    retry(3) {
+                        sh "docker push ${env.DOCKER_REPO}:${env.VERSION}"
+                    }
+                    
+                    retry(2) {
+                        sh "docker push ${env.DOCKER_REPO}:latest"
+                    }
                 }
             }
         }
