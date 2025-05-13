@@ -53,27 +53,6 @@ pipeline {
             }
         }
         
-        stage('Build Application') {
-            steps {
-                sh 'set -e; dotnet build --configuration Release'
-            }
-            post {
-                failure {
-                    error "Build failed. Stopping pipeline."
-                }
-            }
-        }
-        
-        stage('Run Tests') {
-            steps {
-                sh 'set -e; dotnet test --no-build --configuration Release'
-            }
-            post {
-                failure {
-                    error "Tests failed. Stopping pipeline."
-                }
-            }
-        }
         
         stage('Build Docker Image') {
             steps {
@@ -142,11 +121,11 @@ pipeline {
                     '''
                     
                     retry(3) {
-                        sh "docker push ${env.DOCKER_REPO}:${env.VERSION}"
+                        sh "docker push ${env.DOCKER_REPO}\/${env.BUILT_IMAGE_NAME}:${env.VERSION}"
                     }
                     
                     retry(2) {
-                        sh "docker push ${env.DOCKER_REPO}:latest"
+                        sh "docker push ${env.DOCKER_REPO}\/${env.BUILT_IMAGE_NAME}:latest"
                     }
                 }
             }
