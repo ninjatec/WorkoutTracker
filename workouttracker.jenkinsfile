@@ -28,7 +28,7 @@ pipeline {
         
         stage('Update Version') {
             steps {
-                sh './scripts/update-version.sh ${params.VERSION_TYPE}'
+                sh "#!/bin/bash\n./scripts/update-version.sh ${params.VERSION_TYPE}"
                 script {
                     def versionJson = readJSON file: 'version.json'
                     env.VERSION_MAJOR = versionJson.major
@@ -58,7 +58,7 @@ pipeline {
         
         stage('Build Docker Image') {
             steps {
-                sh """
+                sh """#!/bin/bash
                 dotnet publish \\
                   --os linux \\
                   --arch x64 \\
@@ -107,16 +107,12 @@ pipeline {
         
         stage('Push Docker Images') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker-registry-credentials', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                    sh 'docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD'
+                docker.withRegistry('https://registry.hub.docker.com', 'Ninjatec-Docker') {
+                def customImage = docker.build(${env.DOCKER_REPO}/${env.BUILT_IMAGE_NAME}:${env.VERSION})
+                customImage.push()
+                def latestImage = docker.build(${env.DOCKER_REPO}/${env.BUILT_IMAGE_NAME}:latest)
+                latestImage.push()
                 }
-                
-                retry(3) {
-                    sh "docker push ${env.DOCKER_REPO}:${env.VERSION}"
-                }
-                
-                retry(2) {
-                    sh "docker push ${env.DOCKER_REPO}:latest"
                 }
             }
         }
@@ -125,7 +121,7 @@ pipeline {
             steps {
                 script {
                     // Update the image tag in deployment.yaml
-                    sh """
+                    sh """#!/bin/bash
                     sed -i "s|image: ${env.DOCKER_REPO}:.*|image: ${env.DOCKER_REPO}:${env.VERSION}|" ./k8s/deployment.yaml
                     sed -i "s|image: ${env.DOCKER_REPO}:.*|image: ${env.DOCKER_REPO}:${env.VERSION}|" ./k8s/hangfire-worker.yaml
                     """
@@ -135,7 +131,7 @@ pipeline {
         
         stage('Update Database Version') {
             steps {
-                sh """
+                sh """#!/bin/bash
                 # Create the SQL file to update the version in the database
                 cat > version_update.sql << EOF
 -- Recording deployment version
@@ -144,13 +140,13 @@ VALUES ('${env.VERSION}', '${env.GIT_COMMIT}', CURRENT_TIMESTAMP);
 EOF
                 """
                 
-                sh './scripts/update-database-version.sh'
+                sh '#!/bin/bash\n./scripts/update-database-version.sh'
             }
         }
         
         stage('Commit Version Changes') {
             steps {
-                sh """
+                sh """#!/bin/bash
                 git add ./k8s/deployment.yaml
                 git add ./k8s/hangfire-worker.yaml
                 git add ./version.json
@@ -163,7 +159,7 @@ EOF
         stage('Push to Git Repository') {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'github-ssh-key', keyFileVariable: 'SSH_KEY')]) {
-                    sh """
+                    sh """#!/bin/bash
                     mkdir -p ~/.ssh
                     cp \$SSH_KEY ~/.ssh/id_rsa
                     chmod 600 ~/.ssh/id_rsa
@@ -177,7 +173,7 @@ EOF
         stage('Deploy to Kubernetes') {
             steps {
                 withKubeConfig([credentialsId: 'kubernetes-config']) {
-                    sh """
+                    sh """#!/bin/bash
                     kubectl apply -f ./k8s/namespace.yaml
                     kubectl apply -f ./k8s/regcred.yaml
                     kubectl apply -f ./k8s/secrets.yaml
@@ -194,13 +190,11 @@ EOF
     
     post {
         success {
-            echo """
-=========================================================
+            echo """====================================================
   Deployment Complete!                               
   Version: ${env.VERSION}                                
   Commit: ${env.GIT_COMMIT}                              
-=========================================================
-            """
+===================================================="""
         }
         failure {
             echo "Deployment failed!"
