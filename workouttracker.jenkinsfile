@@ -112,28 +112,6 @@ pipeline {
         
         stage('Push Docker Images') {
             steps {
-                // First, check if we have network connectivity to Docker Hub (but don't fail on this check)
-                script {
-                    echo "Checking Docker Hub connectivity..."
-                    try {
-                        sh """#!/bin/bash
-                        # Try multiple Docker Hub endpoints to check connectivity
-                        echo "Checking registry-1.docker.io connectivity..."
-                        timeout 5 bash -c 'cat < /dev/null > /dev/tcp/registry-1.docker.io/443' 2>/dev/null && echo "Direct connection to registry-1.docker.io succeeded" || echo "Direct connection to registry-1.docker.io failed (this is often normal)"
-                        
-                        # Try a simple curl to docker.io - but don't fail the build on this check
-                        curl -s -m 5 -o /dev/null -w "HTTP response code: %{http_code}\\n" https://registry-1.docker.io/v2/ || echo "Curl to Docker Hub registry API failed (may be normal)"
-                        
-                        # Try pinging Docker Hub DNS - but don't fail the build on this check
-                        echo "Checking Docker Hub DNS resolution..."
-                        host -W 2 registry-1.docker.io || echo "DNS resolution failed (may be normal)"
-                        """
-                    } catch(Exception e) {
-                        echo "Docker Hub connectivity checks failed, but continuing with push attempt: ${e.message}"
-                        // Don't fail the build here, just log the error
-                    }
-                }
-                
                 withCredentials([usernamePassword(credentialsId: 'Ninjatec-Docker', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
                     sh '''#!/bin/bash
                     # Remove set -e to avoid immediate termination on error
@@ -148,24 +126,6 @@ pipeline {
                     if [ -f ~/.docker/config.json ]; then
                         echo "Existing Docker config found. Backing up..."
                         cp ~/.docker/config.json ~/.docker/config.json.bak || echo "Backup failed but continuing"
-                    fi
-                    
-                    # Try to configure Docker to use system proxy if available
-                    if [ -n "$http_proxy" ] || [ -n "$HTTP_PROXY" ]; then
-                        echo "System proxy detected. Configuring Docker to use proxy..."
-                        PROXY_VALUE="${http_proxy:-$HTTP_PROXY}"
-                        # Create or update Docker client config with proxy settings
-                        if [ -f ~/.docker/config.json ]; then
-                            # Try to add proxy settings to existing config
-                            echo "Adding proxy to existing Docker config..."
-                            cp ~/.docker/config.json ~/.docker/config.json.tmp
-                            cat ~/.docker/config.json | grep -v "proxies" > ~/.docker/config.json.tmp
-                            if grep -q "}" ~/.docker/config.json.tmp; then
-                                # Add proxy section before last closing bracket
-                                sed -i 's/}$/,"proxies":{"default":{"httpProxy":"'"$PROXY_VALUE"'","httpsProxy":"'"$PROXY_VALUE"'","noProxy":"localhost,127.0.0.1"}}}/' ~/.docker/config.json.tmp
-                                mv ~/.docker/config.json.tmp ~/.docker/config.json
-                            fi
-                        fi
                     fi
                     
                     # First logout to ensure we don't have stale credentials
