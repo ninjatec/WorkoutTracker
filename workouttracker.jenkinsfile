@@ -431,7 +431,7 @@ EOF
                 git add ./version.json
                 git add ./version_update.sql
                 git commit -m "Deploy version ${env.VERSION}"
-                git push
+                git push origin HEAD:main
                 """
                 }
             }
