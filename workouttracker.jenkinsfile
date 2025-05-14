@@ -441,15 +441,24 @@ EOF
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'jenkins', keyFileVariable: 'SSH_KEY')]) {
                     sh """#!/bin/bash
-                    set -e # Exit immediately if a command exits with a non-zero status
+                    set -e
+                    set -x # Enable command tracing for debug
                     mkdir -p ~/.ssh
-                    cp \$SSH_KEY ~/.ssh/id_rsa
+                    cp $SSH_KEY ~/.ssh/id_rsa
                     chmod 600 ~/.ssh/id_rsa
                     ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
-                    git push origin HEAD:main
+                    echo '--- GIT STATUS ---'
+                    git status
+                    echo '--- GIT REMOTE ---'
+                    git remote -v
+                    echo '--- GIT BRANCH ---'
+                    git branch -vv
+                    echo '--- GIT LOG (HEAD) ---'
+                    git log -1
+                    echo '--- GIT PUSH OUTPUT ---'
+                    git push origin HEAD:main 2>&1
                     """
                 }
-                
                 script {
                     echo "Git push completed successfully"
                 }
