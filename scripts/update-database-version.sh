@@ -91,34 +91,6 @@ fi
 
 echo -e "${YELLOW}Using database: ${DB_NAME} on server: ${DB_SERVER}${NC}"
 
-# Check if version_update.sql exists
-SQL_FILE="version_update.sql"
-if [ ! -f "$SQL_FILE" ]; then
-    echo -e "${RED}Error: $SQL_FILE not found in the current directory.${NC}"
-    exit 1
-fi
-
-echo -e "${YELLOW}Executing SQL to update version information...${NC}"
-
-# Execute the SQL file using sqlcmd
-if [ -z "$DB_USER" ] && [ -z "$DB_PASSWORD" ]; then
-    # Windows Auth
-    sqlcmd -C -S "$DB_SERVER" -d "$DB_NAME" -E -i "$SQL_FILE"
-else
-    # SQL Auth
-    sqlcmd -C -S "$DB_SERVER" -d "$DB_NAME" -U "$DB_USER" -P "$DB_PASSWORD" -i "$SQL_FILE"
-fi
-
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}Version information successfully updated in the database.${NC}"
-else
-    echo -e "${RED}Failed to update version information in the database.${NC}"
-    exit 1
-fi
-
-# Optional: Update the version in the Versions table for application display
-# This assumes you're using the AppVersion model from your application
-
 # Check if jq is installed (for reading version.json)
 if command -v jq &> /dev/null; then
     # Read version information from version.json
