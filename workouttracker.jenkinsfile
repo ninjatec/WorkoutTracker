@@ -483,6 +483,7 @@ Commit: ${env.GIT_COMMIT}
             emailext(
                 to: 'marc.coxall@ninjatec.co.uk',
                 subject: "WorkoutTracker Deployment FAILED: v${env.VERSION}",
+                attachLog: true,
                 body: """
 Deployment FAILED!
 Version: ${env.VERSION}
@@ -499,6 +500,7 @@ Build URL: ${env.BUILD_URL}
             emailext(
                 to: 'marc.coxall@ninjatec.co.uk',
                 subject: "WorkoutTracker Deployment Aborted: v${env.VERSION}",
+                attachLog: true,
                 body: """
 Deployment Aborted!
 Version: ${env.VERSION}
