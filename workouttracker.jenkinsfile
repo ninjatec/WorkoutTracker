@@ -424,8 +424,6 @@ EOF
                 sshagent (credentials: ['cd7f398f-6e3f-462a-84ff-1c1e2ae3b4d2']) {
                 sh """#!/bin/bash
                 set -e # Exit immediately if a command exits with a non-zero status
-                git config --global user.email marc.coxall@ninjatec.co.uk
-                git config --global user.name Jenkins
                 git add ./k8s/deployment.yaml
                 git add ./k8s/hangfire-worker.yaml
                 git add ./version.json
