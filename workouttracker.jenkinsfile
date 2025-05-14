@@ -437,35 +437,14 @@ EOF
             }
         }
         
-        stage('Push to Git Repository') {
+        stage("Committing latest changes to repository") {
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'jenkins', keyFileVariable: 'SSH_KEY')]) {
-                    sh """#!/bin/bash
-                    set -e
-                    set -x # Enable command tracing for debug
-                    mkdir -p ~/.ssh
-                    cp $SSH_KEY ~/.ssh/id_rsa
-                    chmod 600 ~/.ssh/id_rsa
-                    ssh-keyscan -t rsa github.com >> ~/.ssh/known_hosts
-                    echo '--- GIT STATUS ---'
-                    git status
-                    echo '--- GIT REMOTE ---'
-                    git remote -v
-                    echo '--- GIT BRANCH ---'
-                    git branch -vv
-                    echo '--- GIT LOG (HEAD) ---'
-                    git log -1
-                    echo '--- GIT PUSH OUTPUT ---'
-                    git push origin HEAD:main 2>&1
-                    """
-                }
-                script {
-                    echo "Git push completed successfully"
-                }
+                sshagent (credentials: ['jenkins'])
+                {
+                sh "git push"
             }
         }
-        
-        
+       
     }
     
     post {
@@ -501,15 +480,6 @@ EOF
         }
         aborted {
             echo "Pipeline was aborted"
-        }
-        always {
-            // Clean up Docker images to avoid disk space issues
-            sh "docker rmi ${env.DOCKER_REPO}:${env.VERSION} || true"
-            sh "docker rmi ${env.DOCKER_REPO}:latest || true"
-            sh "docker rmi ${env.BUILT_IMAGE_NAME} || true"
-            
-            // Clean workspace
-            cleanWs()
         }
     }
 }
