@@ -497,18 +497,6 @@ Build URL: ${env.BUILD_URL}
         }
         aborted {
             echo "Pipeline was aborted"
-            emailext(
-                to: 'marc.coxall@ninjatec.co.uk',
-                subject: "WorkoutTracker Deployment Aborted: v${env.VERSION}",
-                attachLog: true,
-                body: """
-Deployment Aborted!
-Version: ${env.VERSION}
-Commit: ${env.GIT_COMMIT}
-Job: ${env.JOB_NAME} #${env.BUILD_NUMBER}
-Build URL: ${env.BUILD_URL}
-"""
-            )
         }
     }
 }
