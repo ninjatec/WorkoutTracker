@@ -439,13 +439,11 @@ EOF
         
         stage("Committing latest changes to repository") {
             steps {
-                sshagent (credentials: ['jenkins'])
-                {
-                sh "git push"
+                sshagent (credentials: ['jenkins']) {
+                    sh "git push"
+                }
             }
         }
-       
-    }
     
     post {
         success {
