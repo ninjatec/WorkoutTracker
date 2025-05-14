@@ -30,6 +30,7 @@ pipeline {
         stage('Setup') {
             steps {
                 checkout scm
+                scmSkip(deleteBuild: true, skipPattern:'.*\\[ci skip\\].*')
                 sh 'set -e; git config --global user.email "marc.coxall@ninjatec.co.uk"'
                 sh 'set -e; git config --global user.name "Jenkins CI"'
             }
