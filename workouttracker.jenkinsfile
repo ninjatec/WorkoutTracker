@@ -428,7 +428,7 @@ EOF
                 git add ./k8s/hangfire-worker.yaml
                 git add ./version.json
                 git add ./version_update.sql
-                git commit -m "Deploy version ${env.VERSION}"
+                git commit -m "Deploy version ${env.VERSION} [ci skip]"
                 git push origin HEAD:main
                 """
                 }
