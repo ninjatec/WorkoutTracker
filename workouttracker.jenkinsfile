@@ -421,29 +421,26 @@ EOF
         
         stage('Commit Version Changes') {
             steps {
+                sshagent (credentials: ['jenkins']) {
                 sh """#!/bin/bash
                 set -e # Exit immediately if a command exits with a non-zero status
+                sh "git config --global user.email marc.coxall@ninjatec.co.uk"
+                sh "git config --global user.name Jenkins"
                 git add ./k8s/deployment.yaml
                 git add ./k8s/hangfire-worker.yaml
                 git add ./version.json
                 git add ./version_update.sql
                 git commit -m "Deploy version ${env.VERSION}"
+                git push
                 """
+                }
             }
             post {
                 failure {
                     error "Failed to commit version changes. Stopping pipeline."
                 }
             }
-        }
-        
-        stage("Committing latest changes to repository") {
-            steps {
-                sshagent (credentials: ['jenkins']) {
-                    sh "git push"
-                }
-            }
-        }
+        }        
     }
     
     post {
