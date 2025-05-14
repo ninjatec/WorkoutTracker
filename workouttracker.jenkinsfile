@@ -38,7 +38,6 @@ pipeline {
         stage('Update Version') {
             steps {
                 sh "#!/bin/bash\nset -e\n./scripts/update-version.sh ${params.VERSION_TYPE}"
-                sh "type jq"
                 script {
                     def versionJson = readJSON file: 'version.json'
                     env.VERSION_MAJOR = versionJson.major
@@ -217,22 +216,6 @@ EOF
                     # We'll skip the hello-world pull test since it's failing
                     # due to network issues but proceed with push attempt
                     echo "Skipping Docker pull test due to potential network restrictions..."
-                    '''
-                    
-                    // Try direct push using shell script with more debugging
-                    sh '''#!/bin/bash
-                    # First, let's check if we have docker images available
-                    echo "Available Docker images:"
-                    docker images | grep -E "${DOCKER_REPO}|workouttrackerweb"
-                    
-                    echo "Docker info:"
-                    docker info | grep -i -E "Registry|Proxy|Name|Root Dir" || echo "Couldn't get Docker info"
-                    
-                    # Check Docker Hub registry connectivity from inside Docker
-                    echo "Testing registry connectivity from Docker daemon:"
-                    docker run --rm alpine sh -c "ping -c 2 registry-1.docker.io" || echo "Ping failed (this is often normal)"
-                    
-                    echo "Will now attempt to push images with extended timeout and debugging..."
                     '''
                     
                     script {

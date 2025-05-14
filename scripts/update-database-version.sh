@@ -103,10 +103,10 @@ echo -e "${YELLOW}Executing SQL to update version information...${NC}"
 # Execute the SQL file using sqlcmd
 if [ -z "$DB_USER" ] && [ -z "$DB_PASSWORD" ]; then
     # Windows Auth
-    sqlcmd -S "$DB_SERVER" -d "$DB_NAME" -E -i "$SQL_FILE"
+    sqlcmd -C -S "$DB_SERVER" -d "$DB_NAME" -E -i "$SQL_FILE"
 else
     # SQL Auth
-    sqlcmd -S "$DB_SERVER" -d "$DB_NAME" -U "$DB_USER" -P "$DB_PASSWORD" -i "$SQL_FILE"
+    sqlcmd -C -S "$DB_SERVER" -d "$DB_NAME" -U "$DB_USER" -P "$DB_PASSWORD" -i "$SQL_FILE"
 fi
 
 if [ $? -eq 0 ]; then
@@ -177,10 +177,10 @@ EOF
         # Execute the temporary SQL file
         if [ -z "$DB_USER" ] && [ -z "$DB_PASSWORD" ]; then
             # Windows Auth
-            sqlcmd -S "$DB_SERVER" -d "$DB_NAME" -E -i "$TMP_SQL_FILE"
+            sqlcmd -C -S "$DB_SERVER" -d "$DB_NAME" -E -i "$TMP_SQL_FILE"
         else
             # SQL Auth
-            sqlcmd -S "$DB_SERVER" -d "$DB_NAME" -U "$DB_USER" -P "$DB_PASSWORD" -i "$TMP_SQL_FILE"
+            sqlcmd -C -S "$DB_SERVER" -d "$DB_NAME" -U "$DB_USER" -P "$DB_PASSWORD" -i "$TMP_SQL_FILE"
         fi
         
         # Clean up
