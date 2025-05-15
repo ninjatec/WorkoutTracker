@@ -136,7 +136,7 @@ namespace WorkoutTrackerWeb.Controllers
 
         // PUT: api/WorkoutSetsApi/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutWorkoutSet(int id, WorkoutSet workoutSet)
+        public async Task<IActionResult> PutWorkoutSet(int id, [FromBody] WorkoutSet workoutSet)
         {
             if (id != workoutSet.WorkoutSetId)
             {
@@ -177,6 +177,8 @@ namespace WorkoutTrackerWeb.Controllers
             
             // Add timestamp for tracking when the set was last updated
             existingSet.Timestamp = DateTime.UtcNow;
+
+            _context.Entry(existingSet).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
 
             try
             {

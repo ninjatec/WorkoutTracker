@@ -428,8 +428,13 @@
                     $('#editNotes').val(data.notes);
                     
                     populateSetTypeDropdown('#editSetType');
-                    if (data.settypeId) {
-                        $('#editSetType').val(data.settypeId);
+                    // Ensure type-safe comparison and fallback
+                    const settypeId = data.settypeId != null ? data.settypeId.toString() : '';
+                    const dropdown = $('#editSetType');
+                    if (dropdown.find(`option[value='${settypeId}']`).length > 0) {
+                        dropdown.val(settypeId);
+                    } else {
+                        dropdown.val(''); // fallback to default
                     }
                     
                     $('#editSetModal').modal('show');
