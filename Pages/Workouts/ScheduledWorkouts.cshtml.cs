@@ -1,3 +1,4 @@
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +13,8 @@ using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
 using WorkoutTrackerWeb.Models.Coaching;
 using WorkoutTrackerWeb.Models.Identity;
+using Hangfire;
+using WorkoutTrackerWeb.Services.Scheduling;
 
 namespace WorkoutTrackerWeb.Pages.Workouts
 {
@@ -21,14 +24,17 @@ namespace WorkoutTrackerWeb.Pages.Workouts
         private readonly WorkoutTrackerWebContext _context;
         private readonly ILogger<ScheduledWorkoutsModel> _logger;
         private readonly UserManager<AppUser> _userManager;
+        private readonly IBackgroundJobClient _backgroundJobClient;
 
         public ScheduledWorkoutsModel(WorkoutTrackerWebContext context, 
                                      ILogger<ScheduledWorkoutsModel> logger, 
-                                     UserManager<AppUser> userManager)
+                                     UserManager<AppUser> userManager,
+                                     IBackgroundJobClient backgroundJobClient)
         {
             _context = context;
             _logger = logger;
             _userManager = userManager;
+            _backgroundJobClient = backgroundJobClient;
         }
 
         public List<ScheduleViewModel> UpcomingSchedules { get; set; } = new List<ScheduleViewModel>();
@@ -335,6 +341,9 @@ namespace WorkoutTrackerWeb.Pages.Workouts
 
                 _context.WorkoutSchedules.Add(workoutSchedule);
                 await _context.SaveChangesAsync();
+
+                // Enqueue background job to process scheduled workouts
+                _backgroundJobClient.Enqueue<ScheduledWorkoutProcessorService>(svc => svc.ProcessScheduledWorkoutsAsync());
 
                 TempData["SuccessMessage"] = "Workout scheduled successfully!";
                 return RedirectToPage();
