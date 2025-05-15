@@ -434,7 +434,12 @@ namespace WorkoutTrackerWeb
                         timeout: TimeSpan.FromSeconds(5));
             }
 
-            builder.Services.AddMvc();
+            builder.Services.AddMvc()
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+                    options.JsonSerializerOptions.MaxDepth = 64; // Increase if needed for deep graphs
+                });
 
             builder.Services.AddHttpContextAccessor();
 
