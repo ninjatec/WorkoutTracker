@@ -26,11 +26,38 @@ namespace WorkoutTrackerWeb.Services.Calculations
         private const decimal MIN_CALORIES_PER_MINUTE = 2.0m;
         private const decimal DEFAULT_WORKOUT_DURATION_MINUTES = 45.0m;
         private const decimal MIN_CALORIES_PER_WORKOUT = 50.0m;
+        
+        // Constants for BMR calculation (Mifflin-St Jeor equation)
+        private const decimal DEFAULT_WEIGHT_KG = 70.0m; // Default weight if user hasn't provided one
+        private const decimal DEFAULT_HEIGHT_CM = 170.0m; // Default height if user hasn't provided one
+        private const int DEFAULT_AGE = 30; // Default age when not known
+        private const decimal ACTIVITY_MULTIPLIER_WORKOUT = 1.5m; // Activity multiplier for workout sessions
 
         public CalorieCalculationService(WorkoutTrackerWebContext context, ILogger<CalorieCalculationService> logger)
         {
             _context = context;
             _logger = logger;
+        }
+        
+        // Calculate BMR (Basal Metabolic Rate) using Mifflin-St Jeor equation
+        private decimal CalculateBMR(decimal weightKg, decimal heightCm, bool isMale = true)
+        {
+            // Mifflin-St Jeor equation: 
+            // For males: BMR = (10 * weight in kg) + (6.25 * height in cm) - (5 * age) + 5
+            // For females: BMR = (10 * weight in kg) + (6.25 * height in cm) - (5 * age) - 161
+            
+            decimal bmr = (10m * weightKg) + (6.25m * heightCm) - (5m * DEFAULT_AGE);
+            
+            if (isMale)
+            {
+                bmr += 5m;
+            }
+            else
+            {
+                bmr -= 161m;
+            }
+            
+            return bmr;
         }
 
         public decimal CalculateCalories(WorkoutSession workoutSession)
@@ -52,6 +79,28 @@ namespace WorkoutTrackerWeb.Services.Calculations
 
                 decimal totalCalories = 0;
                 decimal totalVolume = 0;
+                
+                // Get user data for personalized calculations if available
+                decimal userWeight = DEFAULT_WEIGHT_KG;
+                decimal userHeight = DEFAULT_HEIGHT_CM;
+                decimal userBmrFactor = 1.0m;
+                
+                if (workoutSession.User != null)
+                {
+                    // Use the user's actual weight and height if available, otherwise fall back to defaults
+                    userWeight = workoutSession.User.WeightKg ?? DEFAULT_WEIGHT_KG;
+                    userHeight = workoutSession.User.HeightCm ?? DEFAULT_HEIGHT_CM;
+                    
+                    // Calculate BMR factor based on user's metrics
+                    // This gives us a personalized multiplier based on the user's body metrics
+                    decimal bmr = CalculateBMR(userWeight, userHeight);
+                    userBmrFactor = bmr / 1800m; // Normalize against a reference BMR of 1800 calories
+                    
+                    // Ensure the factor is within a reasonable range
+                    userBmrFactor = Math.Min(Math.Max(userBmrFactor, 0.7m), 1.5m);
+                    
+                    _logger.LogInformation($"Using user metrics for calorie calculation: Height={userHeight}cm, Weight={userWeight}kg, BMR factor={userBmrFactor}");
+                }
 
                 // Calculate total workout volume (used as fallback)
                 foreach (var exercise in workoutSession.WorkoutExercises)
@@ -71,15 +120,21 @@ namespace WorkoutTrackerWeb.Services.Calculations
                         : duration / workoutSession.WorkoutExercises.Count;
                     exerciseDuration = Math.Max(exerciseDuration, 0);
 
-                    // Calculate intensity multiplier based on volume
+                    // Calculate intensity multiplier based on volume and user's weight
                     decimal intensityMultiplier = 1.0m;
                     if (exercise.WorkoutSets.Any())
                     {
                         var avgWeight = exercise.WorkoutSets.Average(s => s.Weight ?? 0);
                         var totalReps = exercise.WorkoutSets.Sum(s => s.Reps ?? 0);
-                        intensityMultiplier = 1.0m + (avgWeight / 100m) + (totalReps / 100m);
+                        
+                        // Adjust intensity based on weight lifted relative to user's body weight
+                        decimal bodyWeightRatio = userWeight > 0 ? avgWeight / userWeight : 0.5m;
+                        intensityMultiplier = 1.0m + (bodyWeightRatio) + (totalReps / 100m);
                     }
 
+                    // Apply user's BMR factor to make calorie calculation personalized
+                    intensityMultiplier *= userBmrFactor;
+                    
                     // Ensure multiplier is at least 1.0
                     intensityMultiplier = Math.Max(intensityMultiplier, 1.0m);
 
@@ -94,7 +149,20 @@ namespace WorkoutTrackerWeb.Services.Calculations
                 if (totalCalories < MIN_CALORIES_PER_WORKOUT && totalVolume > 0)
                 {
                     _logger.LogInformation($"Using volume-based calorie calculation fallback for session {workoutSession.WorkoutSessionId}. Volume: {totalVolume}kg");
-                    totalCalories = totalVolume * CALORIES_PER_KG_LIFTED;
+                    
+                    // Apply user weight factor to volume-based calculation too
+                    decimal volumeCalories = totalVolume * CALORIES_PER_KG_LIFTED;
+                    
+                    // If user weight is available, adjust calories based on weight
+                    // (heavier users burn more calories moving weights)
+                    if (workoutSession.User?.WeightKg.HasValue == true)
+                    {
+                        decimal weightFactor = workoutSession.User.WeightKg.Value / DEFAULT_WEIGHT_KG;
+                        weightFactor = Math.Min(Math.Max(weightFactor, 0.7m), 1.5m); // Limit the factor's range
+                        volumeCalories *= weightFactor;
+                    }
+                    
+                    totalCalories = volumeCalories;
                 }
 
                 // Ensure result is at least the minimum calories
@@ -117,6 +185,7 @@ namespace WorkoutTrackerWeb.Services.Calculations
                     .ThenInclude(e => e.WorkoutSets)
                 .Include(s => s.WorkoutExercises)
                     .ThenInclude(e => e.ExerciseType)
+                .Include(s => s.User) // Include the user to access height and weight
                 .FirstOrDefaultAsync(s => s.WorkoutSessionId == sessionId);
 
             if (session == null)
@@ -132,6 +201,7 @@ namespace WorkoutTrackerWeb.Services.Calculations
                     .ThenInclude(e => e.WorkoutSets)
                 .Include(s => s.WorkoutExercises)
                     .ThenInclude(e => e.ExerciseType)
+                .Include(s => s.User) // Include the user to access height and weight
                 .FirstOrDefaultAsync(s => s.WorkoutSessionId == sessionId);
 
             if (session == null)
@@ -143,6 +213,25 @@ namespace WorkoutTrackerWeb.Services.Calculations
             decimal totalSessionVolume = session.WorkoutExercises
                 .SelectMany(e => e.WorkoutSets)
                 .Sum(s => (s.Weight ?? 0) * (s.Reps ?? 0));
+                
+            // Get user data for personalized calculations if available
+            decimal userWeight = DEFAULT_WEIGHT_KG;
+            decimal userHeight = DEFAULT_HEIGHT_CM;
+            decimal userBmrFactor = 1.0m;
+            
+            if (session.User != null)
+            {
+                // Use the user's actual weight and height if available, otherwise fall back to defaults
+                userWeight = session.User.WeightKg ?? DEFAULT_WEIGHT_KG;
+                userHeight = session.User.HeightCm ?? DEFAULT_HEIGHT_CM;
+                
+                // Calculate BMR factor based on user's metrics
+                decimal bmr = CalculateBMR(userWeight, userHeight);
+                userBmrFactor = bmr / 1800m; // Normalize against a reference BMR of 1800 calories
+                
+                // Ensure the factor is within a reasonable range
+                userBmrFactor = Math.Min(Math.Max(userBmrFactor, 0.7m), 1.5m);
+            }
 
             foreach (var exercise in session.WorkoutExercises)
             {
@@ -176,7 +265,13 @@ namespace WorkoutTrackerWeb.Services.Calculations
                     var avgWeight = exercise.WorkoutSets.Average(s => s.Weight ?? 0);
                     var totalReps = exercise.WorkoutSets.Sum(s => s.Reps ?? 0);
                     exerciseVolume = exercise.WorkoutSets.Sum(s => (s.Weight ?? 0) * (s.Reps ?? 0));
-                    intensityMultiplier = 1.0m + (avgWeight / 100m) + (totalReps / 100m);
+                    
+                    // Adjust intensity based on weight lifted relative to user's body weight
+                    decimal bodyWeightRatio = userWeight > 0 ? avgWeight / userWeight : 0.5m;
+                    intensityMultiplier = 1.0m + bodyWeightRatio + (totalReps / 100m);
+                    
+                    // Apply user's BMR factor
+                    intensityMultiplier *= userBmrFactor;
                 }
                 
                 // Ensure multiplier is at least 1.0
@@ -188,7 +283,17 @@ namespace WorkoutTrackerWeb.Services.Calculations
                 // If calculated calories is too low and we have volume data, use volume-based estimation
                 if (calories < MIN_CALORIES_PER_WORKOUT / session.WorkoutExercises.Count && exerciseVolume > 0)
                 {
-                    calories = exerciseVolume * CALORIES_PER_KG_LIFTED;
+                    decimal volumeCalories = exerciseVolume * CALORIES_PER_KG_LIFTED;
+                    
+                    // If user weight is available, adjust calories based on weight
+                    if (session.User?.WeightKg.HasValue == true)
+                    {
+                        decimal weightFactor = session.User.WeightKg.Value / DEFAULT_WEIGHT_KG;
+                        weightFactor = Math.Min(Math.Max(weightFactor, 0.7m), 1.5m); // Limit the factor's range
+                        volumeCalories *= weightFactor;
+                    }
+                    
+                    calories = volumeCalories;
                 }
                 
                 // Ensure we have positive calories
