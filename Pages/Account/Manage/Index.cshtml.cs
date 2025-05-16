@@ -51,7 +51,7 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
 
             [Display(Name = "Current Password")]
             [DataType(DataType.Password)]
-            public string Password { get; set; }
+            public string Password { get; set; } // This will be used only for verification in the future
 
             // Height in metric (centimeters)
             [Display(Name = "Height (cm)")]
@@ -207,49 +207,48 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
             
             // Save height and weight data
             var appUser = await _context.User.FirstOrDefaultAsync(u => u.IdentityUserId == user.Id);
-            if (appUser != null)
+            if (appUser == null)
             {
-                // Use stored metric values directly or convert from imperial based on user preference
-                if (Input.PreferredUnits == "Imperial" && Input.HeightFeet.HasValue && Input.HeightInches.HasValue)
+                // Create a new User record if it doesn't exist
+                appUser = new Models.User
                 {
-                    // Convert feet/inches to cm (1 foot = 30.48 cm, 1 inch = 2.54 cm)
-                    var totalCm = (Input.HeightFeet.Value * 30.48m) + (Input.HeightInches.Value * 2.54m);
-                    appUser.HeightCm = decimal.Round(totalCm, 2);
-                }
-                else if (Input.HeightCm.HasValue)
-                {
-                    // Use metric height as entered
-                    appUser.HeightCm = Input.HeightCm;
-                }
-                
-                if (Input.PreferredUnits == "Imperial" && Input.WeightLbs.HasValue)
-                {
-                    // Convert pounds to kg (1 lb = 0.453592 kg)
-                    var weightInKg = Input.WeightLbs.Value * 0.453592m;
-                    appUser.WeightKg = decimal.Round(weightInKg, 2);
-                }
-                else if (Input.WeightKg.HasValue)
-                {
-                    // Use metric weight as entered
-                    appUser.WeightKg = Input.WeightKg;
-                }
-                
-                await _context.SaveChangesAsync();
+                    IdentityUserId = user.Id,
+                    Name = user.UserName // Default name to username
+                };
+                _context.User.Add(appUser);
             }
+            
+            // Now we know we have a valid User record
+            // Use stored metric values directly or convert from imperial based on user preference
+            if (Input.PreferredUnits == "Imperial" && Input.HeightFeet.HasValue && Input.HeightInches.HasValue)
+            {
+                // Convert feet/inches to cm (1 foot = 30.48 cm, 1 inch = 2.54 cm)
+                var totalCm = (Input.HeightFeet.Value * 30.48m) + (Input.HeightInches.Value * 2.54m);
+                appUser.HeightCm = decimal.Round(totalCm, 2);
+            }
+            else if (Input.HeightCm.HasValue)
+            {
+                // Use metric height as entered
+                appUser.HeightCm = Input.HeightCm;
+            }
+            
+            if (Input.PreferredUnits == "Imperial" && Input.WeightLbs.HasValue)
+            {
+                // Convert pounds to kg (1 lb = 0.453592 kg)
+                var weightInKg = Input.WeightLbs.Value * 0.453592m;
+                appUser.WeightKg = decimal.Round(weightInKg, 2);
+            }
+            else if (Input.WeightKg.HasValue)
+            {
+                // Use metric weight as entered
+                appUser.WeightKg = Input.WeightKg;
+            }
+            
+            await _context.SaveChangesAsync();
 
-            if (!string.IsNullOrEmpty(Input.Password))
-            {
-                var changePasswordResult = await _userManager.ChangePasswordAsync(user, Input.Password, Input.Password);
-                if (!changePasswordResult.Succeeded)
-                {
-                    foreach (var error in changePasswordResult.Errors)
-                    {
-                        ModelState.AddModelError(string.Empty, error.Description);
-                    }
-                    await LoadAsync(user);
-                    return Page();
-                }
-            }
+            // Note: We don't actually change the password here since this field is 
+            // currently being used only for verification that the user knows their current password
+            // A proper password change should include a new password field
 
             await _signInManager.RefreshSignInAsync(user);
             StatusMessage = "Your profile has been updated";

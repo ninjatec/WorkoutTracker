@@ -8,7 +8,7 @@
 
 <div class="row">
     <div class="col-md-3">
-        <div class="list-group mb-4">
+        <div class="list-group mb-4 account-management-nav">
             <a asp-page="./Index" class="list-group-item list-group-item-action active">Profile</a>
             <a asp-page="./ShareTokens" class="list-group-item list-group-item-action">Share Tokens</a>
         </div>
@@ -23,14 +23,16 @@
         }
         
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Profile Information</h5>
+                <span class="badge bg-info text-dark">Last Updated: @Model.Input.LastModifiedDate.ToString("yyyy-MM-dd HH:mm")</span>
             </div>
             <div class="card-body">
                 <form method="post">
                     <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
                     <input type="hidden" id="Input_PreferredUnits" asp-for="Input.PreferredUnits" value="@Model.Input.PreferredUnits" />
                     
+                    <h5 class="border-bottom pb-2 mb-3">Account Details</h5>
                     <div class="mb-3">
                         <label asp-for="Input.Email" class="form-label"></label>
                         <input asp-for="Input.Email" class="form-control" />
@@ -51,83 +53,103 @@
                     
                     <div class="mb-3">
                         <label asp-for="Input.Password" class="form-label"></label>
-                        <input asp-for="Input.Password" class="form-control" placeholder="Enter your current password to change it" />
+                        <input asp-for="Input.Password" class="form-control" placeholder="Current password for verification" />
+                        <small class="form-text text-muted">For identity verification only.</small>
                         <span asp-validation-for="Input.Password" class="text-danger"></span>
                     </div>
                     
                     <hr class="my-4">
-                    <h5>Physical Measurements</h5>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Units</label>
-                        <div class="d-flex">
-                            <div class="form-check me-4">
-                                <input class="form-check-input" type="radio" name="Input.PreferredUnits" id="metric" value="Metric" checked="@(Model.Input.PreferredUnits == "Metric")" onchange="toggleUnits('Metric')" />
-                                <label class="form-check-label" for="metric">
-                                    Metric (cm, kg)
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="Input.PreferredUnits" id="imperial" value="Imperial" checked="@(Model.Input.PreferredUnits == "Imperial")" onchange="toggleUnits('Imperial')" />
-                                <label class="form-check-label" for="imperial">
-                                    Imperial (ft/in, lbs)
-                                </label>
+                    <h5 class="border-bottom pb-2 mb-3">Physical Measurements</h5>
+                    <div class="physical-measurements">
+                        <div class="measurements-header">
+                            <i class="bi bi-rulers"></i>
+                            <p class="mb-0">Your height and weight are used to calculate metrics such as BMI and calorie estimates.</p>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Preferred Units</label>
+                            <div class="d-flex">
+                                <div class="form-check me-4">
+                                    <input class="form-check-input" type="radio" name="Input.PreferredUnits" id="metric" value="Metric" checked="@(Model.Input.PreferredUnits == "Metric")" onchange="toggleUnits('Metric')" />
+                                    <label class="form-check-label" for="metric">
+                                        Metric (cm, kg)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="Input.PreferredUnits" id="imperial" value="Imperial" checked="@(Model.Input.PreferredUnits == "Imperial")" onchange="toggleUnits('Imperial')" />
+                                    <label class="form-check-label" for="imperial">
+                                        Imperial (ft/in, lbs)
+                                    </label>
+                                </div>
                             </div>
                         </div>
-                    </div>
                     
                     <!-- Metric units -->
                     <div id="metricUnits" class="@(Model.Input.PreferredUnits != "Imperial" ? "" : "d-none")">
-                        <div class="mb-3">
-                            <label asp-for="Input.HeightCm" class="form-label"></label>
-                            <div class="input-group">
-                                <input asp-for="Input.HeightCm" class="form-control" />
-                                <span class="input-group-text">cm</span>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="Input.HeightCm" class="form-label"></label>
+                                    <div class="input-group">
+                                        <input asp-for="Input.HeightCm" class="form-control" />
+                                        <span class="input-group-text">cm</span>
+                                    </div>
+                                    <span asp-validation-for="Input.HeightCm" class="text-danger"></span>
+                                </div>
                             </div>
-                            <span asp-validation-for="Input.HeightCm" class="text-danger"></span>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label asp-for="Input.WeightKg" class="form-label"></label>
-                            <div class="input-group">
-                                <input asp-for="Input.WeightKg" class="form-control" />
-                                <span class="input-group-text">kg</span>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="Input.WeightKg" class="form-label"></label>
+                                    <div class="input-group">
+                                        <input asp-for="Input.WeightKg" class="form-control" />
+                                        <span class="input-group-text">kg</span>
+                                    </div>
+                                    <span asp-validation-for="Input.WeightKg" class="text-danger"></span>
+                                </div>
                             </div>
-                            <span asp-validation-for="Input.WeightKg" class="text-danger"></span>
                         </div>
                     </div>
                     
                     <!-- Imperial units -->
                     <div id="imperialUnits" class="@(Model.Input.PreferredUnits == "Imperial" ? "" : "d-none")">
-                        <div class="mb-3">
-                            <label class="form-label">Height</label>
-                            <div class="d-flex">
-                                <div class="input-group me-2" style="max-width: 150px;">
-                                    <input asp-for="Input.HeightFeet" class="form-control" min="0" max="9" />
-                                    <span class="input-group-text">ft</span>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Height</label>
+                                    <div class="d-flex">
+                                        <div class="input-group me-2" style="max-width: 150px;">
+                                            <input asp-for="Input.HeightFeet" class="form-control" min="0" max="9" />
+                                            <span class="input-group-text">ft</span>
+                                        </div>
+                                        <div class="input-group" style="max-width: 150px;">
+                                            <input asp-for="Input.HeightInches" class="form-control" min="0" max="11" />
+                                            <span class="input-group-text">in</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span asp-validation-for="Input.HeightFeet" class="text-danger"></span>
+                                        <span asp-validation-for="Input.HeightInches" class="text-danger"></span>
+                                    </div>
                                 </div>
-                                <div class="input-group" style="max-width: 150px;">
-                                    <input asp-for="Input.HeightInches" class="form-control" min="0" max="11" />
-                                    <span class="input-group-text">in</span>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label asp-for="Input.WeightLbs" class="form-label"></label>
+                                    <div class="input-group">
+                                        <input asp-for="Input.WeightLbs" class="form-control" />
+                                        <span class="input-group-text">lbs</span>
+                                    </div>
+                                    <span asp-validation-for="Input.WeightLbs" class="text-danger"></span>
                                 </div>
                             </div>
-                            <div>
-                                <span asp-validation-for="Input.HeightFeet" class="text-danger"></span>
-                                <span asp-validation-for="Input.HeightInches" class="text-danger"></span>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label asp-for="Input.WeightLbs" class="form-label"></label>
-                            <div class="input-group">
-                                <input asp-for="Input.WeightLbs" class="form-control" />
-                                <span class="input-group-text">lbs</span>
-                            </div>
-                            <span asp-validation-for="Input.WeightLbs" class="text-danger"></span>
                         </div>
                     </div>
                     
-                    <button type="submit" class="btn btn-primary">Update Account</button>
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-1"></i> Update Profile
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
