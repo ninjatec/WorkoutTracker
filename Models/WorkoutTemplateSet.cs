@@ -27,6 +27,9 @@ namespace WorkoutTrackerWeb.Models
         [Display(Name = "Sequence")]
         public int SequenceNum { get; set; } = 0;
         
+        [Display(Name = "Rest Time")]
+        public TimeSpan? RestTime { get; set; } = TimeSpan.FromSeconds(60);
+        
         [StringLength(200)]
         [Display(Name = "Notes")]
         public string Notes { get; set; } = "";
