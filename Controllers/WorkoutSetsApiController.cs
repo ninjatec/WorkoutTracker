@@ -118,6 +118,9 @@ namespace WorkoutTrackerWeb.Controllers
             workoutSet.Timestamp = DateTime.UtcNow;
             workoutSet.Status = "Active";
             
+            // Preserve Duration and Rest Time fields
+            // These are already set from the request, no need to modify
+            
             // Set default values for empty strings
             workoutSet.Notes = workoutSet.Notes ?? string.Empty;
 
@@ -172,6 +175,8 @@ namespace WorkoutTrackerWeb.Controllers
             // Update properties but preserve some values
             existingSet.Weight = workoutSet.Weight;
             existingSet.Reps = workoutSet.Reps;
+            existingSet.DurationSeconds = workoutSet.DurationSeconds;
+            existingSet.RestSeconds = workoutSet.RestSeconds;
             existingSet.Notes = workoutSet.Notes ?? string.Empty;
             existingSet.SettypeId = workoutSet.SettypeId;
             

@@ -92,7 +92,8 @@
                 </div>
             </div>
         </div>
-    </div>    <div class="card">
+    </div>    
+    <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Exercises</h5>
             <div>
@@ -102,65 +103,89 @@
             </div>
         </div>
         <div class="card-body">
-            @foreach (var exercise in Model.WorkoutSession.WorkoutExercises.OrderBy(x => x.SequenceNum))
-            {
-                <div class="exercise-group mb-4" id="exercise-@exercise.WorkoutExerciseId">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h4>@(exercise.ExerciseType?.Name ?? "Unknown Exercise")</h4>
-                        <button class="btn btn-sm btn-success add-set-btn" data-exercise-id="@exercise.WorkoutExerciseId">
-                            <i class="bi bi-plus-circle"></i> Add Set
-                        </button>
+            <div class="accordion" id="exerciseAccordion">
+                @foreach (var exercise in Model.WorkoutSession.WorkoutExercises.OrderBy(x => x.SequenceNum))
+                {
+                    <div class="accordion-item exercise-group mb-2" id="exercise-@exercise.WorkoutExerciseId">
+                        <h2 class="accordion-header" id="heading-@exercise.WorkoutExerciseId">
+                            <button class="accordion-button @(exercise == Model.WorkoutSession.WorkoutExercises.OrderBy(x => x.SequenceNum).FirstOrDefault() ? "" : "collapsed")" 
+                                    type="button" 
+                                    data-bs-toggle="collapse" 
+                                    data-bs-target="#collapse-@exercise.WorkoutExerciseId" 
+                                    aria-expanded="@(exercise == Model.WorkoutSession.WorkoutExercises.OrderBy(x => x.SequenceNum).FirstOrDefault() ? "true" : "false")" 
+                                    aria-controls="collapse-@exercise.WorkoutExerciseId">
+                                @(exercise.ExerciseType?.Name ?? "Unknown Exercise")
+                            </button>
+                        </h2>
+                        <div id="collapse-@exercise.WorkoutExerciseId" 
+                             class="accordion-collapse collapse @(exercise == Model.WorkoutSession.WorkoutExercises.OrderBy(x => x.SequenceNum).FirstOrDefault() ? "show" : "")" 
+                             aria-labelledby="heading-@exercise.WorkoutExerciseId" 
+                             data-bs-parent="#exerciseAccordion">
+                            <div class="accordion-body">
+                                <div class="d-flex justify-content-end mb-2">
+                                    <button class="btn btn-sm btn-success add-set-btn" data-exercise-id="@exercise.WorkoutExerciseId">
+                                        <i class="bi bi-plus-circle"></i> Add Set
+                                    </button>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">                            
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Weight (kg)</th>
+                                                <th>Reps</th>
+                                                <th>Type</th>
+                                                <th>Duration</th>
+                                                <th>Rest Time</th>
+                                                <th>Notes</th>
+                                                <th>Actions</th>
+                                                <th>Order</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="exercise-sets" data-exercise-id="@exercise.WorkoutExerciseId">
+                                            @foreach (var set in exercise.WorkoutSets.OrderBy(x => x.SequenceNum))
+                                            {                                    
+                                                <tr id="set-row-@set.WorkoutSetId" data-set-id="@set.WorkoutSetId" class="set-row">
+                                                    <td class="set-sequence">@set.SequenceNum</td>
+                                                    <td>@(set.Weight?.ToString("N1") ?? "-")</td>
+                                                    <td>@(set.Reps?.ToString() ?? "-")</td>
+                                                    <td>@(set.Settype?.Name ?? "Regular")</td>
+                                                    <td>@(set.DurationSeconds != null ? $"{set.DurationSeconds}s" : "-")</td>
+                                                    <td>@(set.RestSeconds != null ? $"{set.RestSeconds}s" : "-")</td>
+                                                    <td>@set.Notes</td>
+                                                    <td>
+                                                        <div class="btn-group">
+                                                            <button class="btn btn-sm btn-primary edit-set-btn" data-set-id="@set.WorkoutSetId" title="Edit">
+                                                                <i class="bi bi-pencil"></i>
+                                                            </button>
+                                                            <button class="btn btn-sm btn-info clone-set-btn" data-set-id="@set.WorkoutSetId" title="Clone">
+                                                                <i class="bi bi-files"></i>
+                                                            </button>
+                                                            <button class="btn btn-sm btn-danger delete-set-btn" data-set-id="@set.WorkoutSetId" title="Delete">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="btn-group-vertical">
+                                                            <button class="btn btn-sm btn-outline-secondary move-up-btn" data-set-id="@set.WorkoutSetId" title="Move Up">
+                                                                <i class="bi bi-arrow-up"></i>
+                                                            </button>
+                                                            <button class="btn btn-sm btn-outline-secondary move-down-btn" data-set-id="@set.WorkoutSetId" title="Move Down">
+                                                                <i class="bi bi-arrow-down"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="table-responsive">
-                        <table class="table table-sm">                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Weight (kg)</th>
-                                    <th>Reps</th>
-                                    <th>Type</th>
-                                    <th>Notes</th>
-                                    <th>Actions</th>
-                                    <th>Order</th>
-                                </tr>
-                            </thead>
-                            <tbody class="exercise-sets" data-exercise-id="@exercise.WorkoutExerciseId">
-                                @foreach (var set in exercise.WorkoutSets.OrderBy(x => x.SequenceNum))
-                                {                                    <tr id="set-row-@set.WorkoutSetId" data-set-id="@set.WorkoutSetId" class="set-row">
-                                        <td class="set-sequence">@set.SequenceNum</td>
-                                        <td>@(set.Weight?.ToString("N1") ?? "-")</td>
-                                        <td>@(set.Reps?.ToString() ?? "-")</td>
-                                        <td>@(set.Settype?.Name ?? "Regular")</td>
-                                        <td>@set.Notes</td>
-                                        <td>
-                                            <div class="btn-group">
-                                                <button class="btn btn-sm btn-primary edit-set-btn" data-set-id="@set.WorkoutSetId" title="Edit">
-                                                    <i class="bi bi-pencil"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-info clone-set-btn" data-set-id="@set.WorkoutSetId" title="Clone">
-                                                    <i class="bi bi-files"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-danger delete-set-btn" data-set-id="@set.WorkoutSetId" title="Delete">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group-vertical">
-                                                <button class="btn btn-sm btn-outline-secondary move-up-btn" data-set-id="@set.WorkoutSetId" title="Move Up">
-                                                    <i class="bi bi-arrow-up"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-secondary move-down-btn" data-set-id="@set.WorkoutSetId" title="Move Down">
-                                                    <i class="bi bi-arrow-down"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            }
+                }
+            </div>
         </div>
     </div>
 
@@ -223,8 +248,7 @@
             <div class="modal-body">
                 <input type="hidden" id="editSetId">
                 <input type="hidden" id="editExerciseId">
-                
-                <div class="mb-3">
+                  <div class="mb-3">
                     <label for="editWeight" class="form-label">Weight (kg)</label>
                     <input type="number" class="form-control" id="editWeight" step="0.5" min="0">
                 </div>
@@ -232,6 +256,16 @@
                 <div class="mb-3">
                     <label for="editReps" class="form-label">Reps</label>
                     <input type="number" class="form-control" id="editReps" min="0">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="editDuration" class="form-label">Duration (seconds)</label>
+                    <input type="number" class="form-control" id="editDuration" min="0">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="editRestTime" class="form-label">Rest Time (seconds)</label>
+                    <input type="number" class="form-control" id="editRestTime" min="0">
                 </div>
                 
                 <div class="mb-3">
@@ -264,8 +298,7 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" id="addExerciseId">
-                
-                <div class="mb-3">
+                  <div class="mb-3">
                     <label for="addWeight" class="form-label">Weight (kg)</label>
                     <input type="number" class="form-control" id="addWeight" step="0.5" min="0">
                 </div>
@@ -273,6 +306,16 @@
                 <div class="mb-3">
                     <label for="addReps" class="form-label">Reps</label>
                     <input type="number" class="form-control" id="addReps" min="0">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="addDuration" class="form-label">Duration (seconds)</label>
+                    <input type="number" class="form-control" id="addDuration" min="0">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="addRestTime" class="form-label">Rest Time (seconds)</label>
+                    <input type="number" class="form-control" id="addRestTime" min="0">
                 </div>
                 
                 <div class="mb-3">
@@ -415,8 +458,7 @@
                 }));
             });
         }
-        
-        function loadSetDetails(setId) {
+          function loadSetDetails(setId) {
             $.ajax({
                 url: `/api/WorkoutSetsApi/${setId}`,
                 method: 'GET',
@@ -425,6 +467,8 @@
                     $('#editExerciseId').val(data.workoutExerciseId);
                     $('#editWeight').val(data.weight);
                     $('#editReps').val(data.reps);
+                    $('#editDuration').val(data.durationSeconds);
+                    $('#editRestTime').val(data.restSeconds);
                     $('#editNotes').val(data.notes);
                     
                     populateSetTypeDropdown('#editSetType');
@@ -445,11 +489,12 @@
                 }
             });
         }
-        
-        function addNewSet() {
+          function addNewSet() {
             const exerciseId = $('#addExerciseId').val();
             const weight = $('#addWeight').val();
             const reps = $('#addReps').val();
+            const duration = $('#addDuration').val();
+            const restTime = $('#addRestTime').val();
             const settypeId = $('#addSetType').val() || null;
             const notes = $('#addNotes').val();
             
@@ -457,6 +502,8 @@
                 workoutExerciseId: parseInt(exerciseId),
                 weight: weight ? parseFloat(weight) : null,
                 reps: reps ? parseInt(reps) : null,
+                durationSeconds: duration ? parseInt(duration) : null,
+                restSeconds: restTime ? parseInt(restTime) : null,
                 settypeId: settypeId ? parseInt(settypeId) : null,
                 notes: notes,
                 isCompleted: true,
@@ -474,6 +521,8 @@
                     // Clear form fields
                     $('#addWeight').val('');
                     $('#addReps').val('');
+                    $('#addDuration').val('');
+                    $('#addRestTime').val('');
                     $('#addSetType').val('');
                     $('#addNotes').val('');
                     
@@ -486,12 +535,13 @@
                 }
             });
         }
-        
-        function updateSet() {
+          function updateSet() {
             const setId = $('#editSetId').val();
             const exerciseId = $('#editExerciseId').val();
             const weight = $('#editWeight').val();
             const reps = $('#editReps').val();
+            const duration = $('#editDuration').val();
+            const restTime = $('#editRestTime').val();
             const settypeId = $('#editSetType').val() || null;
             const notes = $('#editNotes').val();
             
@@ -500,6 +550,8 @@
                 workoutExerciseId: parseInt(exerciseId),
                 weight: weight ? parseFloat(weight) : null,
                 reps: reps ? parseInt(reps) : null,
+                durationSeconds: duration ? parseInt(duration) : null,
+                restSeconds: restTime ? parseInt(restTime) : null,
                 settypeId: settypeId ? parseInt(settypeId) : null,
                 notes: notes,
                 isCompleted: true,
@@ -557,8 +609,7 @@
             // Implement toast notifications or alerts
             alert(`${title}: ${message}`);
         }
-        
-        function cloneSet(setId) {
+          function cloneSet(setId) {
             $.ajax({
                 url: `/api/WorkoutSetsApi/${setId}`,
                 method: 'GET',
@@ -568,6 +619,8 @@
                         workoutExerciseId: data.workoutExerciseId,
                         weight: data.weight,
                         reps: data.reps,
+                        durationSeconds: data.durationSeconds,
+                        restSeconds: data.restSeconds,
                         settypeId: data.settypeId,
                         notes: data.notes ? `${data.notes} (copy)` : '(copy)',
                         isCompleted: true,
