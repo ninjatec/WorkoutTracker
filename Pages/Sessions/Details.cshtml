@@ -92,7 +92,8 @@
                 </div>
             </div>
         </div>
-    </div>    <div class="card">
+    </div>    
+    <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Exercises</h5>
             <div>
@@ -102,65 +103,89 @@
             </div>
         </div>
         <div class="card-body">
-            @foreach (var exercise in Model.WorkoutSession.WorkoutExercises.OrderBy(x => x.SequenceNum))
-            {
-                <div class="exercise-group mb-4" id="exercise-@exercise.WorkoutExerciseId">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h4>@(exercise.ExerciseType?.Name ?? "Unknown Exercise")</h4>
-                        <button class="btn btn-sm btn-success add-set-btn" data-exercise-id="@exercise.WorkoutExerciseId">
-                            <i class="bi bi-plus-circle"></i> Add Set
-                        </button>
+            <div class="accordion" id="exerciseAccordion">
+                @foreach (var exercise in Model.WorkoutSession.WorkoutExercises.OrderBy(x => x.SequenceNum))
+                {
+                    <div class="accordion-item exercise-group mb-2" id="exercise-@exercise.WorkoutExerciseId">
+                        <h2 class="accordion-header" id="heading-@exercise.WorkoutExerciseId">
+                            <button class="accordion-button @(exercise == Model.WorkoutSession.WorkoutExercises.OrderBy(x => x.SequenceNum).FirstOrDefault() ? "" : "collapsed")" 
+                                    type="button" 
+                                    data-bs-toggle="collapse" 
+                                    data-bs-target="#collapse-@exercise.WorkoutExerciseId" 
+                                    aria-expanded="@(exercise == Model.WorkoutSession.WorkoutExercises.OrderBy(x => x.SequenceNum).FirstOrDefault() ? "true" : "false")" 
+                                    aria-controls="collapse-@exercise.WorkoutExerciseId">
+                                @(exercise.ExerciseType?.Name ?? "Unknown Exercise")
+                            </button>
+                        </h2>
+                        <div id="collapse-@exercise.WorkoutExerciseId" 
+                             class="accordion-collapse collapse @(exercise == Model.WorkoutSession.WorkoutExercises.OrderBy(x => x.SequenceNum).FirstOrDefault() ? "show" : "")" 
+                             aria-labelledby="heading-@exercise.WorkoutExerciseId" 
+                             data-bs-parent="#exerciseAccordion">
+                            <div class="accordion-body">
+                                <div class="d-flex justify-content-end mb-2">
+                                    <button class="btn btn-sm btn-success add-set-btn" data-exercise-id="@exercise.WorkoutExerciseId">
+                                        <i class="bi bi-plus-circle"></i> Add Set
+                                    </button>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">                            
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Weight (kg)</th>
+                                                <th>Reps</th>
+                                                <th>Type</th>
+                                                <th>Duration</th>
+                                                <th>Rest Time</th>
+                                                <th>Notes</th>
+                                                <th>Actions</th>
+                                                <th>Order</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="exercise-sets" data-exercise-id="@exercise.WorkoutExerciseId">
+                                            @foreach (var set in exercise.WorkoutSets.OrderBy(x => x.SequenceNum))
+                                            {                                    
+                                                <tr id="set-row-@set.WorkoutSetId" data-set-id="@set.WorkoutSetId" class="set-row">
+                                                    <td class="set-sequence">@set.SequenceNum</td>
+                                                    <td>@(set.Weight?.ToString("N1") ?? "-")</td>
+                                                    <td>@(set.Reps?.ToString() ?? "-")</td>
+                                                    <td>@(set.Settype?.Name ?? "Regular")</td>
+                                                    <td>@(set.DurationSeconds != null ? $"{set.DurationSeconds}s" : "-")</td>
+                                                    <td>@(set.RestSeconds != null ? $"{set.RestSeconds}s" : "-")</td>
+                                                    <td>@set.Notes</td>
+                                                    <td>
+                                                        <div class="btn-group">
+                                                            <button class="btn btn-sm btn-primary edit-set-btn" data-set-id="@set.WorkoutSetId" title="Edit">
+                                                                <i class="bi bi-pencil"></i>
+                                                            </button>
+                                                            <button class="btn btn-sm btn-info clone-set-btn" data-set-id="@set.WorkoutSetId" title="Clone">
+                                                                <i class="bi bi-files"></i>
+                                                            </button>
+                                                            <button class="btn btn-sm btn-danger delete-set-btn" data-set-id="@set.WorkoutSetId" title="Delete">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="btn-group-vertical">
+                                                            <button class="btn btn-sm btn-outline-secondary move-up-btn" data-set-id="@set.WorkoutSetId" title="Move Up">
+                                                                <i class="bi bi-arrow-up"></i>
+                                                            </button>
+                                                            <button class="btn btn-sm btn-outline-secondary move-down-btn" data-set-id="@set.WorkoutSetId" title="Move Down">
+                                                                <i class="bi bi-arrow-down"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="table-responsive">
-                        <table class="table table-sm">                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Weight (kg)</th>
-                                    <th>Reps</th>
-                                    <th>Type</th>
-                                    <th>Notes</th>
-                                    <th>Actions</th>
-                                    <th>Order</th>
-                                </tr>
-                            </thead>
-                            <tbody class="exercise-sets" data-exercise-id="@exercise.WorkoutExerciseId">
-                                @foreach (var set in exercise.WorkoutSets.OrderBy(x => x.SequenceNum))
-                                {                                    <tr id="set-row-@set.WorkoutSetId" data-set-id="@set.WorkoutSetId" class="set-row">
-                                        <td class="set-sequence">@set.SequenceNum</td>
-                                        <td>@(set.Weight?.ToString("N1") ?? "-")</td>
-                                        <td>@(set.Reps?.ToString() ?? "-")</td>
-                                        <td>@(set.Settype?.Name ?? "Regular")</td>
-                                        <td>@set.Notes</td>
-                                        <td>
-                                            <div class="btn-group">
-                                                <button class="btn btn-sm btn-primary edit-set-btn" data-set-id="@set.WorkoutSetId" title="Edit">
-                                                    <i class="bi bi-pencil"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-info clone-set-btn" data-set-id="@set.WorkoutSetId" title="Clone">
-                                                    <i class="bi bi-files"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-danger delete-set-btn" data-set-id="@set.WorkoutSetId" title="Delete">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group-vertical">
-                                                <button class="btn btn-sm btn-outline-secondary move-up-btn" data-set-id="@set.WorkoutSetId" title="Move Up">
-                                                    <i class="bi bi-arrow-up"></i>
-                                                </button>
-                                                <button class="btn btn-sm btn-outline-secondary move-down-btn" data-set-id="@set.WorkoutSetId" title="Move Down">
-                                                    <i class="bi bi-arrow-down"></i>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            }
+                }
+            </div>
         </div>
     </div>
 
@@ -213,8 +238,8 @@
 </div>
 
 <!-- Edit Set Modal -->
-<div class="modal fade" id="editSetModal" tabindex="-1" aria-labelledby="editSetModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+<div class="modal fade" id="editSetModal" tabindex="-1" aria-labelledby="editSetModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="editSetModalLabel">Edit Set</h5>
@@ -223,8 +248,7 @@
             <div class="modal-body">
                 <input type="hidden" id="editSetId">
                 <input type="hidden" id="editExerciseId">
-                
-                <div class="mb-3">
+                  <div class="mb-3">
                     <label for="editWeight" class="form-label">Weight (kg)</label>
                     <input type="number" class="form-control" id="editWeight" step="0.5" min="0">
                 </div>
@@ -232,6 +256,16 @@
                 <div class="mb-3">
                     <label for="editReps" class="form-label">Reps</label>
                     <input type="number" class="form-control" id="editReps" min="0">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="editDuration" class="form-label">Duration (seconds)</label>
+                    <input type="number" class="form-control" id="editDuration" min="0">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="editRestTime" class="form-label">Rest Time (seconds)</label>
+                    <input type="number" class="form-control" id="editRestTime" min="0">
                 </div>
                 
                 <div class="mb-3">
@@ -264,8 +298,7 @@
             </div>
             <div class="modal-body">
                 <input type="hidden" id="addExerciseId">
-                
-                <div class="mb-3">
+                  <div class="mb-3">
                     <label for="addWeight" class="form-label">Weight (kg)</label>
                     <input type="number" class="form-control" id="addWeight" step="0.5" min="0">
                 </div>
@@ -273,6 +306,16 @@
                 <div class="mb-3">
                     <label for="addReps" class="form-label">Reps</label>
                     <input type="number" class="form-control" id="addReps" min="0">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="addDuration" class="form-label">Duration (seconds)</label>
+                    <input type="number" class="form-control" id="addDuration" min="0">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="addRestTime" class="form-label">Rest Time (seconds)</label>
+                    <input type="number" class="form-control" id="addRestTime" min="0">
                 </div>
                 
                 <div class="mb-3">
@@ -317,57 +360,115 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <!-- Mobile viewport meta tag -->
     <script>
-        const settypeOptions = [];
+        // Add viewport meta tag for proper mobile rendering
+        const metaViewport = document.createElement('meta');
+        metaViewport.name = 'viewport';
+        metaViewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+        document.head.appendChild(metaViewport);
+    </script><script>
+        // Mobile viewport fixes
+        if (window.innerWidth < 768) {
+            console.log('Mobile viewport detected, applying mobile-specific adjustments');
+        }
         
-        $(document).ready(function() {
+        const settypeOptions = [];
+          $(document).ready(function() {
+            console.log('Document ready initialized');
+            
+            // Ensure any bootstrap components are properly initialized
+            if (typeof bootstrap !== 'undefined') {
+                console.log('Bootstrap loaded successfully');
+                
+                // Initialize all Bootstrap tooltips
+                var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+                var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl)
+                });
+                
+                // Initialize all Bootstrap popovers
+                var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+                var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+                    return new bootstrap.Popover(popoverTriggerEl)
+                });
+                
+                // Add event listeners for all modals to handle mobile-specific issues
+                document.querySelectorAll('.modal').forEach(function(modalEl) {
+                    modalEl.addEventListener('shown.bs.modal', function() {
+                        console.log(`Modal ${modalEl.id} shown`);
+                    });
+                    
+                    modalEl.addEventListener('hidden.bs.modal', function() {
+                        console.log(`Modal ${modalEl.id} hidden`);
+                    });
+                });
+            } else {
+                console.error('Bootstrap not loaded properly');
+            }
+            
             // Load set types
             loadSetTypes();
             
-            // Event handlers
-            $('.add-set-btn').click(function() {
+            // Event handlers - use on() method to ensure event delegation works correctly on mobile
+            $(document).on('click', '.add-set-btn', function(e) {
+                e.preventDefault();
                 const exerciseId = $(this).data('exercise-id');
-                $('#addExerciseId').val(exerciseId);
-                populateSetTypeDropdown('#addSetType');
-                $('#addSetModal').modal('show');
+                console.log('Add set button clicked for exercise ID:', exerciseId);
+                $('#addExerciseId').val(exerciseId);                populateSetTypeDropdown('#addSetType');
+                showModalSafely('addSetModal');
             });
             
-            $('.edit-set-btn').click(function() {
+            $(document).on('click', '.edit-set-btn', function(e) {
+                e.preventDefault();
                 const setId = $(this).data('set-id');
+                console.log('Edit set button clicked for set ID:', setId);
                 loadSetDetails(setId);
             });
-            
-            $('.delete-set-btn').click(function() {
+              $(document).on('click', '.delete-set-btn', function(e) {
+                e.preventDefault();
                 const setId = $(this).data('set-id');
+                console.log('Delete set button clicked for set ID:', setId);
                 $('#deleteSetId').val(setId);
-                $('#confirmDeleteModal').modal('show');
+                showModalSafely('confirmDeleteModal');
             });
-            
-            $('.clone-set-btn').click(function() {
+              $(document).on('click', '.clone-set-btn', function(e) {
+                e.preventDefault();
                 const setId = $(this).data('set-id');
+                console.log('Clone set button clicked for set ID:', setId);
                 cloneSet(setId);
             });
-            
-            // Add event handlers for move up/down buttons
-            $('.move-up-btn').click(function() {
+              // Add event handlers for move up/down buttons using event delegation
+            $(document).on('click', '.move-up-btn', function(e) {
+                e.preventDefault();
                 const setId = $(this).data('set-id');
+                console.log('Move up button clicked for set ID:', setId);
                 moveSet(setId, 'up');
             });
             
-            $('.move-down-btn').click(function() {
+            $(document).on('click', '.move-down-btn', function(e) {
+                e.preventDefault();
                 const setId = $(this).data('set-id');
+                console.log('Move down button clicked for set ID:', setId);
                 moveSet(setId, 'down');
             });
-            
-            $('#saveNewSet').click(function() {
+              // Use event delegation for modal action buttons
+            $(document).on('click', '#saveNewSet', function(e) {
+                e.preventDefault();
+                console.log('Save new set button clicked');
                 addNewSet();
             });
             
-            $('#saveSetChanges').click(function() {
+            $(document).on('click', '#saveSetChanges', function(e) {
+                e.preventDefault();
+                console.log('Save changes button clicked');
                 updateSet();
             });
             
-            $('#confirmDeleteBtn').click(function() {
+            $(document).on('click', '#confirmDeleteBtn', function(e) {
+                e.preventDefault();
+                console.log('Confirm delete button clicked');
                 deleteSet($('#deleteSetId').val());
             });
             
@@ -414,17 +515,25 @@
                     text: option.name
                 }));
             });
-        }
-        
-        function loadSetDetails(setId) {
+        }        function loadSetDetails(setId) {
+            console.log('Loading set details for set ID:', setId);
+            
+            // Ensure any previously opened modal is hidden first
+            if ($('#editSetModal').hasClass('show')) {
+                $('#editSetModal').modal('hide');
+            }
+            
             $.ajax({
                 url: `/api/WorkoutSetsApi/${setId}`,
                 method: 'GET',
                 success: function(data) {
+                    console.log('Set data loaded successfully:', data);
                     $('#editSetId').val(data.workoutSetId);
                     $('#editExerciseId').val(data.workoutExerciseId);
                     $('#editWeight').val(data.weight);
                     $('#editReps').val(data.reps);
+                    $('#editDuration').val(data.durationSeconds);
+                    $('#editRestTime').val(data.restSeconds);
                     $('#editNotes').val(data.notes);
                     
                     populateSetTypeDropdown('#editSetType');
@@ -436,20 +545,29 @@
                     } else {
                         dropdown.val(''); // fallback to default
                     }
-                    
-                    $('#editSetModal').modal('show');
+                      // Use setTimeout to ensure modal is shown after any previous operations complete
+                    setTimeout(function() {
+                        try {
+                            // Use our custom modal handling function for better mobile support
+                            showModalSafely('editSetModal');
+                            console.log('Modal show called for #editSetModal');
+                        } catch (e) {
+                            console.error('Error showing modal:', e);
+                            alert('Could not show edit modal. Please try refreshing the page.');
+                        }
+                    }, 100);
                 },
                 error: function(xhr) {
                     console.error('Error loading set details:', xhr);
                     showToast('Error', 'Failed to load set details. Please try again.', 'error');
                 }
             });
-        }
-        
-        function addNewSet() {
+        }        function addNewSet() {
             const exerciseId = $('#addExerciseId').val();
             const weight = $('#addWeight').val();
             const reps = $('#addReps').val();
+            const duration = $('#addDuration').val();
+            const restTime = $('#addRestTime').val();
             const settypeId = $('#addSetType').val() || null;
             const notes = $('#addNotes').val();
             
@@ -457,11 +575,16 @@
                 workoutExerciseId: parseInt(exerciseId),
                 weight: weight ? parseFloat(weight) : null,
                 reps: reps ? parseInt(reps) : null,
+                durationSeconds: duration ? parseInt(duration) : null,
+                restSeconds: restTime ? parseInt(restTime) : null,
                 settypeId: settypeId ? parseInt(settypeId) : null,
                 notes: notes,
                 isCompleted: true,
                 timestamp: new Date().toISOString()
             };
+            
+            // Show loading indicator or disable the add button
+            $('#saveNewSet').prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adding...');
             
             $.ajax({
                 url: '/api/WorkoutSetsApi',
@@ -469,29 +592,38 @@
                 contentType: 'application/json',
                 data: JSON.stringify(payload),
                 success: function() {
-                    $('#addSetModal').modal('hide');
+                    // Safely hide modal
+                    hideModalSafely('addSetModal');
                     
                     // Clear form fields
                     $('#addWeight').val('');
                     $('#addReps').val('');
+                    $('#addDuration').val('');
+                    $('#addRestTime').val('');
                     $('#addSetType').val('');
                     $('#addNotes').val('');
                     
-                    // Reload page to see new set
-                    location.reload();
+                    // Show success message before reload
+                    showToast('Success', 'New set added successfully', 'success');
+                    
+                    // Reload page to see new set after a short delay
+                    setTimeout(function() {
+                        location.reload();
+                    }, 300);
                 },
                 error: function(xhr) {
                     console.error('Error adding set:', xhr);
+                    $('#saveNewSet').prop('disabled', false).text('Add Set');
                     showToast('Error', 'Failed to add set. Please try again.', 'error');
                 }
             });
-        }
-        
-        function updateSet() {
+        }function updateSet() {
             const setId = $('#editSetId').val();
             const exerciseId = $('#editExerciseId').val();
             const weight = $('#editWeight').val();
             const reps = $('#editReps').val();
+            const duration = $('#editDuration').val();
+            const restTime = $('#editRestTime').val();
             const settypeId = $('#editSetType').val() || null;
             const notes = $('#editNotes').val();
             
@@ -500,11 +632,16 @@
                 workoutExerciseId: parseInt(exerciseId),
                 weight: weight ? parseFloat(weight) : null,
                 reps: reps ? parseInt(reps) : null,
+                durationSeconds: duration ? parseInt(duration) : null,
+                restSeconds: restTime ? parseInt(restTime) : null,
                 settypeId: settypeId ? parseInt(settypeId) : null,
                 notes: notes,
                 isCompleted: true,
                 timestamp: new Date().toISOString()
             };
+            
+            // Show loading indicator or disable the save button
+            $('#saveSetChanges').prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...');
             
             $.ajax({
                 url: `/api/WorkoutSetsApi/${setId}`,
@@ -512,34 +649,53 @@
                 contentType: 'application/json',
                 data: JSON.stringify(payload),
                 success: function() {
-                    $('#editSetModal').modal('hide');
+                    // Safely hide modal
+                    hideModalSafely('editSetModal');
                     
-                    // Reload page to see updated set
-                    location.reload();
+                    // Show success message before reload
+                    showToast('Success', 'Set updated successfully', 'success');
+                    
+                    // Reload page to see updated set after a short delay
+                    setTimeout(function() {
+                        location.reload();
+                    }, 300);
                 },
                 error: function(xhr) {
                     console.error('Error updating set:', xhr);
+                    $('#saveSetChanges').prop('disabled', false).text('Save Changes');
                     showToast('Error', 'Failed to update set. Please try again.', 'error');
                 }
             });
         }
-        
-        function deleteSet(setId) {
+          function deleteSet(setId) {
+            // Show loading indicator on the delete button
+            $('#confirmDeleteBtn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
+            
             $.ajax({
                 url: `/api/WorkoutSetsApi/${setId}`,
                 method: 'DELETE',
                 success: function() {
-                    $('#confirmDeleteModal').modal('hide');
+                    // Safely hide modal
+                    hideModalSafely('confirmDeleteModal');
                     
-                    // Remove the row from the table
-                    $(`#set-row-${setId}`).remove();
-                    
-                    // If no sets left, reload to update UI
-                    location.reload();
+                    // Remove the row from the table with animation
+                    $(`#set-row-${setId}`).fadeOut(300, function() {
+                        $(this).remove();
+                        
+                        // Show success message
+                        showToast('Success', 'Set deleted successfully', 'success');
+                        
+                        // If no sets left, reload to update UI after a short delay
+                        setTimeout(function() {
+                            location.reload();
+                        }, 300);
+                    });
                 },
                 error: function(xhr) {
                     console.error('Error deleting set:', xhr);
-                    $('#confirmDeleteModal').modal('hide');
+                    // Reset delete button
+                    $('#confirmDeleteBtn').prop('disabled', false).text('Delete');
+                    hideModalSafely('confirmDeleteModal');
                     showToast('Error', 'Failed to delete set. Please try again.', 'error');
                 }
             });
@@ -551,23 +707,151 @@
             const url = new URL(window.location.href);
             url.searchParams.set('sort', sortBy);
             window.location.href = url.toString();
+        }        function showToast(title, message, type) {
+            // Log message to console
+            if (type === 'error') {
+                console.error(`${title}: ${message}`);
+            } else {
+                console.log(`${title}: ${message}`);
+            }
+            
+            // Create a custom toast notification instead of using alert
+            const toastId = 'custom-toast-' + new Date().getTime();
+            const bgClass = type === 'error' ? 'bg-danger' : 'bg-success';
+            const textClass = 'text-white';
+            
+            const toastHtml = `
+                <div id="${toastId}" class="position-fixed bottom-0 end-0 p-3" style="z-index: 11000">
+                    <div class="toast ${bgClass} ${textClass}" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="d-flex">
+                            <div class="toast-body">
+                                <strong>${title}</strong>: ${message}
+                            </div>
+                            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Append to body
+            $('body').append(toastHtml);
+            
+            // Show toast using Bootstrap
+            const toastElement = document.querySelector(`#${toastId} .toast`);
+            if (typeof bootstrap !== 'undefined' && bootstrap.Toast) {
+                const toastInstance = new bootstrap.Toast(toastElement, {
+                    delay: 3000,
+                    animation: true
+                });
+                toastInstance.show();
+                
+                // Remove from DOM after hidden
+                toastElement.addEventListener('hidden.bs.toast', function() {
+                    $(`#${toastId}`).remove();
+                });
+            } else {
+                // Fallback if Bootstrap's JavaScript is not available
+                $(toastElement).fadeIn().delay(3000).fadeOut(function() {
+                    $(`#${toastId}`).remove();
+                });
+            }
+        }
+          // Enhanced modal handling specifically for mobile devices
+        function showModalSafely(modalId) {
+            try {
+                const modal = document.getElementById(modalId);
+                if (!modal) {
+                    console.error(`Modal with ID ${modalId} not found`);
+                    return;
+                }
+                
+                // Force correct rendering for mobile
+                if (window.innerWidth < 768) {
+                    modal.style.display = 'block';
+                    modal.classList.add('show');
+                    document.body.classList.add('modal-open');
+                    
+                    // Create backdrop if it doesn't exist
+                    let backdrop = document.querySelector('.modal-backdrop');
+                    if (!backdrop) {
+                        backdrop = document.createElement('div');
+                        backdrop.classList.add('modal-backdrop', 'fade', 'show');
+                        document.body.appendChild(backdrop);
+                    }
+                } else {
+                    // Use Bootstrap's built-in modal for desktop
+                    const bsModal = new bootstrap.Modal(modal);
+                    bsModal.show();
+                }
+            } catch (e) {
+                console.error('Error showing modal safely:', e);
+                alert('There was an issue displaying the form. Please try again or refresh the page.');
+            }
         }
         
-        function showToast(title, message, type) {
-            // Implement toast notifications or alerts
-            alert(`${title}: ${message}`);
-        }
-        
-        function cloneSet(setId) {
+        // Safe modal hiding for both mobile and desktop
+        function hideModalSafely(modalId) {
+            try {
+                const modal = document.getElementById(modalId);
+                if (!modal) {
+                    console.error(`Modal with ID ${modalId} not found`);
+                    return;
+                }
+                
+                // Handling for mobile
+                if (window.innerWidth < 768) {
+                    modal.style.display = 'none';
+                    modal.classList.remove('show');
+                    
+                    // Check if there are other open modals before removing modal-open class
+                    const otherOpenModals = document.querySelectorAll('.modal.show');
+                    if (otherOpenModals.length <= 1) { // 1 because current modal is still counted
+                        document.body.classList.remove('modal-open');
+                        
+                        // Remove the backdrop
+                        const backdrop = document.querySelector('.modal-backdrop');
+                        if (backdrop) {
+                            backdrop.remove();
+                        }
+                    }
+                } else {
+                    // Use Bootstrap's built-in modal for desktop
+                    const bsModalInstance = bootstrap.Modal.getInstance(modal);
+                    if (bsModalInstance) {
+                        bsModalInstance.hide();
+                    } else {
+                        // Fallback if no instance found
+                        $(modal).modal('hide');
+                    }
+                }
+                
+                console.log(`Modal ${modalId} hidden successfully`);
+            } catch (e) {
+                console.error('Error hiding modal safely:', e);
+                // Force hide as fallback
+                $(`#${modalId}`).removeClass('show').css('display', 'none');
+                $('.modal-backdrop').remove();
+                $('body').removeClass('modal-open');
+            }
+        }        function cloneSet(setId) {
+            // Show visual feedback that cloning is in progress
+            const button = $(`.clone-set-btn[data-set-id="${setId}"]`);
+            const originalHtml = button.html();
+            button.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>');
+            
             $.ajax({
                 url: `/api/WorkoutSetsApi/${setId}`,
                 method: 'GET',
                 success: function(data) {
+                    console.log('Successfully retrieved set data for cloning:', data);
+                    
                     // Create a new payload without the ID
                     const payload = {
                         workoutExerciseId: data.workoutExerciseId,
                         weight: data.weight,
                         reps: data.reps,
+                        durationSeconds: data.durationSeconds,
+                        restSeconds: data.restSeconds,
                         settypeId: data.settypeId,
                         notes: data.notes ? `${data.notes} (copy)` : '(copy)',
                         isCompleted: true,
@@ -581,18 +865,26 @@
                         contentType: 'application/json',
                         data: JSON.stringify(payload),
                         success: function() {
-                            showToast('Success', 'Set cloned successfully. Refreshing page...', 'success');
-                            // Reload page to see the new set
-                            location.reload();
+                            console.log('Set cloning successful');
+                            showToast('Success', 'Set cloned successfully', 'success');
+                            
+                            // Reload page to see the new set after a short delay
+                            setTimeout(function() {
+                                location.reload();
+                            }, 300);
                         },
                         error: function(xhr) {
                             console.error('Error cloning set:', xhr);
+                            // Reset the button
+                            button.prop('disabled', false).html(originalHtml);
                             showToast('Error', 'Failed to clone set. Please try again.', 'error');
                         }
                     });
                 },
                 error: function(xhr) {
                     console.error('Error fetching set details:', xhr);
+                    // Reset the button
+                    button.prop('disabled', false).html(originalHtml);
                     showToast('Error', 'Failed to fetch set details for cloning. Please try again.', 'error');
                 }
             });

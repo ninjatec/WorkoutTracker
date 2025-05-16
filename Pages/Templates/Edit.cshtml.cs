@@ -251,7 +251,7 @@ namespace WorkoutTrackerWeb.Pages.Templates
         }
 
         public async Task<IActionResult> OnPostAddSetAsync(int templateId, int exerciseId, int settypeId, 
-            int defaultReps, decimal defaultWeight, int sequenceNum, string description, string notes)
+            int defaultReps, decimal defaultWeight, int sequenceNum, string description, string notes, int? restTime)
         {
             // Validate ownership
             var currentUser = await _context.GetCurrentUserAsync();
@@ -298,7 +298,8 @@ namespace WorkoutTrackerWeb.Pages.Templates
                 DefaultWeight = defaultWeight,
                 SequenceNum = sequenceNum,
                 Description = description ?? string.Empty,
-                Notes = notes ?? string.Empty
+                Notes = notes ?? string.Empty,
+                RestTime = restTime.HasValue ? TimeSpan.FromSeconds(restTime.Value) : TimeSpan.FromSeconds(60)
             };
 
             _context.WorkoutTemplateSet.Add(set);
@@ -331,7 +332,8 @@ namespace WorkoutTrackerWeb.Pages.Templates
                         reps = s.DefaultReps,
                         weight = s.DefaultWeight,
                         description = s.Description,
-                        settypeId = s.SettypeId
+                        settypeId = s.SettypeId,
+                        restTime = s.RestTime
                     })
                     .ToList();
                 
@@ -435,7 +437,8 @@ namespace WorkoutTrackerWeb.Pages.Templates
                 Description = string.IsNullOrEmpty(setToClone.Description) 
                     ? "Clone of Set #" + setToClone.SequenceNum
                     : setToClone.Description + " (Clone)",
-                Notes = setToClone.Notes
+                Notes = setToClone.Notes,
+                RestTime = setToClone.RestTime
             };
 
             _context.WorkoutTemplateSet.Add(clonedSet);
@@ -452,7 +455,7 @@ namespace WorkoutTrackerWeb.Pages.Templates
         }
 
         public async Task<IActionResult> OnPostEditSetAsync(int templateId, int setId, int settypeId, 
-            int defaultReps, decimal defaultWeight, int sequenceNum, string description, string notes)
+            int defaultReps, decimal defaultWeight, int sequenceNum, string description, string notes, int? restTime)
         {
             // Validate ownership
             var currentUser = await _context.GetCurrentUserAsync();
@@ -487,6 +490,7 @@ namespace WorkoutTrackerWeb.Pages.Templates
             setToUpdate.SequenceNum = sequenceNum;
             setToUpdate.Description = description ?? string.Empty;
             setToUpdate.Notes = notes ?? string.Empty;
+            setToUpdate.RestTime = restTime.HasValue ? TimeSpan.FromSeconds(restTime.Value) : TimeSpan.FromSeconds(60);
             
             // Update template modification date
             template.LastModifiedDate = DateTime.Now;
