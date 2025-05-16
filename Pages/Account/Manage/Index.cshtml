@@ -1,5 +1,5 @@
 @page
-@model AccountManagementModel
+@model WorkoutTrackerWeb.Pages.Account.Manage.AccountManagementModel
 @{
     ViewData["Title"] = "Account Management";
 }
@@ -29,6 +29,7 @@
             <div class="card-body">
                 <form method="post">
                     <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                    <input type="hidden" id="Input_PreferredUnits" asp-for="Input.PreferredUnits" value="@Model.Input.PreferredUnits" />
                     
                     <div class="mb-3">
                         <label asp-for="Input.Email" class="form-label"></label>
@@ -52,6 +53,78 @@
                         <label asp-for="Input.Password" class="form-label"></label>
                         <input asp-for="Input.Password" class="form-control" placeholder="Enter your current password to change it" />
                         <span asp-validation-for="Input.Password" class="text-danger"></span>
+                    </div>
+                    
+                    <hr class="my-4">
+                    <h5>Physical Measurements</h5>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Units</label>
+                        <div class="d-flex">
+                            <div class="form-check me-4">
+                                <input class="form-check-input" type="radio" name="Input.PreferredUnits" id="metric" value="Metric" checked="@(Model.Input.PreferredUnits == "Metric")" onchange="toggleUnits('Metric')" />
+                                <label class="form-check-label" for="metric">
+                                    Metric (cm, kg)
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="Input.PreferredUnits" id="imperial" value="Imperial" checked="@(Model.Input.PreferredUnits == "Imperial")" onchange="toggleUnits('Imperial')" />
+                                <label class="form-check-label" for="imperial">
+                                    Imperial (ft/in, lbs)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Metric units -->
+                    <div id="metricUnits" class="@(Model.Input.PreferredUnits != "Imperial" ? "" : "d-none")">
+                        <div class="mb-3">
+                            <label asp-for="Input.HeightCm" class="form-label"></label>
+                            <div class="input-group">
+                                <input asp-for="Input.HeightCm" class="form-control" />
+                                <span class="input-group-text">cm</span>
+                            </div>
+                            <span asp-validation-for="Input.HeightCm" class="text-danger"></span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label asp-for="Input.WeightKg" class="form-label"></label>
+                            <div class="input-group">
+                                <input asp-for="Input.WeightKg" class="form-control" />
+                                <span class="input-group-text">kg</span>
+                            </div>
+                            <span asp-validation-for="Input.WeightKg" class="text-danger"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Imperial units -->
+                    <div id="imperialUnits" class="@(Model.Input.PreferredUnits == "Imperial" ? "" : "d-none")">
+                        <div class="mb-3">
+                            <label class="form-label">Height</label>
+                            <div class="d-flex">
+                                <div class="input-group me-2" style="max-width: 150px;">
+                                    <input asp-for="Input.HeightFeet" class="form-control" min="0" max="9" />
+                                    <span class="input-group-text">ft</span>
+                                </div>
+                                <div class="input-group" style="max-width: 150px;">
+                                    <input asp-for="Input.HeightInches" class="form-control" min="0" max="11" />
+                                    <span class="input-group-text">in</span>
+                                </div>
+                            </div>
+                            <div>
+                                <span asp-validation-for="Input.HeightFeet" class="text-danger"></span>
+                                <span asp-validation-for="Input.HeightInches" class="text-danger"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label asp-for="Input.WeightLbs" class="form-label"></label>
+                            <div class="input-group">
+                                <input asp-for="Input.WeightLbs" class="form-control" />
+                                <span class="input-group-text">lbs</span>
+                            </div>
+                            <span asp-validation-for="Input.WeightLbs" class="text-danger"></span>
+                        </div>
                     </div>
                     
                     <button type="submit" class="btn btn-primary">Update Account</button>
@@ -89,4 +162,67 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    
+    <script>
+        function toggleUnits(units) {
+            const metricUnits = document.getElementById('metricUnits');
+            const imperialUnits = document.getElementById('imperialUnits');
+            
+            if (units === 'Metric') {
+                metricUnits.classList.remove('d-none');
+                imperialUnits.classList.add('d-none');
+                document.getElementById('Input_PreferredUnits').value = 'Metric';
+            } else {
+                metricUnits.classList.add('d-none');
+                imperialUnits.classList.remove('d-none');
+                document.getElementById('Input_PreferredUnits').value = 'Imperial';
+            }
+        }
+        
+        // Unit conversion helpers
+        function convertCmToFeetInches() {
+            const cmValue = document.getElementById('Input_HeightCm').value;
+            if (cmValue && !isNaN(cmValue)) {
+                const totalInches = cmValue / 2.54;
+                const feet = Math.floor(totalInches / 12);
+                const inches = Math.round(totalInches % 12);
+                
+                document.getElementById('Input_HeightFeet').value = feet;
+                document.getElementById('Input_HeightInches').value = inches;
+            }
+        }
+        
+        function convertFeetInchesToCm() {
+            const feet = document.getElementById('Input_HeightFeet').value;
+            const inches = document.getElementById('Input_HeightInches').value;
+            
+            if (feet && !isNaN(feet) && inches && !isNaN(inches)) {
+                const totalCm = (parseInt(feet) * 30.48) + (parseInt(inches) * 2.54);
+                document.getElementById('Input_HeightCm').value = totalCm.toFixed(2);
+            }
+        }
+        
+        function convertKgToLbs() {
+            const kgValue = document.getElementById('Input_WeightKg').value;
+            if (kgValue && !isNaN(kgValue)) {
+                const lbsValue = kgValue * 2.20462;
+                document.getElementById('Input_WeightLbs').value = lbsValue.toFixed(2);
+            }
+        }
+        
+        function convertLbsToKg() {
+            const lbsValue = document.getElementById('Input_WeightLbs').value;
+            if (lbsValue && !isNaN(lbsValue)) {
+                const kgValue = lbsValue * 0.453592;
+                document.getElementById('Input_WeightKg').value = kgValue.toFixed(2);
+            }
+        }
+        
+        // Set up event listeners for unit conversion
+        document.getElementById('Input_HeightCm').addEventListener('change', convertCmToFeetInches);
+        document.getElementById('Input_WeightKg').addEventListener('change', convertKgToLbs);
+        document.getElementById('Input_HeightFeet').addEventListener('change', convertFeetInchesToCm);
+        document.getElementById('Input_HeightInches').addEventListener('change', convertFeetInchesToCm);
+        document.getElementById('Input_WeightLbs').addEventListener('change', convertLbsToKg);
+    </script>
 }
