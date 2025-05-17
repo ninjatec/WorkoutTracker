@@ -93,8 +93,8 @@
         
         <div class="mb-3">
             <div class="form-check">
-                <input asp-for="BlogPost.Published" class="form-check-input" />
-                <label asp-for="BlogPost.Published" class="form-check-label">Published</label>
+                <input type="checkbox" asp-for="BlogPost.Published" class="form-check-input" id="blogPublished" />
+                <label asp-for="BlogPost.Published" class="form-check-label" for="blogPublished">Published</label>
             </div>
             <small class="form-text text-muted">Check to make this post visible to all users</small>
         </div>
@@ -128,8 +128,18 @@
             // Ensure TinyMCE content is saved before form submission
             document.querySelector('form').addEventListener('submit', function(e) {
                 if (tinymce.get('Content')) {
+                    // Force synchronization of the TinyMCE editor content with the form
                     tinymce.triggerSave();
+                    
+                    // For debugging - log the content and published state
+                    console.log("Content being submitted:", document.getElementById('Content').value);
+                    console.log("Published state:", document.getElementById('blogPublished').checked);
                 }
+            });
+            
+            // Log when the published checkbox is changed
+            document.getElementById('blogPublished').addEventListener('change', function() {
+                console.log("Published checkbox changed to:", this.checked);
             });
         });
     </script>

@@ -101,6 +101,9 @@ namespace WorkoutTrackerWeb.Services.Blog
 
         public async Task<BlogPost> UpdateBlogPostAsync(BlogPost blogPost, List<int> categoryIds, List<int> tagIds)
         {
+            // Debug incoming values
+            System.Diagnostics.Debug.WriteLine($"BlogService.UpdateBlogPostAsync - Incoming Published: {blogPost.Published}");
+            
             // Set update date
             blogPost.UpdatedOn = DateTime.UtcNow;
             
@@ -115,6 +118,9 @@ namespace WorkoutTrackerWeb.Services.Blog
 
             // Get full post with current relationships
             var updatedPost = await _blogRepository.GetBlogPostByIdAsync(blogPost.Id);
+            
+            // Debug post after update
+            System.Diagnostics.Debug.WriteLine($"BlogService.UpdateBlogPostAsync - After Update Published: {updatedPost.Published}");
 
             // Update categories - first remove all existing categories
             var existingCategories = updatedPost.BlogPostCategories.ToList();

@@ -139,18 +139,51 @@ namespace WorkoutTrackerWeb.Services.Blog
 
         public async Task<BlogPost> UpdateBlogPostAsync(BlogPost blogPost)
         {
-            // Ensure the entry is tracked with all its updated properties
-            var entry = _context.Entry(blogPost);
-            entry.State = EntityState.Modified;
-            
-            // Force the Content property to be treated as modified
-            entry.Property(b => b.Content).IsModified = true;
-            entry.Property(b => b.Published).IsModified = true;
-            entry.Property(b => b.Title).IsModified = true;
-            entry.Property(b => b.Summary).IsModified = true;
-            
-            await _context.SaveChangesAsync();
-            return blogPost;
+            try
+            {
+                // Update using direct SQL to ensure Published property gets updated correctly
+                var sql = @"
+                UPDATE BlogPost 
+                SET Title = @Title, 
+                    Slug = @Slug, 
+                    Content = @Content, 
+                    Summary = @Summary, 
+                    ImageUrl = @ImageUrl, 
+                    Published = @Published, 
+                    PublishedOn = @PublishedOn, 
+                    UpdatedOn = @UpdatedOn, 
+                    ViewCount = @ViewCount
+                WHERE Id = @Id";
+
+                // Define all parameters to ensure proper data types
+                var parameters = new[] {
+                    new Microsoft.Data.SqlClient.SqlParameter("@Title", blogPost.Title ?? string.Empty),
+                    new Microsoft.Data.SqlClient.SqlParameter("@Slug", blogPost.Slug ?? string.Empty),
+                    new Microsoft.Data.SqlClient.SqlParameter("@Content", blogPost.Content ?? string.Empty),
+                    new Microsoft.Data.SqlClient.SqlParameter("@Summary", (object)blogPost.Summary ?? DBNull.Value),
+                    new Microsoft.Data.SqlClient.SqlParameter("@ImageUrl", (object)blogPost.ImageUrl ?? DBNull.Value),
+                    new Microsoft.Data.SqlClient.SqlParameter("@Published", blogPost.Published),
+                    new Microsoft.Data.SqlClient.SqlParameter("@PublishedOn", (object)blogPost.PublishedOn ?? DBNull.Value),
+                    new Microsoft.Data.SqlClient.SqlParameter("@UpdatedOn", (object)blogPost.UpdatedOn ?? DBNull.Value),
+                    new Microsoft.Data.SqlClient.SqlParameter("@ViewCount", blogPost.ViewCount),
+                    new Microsoft.Data.SqlClient.SqlParameter("@Id", blogPost.Id)
+                };
+
+                // Execute the SQL command
+                await _context.Database.ExecuteSqlRawAsync(sql, parameters);
+                
+                // Clear the DbContext to ensure we get fresh data
+                _context.ChangeTracker.Clear();
+                
+                // Return the updated blog post
+                return await GetBlogPostByIdAsync(blogPost.Id);
+            }
+            catch (Exception ex)
+            {
+                // Log any exceptions that occur during the update
+                System.Diagnostics.Debug.WriteLine($"Error updating blog post: {ex.Message}");
+                throw;
+            }
         }
 
         public async Task DeleteBlogPostAsync(int id)

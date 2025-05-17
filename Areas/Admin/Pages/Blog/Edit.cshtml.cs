@@ -76,12 +76,30 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Blog
 
         public async Task<IActionResult> OnPostAsync()
         {
+            // Debug incoming values
+            System.Diagnostics.Debug.WriteLine($"OnPostAsync - Incoming Published: {BlogPost.Published}");
+            
+            // Check for model errors
             if (!ModelState.IsValid)
             {
                 Categories = await _blogService.GetAllCategoriesAsync();
                 Tags = await _blogService.GetAllTagsAsync();
                 return Page();
             }
+
+            // Get the existing blog post to ensure we're not losing data
+            var existingPost = await _blogService.GetBlogPostByIdAsync(BlogPost.Id);
+            if (existingPost == null)
+            {
+                return NotFound();
+            }
+            
+            // Debug existing post
+            System.Diagnostics.Debug.WriteLine($"OnPostAsync - Existing Post Published: {existingPost.Published}, New Published: {BlogPost.Published}");
+
+            // Keep the original author ID and creation date
+            BlogPost.AuthorId = existingPost.AuthorId;
+            BlogPost.CreatedOn = existingPost.CreatedOn;
 
             // Handle image upload or removal
             if (FeaturedImage != null)
@@ -109,20 +127,60 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Blog
                     BlogPost.ImageUrl = null;
                 }
             }
+            else
+            {
+                // Keep the existing image if it wasn't changed
+                BlogPost.ImageUrl = existingPost.ImageUrl;
+            }
 
             // Update the modified timestamp
             BlogPost.UpdatedOn = DateTime.UtcNow;
 
-            // If publishing for the first time, set the published date
-            if (BlogPost.Published && !BlogPost.PublishedOn.HasValue)
+            // Handle PublishedOn date logic
+            if (BlogPost.Published && !existingPost.Published)
             {
+                // If publishing for the first time, set the published date
                 BlogPost.PublishedOn = DateTime.UtcNow;
             }
+            else if (BlogPost.Published && existingPost.Published)
+            {
+                // Keep the existing published date if already published
+                BlogPost.PublishedOn = existingPost.PublishedOn;
+            }
+            else if (!BlogPost.Published)
+            {
+                // If unpublishing, keep the published date for when it gets republished
+                BlogPost.PublishedOn = existingPost.PublishedOn;
+            }
 
-            await _blogService.UpdateBlogPostAsync(BlogPost, SelectedCategories, SelectedTags);
+            try
+            {
+                // Debug before service call
+                System.Diagnostics.Debug.WriteLine($"OnPostAsync - Before Service Call Published: {BlogPost.Published}");
 
-            TempData["SuccessMessage"] = "Blog post updated successfully.";
-            return RedirectToPage("./Index");
+                var updatedPost = await _blogService.UpdateBlogPostAsync(BlogPost, SelectedCategories, SelectedTags);
+                
+                // Debug after service call
+                System.Diagnostics.Debug.WriteLine($"OnPostAsync - After Service Call Published: {updatedPost?.Published}");
+                
+                if (updatedPost != null)
+                {
+                    TempData["SuccessMessage"] = "Blog post updated successfully.";
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "Failed to update blog post.";
+                }
+                
+                return RedirectToPage("./Index");
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError(string.Empty, $"Error updating post: {ex.Message}");
+                Categories = await _blogService.GetAllCategoriesAsync();
+                Tags = await _blogService.GetAllTagsAsync();
+                return Page();
+            }
         }
     }
 }

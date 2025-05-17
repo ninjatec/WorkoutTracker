@@ -17,8 +17,18 @@
                 automatic_uploads: true,
                 file_picker_types: 'image',
                 setup: function(editor) {
-                    // Make sure the form values are updated before form submission
+                    // Make sure the form values are updated whenever the editor content changes
                     editor.on('change', function() {
+                        tinymce.triggerSave();
+                    });
+                    
+                    // Also update on keyup events for more immediate synchronization
+                    editor.on('keyup', function() {
+                        tinymce.triggerSave();
+                    });
+                    
+                    // Also update when the editor loses focus
+                    editor.on('blur', function() {
                         tinymce.triggerSave();
                     });
                 },
