@@ -22,22 +22,24 @@ namespace WorkoutTrackerWeb.Services
         
         public async Task<IdentityResult> ValidateAsync(UserManager<AppUser> manager, AppUser user)
         {
-            // If the user is being created (no Id yet) and username matches email
-            if (user.UserName == user.Email)
+            // For existing users (those being edited), don't modify the username
+            if (!string.IsNullOrEmpty(user.Id))
             {
-                // Generate a unique username to avoid conflicts
-                user.UserName = await _usernameManager.GenerateUniqueUsernameFromEmailAsync(user.Email);
-                
-                // Return success - username has been modified to be unique
+                // Only check if the username is taken by another user
+                var existingUser = await manager.FindByNameAsync(user.UserName);
+                if (existingUser != null && !string.Equals(existingUser.Id, user.Id, StringComparison.Ordinal))
+                {
+                    return IdentityResult.Failed(
+                        new IdentityError { Code = "DuplicateUserName", Description = "Username is already taken." });
+                }
                 return IdentityResult.Success;
             }
             
-            // Check if the username already exists for a different user when manually setting username
-            var existingUser = await manager.FindByNameAsync(user.UserName);
-            if (existingUser != null && !string.Equals(existingUser.Id, user.Id, StringComparison.Ordinal))
+            // For new users only: if username matches email, generate a unique one
+            if (string.IsNullOrEmpty(user.Id) && user.UserName == user.Email)
             {
-                return IdentityResult.Failed(
-                    new IdentityError { Code = "DuplicateUserName", Description = "Username is already taken." });
+                user.UserName = await _usernameManager.GenerateUniqueUsernameFromEmailAsync(user.Email);
+                return IdentityResult.Success;
             }
             
             return IdentityResult.Success;

@@ -93,10 +93,10 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Users
                 return NotFound();
             }
 
-            // Check if the username is being changed
+            // Handle username change
             if (user.UserName != UserEdit.UserName)
             {
-                // Ensure username isn't already taken
+                // Check if the new username is already taken by another user
                 var existingUser = await _userManager.FindByNameAsync(UserEdit.UserName);
                 if (existingUser != null && existingUser.Id != UserEdit.Id)
                 {
@@ -105,7 +105,9 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Users
                     return Page();
                 }
                 
+                // Update the username and normalized username directly to preserve the full email address
                 user.UserName = UserEdit.UserName;
+                user.NormalizedUserName = UserEdit.UserName.ToUpperInvariant();
             }
 
             // Check if email is being changed

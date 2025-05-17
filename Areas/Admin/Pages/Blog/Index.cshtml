@@ -1,0 +1,193 @@
+@page
+@model WorkoutTrackerWeb.Areas.Admin.Pages.Blog.IndexModel
+@{
+    ViewData["Title"] = "Blog Management";
+    ViewData["ActivePage"] = "BlogManagement";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h1>Blog Management</h1>
+            <p class="lead">Create and manage blog posts, categories, and tags.</p>
+            
+            <div class="card shadow-sm mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Blog Posts</h5>
+                    <a asp-page="./Create" class="btn btn-primary">Create New Post</a>
+                </div>
+                <div class="card-body">
+                    @if (Model.Posts.Count == 0)
+                    {
+                        <div class="alert alert-info">
+                            No blog posts have been created yet. <a asp-page="./Create">Create your first post</a>.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Title</th>
+                                        <th>Published</th>
+                                        <th>Date</th>
+                                        <th>Categories</th>
+                                        <th>Views</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var post in Model.Posts)
+                                    {
+                                        <tr>
+                                            <td>@post.Title</td>
+                                            <td>
+                                                @if (post.Published)
+                                                {
+                                                    <span class="badge bg-success">Published</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Draft</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @(post.Published ? post.PublishedOn?.ToString("MMM dd, yyyy") : post.CreatedOn.ToString("MMM dd, yyyy"))
+                                            </td>
+                                            <td>
+                                                @if (post.Categories.Count > 0)
+                                                {
+                                                    @string.Join(", ", post.Categories.Select(c => c.Name))
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">None</span>
+                                                }
+                                            </td>
+                                            <td>@post.ViewCount</td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a asp-page="./Edit" asp-route-id="@post.Id" class="btn btn-sm btn-outline-primary">Edit</a>
+                                                    <a asp-page="/Blog/Post" asp-route-slug="@post.Slug" target="_blank" class="btn btn-sm btn-outline-secondary">View</a>
+                                                    <a asp-page="./Delete" asp-route-id="@post.Id" class="btn btn-sm btn-outline-danger">Delete</a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <nav aria-label="Blog posts pagination">
+                            <ul class="pagination justify-content-center">
+                                @if (Model.CurrentPage > 1)
+                                {
+                                    <li class="page-item">
+                                        <a class="page-link" asp-page="./Index" asp-route-pageNumber="@(Model.CurrentPage - 1)">Previous</a>
+                                    </li>
+                                }
+                                else
+                                {
+                                    <li class="page-item disabled">
+                                        <span class="page-link">Previous</span>
+                                    </li>
+                                }
+
+                                @for (int i = 1; i <= Model.TotalPages; i++)
+                                {
+                                    <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                        <a class="page-link" asp-page="./Index" asp-route-pageNumber="@i">@i</a>
+                                    </li>
+                                }
+
+                                @if (Model.CurrentPage < Model.TotalPages)
+                                {
+                                    <li class="page-item">
+                                        <a class="page-link" asp-page="./Index" asp-route-pageNumber="@(Model.CurrentPage + 1)">Next</a>
+                                    </li>
+                                }
+                                else
+                                {
+                                    <li class="page-item disabled">
+                                        <span class="page-link">Next</span>
+                                    </li>
+                                }
+                            </ul>
+                        </nav>
+                    }
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Categories</h5>
+                            <a asp-page="./Categories/Index" class="btn btn-primary">Manage Categories</a>
+                        </div>
+                        <div class="card-body">
+                            @if (Model.Categories.Count == 0)
+                            {
+                                <div class="alert alert-info">
+                                    No categories have been created yet.
+                                </div>
+                            }
+                            else
+                            {
+                                <ul class="list-group">
+                                    @foreach (var category in Model.Categories.Take(5))
+                                    {
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            @category.Name
+                                            <span class="badge bg-primary rounded-pill">@category.PostCount</span>
+                                        </li>
+                                    }
+                                </ul>
+                                @if (Model.Categories.Count > 5)
+                                {
+                                    <div class="mt-2 text-center">
+                                        <a asp-page="./Categories/Index" class="btn btn-sm btn-outline-primary">View All Categories</a>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Tags</h5>
+                            <a asp-page="./Tags/Index" class="btn btn-primary">Manage Tags</a>
+                        </div>
+                        <div class="card-body">
+                            @if (Model.Tags.Count == 0)
+                            {
+                                <div class="alert alert-info">
+                                    No tags have been created yet.
+                                </div>
+                            }
+                            else
+                            {
+                                <div>
+                                    @foreach (var tag in Model.Tags.Take(15))
+                                    {
+                                        <a asp-page="/Blog/Tag" asp-route-slug="@tag.Slug" class="badge bg-secondary text-decoration-none me-1 mb-1">
+                                            @tag.Name <span class="badge bg-light text-dark">@tag.PostCount</span>
+                                        </a>
+                                    }
+                                </div>
+                                @if (Model.Tags.Count > 15)
+                                {
+                                    <div class="mt-2 text-center">
+                                        <a asp-page="./Tags/Index" class="btn btn-sm btn-outline-primary">View All Tags</a>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

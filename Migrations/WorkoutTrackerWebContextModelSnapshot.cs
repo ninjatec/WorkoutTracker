@@ -489,6 +489,158 @@ namespace WorkoutTrackerWeb.Migrations
                     b.ToTable("Versions");
                 });
 
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Blog.BlogCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BlogCategory");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Blog.BlogPost", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AuthorId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<bool>("Published")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("PublishedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("UpdatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("ViewCount")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
+
+                    b.ToTable("BlogPost");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Blog.BlogPostCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BlogCategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BlogPostId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlogCategoryId");
+
+                    b.HasIndex("BlogPostId");
+
+                    b.ToTable("BlogPostCategory");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Blog.BlogPostTag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BlogPostId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BlogTagId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlogPostId");
+
+                    b.HasIndex("BlogTagId");
+
+                    b.ToTable("BlogPostTag");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Blog.BlogTag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BlogTag");
+                });
+
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientActivity", b =>
                 {
                     b.Property<int>("Id")
@@ -2654,6 +2806,55 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Navigation("Alert");
                 });
 
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Blog.BlogPost", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Author");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Blog.BlogPostCategory", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Blog.BlogCategory", "BlogCategory")
+                        .WithMany("BlogPostCategories")
+                        .HasForeignKey("BlogCategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Blog.BlogPost", "BlogPost")
+                        .WithMany("BlogPostCategories")
+                        .HasForeignKey("BlogPostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BlogCategory");
+
+                    b.Navigation("BlogPost");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Blog.BlogPostTag", b =>
+                {
+                    b.HasOne("WorkoutTrackerWeb.Models.Blog.BlogPost", "BlogPost")
+                        .WithMany("BlogPostTags")
+                        .HasForeignKey("BlogPostId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WorkoutTrackerWeb.Models.Blog.BlogTag", "BlogTag")
+                        .WithMany("BlogPostTags")
+                        .HasForeignKey("BlogTagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BlogPost");
+
+                    b.Navigation("BlogTag");
+                });
+
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientActivity", b =>
                 {
                     b.HasOne("WorkoutTrackerWeb.Models.Identity.AppUser", "Client")
@@ -3218,6 +3419,23 @@ namespace WorkoutTrackerWeb.Migrations
                     b.Navigation("Settype");
 
                     b.Navigation("WorkoutTemplateExercise");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Blog.BlogCategory", b =>
+                {
+                    b.Navigation("BlogPostCategories");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Blog.BlogPost", b =>
+                {
+                    b.Navigation("BlogPostCategories");
+
+                    b.Navigation("BlogPostTags");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerWeb.Models.Blog.BlogTag", b =>
+                {
+                    b.Navigation("BlogPostTags");
                 });
 
             modelBuilder.Entity("WorkoutTrackerWeb.Models.Coaching.ClientGroup", b =>

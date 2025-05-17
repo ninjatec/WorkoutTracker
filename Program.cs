@@ -327,7 +327,8 @@ namespace WorkoutTrackerWeb
                 options.Password.RequireNonAlphanumeric = true;
                 options.Password.RequiredLength = 8;
                 options.User.RequireUniqueEmail = true;
-                options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
+                // Allow email addresses as usernames by including additional characters
+                options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+!#$%&'*/=?^`{|}~";
             })
                 .AddRoles<IdentityRole>()
                 .AddEntityFrameworkStores<WorkoutTrackerWebContext>()
@@ -489,6 +490,11 @@ namespace WorkoutTrackerWeb
             builder.Services.AddScoped<IVersionService, VersionService>();
 
             builder.Services.AddScoped<IHangfireInitializationService, HangfireInitializationService>();
+
+            // Blog Services
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Blog.IBlogRepository, WorkoutTrackerWeb.Services.Blog.BlogRepository>();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Blog.IBlogService, WorkoutTrackerWeb.Services.Blog.BlogService>();
+            builder.Services.AddSingleton<WorkoutTrackerWeb.Utilities.BlogImageUtility>();
 
             // Register DatabaseResilienceService with configuration
             builder.Services.AddSingleton<DatabaseResilienceService>(sp => 

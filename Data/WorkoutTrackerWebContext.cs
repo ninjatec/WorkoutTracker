@@ -7,6 +7,7 @@ using WorkoutTrackerWeb.Models;
 using Microsoft.AspNetCore.Http;
 using System.Security.Claims;
 using WorkoutTrackerWeb.Models.Alerting;
+using WorkoutTrackerWeb.Models.Blog;
 using WorkoutTrackerWeb.Models.Coaching;
 using WorkoutTrackerWeb.Models.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -52,12 +53,17 @@ namespace WorkoutTrackerWeb.Data
         public DbSet<WorkoutTrackerWeb.Models.Alerting.AlertThreshold> AlertThreshold { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Alerting.Alert> Alert { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.Alerting.AlertHistory> AlertHistory { get; set; } = default!;
-        public DbSet<WorkoutTrackerWeb.Models.Alerting.Notification> Notification { get; set; } = default!;
-
-        // Workout template DbSets
+        public DbSet<WorkoutTrackerWeb.Models.Alerting.Notification> Notification { get; set; } = default!;        // Workout template DbSets
         public DbSet<WorkoutTrackerWeb.Models.WorkoutTemplate> WorkoutTemplate { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.WorkoutTemplateExercise> WorkoutTemplateExercise { get; set; } = default!;
         public DbSet<WorkoutTrackerWeb.Models.WorkoutTemplateSet> WorkoutTemplateSet { get; set; } = default!;
+        
+        // Blog DbSets
+        public DbSet<WorkoutTrackerWeb.Models.Blog.BlogPost> BlogPost { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.Blog.BlogCategory> BlogCategory { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.Blog.BlogTag> BlogTag { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.Blog.BlogPostCategory> BlogPostCategory { get; set; } = default!;
+        public DbSet<WorkoutTrackerWeb.Models.Blog.BlogPostTag> BlogPostTag { get; set; } = default!;
 
         // Coaching system DbSets
         public DbSet<WorkoutTrackerWeb.Models.Coaching.CoachClientRelationship> CoachClientRelationships { get; set; } = default!;

@@ -36,6 +36,7 @@
                             <label asp-for="UserEdit.UserName" class="form-label"></label>
                             <input asp-for="UserEdit.UserName" class="form-control" />
                             <span asp-validation-for="UserEdit.UserName" class="text-danger"></span>
+                            <div class="form-text">Username can be an email address or contain letters, numbers, and the symbols @@.+-_</div>
                         </div>
                         
                         <div class="mb-3">

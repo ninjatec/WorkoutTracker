@@ -58,6 +58,7 @@ namespace WorkoutTrackerWeb.Areas.Admin.ViewModels
         
         [Required]
         [Display(Name = "Username")]
+        [RegularExpression(@"^[a-zA-Z0-9][a-zA-Z0-9_.+-]*(?:@[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-zA-Z]{2,})?$", ErrorMessage = "Username must be a valid local username or complete email address")]
         public string UserName { get; set; }
         
         [Phone]
@@ -98,7 +99,7 @@ namespace WorkoutTrackerWeb.Areas.Admin.ViewModels
         [Required]
         [Display(Name = "Username")]
         [StringLength(50, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 3)]
-        [RegularExpression(@"^[a-zA-Z0-9_.-]+$", ErrorMessage = "Username can only contain letters, numbers, and the symbols . - _")]
+        [RegularExpression(@"^[a-zA-Z0-9][a-zA-Z0-9_.+-]*(?:@[a-zA-Z0-9][a-zA-Z0-9.-]*\.[a-zA-Z]{2,})?$", ErrorMessage = "Username must be a valid local username or complete email address")]
         public string UserName { get; set; }
         
         [Required]
@@ -138,8 +139,10 @@ namespace WorkoutTrackerWeb.Areas.Admin.ViewModels
         public string Email { get; set; }
         
         [Required]
-        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [StringLength(100, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 8)]
         [DataType(DataType.Password)]
+        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\da-zA-Z]).{8,}$",
+            ErrorMessage = "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number and one special character")]
         [Display(Name = "New Password")]
         public string Password { get; set; }
         
