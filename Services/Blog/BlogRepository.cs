@@ -139,7 +139,16 @@ namespace WorkoutTrackerWeb.Services.Blog
 
         public async Task<BlogPost> UpdateBlogPostAsync(BlogPost blogPost)
         {
-            _context.Entry(blogPost).State = EntityState.Modified;
+            // Ensure the entry is tracked with all its updated properties
+            var entry = _context.Entry(blogPost);
+            entry.State = EntityState.Modified;
+            
+            // Force the Content property to be treated as modified
+            entry.Property(b => b.Content).IsModified = true;
+            entry.Property(b => b.Published).IsModified = true;
+            entry.Property(b => b.Title).IsModified = true;
+            entry.Property(b => b.Summary).IsModified = true;
+            
             await _context.SaveChangesAsync();
             return blogPost;
         }

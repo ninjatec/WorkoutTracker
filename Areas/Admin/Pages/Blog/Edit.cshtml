@@ -100,7 +100,7 @@
         </div>
         
         <div class="mb-3 mt-4">
-            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <button type="submit" class="btn btn-primary" id="saveButton">Save Changes</button>
             <a asp-page="./Index" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
@@ -122,6 +122,13 @@
                         .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
                     
                     document.getElementById('BlogPost_Slug').value = slug;
+                }
+            });
+
+            // Ensure TinyMCE content is saved before form submission
+            document.querySelector('form').addEventListener('submit', function(e) {
+                if (tinymce.get('Content')) {
+                    tinymce.triggerSave();
                 }
             });
         });

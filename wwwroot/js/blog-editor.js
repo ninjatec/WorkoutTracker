@@ -16,6 +16,12 @@
                 image_title: true,
                 automatic_uploads: true,
                 file_picker_types: 'image',
+                setup: function(editor) {
+                    // Make sure the form values are updated before form submission
+                    editor.on('change', function() {
+                        tinymce.triggerSave();
+                    });
+                },
                 file_picker_callback: function (cb, value, meta) {
                     // Create a file input element for image uploads
                     var input = document.createElement('input');
