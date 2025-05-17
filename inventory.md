@@ -97,6 +97,9 @@ This document maintains an up-to-date inventory of all features, components, and
 - HangfireDiagnosticsController - Controller for job monitoring and diagnostics
 - JobStatusController - Controller for tracking job status updates
 - ReportsApiController - API for workout report data
+- **WorkoutSetsApiController**: Handles CRUD operations for workout sets
+- **WorkoutExercisesApiController**: Handles CRUD operations for workout exercises
+- **DashboardApiController**: Provides data for dashboard visualizations
 
 ### Services
 - DashboardService - Service providing dashboard metrics and chart data with caching
@@ -540,6 +543,19 @@ This document maintains an up-to-date inventory of all features, components, and
   - Used for securing admin operations
   - Access logging for security auditing
   - Description for documenting purpose
+
+### Components and Modules
+
+#### Pages
+- **Sessions/Details.cshtml**: 
+  - Main workout session details page
+  - Allows viewing all exercise and set data for a workout
+  - Supports editing workout details
+  - Provides CRUD operations for sets (add, edit, delete, clone)
+  - Supports reordering of sets
+  - Allows deletion of entire exercises including associated sets
+  - Interactive accordion UI for exercises
+  - Mobile responsive design
 
 ### Known Technical Debt
 

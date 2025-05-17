@@ -116,13 +116,15 @@
                                     aria-controls="collapse-@exercise.WorkoutExerciseId">
                                 @(exercise.ExerciseType?.Name ?? "Unknown Exercise")
                             </button>
-                        </h2>
-                        <div id="collapse-@exercise.WorkoutExerciseId" 
+                        </h2>                        <div id="collapse-@exercise.WorkoutExerciseId" 
                              class="accordion-collapse collapse @(exercise == Model.WorkoutSession.WorkoutExercises.OrderBy(x => x.SequenceNum).FirstOrDefault() ? "show" : "")" 
                              aria-labelledby="heading-@exercise.WorkoutExerciseId" 
                              data-bs-parent="#exerciseAccordion">
                             <div class="accordion-body">
-                                <div class="d-flex justify-content-end mb-2">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <button class="btn btn-sm btn-danger delete-exercise-btn" data-exercise-id="@exercise.WorkoutExerciseId" data-exercise-name="@(exercise.ExerciseType?.Name ?? "Unknown Exercise")">
+                                        <i class="bi bi-trash"></i> Delete Exercise
+                                    </button>
                                     <button class="btn btn-sm btn-success add-set-btn" data-exercise-id="@exercise.WorkoutExerciseId">
                                         <i class="bi bi-plus-circle"></i> Add Set
                                     </button>
@@ -476,6 +478,30 @@
             $('#sortSelect').change(function() {
                 const sortBy = $(this).val();
                 sortExercises(sortBy);
+            });
+            
+            // Delete Exercise button click
+            $(document).on('click', '.delete-exercise-btn', function(e) {
+                e.preventDefault();
+                const exerciseId = $(this).data('exercise-id');
+                const exerciseName = $(this).data('exercise-name');
+                
+                console.log('Delete exercise button clicked for exercise ID:', exerciseId, 'name:', exerciseName);
+                
+                // Set the exercise ID and name in the modal
+                $('#exerciseNameToDelete').text(exerciseName);
+                $('#confirmDeleteExerciseModal').data('exercise-id', exerciseId);
+                
+                // Show the confirmation modal
+                showModalSafely('confirmDeleteExerciseModal');
+            });
+            
+            // Confirm delete exercise click
+            $(document).on('click', '#confirmDeleteExerciseBtn', function(e) {
+                e.preventDefault();
+                const exerciseId = $('#confirmDeleteExerciseModal').data('exercise-id');
+                console.log('Confirm delete exercise button clicked for exercise ID:', exerciseId);
+                deleteExercise(exerciseId);
             });
         });
         
@@ -955,5 +981,59 @@
                 }
             });
         }
+        
+        function deleteExercise(exerciseId) {
+            // Show loading indicator on the delete button
+            $('#confirmDeleteExerciseBtn').prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Deleting...');
+            
+            $.ajax({
+                url: `/api/WorkoutExercisesApi/${exerciseId}`,
+                method: 'DELETE',
+                success: function() {
+                    // Safely hide modal
+                    hideModalSafely('confirmDeleteExerciseModal');
+                    
+                    // Show success message
+                    showToast('Success', 'Exercise and associated sets deleted successfully', 'success');
+                    
+                    // Remove the exercise from the UI with animation
+                    $(`#exercise-${exerciseId}`).fadeOut(300, function() {
+                        $(this).remove();
+                        
+                        // Reload page after a short delay to update summary data
+                        setTimeout(function() {
+                            location.reload();
+                        }, 300);
+                    });
+                },
+                error: function(xhr) {
+                    console.error('Error deleting exercise:', xhr);
+                    // Reset delete button
+                    $('#confirmDeleteExerciseBtn').prop('disabled', false).text('Delete');
+                    hideModalSafely('confirmDeleteExerciseModal');
+                    showToast('Error', 'Failed to delete exercise. Please try again.', 'error');
+                }
+            });
+        }
     </script>
 }
+
+<!-- Delete Exercise Confirmation Modal -->
+<div class="modal fade" id="confirmDeleteExerciseModal" tabindex="-1" aria-labelledby="confirmDeleteExerciseModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmDeleteExerciseModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="exerciseNameToDelete"></strong>?</p>
+                <p class="text-danger">This will permanently delete the exercise and all sets associated with it.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteExerciseBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>

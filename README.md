@@ -120,6 +120,14 @@ Current Version: 2.1.0.1
 - **Exercise Tracking**: Track exercises performed during each workout session
 - **Set & Rep Management**: Record sets and repetitions for each exercise with weight tracking
 - **Exercise Library**: Maintain a database of exercise types for reuse across workout sessions
+- **Workout Management**:
+  - Create and track detailed workout sessions 
+  - Add exercises to workout sessions with multiple sets
+  - Record weights, reps, set types, rest periods, and more
+  - Modify workout details like name, description, and timing
+  - Delete individual sets from a workout exercise
+  - Delete entire exercises from a workout session along with their associated sets
+  - Clone existing sets to quickly record similar exercises
 - **Data Visualization**: Track progress over time through intuitive charts and graphs
 - **Performance Analytics**: View success/failure rates for exercises with detailed breakdowns
 - **One Rep Max Calculator**: Estimate maximum strength using seven scientific formulas based on weight and reps
