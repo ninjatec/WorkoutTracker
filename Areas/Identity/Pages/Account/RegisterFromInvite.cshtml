@@ -120,7 +120,16 @@
                             <input asp-for="Input.Password" class="form-control" autocomplete="new-password" placeholder="Password" />
                             <label asp-for="Input.Password"></label>
                             <span asp-validation-for="Input.Password" class="text-danger"></span>
-                            <div class="form-text">Password must be at least 6 characters long</div>
+                            <div class="form-text">
+                                Password requirements:
+                                <ul class="mb-0">
+                                    <li>At least 8 characters long</li>
+                                    <li>At least one digit (0-9)</li>
+                                    <li>At least one lowercase letter</li>
+                                    <li>At least one uppercase letter</li>
+                                    <li>At least one special character (!@#$%^&*)</li>
+                                </ul>
+                            </div>
                         </div>
                         
                         <div class="form-floating mb-4">
