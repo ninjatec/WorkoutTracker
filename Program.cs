@@ -327,7 +327,8 @@ namespace WorkoutTrackerWeb
                 options.Password.RequireNonAlphanumeric = true;
                 options.Password.RequiredLength = 8;
                 options.User.RequireUniqueEmail = true;
-                options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
+                // Allow email addresses as usernames by including additional characters
+                options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+!#$%&'*/=?^`{|}~";
             })
                 .AddRoles<IdentityRole>()
                 .AddEntityFrameworkStores<WorkoutTrackerWebContext>()
