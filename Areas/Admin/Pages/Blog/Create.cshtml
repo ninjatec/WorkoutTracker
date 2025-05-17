@@ -46,7 +46,7 @@
 
                                 <div class="mb-3">
                                     <label asp-for="BlogPost.Content" class="form-label">Content</label>
-                                    <textarea asp-for="BlogPost.Content" id="editor" class="form-control" rows="15" required></textarea>
+                                    <textarea asp-for="BlogPost.Content" id="Content" class="form-control" rows="15" required></textarea>
                                     <span asp-validation-for="BlogPost.Content" class="text-danger"></span>
                                 </div>
                             </div>
@@ -147,34 +147,22 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
-    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/5/tinymce.min.js" referrerpolicy="origin"></script>
+    <script src="~/lib/tinymce/tinymce.min.js"></script>
+    <script src="~/js/blog-editor.js"></script>
     <script>
-        tinymce.init({
-            selector: '#editor',
-            plugins: 'preview importcss searchreplace autolink autosave save directionality code visualblocks visualchars fullscreen image link media template codesample table charmap pagebreak nonbreaking anchor insertdatetime advlist lists wordcount help charmap quickbars emoticons',
-            menubar: 'file edit view insert format tools table help',
-            toolbar: 'undo redo | bold italic underline strikethrough | fontfamily fontsize blocks | alignleft aligncenter alignright alignjustify | outdent indent |  numlist bullist | forecolor backcolor removeformat | pagebreak | charmap emoticons | fullscreen  preview save print | insertfile image media template link anchor codesample | ltr rtl',
-            toolbar_sticky: true,
-            image_advtab: true,
-            importcss_append: true,
-            height: 600,
-            image_caption: true,
-            quickbars_selection_toolbar: 'bold italic | quicklink h2 h3 blockquote quickimage quicktable',
-            noneditable_class: 'mceNonEditable',
-            toolbar_mode: 'sliding',
-            contextmenu: 'link image table',
-            content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 16px; line-height: 1.6; }',
-            automatic_uploads: true,
-            file_picker_callback: function (callback, value, meta) {
-                // We need to implement a custom image upload here in a real scenario
-                // For now, we'll just have a placeholder
-                alert('Custom image upload would be implemented here in production');
-            },
-            setup: function (editor) {
-                editor.on('change', function () {
-                    editor.save();
-                });
-            }
+        document.addEventListener('DOMContentLoaded', function() {
+            // Generate slug from title
+            document.getElementById('generateSlugBtn').addEventListener('click', function() {
+                const title = document.getElementById('BlogPost_Title').value;
+                if (title) {
+                    const slug = title.toLowerCase()
+                        .replace(/[^\w\s-]/g, '') // Remove non-word chars
+                        .replace(/[\s_-]+/g, '-') // Replace spaces and underscores with hyphens
+                        .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+                    
+                    document.getElementById('BlogPost_Slug').value = slug;
+                }
+            });
         });
     </script>
 }

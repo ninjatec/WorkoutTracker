@@ -10,7 +10,7 @@
                 toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | bullist numlist outdent indent | link image media table | code codesample | preview',
                 menubar: 'file edit view insert format tools table help',
                 toolbar_mode: 'sliding',
-                height: 500,
+                height: 800,
                 model: 'dom',
                 autoresize_bottom_margin: 50,
                 image_title: true,
