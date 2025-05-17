@@ -93,19 +93,26 @@ namespace WorkoutTrackerWeb.Areas.Admin.Pages.Users
                 return NotFound();
             }
 
-            // Check if the username is being changed
+            // Handle username change
             if (user.UserName != UserEdit.UserName)
             {
-                // Ensure username isn't already taken
-                var existingUser = await _userManager.FindByNameAsync(UserEdit.UserName);
-                if (existingUser != null && existingUser.Id != UserEdit.Id)
+                // Always allow username to be the same as email address
+                if (UserEdit.UserName == UserEdit.Email)
                 {
-                    ModelState.AddModelError("UserEdit.UserName", "This username is already taken.");
-                    UserEdit.AvailableRoles = await _roleManager.Roles.ToListAsync();
-                    return Page();
+                    user.UserName = UserEdit.Email; // Use full email address as username
                 }
-                
-                user.UserName = UserEdit.UserName;
+                else
+                {
+                    // For non-email usernames, ensure it isn't already taken
+                    var existingUser = await _userManager.FindByNameAsync(UserEdit.UserName);
+                    if (existingUser != null && existingUser.Id != UserEdit.Id)
+                    {
+                        ModelState.AddModelError("UserEdit.UserName", "This username is already taken.");
+                        UserEdit.AvailableRoles = await _roleManager.Roles.ToListAsync();
+                        return Page();
+                    }
+                    user.UserName = UserEdit.UserName;
+                }
             }
 
             // Check if email is being changed

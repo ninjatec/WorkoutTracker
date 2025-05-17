@@ -58,6 +58,7 @@ namespace WorkoutTrackerWeb.Areas.Admin.ViewModels
         
         [Required]
         [Display(Name = "Username")]
+        [RegularExpression(@"^[a-zA-Z0-9_@.+-]+$", ErrorMessage = "Username can only contain letters, numbers, and the symbols @.+-_")]
         public string UserName { get; set; }
         
         [Phone]
