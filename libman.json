@@ -55,6 +55,7 @@
       "files": [
         "tinymce.min.js",
         "themes/silver/theme.min.js",
+        "models/dom/model.min.js",
         "plugins/image/plugin.min.js",
         "plugins/link/plugin.min.js",
         "plugins/lists/plugin.min.js",

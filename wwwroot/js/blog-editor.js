@@ -11,6 +11,7 @@
                 menubar: 'file edit view insert format tools table help',
                 toolbar_mode: 'sliding',
                 height: 500,
+                model: 'dom',
                 autoresize_bottom_margin: 50,
                 image_title: true,
                 automatic_uploads: true,
