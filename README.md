@@ -8,6 +8,15 @@ Current Version: 2.1.0.1
 
 ## Features
 
+- **Blog System**: Share workout tips, nutrition advice, and fitness knowledge
+  - Admin-only blog post creation and management
+  - Public visibility for all users (including anonymous visitors)
+  - Rich text editing with TinyMCE integration
+  - Blog post categories and tags for organization
+  - Featured images for blog posts
+  - SEO-friendly URLs with slug-based routing
+  - Responsive design for mobile and desktop viewing
+
 - **Enhanced Responsive Design**: Full mobile optimization across the application
   - Mobile-first CSS architecture with progressive enhancement
   - Mobile-optimized bottom navigation bar for critical actions

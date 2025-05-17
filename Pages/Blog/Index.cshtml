@@ -1,0 +1,220 @@
+@page
+@model WorkoutTrackerWeb.Pages.Blog.IndexModel
+@{
+    ViewData["Title"] = "Blog";
+    ViewData["Description"] = "New about the workout tracker project.";
+}
+
+@section Styles {
+    <style>
+        .blog-card {
+            transition: transform 0.3s ease-in-out;
+            height: 100%;
+        }
+        .blog-card:hover {
+            transform: translateY(-5px);
+        }
+        .blog-image {
+            height: 200px;
+            object-fit: cover;
+            width: 100%;
+        }
+        .blog-tag {
+            font-size: 0.8rem;
+            margin-right: 0.5rem;
+        }
+        .blog-meta {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+        .blog-featured {
+            border-left: 4px solid #0d6efd;
+        }
+    </style>
+}
+
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1>Workout Tracker Blog</h1>
+            <p class="lead">Expert advice, workout tips, and nutritional guidance to help you achieve your fitness goals.</p>
+        </div>
+    </div>
+
+    @if (Model.Posts.Count == 0)
+    {
+        <div class="alert alert-info">
+            No blog posts have been published yet. Please check back soon!
+        </div>
+    }
+    else
+    {
+        @if (!string.IsNullOrEmpty(Model.SearchTerm))
+        {
+            <div class="alert alert-info">
+                Search results for: <strong>@Model.SearchTerm</strong>
+                <a asp-page="./Index" class="btn btn-sm btn-outline-primary float-end">Clear Search</a>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(Model.CategoryName))
+        {
+            <div class="alert alert-info">
+                Posts in category: <strong>@Model.CategoryName</strong>
+                <a asp-page="./Index" class="btn btn-sm btn-outline-primary float-end">View All Posts</a>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(Model.TagName))
+        {
+            <div class="alert alert-info">
+                Posts tagged with: <strong>@Model.TagName</strong>
+                <a asp-page="./Index" class="btn btn-sm btn-outline-primary float-end">View All Posts</a>
+            </div>
+        }
+
+        <div class="row">
+            <div class="col-md-8">
+                @foreach (var post in Model.Posts)
+                {
+                    <div class="card blog-card mb-4 shadow-sm @(post.Id == Model.Posts.FirstOrDefault()?.Id ? "blog-featured" : "")">
+                        @if (!string.IsNullOrEmpty(post.ImageUrl))
+                        {
+                            <img src="@post.ImageUrl" class="card-img-top blog-image" alt="@post.Title">
+                        }
+                        <div class="card-body">
+                            <h2 class="card-title h4">
+                                <a asp-page="./Post" asp-route-slug="@post.Slug" class="text-decoration-none">@post.Title</a>
+                            </h2>
+                            <div class="blog-meta mb-2">
+                                <span><i class="bi bi-calendar"></i> @post.PublishedOn?.ToString("MMM dd, yyyy")</span>
+                                <span class="ms-3"><i class="bi bi-eye"></i> @post.ViewCount views</span>
+                            </div>
+                            <p class="card-text">@post.Summary</p>
+                            
+                            <div class="mb-3">
+                                @foreach (var category in post.Categories)
+                                {
+                                    <a asp-page="./Category" asp-route-slug="@category.Slug" class="badge bg-primary text-decoration-none me-1">@category.Name</a>
+                                }
+                                @foreach (var tag in post.Tags)
+                                {
+                                    <a asp-page="./Tag" asp-route-slug="@tag.Slug" class="badge bg-secondary text-decoration-none me-1 blog-tag">@tag.Name</a>
+                                }
+                            </div>
+                            
+                            <a asp-page="./Post" asp-route-slug="@post.Slug" class="btn btn-sm btn-outline-primary">Read More</a>
+                        </div>
+                    </div>
+                }
+
+                <nav aria-label="Blog pagination">
+                    <ul class="pagination justify-content-center">
+                        @if (Model.CurrentPage > 1)
+                        {
+                            <li class="page-item">
+                                <a class="page-link" 
+                                   asp-page="./Index" 
+                                   asp-route-pageNumber="@(Model.CurrentPage - 1)"
+                                   asp-route-category="@Model.CategorySlug"
+                                   asp-route-tag="@Model.TagSlug"
+                                   asp-route-q="@Model.SearchTerm">
+                                    Previous
+                                </a>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="page-item disabled">
+                                <span class="page-link">Previous</span>
+                            </li>
+                        }
+
+                        @for (int i = 1; i <= Model.TotalPages; i++)
+                        {
+                            <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                <a class="page-link" 
+                                   asp-page="./Index" 
+                                   asp-route-pageNumber="@i"
+                                   asp-route-category="@Model.CategorySlug"
+                                   asp-route-tag="@Model.TagSlug"
+                                   asp-route-q="@Model.SearchTerm">
+                                    @i
+                                </a>
+                            </li>
+                        }
+
+                        @if (Model.CurrentPage < Model.TotalPages)
+                        {
+                            <li class="page-item">
+                                <a class="page-link" 
+                                   asp-page="./Index" 
+                                   asp-route-pageNumber="@(Model.CurrentPage + 1)"
+                                   asp-route-category="@Model.CategorySlug"
+                                   asp-route-tag="@Model.TagSlug"
+                                   asp-route-q="@Model.SearchTerm">
+                                    Next
+                                </a>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="page-item disabled">
+                                <span class="page-link">Next</span>
+                            </li>
+                        }
+                    </ul>
+                </nav>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header">
+                        <h5 class="mb-0">Search</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="get" asp-page="./Index">
+                            <div class="input-group">
+                                <input type="text" name="q" class="form-control" placeholder="Search posts..." value="@Model.SearchTerm">
+                                <button class="btn btn-primary" type="submit">Search</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header">
+                        <h5 class="mb-0">Categories</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            @foreach (var category in Model.Categories)
+                            {
+                                <a asp-page="./Category" asp-route-slug="@category.Slug" 
+                                   class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                    @category.Name
+                                    <span class="badge bg-primary rounded-pill">@category.PostCount</span>
+                                </a>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header">
+                        <h5 class="mb-0">Popular Tags</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap">
+                            @foreach (var tag in Model.Tags)
+                            {
+                                <a asp-page="./Tag" asp-route-slug="@tag.Slug" 
+                                   class="badge bg-secondary text-decoration-none me-1 mb-1 p-2">
+                                    @tag.Name (@tag.PostCount)
+                                </a>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>

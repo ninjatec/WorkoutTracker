@@ -19,6 +19,7 @@ This document maintains an up-to-date inventory of all features, components, and
 - Report Generation
 - Exercise Library with API Integration
 - User Preference Management
+- Blog System for Fitness Content
 - Responsive Mobile-First UI
 - Admin Dashboard
 - Metric Collection
@@ -115,6 +116,9 @@ This document maintains an up-to-date inventory of all features, components, and
 - VolumeCalculationService - Service for workout volume calculations
 - CalorieCalculationService - Service for workout calorie estimation
 - QuickWorkoutService - Service for optimized gym workout tracking
+- BlogService - Service for blog post management and retrieval
+- BlogRepository - Repository for blog-related data access
+- BlogImageUtility - Utility for handling blog image uploads and management
 
 ### DTOs
 - GoalExportDto - Data transfer object for goal export and API integration
@@ -148,6 +152,11 @@ This document maintains an up-to-date inventory of all features, components, and
 - CoachClientRelationship
 - CoachClientPermission
 - ClientGoal
+- BlogPost
+- BlogCategory
+- BlogTag
+- BlogPostCategory
+- BlogPostTag
 - GoalCategory
 - GoalMilestone
 - AppVersion
@@ -393,6 +402,46 @@ This document maintains an up-to-date inventory of all features, components, and
   - Id, Content (renamed from noteText), CreatedDate (renamed from date)
   - CoachClientRelationshipId, IsVisibleToClient, Category
   - UpdatedDate (new field for tracking modifications)
+
+#### BlogPost
+- Represents a blog article with fitness-related content
+- Properties:
+  - Id, Title, Slug, Content, Summary, ImageUrl
+  - AuthorId, Published, PublishedOn, CreatedOn, UpdatedOn, ViewCount
+- Relationships:
+  - Many-to-one with User (Author)
+  - Many-to-many with BlogCategory through BlogPostCategory
+  - Many-to-many with BlogTag through BlogPostTag
+
+#### BlogCategory
+- Represents a category for organizing blog posts
+- Properties:
+  - Id, Name, Slug, Description
+- Relationships:
+  - Many-to-many with BlogPost through BlogPostCategory
+
+#### BlogTag
+- Represents a tag for labeling and filtering blog posts
+- Properties:
+  - Id, Name, Slug
+- Relationships:
+  - Many-to-many with BlogPost through BlogPostTag
+
+#### BlogPostCategory
+- Junction entity for many-to-many relationship between BlogPost and BlogCategory
+- Properties:
+  - BlogPostId, BlogCategoryId
+- Relationships:
+  - Many-to-one with BlogPost
+  - Many-to-one with BlogCategory
+
+#### BlogPostTag
+- Junction entity for many-to-many relationship between BlogPost and BlogTag
+- Properties:
+  - BlogPostId, BlogTagId
+- Relationships:
+  - Many-to-one with BlogPost
+  - Many-to-one with BlogTag
 - Relationships:
   - Many-to-one with CoachClientRelationship
 - Features:
@@ -610,6 +659,16 @@ This document maintains an up-to-date inventory of all features, components, and
 - Enhanced workout session duplicate detection in `ScheduledWorkoutProcessorService.cs` to handle all workout statuses.
 - Improved logging in workout scheduling services to provide better diagnostic information.
 - Verified all scheduled job registration and processing workflows.
+
+## 2025-05-17: Blog Feature Implementation
+- Added blog system for sharing workout tips, nutrition advice, and fitness knowledge
+- Created database models for blog posts, categories, and tags
+- Implemented admin area pages for blog management
+- Added TinyMCE rich text editor integration for content creation
+- Created image upload functionality for blog posts
+- Implemented SEO-friendly URL routing with slugs
+- Added responsive public-facing blog pages
+- Integrated blog navigation into the main menu
 
 ### User Preference Management
 - Includes `ThemePreference` property in the `AppUser` model to store user-selected theme (light or dark).

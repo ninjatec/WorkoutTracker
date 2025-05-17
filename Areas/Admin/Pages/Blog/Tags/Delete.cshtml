@@ -1,0 +1,37 @@
+@page "{id:int}"
+@model WorkoutTrackerWeb.Areas.Admin.Pages.Blog.Tags.DeleteModel
+@{
+    ViewData["Title"] = "Delete Tag";
+}
+
+<div class="container">
+    <h1>Delete Tag</h1>
+    
+    <div class="alert alert-danger">
+        <h3>Are you sure you want to delete this tag?</h3>
+        <p>This action cannot be undone. All posts will be untagged, but the posts themselves will not be deleted.</p>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>@Model.Tag.Name</h4>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <h5>Slug</h5>
+                <p>@Model.Tag.Slug</p>
+            </div>
+            
+            <div class="mb-3">
+                <h5>Post Count</h5>
+                <p>This tag is used in <strong>@Model.AssociatedPostCount</strong> posts.</p>
+            </div>
+        </div>
+    </div>
+    
+    <form method="post">
+        <input type="hidden" asp-for="Tag.Id" />
+        <button type="submit" class="btn btn-danger">Delete</button>
+        <a asp-page="./Index" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>

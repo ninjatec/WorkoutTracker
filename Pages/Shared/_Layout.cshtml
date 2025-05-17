@@ -99,6 +99,10 @@
                                 <li><a class="dropdown-item text-danger" asp-page="/Account/DeleteWorkoutData">Delete All Workout Data</a></li>
                             </ul>
                         </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-page="/Blog/Index"><i class="bi bi-journal-text"></i> Blog</a>
+                        </li>
                         @if (User.IsInRole("Coach"))
                         {
                             <li class="nav-item dropdown">
@@ -129,6 +133,7 @@
                                     <li><a class="dropdown-item" asp-area="Admin" asp-page="/Index">Dashboard</a></li>
                                     <li><a class="dropdown-item" asp-area="Admin" asp-page="/Users/Index">User Management</a></li>
                                     <li><a class="dropdown-item" asp-area="Admin" asp-page="/Feedback/Index">Feedback Management</a></li>
+                                    <li><a class="dropdown-item" asp-area="Admin" asp-page="/Blog/Index"><i class="bi bi-journal-text me-2"></i>Blog Management</a></li>
                                     <li><a class="dropdown-item" asp-area="" asp-page="/HangfireDiagnostics/Index">Hangfire Diagnostics</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item" asp-area="Admin" asp-controller="Versions" asp-action="Index">Version Management</a></li>

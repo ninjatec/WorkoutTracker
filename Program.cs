@@ -490,6 +490,11 @@ namespace WorkoutTrackerWeb
 
             builder.Services.AddScoped<IHangfireInitializationService, HangfireInitializationService>();
 
+            // Blog Services
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Blog.IBlogRepository, WorkoutTrackerWeb.Services.Blog.BlogRepository>();
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Blog.IBlogService, WorkoutTrackerWeb.Services.Blog.BlogService>();
+            builder.Services.AddSingleton<WorkoutTrackerWeb.Utilities.BlogImageUtility>();
+
             // Register DatabaseResilienceService with configuration
             builder.Services.AddSingleton<DatabaseResilienceService>(sp => 
                 new DatabaseResilienceService(
