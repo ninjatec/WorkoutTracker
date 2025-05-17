@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Models.Blog;
 
 namespace WorkoutTrackerWeb.Services.Blog
@@ -10,10 +11,12 @@ namespace WorkoutTrackerWeb.Services.Blog
     public class BlogService : IBlogService
     {
         private readonly IBlogRepository _blogRepository;
+        private readonly ILogger<BlogService> _logger;
 
-        public BlogService(IBlogRepository blogRepository)
+        public BlogService(IBlogRepository blogRepository, ILogger<BlogService> logger)
         {
             _blogRepository = blogRepository;
+            _logger = logger;
         }
 
         // Blog Post methods
@@ -101,61 +104,95 @@ namespace WorkoutTrackerWeb.Services.Blog
 
         public async Task<BlogPost> UpdateBlogPostAsync(BlogPost blogPost, List<int> categoryIds, List<int> tagIds)
         {
-            // Debug incoming values
-            System.Diagnostics.Debug.WriteLine($"BlogService.UpdateBlogPostAsync - Incoming Published: {blogPost.Published}");
-            
-            // Set update date
-            blogPost.UpdatedOn = DateTime.UtcNow;
-            
-            // Set published date if publishing for the first time
-            if (blogPost.Published && !blogPost.PublishedOn.HasValue)
+            try
             {
-                blogPost.PublishedOn = DateTime.UtcNow;
-            }
-
-            // Update the blog post
-            await _blogRepository.UpdateBlogPostAsync(blogPost);
-
-            // Get full post with current relationships
-            var updatedPost = await _blogRepository.GetBlogPostByIdAsync(blogPost.Id);
-            
-            // Debug post after update
-            System.Diagnostics.Debug.WriteLine($"BlogService.UpdateBlogPostAsync - After Update Published: {updatedPost.Published}");
-
-            // Update categories - first remove all existing categories
-            var existingCategories = updatedPost.BlogPostCategories.ToList();
-            foreach (var existingCategory in existingCategories)
-            {
-                await _blogRepository.RemovePostFromCategoryAsync(updatedPost.Id, existingCategory.BlogCategoryId);
-            }
-
-            // Add new categories
-            if (categoryIds != null && categoryIds.Count > 0)
-            {
-                foreach (var categoryId in categoryIds)
+                _logger.LogInformation("BlogService.UpdateBlogPostAsync - Starting update for blog post {id}. Published: {isPublished}", 
+                    blogPost.Id, blogPost.Published);
+                
+                // Set update date
+                blogPost.UpdatedOn = DateTime.UtcNow;
+                
+                // Set published date if publishing for the first time
+                if (blogPost.Published && !blogPost.PublishedOn.HasValue)
                 {
-                    await _blogRepository.AddPostToCategoryAsync(updatedPost.Id, categoryId);
+                    _logger.LogInformation("BlogService.UpdateBlogPostAsync - Publishing post {id} for the first time", blogPost.Id);
+                    blogPost.PublishedOn = DateTime.UtcNow;
                 }
-            }
 
-            // Update tags - first remove all existing tags
-            var existingTags = updatedPost.BlogPostTags.ToList();
-            foreach (var existingTag in existingTags)
-            {
-                await _blogRepository.RemovePostTagAsync(updatedPost.Id, existingTag.BlogTagId);
-            }
+                // Update the blog post
+                _logger.LogInformation("BlogService.UpdateBlogPostAsync - Calling repository to update blog post {id}", blogPost.Id);
+                await _blogRepository.UpdateBlogPostAsync(blogPost);
 
-            // Add new tags
-            if (tagIds != null && tagIds.Count > 0)
-            {
-                foreach (var tagId in tagIds)
+                // Get full post with current relationships
+                var updatedPost = await _blogRepository.GetBlogPostByIdAsync(blogPost.Id);
+                
+                _logger.LogInformation("BlogService.UpdateBlogPostAsync - Blog post {id} basic update complete. Current categories: {categoryCount}, Current tags: {tagCount}", 
+                    blogPost.Id, 
+                    updatedPost.BlogPostCategories?.Count ?? 0,
+                    updatedPost.BlogPostTags?.Count ?? 0);
+
+                // Update categories - first remove all existing categories
+                if (updatedPost.BlogPostCategories != null)
                 {
-                    await _blogRepository.AddPostTagAsync(updatedPost.Id, tagId);
+                    var existingCategories = updatedPost.BlogPostCategories.ToList();
+                    foreach (var existingCategory in existingCategories)
+                    {
+                        _logger.LogInformation("BlogService.UpdateBlogPostAsync - Removing category {categoryId} from blog post {id}", 
+                            existingCategory.BlogCategoryId, blogPost.Id);
+                        await _blogRepository.RemovePostFromCategoryAsync(updatedPost.Id, existingCategory.BlogCategoryId);
+                    }
                 }
-            }
 
-            // Get the updated post with new relationships
-            return await _blogRepository.GetBlogPostByIdAsync(updatedPost.Id);
+                // Add new categories
+                if (categoryIds != null && categoryIds.Count > 0)
+                {
+                    foreach (var categoryId in categoryIds)
+                    {
+                        _logger.LogInformation("BlogService.UpdateBlogPostAsync - Adding category {categoryId} to blog post {id}", 
+                            categoryId, blogPost.Id);
+                        await _blogRepository.AddPostToCategoryAsync(updatedPost.Id, categoryId);
+                    }
+                }
+
+                // Update tags - first remove all existing tags
+                if (updatedPost.BlogPostTags != null)
+                {
+                    var existingTags = updatedPost.BlogPostTags.ToList();
+                    foreach (var existingTag in existingTags)
+                    {
+                        _logger.LogInformation("BlogService.UpdateBlogPostAsync - Removing tag {tagId} from blog post {id}", 
+                            existingTag.BlogTagId, blogPost.Id);
+                        await _blogRepository.RemovePostTagAsync(updatedPost.Id, existingTag.BlogTagId);
+                    }
+                }
+
+                // Add new tags
+                if (tagIds != null && tagIds.Count > 0)
+                {
+                    foreach (var tagId in tagIds)
+                    {
+                        _logger.LogInformation("BlogService.UpdateBlogPostAsync - Adding tag {tagId} to blog post {id}", 
+                            tagId, blogPost.Id);
+                        await _blogRepository.AddPostTagAsync(updatedPost.Id, tagId);
+                    }
+                }
+
+                // Get the updated post with new relationships
+                var finalPost = await _blogRepository.GetBlogPostByIdAsync(updatedPost.Id);
+                
+                _logger.LogInformation("BlogService.UpdateBlogPostAsync - Blog post {id} update complete. Final categories: {categoryCount}, Final tags: {tagCount}, Published: {isPublished}", 
+                    blogPost.Id, 
+                    finalPost.BlogPostCategories?.Count ?? 0,
+                    finalPost.BlogPostTags?.Count ?? 0,
+                    finalPost.Published);
+                    
+                return finalPost;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "BlogService.UpdateBlogPostAsync - Error updating blog post {id}", blogPost.Id);
+                throw;
+            }
         }
 
         public async Task DeleteBlogPostAsync(int id)

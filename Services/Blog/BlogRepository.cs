@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models.Blog;
 
@@ -11,10 +12,12 @@ namespace WorkoutTrackerWeb.Services.Blog
     public class BlogRepository : IBlogRepository
     {
         private readonly WorkoutTrackerWebContext _context;
+        private readonly ILogger<BlogRepository> _logger;
 
-        public BlogRepository(WorkoutTrackerWebContext context)
+        public BlogRepository(WorkoutTrackerWebContext context, ILogger<BlogRepository> logger)
         {
             _context = context;
+            _logger = logger;
         }
 
         // Blog Post methods
@@ -141,6 +144,8 @@ namespace WorkoutTrackerWeb.Services.Blog
         {
             try
             {
+                _logger.LogInformation("BlogRepository.UpdateBlogPostAsync - Starting database update for blog post {id}", blogPost.Id);
+
                 // Update using direct SQL to ensure Published property gets updated correctly
                 var sql = @"
                 UPDATE BlogPost 
@@ -155,12 +160,15 @@ namespace WorkoutTrackerWeb.Services.Blog
                     ViewCount = @ViewCount
                 WHERE Id = @Id";
 
+                _logger.LogInformation("BlogRepository.UpdateBlogPostAsync - Executing SQL update for blog post {id}. Published: {isPublished}, PublishedOn: {publishedOn}", 
+                    blogPost.Id, blogPost.Published, blogPost.PublishedOn);
+
                 // Define all parameters to ensure proper data types
                 var parameters = new[] {
                     new Microsoft.Data.SqlClient.SqlParameter("@Title", blogPost.Title ?? string.Empty),
                     new Microsoft.Data.SqlClient.SqlParameter("@Slug", blogPost.Slug ?? string.Empty),
                     new Microsoft.Data.SqlClient.SqlParameter("@Content", blogPost.Content ?? string.Empty),
-                    new Microsoft.Data.SqlClient.SqlParameter("@Summary", (object)blogPost.Summary ?? DBNull.Value),
+                    new Microsoft.Data.SqlClient.SqlParameter("@Summary", (object)(blogPost.Summary ?? null) ?? DBNull.Value),
                     new Microsoft.Data.SqlClient.SqlParameter("@ImageUrl", (object)blogPost.ImageUrl ?? DBNull.Value),
                     new Microsoft.Data.SqlClient.SqlParameter("@Published", blogPost.Published),
                     new Microsoft.Data.SqlClient.SqlParameter("@PublishedOn", (object)blogPost.PublishedOn ?? DBNull.Value),
@@ -170,18 +178,24 @@ namespace WorkoutTrackerWeb.Services.Blog
                 };
 
                 // Execute the SQL command
-                await _context.Database.ExecuteSqlRawAsync(sql, parameters);
+                int rowsAffected = await _context.Database.ExecuteSqlRawAsync(sql, parameters);
+                
+                _logger.LogInformation("BlogRepository.UpdateBlogPostAsync - SQL update completed. Rows affected: {rowsAffected}", rowsAffected);
                 
                 // Clear the DbContext to ensure we get fresh data
                 _context.ChangeTracker.Clear();
                 
                 // Return the updated blog post
-                return await GetBlogPostByIdAsync(blogPost.Id);
+                var updatedPost = await GetBlogPostByIdAsync(blogPost.Id);
+                
+                _logger.LogInformation("BlogRepository.UpdateBlogPostAsync - Successfully retrieved updated blog post {id}. Published: {isPublished}", 
+                    blogPost.Id, updatedPost?.Published);
+                
+                return updatedPost;
             }
             catch (Exception ex)
             {
-                // Log any exceptions that occur during the update
-                System.Diagnostics.Debug.WriteLine($"Error updating blog post: {ex.Message}");
+                _logger.LogError(ex, "BlogRepository.UpdateBlogPostAsync - Error updating blog post {id} in database", blogPost.Id);
                 throw;
             }
         }
@@ -293,60 +307,120 @@ namespace WorkoutTrackerWeb.Services.Blog
         // Post-Category mapping methods
         public async Task AddPostToCategoryAsync(int postId, int categoryId)
         {
-            var mapping = await _context.BlogPostCategory
-                .FirstOrDefaultAsync(pc => pc.BlogPostId == postId && pc.BlogCategoryId == categoryId);
-
-            if (mapping == null)
+            try
             {
-                mapping = new BlogPostCategory
+                _logger.LogInformation("BlogRepository.AddPostToCategoryAsync - Adding category {categoryId} to post {postId}", categoryId, postId);
+                
+                var mapping = await _context.BlogPostCategory
+                    .FirstOrDefaultAsync(pc => pc.BlogPostId == postId && pc.BlogCategoryId == categoryId);
+
+                if (mapping == null)
                 {
-                    BlogPostId = postId,
-                    BlogCategoryId = categoryId
-                };
-                _context.BlogPostCategory.Add(mapping);
-                await _context.SaveChangesAsync();
+                    mapping = new BlogPostCategory
+                    {
+                        BlogPostId = postId,
+                        BlogCategoryId = categoryId
+                    };
+                    _context.BlogPostCategory.Add(mapping);
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("BlogRepository.AddPostToCategoryAsync - Successfully added category {categoryId} to post {postId}", categoryId, postId);
+                }
+                else
+                {
+                    _logger.LogWarning("BlogRepository.AddPostToCategoryAsync - Category {categoryId} already exists for post {postId}", categoryId, postId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "BlogRepository.AddPostToCategoryAsync - Error adding category {categoryId} to post {postId}", categoryId, postId);
+                throw;
             }
         }
 
         public async Task RemovePostFromCategoryAsync(int postId, int categoryId)
         {
-            var mapping = await _context.BlogPostCategory
-                .FirstOrDefaultAsync(pc => pc.BlogPostId == postId && pc.BlogCategoryId == categoryId);
-
-            if (mapping != null)
+            try
             {
-                _context.BlogPostCategory.Remove(mapping);
-                await _context.SaveChangesAsync();
+                _logger.LogInformation("BlogRepository.RemovePostFromCategoryAsync - Removing category {categoryId} from post {postId}", categoryId, postId);
+                
+                var mapping = await _context.BlogPostCategory
+                    .FirstOrDefaultAsync(pc => pc.BlogPostId == postId && pc.BlogCategoryId == categoryId);
+
+                if (mapping != null)
+                {
+                    _context.BlogPostCategory.Remove(mapping);
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("BlogRepository.RemovePostFromCategoryAsync - Successfully removed category {categoryId} from post {postId}", categoryId, postId);
+                }
+                else
+                {
+                    _logger.LogWarning("BlogRepository.RemovePostFromCategoryAsync - Category {categoryId} not found for post {postId}", categoryId, postId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "BlogRepository.RemovePostFromCategoryAsync - Error removing category {categoryId} from post {postId}", categoryId, postId);
+                throw;
             }
         }
 
         // Post-Tag mapping methods
         public async Task AddPostTagAsync(int postId, int tagId)
         {
-            var mapping = await _context.BlogPostTag
-                .FirstOrDefaultAsync(pt => pt.BlogPostId == postId && pt.BlogTagId == tagId);
-
-            if (mapping == null)
+            try 
             {
-                mapping = new BlogPostTag
+                _logger.LogInformation("BlogRepository.AddPostTagAsync - Adding tag {tagId} to post {postId}", tagId, postId);
+                
+                var mapping = await _context.BlogPostTag
+                    .FirstOrDefaultAsync(pt => pt.BlogPostId == postId && pt.BlogTagId == tagId);
+
+                if (mapping == null)
                 {
-                    BlogPostId = postId,
-                    BlogTagId = tagId
-                };
-                _context.BlogPostTag.Add(mapping);
-                await _context.SaveChangesAsync();
+                    mapping = new BlogPostTag
+                    {
+                        BlogPostId = postId,
+                        BlogTagId = tagId
+                    };
+                    _context.BlogPostTag.Add(mapping);
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("BlogRepository.AddPostTagAsync - Successfully added tag {tagId} to post {postId}", tagId, postId);
+                }
+                else
+                {
+                    _logger.LogWarning("BlogRepository.AddPostTagAsync - Tag {tagId} already exists for post {postId}", tagId, postId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "BlogRepository.AddPostTagAsync - Error adding tag {tagId} to post {postId}", tagId, postId);
+                throw;
             }
         }
 
         public async Task RemovePostTagAsync(int postId, int tagId)
         {
-            var mapping = await _context.BlogPostTag
-                .FirstOrDefaultAsync(pt => pt.BlogPostId == postId && pt.BlogTagId == tagId);
-
-            if (mapping != null)
+            try
             {
-                _context.BlogPostTag.Remove(mapping);
-                await _context.SaveChangesAsync();
+                _logger.LogInformation("BlogRepository.RemovePostTagAsync - Removing tag {tagId} from post {postId}", tagId, postId);
+                
+                var mapping = await _context.BlogPostTag
+                    .FirstOrDefaultAsync(pt => pt.BlogPostId == postId && pt.BlogTagId == tagId);
+
+                if (mapping != null)
+                {
+                    _context.BlogPostTag.Remove(mapping);
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("BlogRepository.RemovePostTagAsync - Successfully removed tag {tagId} from post {postId}", tagId, postId);
+                }
+                else
+                {
+                    _logger.LogWarning("BlogRepository.RemovePostTagAsync - Tag {tagId} not found for post {postId}", tagId, postId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "BlogRepository.RemovePostTagAsync - Error removing tag {tagId} from post {postId}", tagId, postId);
+                throw;
             }
         }
     }
