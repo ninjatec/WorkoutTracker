@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerWeb.Models.Identity;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
+using Microsoft.Extensions.Logging;
 
 namespace WorkoutTrackerWeb.Pages.Account.Manage
 {
@@ -17,15 +18,18 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
         private readonly UserManager<AppUser> _userManager;
         private readonly SignInManager<AppUser> _signInManager;
         private readonly WorkoutTrackerWebContext _context;
+        private readonly ILogger<AccountManagementModel> _logger;
 
         public AccountManagementModel(
             UserManager<AppUser> userManager,
             SignInManager<AppUser> signInManager,
-            WorkoutTrackerWebContext context)
+            WorkoutTrackerWebContext context,
+            ILogger<AccountManagementModel> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _context = context;
+            _logger = logger;
         }
 
         [BindProperty]
@@ -51,7 +55,7 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
 
             [Display(Name = "Current Password")]
             [DataType(DataType.Password)]
-            public string Password { get; set; } // This will be used only for verification in the future
+            public string Password { get; set; }
 
             // Height in metric (centimeters)
             [Display(Name = "Height (cm)")]
@@ -78,58 +82,81 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
             [Range(0, 1200)]
             public decimal? WeightLbs { get; set; }
             
-            // Unit preference for display
-            [Display(Name = "Preferred Units")]
-            public string PreferredUnits { get; set; } = "Metric";
+            // Unit preferences for individual measurements
+            [Display(Name = "Height Unit")]
+            public string HeightUnit { get; set; } = "Metric";
+            
+            [Display(Name = "Weight Unit")]
+            public string WeightUnit { get; set; } = "Metric";
 
-            [Display(Name = "Account Created")]
-            [DisplayFormat(DataFormatString = "{0:yyyy-MM-dd HH:mm}")]
             public DateTime CreatedDate { get; set; }
-
-            [Display(Name = "Last Updated")]
-            [DisplayFormat(DataFormatString = "{0:yyyy-MM-dd HH:mm}")]
             public DateTime LastModifiedDate { get; set; }
         }
 
         private async Task LoadAsync(AppUser user)
         {
-            var email = await Task.FromResult(user.Email);
-            var userName = await Task.FromResult(user.UserName);
-            var phoneNumber = await Task.FromResult(user.PhoneNumber);
-            
-            // Get the User record with height/weight data
-            var appUser = await _context.User
-                .FirstOrDefaultAsync(u => u.IdentityUserId == user.Id);
-            
-            Input = new InputModel
+            try
             {
-                Email = email,
-                UserName = userName,
-                PhoneNumber = phoneNumber,
-                CreatedDate = user.CreatedDate,
-                LastModifiedDate = user.LastModifiedDate
-            };
-            
-            // Add height and weight if the application User record exists
-            if (appUser != null)
+                var userName = await _userManager.GetUserNameAsync(user);
+                var phoneNumber = await _userManager.GetPhoneNumberAsync(user);
+
+                // Load user preferences
+                var appUser = await _context.User
+                    .FirstOrDefaultAsync(u => u.IdentityUserId == user.Id);
+
+                // Initialize input model with basic identity info
+                Input = new InputModel
+                {
+                    PhoneNumber = phoneNumber,
+                    UserName = userName,
+                    // Use TempData for unit preferences if available (e.g. after a form submit),
+                    // otherwise use the defaults
+                    HeightUnit = TempData["HeightUnit"]?.ToString() ?? "Metric",
+                    WeightUnit = TempData["WeightUnit"]?.ToString() ?? "Metric"
+                };
+
+                // Load measurements if available
+                if (appUser != null)
+                {
+                    _logger.LogInformation("Loading measurements for user {UserId}", user.Id);
+
+                    if (appUser.HeightCm.HasValue)
+                    {
+                        if (Input.HeightUnit == "Imperial")
+                        {
+                            // Convert cm to feet and inches
+                            decimal totalInches = appUser.HeightCm.Value / 2.54m;
+                            Input.HeightFeet = (int)(totalInches / 12);
+                            Input.HeightInches = (int)(totalInches % 12);
+                        }
+                        else
+                        {
+                            Input.HeightCm = decimal.Round(appUser.HeightCm.Value, 2);
+                        }
+                    }
+
+                    if (appUser.WeightKg.HasValue)
+                    {
+                        if (Input.WeightUnit == "Imperial")
+                        {
+                            // Convert kg to lbs
+                            Input.WeightLbs = decimal.Round(appUser.WeightKg.Value * 2.20462m, 2);
+                        }
+                        else
+                        {
+                            Input.WeightKg = decimal.Round(appUser.WeightKg.Value, 2);
+                        }
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("No existing measurements found for user {UserId}", user.Id);
+                }
+            }
+            catch (Exception ex)
             {
-                Input.HeightCm = appUser.HeightCm;
-                Input.WeightKg = appUser.WeightKg;
-                
-                // Convert metric to imperial for display if needed
-                if (appUser.HeightCm.HasValue)
-                {
-                    // Convert cm to feet and inches (1 foot = 30.48 cm)
-                    var totalInches = appUser.HeightCm.Value / 2.54m;
-                    Input.HeightFeet = (int)(totalInches / 12);
-                    Input.HeightInches = (int)(totalInches % 12);
-                }
-                
-                if (appUser.WeightKg.HasValue)
-                {
-                    // Convert kg to lbs (1 kg = 2.20462 lbs)
-                    Input.WeightLbs = appUser.WeightKg.Value * 2.20462m;
-                }
+                _logger.LogError(ex, "Error loading user data for user {UserId}", user?.Id);
+                ModelState.AddModelError(string.Empty, "An error occurred while loading your profile. Please try again.");
             }
         }
 
@@ -153,105 +180,188 @@ namespace WorkoutTrackerWeb.Pages.Account.Manage
                 return NotFound($"Unable to load user with ID '{_userManager.GetUserId(User)}'.");
             }
 
+            // Log the input values immediately to verify what we're receiving
+            _logger.LogInformation("Received form values - Height Unit: {HeightUnit}, Weight Unit: {WeightUnit}", 
+                Input.HeightUnit, Input.WeightUnit);
+            _logger.LogInformation("Height values - Metric: {HeightCm}cm, Imperial: {HeightFeet}ft {HeightInches}in",
+                Input.HeightCm, Input.HeightFeet, Input.HeightInches);
+            _logger.LogInformation("Weight values - Metric: {WeightKg}kg, Imperial: {WeightLbs}lbs",
+                Input.WeightKg, Input.WeightLbs);
+
             if (!ModelState.IsValid)
             {
+                _logger.LogWarning("Model state is invalid. Errors: {Errors}", 
+                    string.Join("; ", ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)));
                 await LoadAsync(user);
                 return Page();
             }
 
-            if (Input.Email != user.Email)
-            {
-                var setEmailResult = await _userManager.SetEmailAsync(user, Input.Email);
-                if (!setEmailResult.Succeeded)
-                {
-                    foreach (var error in setEmailResult.Errors)
-                    {
-                        ModelState.AddModelError(string.Empty, error.Description);
-                    }
-                    await LoadAsync(user);
-                    return Page();
-                }
-            }
-
-            if (Input.UserName != user.UserName)
-            {
-                var setUsernameResult = await _userManager.SetUserNameAsync(user, Input.UserName);
-                if (!setUsernameResult.Succeeded)
-                {
-                    foreach (var error in setUsernameResult.Errors)
-                    {
-                        ModelState.AddModelError(string.Empty, error.Description);
-                    }
-                    await LoadAsync(user);
-                    return Page();
-                }
-            }
-
-            if (Input.PhoneNumber != user.PhoneNumber)
+            var phoneNumber = await _userManager.GetPhoneNumberAsync(user);
+            if (Input.PhoneNumber != phoneNumber)
             {
                 var setPhoneResult = await _userManager.SetPhoneNumberAsync(user, Input.PhoneNumber);
                 if (!setPhoneResult.Succeeded)
                 {
-                    foreach (var error in setPhoneResult.Errors)
-                    {
-                        ModelState.AddModelError(string.Empty, error.Description);
-                    }
-                    await LoadAsync(user);
-                    return Page();
+                    StatusMessage = "Unexpected error when trying to set phone number.";
+                    return RedirectToPage();
                 }
             }
 
-            // Update the LastModifiedDate field
-            user.LastModifiedDate = DateTime.UtcNow;
-            await _userManager.UpdateAsync(user);
-            
-            // Save height and weight data
-            var appUser = await _context.User.FirstOrDefaultAsync(u => u.IdentityUserId == user.Id);
-            if (appUser == null)
+            // Store unit preferences for next page load
+            TempData["HeightUnit"] = Input.HeightUnit;
+            TempData["WeightUnit"] = Input.WeightUnit;
+
+            try 
             {
-                // Create a new User record if it doesn't exist
-                appUser = new Models.User
+                // Get or create the User record within the transaction
+                var strategy = _context.Database.CreateExecutionStrategy();
+                await strategy.ExecuteAsync(async () =>
                 {
-                    IdentityUserId = user.Id,
-                    Name = user.UserName // Default name to username
-                };
-                _context.User.Add(appUser);
-            }
-            
-            // Now we know we have a valid User record
-            // Use stored metric values directly or convert from imperial based on user preference
-            if (Input.PreferredUnits == "Imperial" && Input.HeightFeet.HasValue && Input.HeightInches.HasValue)
-            {
-                // Convert feet/inches to cm (1 foot = 30.48 cm, 1 inch = 2.54 cm)
-                var totalCm = (Input.HeightFeet.Value * 30.48m) + (Input.HeightInches.Value * 2.54m);
-                appUser.HeightCm = decimal.Round(totalCm, 2);
-            }
-            else if (Input.HeightCm.HasValue)
-            {
-                // Use metric height as entered
-                appUser.HeightCm = Input.HeightCm;
-            }
-            
-            if (Input.PreferredUnits == "Imperial" && Input.WeightLbs.HasValue)
-            {
-                // Convert pounds to kg (1 lb = 0.453592 kg)
-                var weightInKg = Input.WeightLbs.Value * 0.453592m;
-                appUser.WeightKg = decimal.Round(weightInKg, 2);
-            }
-            else if (Input.WeightKg.HasValue)
-            {
-                // Use metric weight as entered
-                appUser.WeightKg = Input.WeightKg;
-            }
-            
-            await _context.SaveChangesAsync();
+                    using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.ReadCommitted);
+                    try
+                    {
+                        _logger.LogInformation("Starting transaction to update measurements for user {UserId}", user.Id);
+                        
+                        // Track the entity state
+                        var appUser = await _context.User
+                            .AsNoTracking() // Get clean entity
+                            .FirstOrDefaultAsync(u => u.IdentityUserId == user.Id);
 
-            // Note: We don't actually change the password here since this field is 
-            // currently being used only for verification that the user knows their current password
-            // A proper password change should include a new password field
+                        bool isNewUser = false;
 
-            await _signInManager.RefreshSignInAsync(user);
-            StatusMessage = "Your profile has been updated";
+                        if (appUser == null)
+                        {
+                            isNewUser = true;
+                            appUser = new Models.User 
+                            { 
+                                IdentityUserId = user.Id,
+                                Name = user.UserName
+                            };
+                            _logger.LogInformation("Creating new User record for IdentityUserId {IdentityUserId}", user.Id);
+                            _context.User.Add(appUser);
+                        }
+                        else 
+                        {
+                            _logger.LogInformation("Found existing User record for IdentityUserId {IdentityUserId}", user.Id);
+                            _context.User.Attach(appUser);
+                        }
+
+                        bool updateHeight = false;
+                        bool updateWeight = false;
+                        decimal? newHeight = null;
+                        decimal? newWeight = null;
+
+                        // Convert and store height with detailed logging
+                        if (Input.HeightUnit == "Imperial" && (Input.HeightFeet.HasValue || Input.HeightInches.HasValue))
+                        {
+                            var feet = Input.HeightFeet ?? 0;
+                            var inches = Input.HeightInches ?? 0;
+                            if (feet > 0 || inches > 0) // Only set if we have actual values
+                            {
+                                _logger.LogInformation("Converting imperial height: {Feet}ft {Inches}in to cm", feet, inches);
+                                var totalCm = (feet * 30.48m) + (inches * 2.54m);
+                                newHeight = decimal.Round(totalCm, 2);
+                                _logger.LogInformation("Converted height to {HeightCm}cm", newHeight);
+                            }
+                        }
+                        else if (Input.HeightUnit == "Metric" && Input.HeightCm.HasValue)
+                        {
+                            if (Input.HeightCm > 0) // Only set if we have actual values
+                            {
+                                newHeight = decimal.Round(Input.HeightCm.Value, 2);
+                                _logger.LogInformation("Using metric height: {HeightCm}cm", newHeight);
+                            }
+                        }
+
+                        // Convert and store weight with detailed logging
+                        if (Input.WeightUnit == "Imperial" && Input.WeightLbs.HasValue)
+                        {
+                            if (Input.WeightLbs > 0) // Only set if we have actual values
+                            {
+                                _logger.LogInformation("Converting imperial weight: {WeightLbs}lbs to kg", Input.WeightLbs);
+                                newWeight = decimal.Round(Input.WeightLbs.Value / 2.20462m, 2);
+                                _logger.LogInformation("Converted weight to {WeightKg}kg", newWeight);
+                            }
+                        }
+                        else if (Input.WeightUnit == "Metric" && Input.WeightKg.HasValue)
+                        {
+                            if (Input.WeightKg > 0) // Only set if we have actual values
+                            {
+                                newWeight = decimal.Round(Input.WeightKg.Value, 2);
+                                _logger.LogInformation("Using metric weight: {WeightKg}kg", newWeight);
+                            }
+                        }
+
+                        // Debug log the current state
+                        _logger.LogInformation("Current values in DB - Height: {OldHeight}cm, Weight: {OldWeight}kg", 
+                            appUser.HeightCm, appUser.WeightKg);
+                        _logger.LogInformation("New values to save - Height: {NewHeight}cm, Weight: {NewWeight}kg", 
+                            newHeight, newWeight);
+
+                        // Always update if we have valid new values
+                        if (newHeight.HasValue)
+                        {
+                            _logger.LogInformation("Updating height for user {UserId} from {OldHeight} to {NewHeight} cm", 
+                                user.Id, appUser.HeightCm?.ToString() ?? "null", newHeight);
+                            appUser.HeightCm = newHeight;
+                            updateHeight = true;
+                            _context.Entry(appUser).Property(x => x.HeightCm).IsModified = true;
+                        }
+
+                        if (newWeight.HasValue)
+                        {
+                            _logger.LogInformation("Updating weight for user {UserId} from {OldWeight} to {NewWeight} kg", 
+                                user.Id, appUser.WeightKg?.ToString() ?? "null", newWeight);
+                            appUser.WeightKg = newWeight;
+                            updateWeight = true;
+                            _context.Entry(appUser).Property(x => x.WeightKg).IsModified = true;
+                        }
+
+                        // Only save if there are actual changes
+                        if (isNewUser || updateHeight || updateWeight)
+                        {
+                            _logger.LogInformation("About to save changes - Entity State: {State}", _context.Entry(appUser).State);
+                            await _context.SaveChangesAsync();
+
+                            // Verify the save worked by querying the database again
+                            var savedUser = await _context.User
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(u => u.IdentityUserId == user.Id);
+                            _logger.LogInformation("After save - Height: {Height}cm, Weight: {Weight}kg", 
+                                savedUser?.HeightCm, savedUser?.WeightKg);
+
+                            await transaction.CommitAsync();
+                            
+                            StatusMessage = isNewUser ? 
+                                "Your profile has been created with measurements" : 
+                                "Your measurements have been updated";
+                            _logger.LogInformation("Successfully saved measurements for user {UserId}", user.Id);
+                        }
+                        else 
+                        {
+                            _logger.LogInformation("No measurement changes detected for user {UserId}", user.Id);
+                            StatusMessage = "No changes were made to your measurements";
+                            await transaction.CommitAsync();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error saving measurements for user {UserId}. Rolling back transaction.", user.Id);
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in OnPostAsync for user {UserId}", user.Id);
+                ModelState.AddModelError(string.Empty, "An error occurred while saving your measurements. Please try again.");
+                await LoadAsync(user);
+                return Page();
+            }
+
             return RedirectToPage();
         }
     }
