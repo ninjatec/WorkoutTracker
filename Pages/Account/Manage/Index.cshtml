@@ -189,6 +189,26 @@
         function toggleHeightUnits(unit) {
             const metricInputs = document.getElementById('heightMetricInput');
             const imperialInputs = document.getElementById('heightImperialInput');
+            const cmInput = document.getElementById('Input_HeightCm');
+            const ftInput = document.getElementById('Input_HeightFeet');
+            const inInput = document.getElementById('Input_HeightInches');
+            
+            // Convert values when switching units
+            if (unit === 'Metric' && ftInput.value !== '' && inInput.value !== '') {
+                // Convert ft/in to cm
+                const feet = parseFloat(ftInput.value) || 0;
+                const inches = parseFloat(inInput.value) || 0;
+                const totalCm = (feet * 30.48) + (inches * 2.54);
+                cmInput.value = Math.round(totalCm * 100) / 100; // Round to 2 decimal places
+            } else if (unit === 'Imperial' && cmInput.value !== '') {
+                // Convert cm to ft/in
+                const cm = parseFloat(cmInput.value) || 0;
+                const totalInches = cm / 2.54;
+                const feet = Math.floor(totalInches / 12);
+                const inches = Math.round(totalInches % 12);
+                ftInput.value = feet;
+                inInput.value = inches;
+            }
             
             if (unit === 'Metric') {
                 metricInputs.classList.remove('d-none');
@@ -202,6 +222,21 @@
         function toggleWeightUnits(unit) {
             const metricInputs = document.getElementById('weightMetricInput');
             const imperialInputs = document.getElementById('weightImperialInput');
+            const kgInput = document.getElementById('Input_WeightKg');
+            const lbsInput = document.getElementById('Input_WeightLbs');
+            
+            // Convert values when switching units
+            if (unit === 'Metric' && lbsInput.value !== '') {
+                // Convert lbs to kg
+                const lbs = parseFloat(lbsInput.value) || 0;
+                const kg = lbs / 2.20462;
+                kgInput.value = Math.round(kg * 100) / 100; // Round to 2 decimal places
+            } else if (unit === 'Imperial' && kgInput.value !== '') {
+                // Convert kg to lbs
+                const kg = parseFloat(kgInput.value) || 0;
+                const lbs = kg * 2.20462;
+                lbsInput.value = Math.round(lbs * 100) / 100; // Round to 2 decimal places
+            }
             
             if (unit === 'Metric') {
                 metricInputs.classList.remove('d-none');
