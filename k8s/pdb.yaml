@@ -1,0 +1,22 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: workouttracker-pdb
+  namespace: web
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: workouttracker
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: workouttracker-hangfire-worker-pdb
+  namespace: web
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: workouttracker-hangfire-worker

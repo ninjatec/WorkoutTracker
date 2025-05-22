@@ -1,0 +1,47 @@
+@page
+@model WorkoutTrackerWeb.Pages.DataPortability.IndexModel
+@{
+    ViewData["Title"] = "Data Portability";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Import Data</h5>
+                <div class="list-group">
+                    <a asp-page="./Import" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Import from JSON</h6>
+                        </div>
+                        <p class="mb-1">Import workout data from WorkoutTracker JSON format</p>
+                    </a>
+                    <a asp-page="./ImportTrainAI" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Import from TrainAI</h6>
+                        </div>
+                        <p class="mb-1">Import workout data from TrainAI CSV export</p>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Export Data</h5>
+                <div class="list-group">
+                    <a asp-page="./Export" class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">Export to JSON</h6>
+                        </div>
+                        <p class="mb-1">Export your workout data in a portable JSON format</p>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

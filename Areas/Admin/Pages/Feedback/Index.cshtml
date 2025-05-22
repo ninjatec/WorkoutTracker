@@ -1,0 +1,564 @@
+@page
+@model WorkoutTrackerWeb.Areas.Admin.Pages.Feedback.IndexModel
+@using WorkoutTrackerWeb.Models
+
+@{
+    ViewData["Title"] = "Feedback Management";
+    var chartHeight = "300px";
+}
+
+<div class="container px-0">
+    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+    {
+        <div class="alert @(Model.IsSuccess ? "alert-success" : "alert-danger") alert-dismissible fade show" role="alert">
+            @Model.StatusMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>Feedback Management</h1>
+        <div class="btn-group">
+            <a href="#" class="btn btn-outline-secondary" id="toggleDashboard">
+                <i class="bi bi-graph-up"></i> Toggle Dashboard
+            </a>
+            <a asp-area="" asp-page="/Feedback/Create" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> New Feedback
+            </a>
+        </div>
+    </div>
+
+    <!-- Dashboard Section -->
+    <div id="dashboardSection">
+        <div class="row mb-4">
+            <!-- Statistics Cards -->
+            <div class="col-md-12 mb-4">
+                <div class="row row-cols-1 row-cols-md-3 row-cols-lg-5 g-3">
+                    <div class="col">
+                        <div class="card text-center h-100">
+                            <div class="card-body">
+                                <h2 class="display-4">@Model.TotalFeedbackCount</h2>
+                                <h6 class="text-uppercase text-muted">Total Feedback</h6>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card text-center h-100 border-warning">
+                            <div class="card-body">
+                                <h2 class="display-4 text-warning">@Model.NewFeedbackCount</h2>
+                                <h6 class="text-uppercase text-muted">New</h6>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card text-center h-100 border-info">
+                            <div class="card-body">
+                                <h2 class="display-4 text-info">@Model.InProgressFeedbackCount</h2>
+                                <h6 class="text-uppercase text-muted">In Progress</h6>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card text-center h-100 border-success">
+                            <div class="card-body">
+                                <h2 class="display-4 text-success">@Model.CompletedFeedbackCount</h2>
+                                <h6 class="text-uppercase text-muted">Completed</h6>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="card text-center h-100 border-danger">
+                            <div class="card-body">
+                                <h2 class="display-4 text-danger">@Model.RejectedFeedbackCount</h2>
+                                <h6 class="text-uppercase text-muted">Rejected</h6>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Feedback by Type</h5>
+                    </div>
+                    <div class="card-body">
+                        <div style="height: @chartHeight">
+                            <canvas id="feedbackTypeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Feedback by Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <div style="height: @chartHeight">
+                            <canvas id="feedbackStatusChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Recent Activity</h5>
+                        <button type="button" class="btn btn-sm btn-outline-primary">View All</button>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        @foreach (var activity in Model.RecentActivity)
+                        {
+                            <div class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">
+                                        <a asp-page="./Details" asp-route-id="@activity.FeedbackId">
+                                            @activity.Subject
+                                        </a>
+                                    </h6>
+                                    <small class="text-muted">@activity.Date.ToString("dd/MM/yyyy HH:mm")</small>
+                                </div>
+                                <p class="mb-1">@activity.Description</p>
+                                <div>
+                                    <span class="badge @GetStatusBadgeClass(activity.Status)">
+                                        @activity.Status.ToString()
+                                    </span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Filters -->
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Quick Filters</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <a asp-page="./Index" asp-route-currentFilter="New" class="btn btn-warning w-100 mb-2">
+                                    <i class="bi bi-exclamation-circle"></i> New Feedback
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a asp-page="./Index" asp-route-currentFilter="InProgress" class="btn btn-info w-100 mb-2">
+                                    <i class="bi bi-hourglass-split"></i> In Progress
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a asp-page="./Index" asp-route-typeFilter="BugReport" class="btn btn-danger w-100 mb-2">
+                                    <i class="bi bi-bug"></i> Bug Reports
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a asp-page="./Index" asp-route-typeFilter="FeatureRequest" class="btn btn-primary w-100 mb-2">
+                                    <i class="bi bi-lightbulb"></i> Feature Requests
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a asp-page="./Index" asp-route-onlyRecentFeedback="true" class="btn btn-success w-100">
+                                    <i class="bi bi-calendar-check"></i> Last 30 Days
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a asp-page="./Index" class="btn btn-outline-secondary w-100">
+                                    <i class="bi bi-x-circle"></i> Clear Filters
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Search & Filtering -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="false">
+                <i class="bi bi-funnel"></i> Search & Filter
+                <i class="bi bi-chevron-down ms-2 small"></i>
+            </h5>
+        </div>
+        <div class="collapse" id="filterCollapse">
+            <div class="card-body">
+                <form method="get">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="form-floating">
+                                <input type="text" asp-for="SearchString" class="form-control" id="searchString" placeholder="Search">
+                                <label for="searchString">Search terms</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-floating">
+                                <select asp-for="CurrentFilter" asp-items="Model.StatusFilterOptions" class="form-select" id="currentFilter">
+                                    <option value="">All Statuses</option>
+                                </select>
+                                <label for="currentFilter">Status</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-floating">
+                                <select asp-for="TypeFilter" asp-items="Model.TypeFilterOptions" class="form-select" id="typeFilter">
+                                    <option value="">All Types</option>
+                                </select>
+                                <label for="typeFilter">Type</label>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-search"></i> Filter
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="onlyRecentFeedback" asp-for="OnlyRecentFeedback">
+                                <label class="form-check-label" for="onlyRecentFeedback">
+                                    Show only feedback from the last 30 days
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Feedback List -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Feedback Items</h5>
+        </div>
+        <div class="card-body p-0">
+            @if (Model.Feedback?.Any() ?? false)
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>
+                                    <a asp-page="./Index" asp-route-sortOrder="@Model.SubjectSort" 
+                                       asp-route-currentFilter="@Model.CurrentFilter" asp-route-typeFilter="@Model.TypeFilter"
+                                       asp-route-searchString="@Model.SearchString">
+                                        Subject
+                                    </a>
+                                </th>
+                                <th>
+                                    <a asp-page="./Index" asp-route-sortOrder="@Model.TypeSort" 
+                                       asp-route-currentFilter="@Model.CurrentFilter" asp-route-typeFilter="@Model.TypeFilter"
+                                       asp-route-searchString="@Model.SearchString">
+                                        Type
+                                    </a>
+                                </th>
+                                <th>
+                                    <a asp-page="./Index" asp-route-sortOrder="@Model.DateSort" 
+                                       asp-route-currentFilter="@Model.CurrentFilter" asp-route-typeFilter="@Model.TypeFilter"
+                                       asp-route-searchString="@Model.SearchString">
+                                        Date
+                                    </a>
+                                </th>
+                                <th>
+                                    <a asp-page="./Index" asp-route-sortOrder="@Model.StatusSort" 
+                                       asp-route-currentFilter="@Model.CurrentFilter" asp-route-typeFilter="@Model.TypeFilter"
+                                       asp-route-searchString="@Model.SearchString">
+                                        Status
+                                    </a>
+                                </th>
+                                <th>Contact</th>
+                                <th class="text-center">Priority</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.Feedback)
+                            {
+                                <tr>
+                                    <td>
+                                        <a asp-page="./Details" asp-route-id="@item.FeedbackId">
+                                            @item.Subject
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="badge @GetTypeBadgeClass(item.Type)">
+                                            @item.Type.ToString()
+                                        </span>
+                                    </td>
+                                    <td>@item.SubmissionDate.ToString("dd/MM/yyyy HH:mm")</td>
+                                    <td>
+                                        <span class="badge @GetStatusBadgeClass(item.Status)">
+                                            @item.Status.ToString()
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(item.ContactEmail))
+                                        {
+                                            <a href="mailto:@item.ContactEmail">
+                                                <i class="bi bi-envelope"></i> Contact
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No contact</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        @if (item.Priority.HasValue)
+                                        {
+                                            <span class="badge @GetPriorityBadgeClass(item.Priority.Value)">
+                                                @item.Priority.Value.ToString()
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span>—</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="d-flex justify-content-center">
+                                            <form method="post" class="me-1">
+                                                <input type="hidden" name="id" value="@item.FeedbackId" />
+                                                <input type="hidden" name="status" value="@((int)FeedbackStatus.InProgress)" />
+                                                <input type="hidden" name="note" value="Marked as In Progress" />
+                                                <input type="hidden" name="notifyUser" value="true" />
+                                                <button type="submit" class="btn btn-sm btn-info" asp-page-handler="QuickUpdate" 
+                                                        disabled="@(item.Status == FeedbackStatus.InProgress)">
+                                                    <i class="bi bi-play-fill"></i>
+                                                </button>
+                                            </form>
+                                            <form method="post" class="me-1">
+                                                <input type="hidden" name="id" value="@item.FeedbackId" />
+                                                <input type="hidden" name="status" value="@((int)FeedbackStatus.Completed)" />
+                                                <input type="hidden" name="note" value="Marked as Completed" />
+                                                <input type="hidden" name="notifyUser" value="true" />
+                                                <button type="submit" class="btn btn-sm btn-success" asp-page-handler="QuickUpdate"
+                                                        disabled="@(item.Status == FeedbackStatus.Completed)">
+                                                    <i class="bi bi-check2"></i>
+                                                </button>
+                                            </form>
+                                            <a asp-page="./Details" asp-route-id="@item.FeedbackId" class="btn btn-sm btn-primary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="d-flex justify-content-center pt-3 pb-3 px-3 bg-light border-top">
+                    <nav>
+                        <ul class="pagination">
+                            @{
+                                var prevDisabled = !Model.Feedback.HasPreviousPage ? "disabled" : "";
+                                var nextDisabled = !Model.Feedback.HasNextPage ? "disabled" : "";
+                            }
+                            <li class="page-item @prevDisabled">
+                                <a asp-page="./Index" 
+                                   asp-route-pageIndex="1"
+                                   asp-route-sortOrder="@Model.CurrentSort"
+                                   asp-route-currentFilter="@Model.CurrentFilter"
+                                   asp-route-typeFilter="@Model.TypeFilter"
+                                   asp-route-onlyRecentFeedback="@Model.OnlyRecentFeedback"
+                                   asp-route-searchString="@Model.SearchString"
+                                   class="page-link">
+                                    First
+                                </a>
+                            </li>
+                            <li class="page-item @prevDisabled">
+                                <a asp-page="./Index" 
+                                   asp-route-pageIndex="@(Model.Feedback.PageIndex - 1)"
+                                   asp-route-sortOrder="@Model.CurrentSort"
+                                   asp-route-currentFilter="@Model.CurrentFilter"
+                                   asp-route-typeFilter="@Model.TypeFilter"
+                                   asp-route-onlyRecentFeedback="@Model.OnlyRecentFeedback"
+                                   asp-route-searchString="@Model.SearchString"
+                                   class="page-link">
+                                    Previous
+                                </a>
+                            </li>
+                            @for (var i = Math.Max(1, Model.Feedback.PageIndex - 2); i <= Math.Min(Model.Feedback.TotalPages, Model.Feedback.PageIndex + 2); i++)
+                            {
+                                <li class="page-item @(i == Model.Feedback.PageIndex ? "active" : "")">
+                                    <a asp-page="./Index" 
+                                       asp-route-pageIndex="@i"
+                                       asp-route-sortOrder="@Model.CurrentSort"
+                                       asp-route-currentFilter="@Model.CurrentFilter"
+                                       asp-route-typeFilter="@Model.TypeFilter"
+                                       asp-route-onlyRecentFeedback="@Model.OnlyRecentFeedback"
+                                       asp-route-searchString="@Model.SearchString"
+                                       class="page-link">
+                                        @i
+                                    </a>
+                                </li>
+                            }
+                            <li class="page-item @nextDisabled">
+                                <a asp-page="./Index" 
+                                   asp-route-pageIndex="@(Model.Feedback.PageIndex + 1)"
+                                   asp-route-sortOrder="@Model.CurrentSort"
+                                   asp-route-currentFilter="@Model.CurrentFilter"
+                                   asp-route-typeFilter="@Model.TypeFilter"
+                                   asp-route-onlyRecentFeedback="@Model.OnlyRecentFeedback"
+                                   asp-route-searchString="@Model.SearchString"
+                                   class="page-link">
+                                    Next
+                                </a>
+                            </li>
+                            <li class="page-item @nextDisabled">
+                                <a asp-page="./Index" 
+                                   asp-route-pageIndex="@Model.Feedback.TotalPages"
+                                   asp-route-sortOrder="@Model.CurrentSort"
+                                   asp-route-currentFilter="@Model.CurrentFilter"
+                                   asp-route-typeFilter="@Model.TypeFilter"
+                                   asp-route-onlyRecentFeedback="@Model.OnlyRecentFeedback"
+                                   asp-route-searchString="@Model.SearchString"
+                                   class="page-link">
+                                    Last
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+                
+                <div class="text-center py-3">
+                    <p>
+                        Page @Model.Feedback.PageIndex of @Model.Feedback.TotalPages 
+                        (Total items: @Model.Feedback.TotalCount)
+                    </p>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info m-3">
+                    <h4 class="alert-heading">No feedback found</h4>
+                    <p>No feedback entries match your current filter criteria.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Toggle dashboard section
+            const toggleDashboardBtn = document.getElementById('toggleDashboard');
+            const dashboardSection = document.getElementById('dashboardSection');
+            
+            toggleDashboardBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (dashboardSection.style.display === 'none') {
+                    dashboardSection.style.display = 'block';
+                } else {
+                    dashboardSection.style.display = 'none';
+                }
+            });
+            
+            // Type Chart
+            const typeCtx = document.getElementById('feedbackTypeChart').getContext('2d');
+            new Chart(typeCtx, {
+                type: 'pie',
+                data: {
+                    labels: @Json.Serialize(Model.FeedbackTypeLabels),
+                    datasets: [{
+                        data: @Json.Serialize(Model.FeedbackTypeData),
+                        backgroundColor: [
+                            '#dc3545', // Bug Report - Danger
+                            '#0d6efd', // Feature Request - Primary
+                            '#6c757d', // General Feedback - Secondary
+                            '#0dcaf0'  // Question - Info
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        }
+                    }
+                }
+            });
+            
+            // Status Chart
+            const statusCtx = document.getElementById('feedbackStatusChart').getContext('2d');
+            new Chart(statusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: @Json.Serialize(Model.FeedbackStatusLabels),
+                    datasets: [{
+                        data: @Json.Serialize(Model.FeedbackStatusData),
+                        backgroundColor: [
+                            '#ffc107', // New - Warning
+                            '#0dcaf0', // In Progress - Info
+                            '#198754', // Completed - Success
+                            '#dc3545'  // Rejected - Danger
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+}
+
+@functions {
+    string GetTypeBadgeClass(FeedbackType type)
+    {
+        return type switch
+        {
+            FeedbackType.BugReport => "bg-danger",
+            FeedbackType.FeatureRequest => "bg-primary",
+            FeedbackType.GeneralFeedback => "bg-secondary",
+            FeedbackType.Question => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+
+    string GetStatusBadgeClass(FeedbackStatus status)
+    {
+        return status switch
+        {
+            FeedbackStatus.New => "bg-warning",
+            FeedbackStatus.InProgress => "bg-info",
+            FeedbackStatus.Completed => "bg-success",
+            FeedbackStatus.Rejected => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+    
+    string GetPriorityBadgeClass(FeedbackPriority priority)
+    {
+        return priority switch
+        {
+            FeedbackPriority.Low => "bg-success",
+            FeedbackPriority.Medium => "bg-warning",
+            FeedbackPriority.High => "bg-danger",
+            FeedbackPriority.Critical => "bg-danger text-white",
+            _ => "bg-secondary"
+        };
+    }
+}

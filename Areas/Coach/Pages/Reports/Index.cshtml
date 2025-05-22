@@ -1,0 +1,154 @@
+@page
+@model WorkoutTrackerWeb.Areas.Coach.Pages.Reports.IndexModel
+@{
+    ViewData["Title"] = "Coach Reports";
+}
+
+<div class="row mb-4">
+    <div class="col-12">
+        <h1>Coach Reports</h1>
+        <p class="lead">Comprehensive analytics and insights for your clients</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Overall Statistics -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Overall Statistics</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span>Active Clients:</span>
+                    <span class="badge bg-primary">@Model.ActiveClientCount</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span>Total Sessions:</span>
+                    <span class="badge bg-success">@Model.TotalSessions</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span>Active Goals:</span>
+                    <span class="badge bg-info">@Model.ActiveGoalCount</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Average Consistency:</span>
+                    <span class="badge bg-warning">@Model.AverageConsistency%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Goal Analytics -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Goal Analytics</h5>
+            </div>
+            <div class="card-body" style="height: 250px;">
+                <canvas id="goalAnalyticsChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session Trends -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="mb-0">Session Trends</h5>
+            </div>
+            <div class="card-body" style="height: 250px;">
+                <canvas id="sessionTrendsChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Client Progress Section -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Client Progress Overview</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="clientProgressChart" style="height: 300px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Client List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Client Reports</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover datatable">
+                        <thead>
+                            <tr>
+                                <th>Client</th>
+                                <th>Active Goals</th>
+                                <th>Recent Sessions</th>
+                                <th>Consistency</th>
+                                <th>Goal Progress</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var client in Model.Clients)
+                            {
+                                <tr>
+                                    <td>@client.Name</td>
+                                    <td>@client.ActiveGoalCount</td>
+                                    <td>@client.RecentSessionCount</td>
+                                    <td>
+                                        <div class="progress" style="height: 5px;">
+                                            <div class="progress-bar @(client.ConsistencyRate >= 70 ? "bg-success" : client.ConsistencyRate >= 50 ? "bg-warning" : "bg-danger")" 
+                                                 role="progressbar" 
+                                                 style="width: @(client.ConsistencyRate)%" 
+                                                 aria-valuenow="@client.ConsistencyRate" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                        <small class="d-block text-center">@client.ConsistencyRate%</small>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 5px;">
+                                            <div class="progress-bar bg-primary" 
+                                                 role="progressbar" 
+                                                 style="width: @(client.AverageGoalProgress)%" 
+                                                 aria-valuenow="@client.AverageGoalProgress" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                        <small class="d-block text-center">@client.AverageGoalProgress%</small>
+                                    </td>
+                                    <td>
+                                        <a asp-page="./ClientDetail" asp-route-id="@client.Id" class="btn btn-sm btn-outline-primary">
+                                            View Details
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/coach-reports.js" asp-append-version="true"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts(@Json.Serialize(Model.ChartData));
+        });
+    </script>
+}

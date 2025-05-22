@@ -1,0 +1,168 @@
+@page
+@model WorkoutTrackerWeb.Areas.Admin.Pages.Blog.CreateModel
+@{
+    ViewData["Title"] = "Create Blog Post";
+    ViewData["ActivePage"] = "BlogManagement";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h1>Create Blog Post</h1>
+            <p class="lead">Create a new blog post.</p>
+
+            <form method="post" enctype="multipart/form-data">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">Post Content</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label asp-for="BlogPost.Title" class="form-label">Title</label>
+                                    <input asp-for="BlogPost.Title" class="form-control" required />
+                                    <span asp-validation-for="BlogPost.Title" class="text-danger"></span>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label asp-for="BlogPost.Slug" class="form-label">Slug (URL)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">blog/</span>
+                                        <input asp-for="BlogPost.Slug" class="form-control" placeholder="Will be generated from title if left blank" />
+                                    </div>
+                                    <span asp-validation-for="BlogPost.Slug" class="text-danger"></span>
+                                    <div class="form-text">The URL-friendly version of the title. Leave blank to generate automatically.</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label asp-for="BlogPost.Summary" class="form-label">Summary</label>
+                                    <textarea asp-for="BlogPost.Summary" class="form-control" rows="3"></textarea>
+                                    <span asp-validation-for="BlogPost.Summary" class="text-danger"></span>
+                                    <div class="form-text">Brief overview of the post for preview sections (optional).</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label asp-for="BlogPost.Content" class="form-label">Content</label>
+                                    <textarea asp-for="BlogPost.Content" id="Content" class="form-control" rows="15" required></textarea>
+                                    <span asp-validation-for="BlogPost.Content" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">Publishing Options</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3 form-check form-switch">
+                                    <input asp-for="BlogPost.Published" class="form-check-input" />
+                                    <label asp-for="BlogPost.Published" class="form-check-label">Publish immediately</label>
+                                </div>
+                                <div class="form-text mb-4">If unchecked, the post will be saved as a draft.</div>
+
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary">Save Post</button>
+                                    <a asp-page="./Index" class="btn btn-outline-secondary">Cancel</a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">Featured Image</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label asp-for="BlogPost.ImageFile" class="form-label">Upload Image</label>
+                                    <input asp-for="BlogPost.ImageFile" type="file" class="form-control" accept="image/*" />
+                                    <div class="form-text">Recommended size: 1200×630 pixels.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">Categories</h5>
+                            </div>
+                            <div class="card-body">
+                                @if (Model.BlogPost.AvailableCategories.Count == 0)
+                                {
+                                    <div class="alert alert-info">
+                                        No categories available. <a asp-page="./Categories/Create">Create a category</a> first.
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="mb-3">
+                                        @foreach (var category in Model.BlogPost.AvailableCategories)
+                                        {
+                                            <div class="form-check">
+                                                <input type="checkbox" class="form-check-input" name="SelectedCategoryIds" value="@category.Id" id="category-@category.Id" />
+                                                <label class="form-check-label" for="category-@category.Id">@category.Name</label>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="form-text">Select one or more categories for this post.</div>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">Tags</h5>
+                            </div>
+                            <div class="card-body">
+                                @if (Model.BlogPost.AvailableTags.Count == 0)
+                                {
+                                    <div class="alert alert-info">
+                                        No tags available. <a asp-page="./Tags/Create">Create a tag</a> first.
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="mb-3">
+                                        @foreach (var tag in Model.BlogPost.AvailableTags)
+                                        {
+                                            <div class="form-check form-check-inline">
+                                                <input type="checkbox" class="form-check-input" name="SelectedTagIds" value="@tag.Id" id="tag-@tag.Id" />
+                                                <label class="form-check-label" for="tag-@tag.Id">@tag.Name</label>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="form-text">Select one or more tags for this post.</div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/lib/tinymce/tinymce.min.js"></script>
+    <script src="~/js/blog-editor.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Generate slug from title
+            document.getElementById('generateSlugBtn').addEventListener('click', function() {
+                const title = document.getElementById('BlogPost_Title').value;
+                if (title) {
+                    const slug = title.toLowerCase()
+                        .replace(/[^\w\s-]/g, '') // Remove non-word chars
+                        .replace(/[\s_-]+/g, '-') // Replace spaces and underscores with hyphens
+                        .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+                    
+                    document.getElementById('BlogPost_Slug').value = slug;
+                }
+            });
+        });
+    </script>
+}

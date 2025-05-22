@@ -1,0 +1,101 @@
+@model WorkoutTrackerWeb.ViewComponents.CacheMetricsDashboardViewModel
+
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-speedometer2 me-1"></i> Query Cache Metrics
+        </h5>
+        <span class="badge @(Model.IsEnabled ? "bg-success" : "bg-danger")">
+            @(Model.IsEnabled ? "Enabled" : "Disabled")
+        </span>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <div class="card bg-light h-100">
+                    <div class="card-body text-center">
+                        <h6>Hit Rate</h6>
+                        <h2 class="@(Model.OverallHitRate >= 75 ? "text-success" : Model.OverallHitRate >= 50 ? "text-warning" : "text-danger")">
+                            @Model.OverallHitRate.ToString("F1")%
+                        </h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light h-100">
+                    <div class="card-body text-center">
+                        <h6>Cache Hits</h6>
+                        <h2 class="text-primary">@Model.TotalHits.ToString("N0")</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light h-100">
+                    <div class="card-body text-center">
+                        <h6>Cache Misses</h6>
+                        <h2 class="text-secondary">@Model.TotalMisses.ToString("N0")</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light h-100">
+                    <div class="card-body text-center">
+                        <h6>Cached Items</h6>
+                        <h2 class="text-info">@Model.TotalSize.ToString("N0")</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-2">
+            <div class="col">
+                <span class="small text-muted">Default expiration: @Model.DefaultExpiration.ToString(@"hh\:mm\:ss")</span>
+                <span class="small text-muted ms-2">
+                    <i class="bi @(Model.DefaultSlidingExpiration ? "bi-stopwatch" : "bi-hourglass")"></i>
+                    @(Model.DefaultSlidingExpiration ? "Sliding" : "Absolute") expiration
+                </span>
+            </div>
+        </div>
+
+        @if (Model.Metrics.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Cache Prefix</th>
+                            <th class="text-end">Hits</th>
+                            <th class="text-end">Misses</th>
+                            <th class="text-end">Items</th>
+                            <th class="text-end">Hit Rate</th>
+                            <th class="text-end">Invalidations</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var metric in Model.Metrics)
+                        {
+                            <tr>
+                                <td>@metric.Key</td>
+                                <td class="text-end">@metric.Value.Hits.ToString("N0")</td>
+                                <td class="text-end">@metric.Value.Misses.ToString("N0")</td>
+                                <td class="text-end">@metric.Value.CurrentSize.ToString("N0")</td>
+                                <td class="text-end">
+                                    <span class="@(metric.Value.HitRate >= 75 ? "text-success" : metric.Value.HitRate >= 50 ? "text-warning" : "text-danger")">
+                                        @metric.Value.HitRate.ToString("F1")%
+                                    </span>
+                                </td>
+                                <td class="text-end">@metric.Value.Invalidations.ToString("N0")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                No cache metrics available yet. This could mean no queries have been cached or cache metrics collection is not enabled.
+            </div>
+        }
+    </div>
+</div>

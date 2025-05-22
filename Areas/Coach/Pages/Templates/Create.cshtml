@@ -1,0 +1,532 @@
+@page
+@model WorkoutTrackerWeb.Areas.Coach.Pages.Templates.CreateModel
+@{
+    ViewData["Title"] = "Create Workout Template";
+}
+
+<div class="container-fluid">
+    <h1 class="mt-4">Create Workout Template</h1>
+    <p class="lead">Design a workout template for your clients</p>
+
+    <form method="post">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Template Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label asp-for="Template.Name" class="control-label"></label>
+                            <input asp-for="Template.Name" class="form-control" />
+                            <span asp-validation-for="Template.Name" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group mb-3">
+                            <label asp-for="Template.Category" class="control-label"></label>
+                            <input asp-for="Template.Category" class="form-control" placeholder="e.g., Strength, Cardio, Rehabilitation" />
+                            <span asp-validation-for="Template.Category" class="text-danger"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Template.Description" class="control-label"></label>
+                    <textarea asp-for="Template.Description" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="Template.Description" class="text-danger"></span>
+                </div>
+                <div class="form-group mb-3">
+                    <label asp-for="Template.Tags" class="control-label"></label>
+                    <input asp-for="Template.Tags" class="form-control" placeholder="e.g., beginner, upper body, home" />
+                    <span asp-validation-for="Template.Tags" class="text-danger"></span>
+                    <small class="form-text text-muted">Separate tags with commas</small>
+                </div>
+                <div class="form-check">
+                    <input asp-for="Template.IsPublic" class="form-check-input" />
+                    <label asp-for="Template.IsPublic" class="form-check-label">Make this template visible to other coaches</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Exercises</h5>
+                <button type="button" class="btn btn-primary" id="addExerciseBtn">
+                    <i class="fas fa-plus"></i> Add Exercise
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="exercisesContainer">
+                    @for (int i = 0; i < Model.Exercises.Count; i++)
+                    {
+                        <div class="exercise-item card mb-3" data-index="@i">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">Exercise #<span class="exercise-num">@(i + 1)</span></h6>
+                                <div>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary move-up-btn" @(i == 0 ? "disabled" : "")>
+                                        <i class="fas fa-arrow-up"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary move-down-btn" @(i == Model.Exercises.Count - 1 ? "disabled" : "")>
+                                        <i class="fas fa-arrow-down"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger remove-exercise-btn">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <input type="hidden" asp-for="Exercises[i].SequenceNum" class="sequence-num" value="@i" />
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label asp-for="Exercises[i].ExerciseTypeId" class="control-label">Exercise</label>
+                                        <div class="input-group">
+                                            <select asp-for="Exercises[i].ExerciseTypeId" asp-items="Model.ExerciseTypes" class="form-select exercise-select">
+                                                <option value="">Select an exercise...</option>
+                                            </select>
+                                            <button type="button" class="btn btn-outline-secondary filter-exercise-btn" data-bs-toggle="modal" data-bs-target="#exerciseFilterModal">
+                                                <i class="fas fa-filter"></i>
+                                            </button>
+                                        </div>
+                                        <span asp-validation-for="Exercises[i].ExerciseTypeId" class="text-danger"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="Exercises[i].Notes" class="control-label">Exercise Notes</label>
+                                        <textarea asp-for="Exercises[i].Notes" class="form-control" rows="1"></textarea>
+                                        <span asp-validation-for="Exercises[i].Notes" class="text-danger"></span>
+                                    </div>
+                                </div>
+                                
+                                <div class="sets-container">
+                                    <h6>Sets</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>Type</th>
+                                                    <th>Default Reps</th>
+                                                    <th>Default Weight (kg)</th>
+                                                    <th>Notes</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="sets-table-body">
+                                                @for (int j = 0; j < Model.ExerciseSets[i].Count; j++)
+                                                {
+                                                    <tr class="set-row" data-set-index="@j">
+                                                        <td>
+                                                            <span class="set-num">@(j + 1)</span>
+                                                            <input type="hidden" asp-for="ExerciseSets[i][j].SequenceNum" class="set-sequence-num" value="@j" />
+                                                        </td>
+                                                        <td>
+                                                            <select asp-for="ExerciseSets[i][j].SettypeId" asp-items="Model.SetTypes" class="form-select form-select-sm"></select>
+                                                        </td>
+                                                        <td>
+                                                            <input asp-for="ExerciseSets[i][j].DefaultReps" type="number" class="form-control form-control-sm" min="0" />
+                                                        </td>
+                                                        <td>
+                                                            <input asp-for="ExerciseSets[i][j].DefaultWeight" type="number" step="0.5" class="form-control form-control-sm" min="0" />
+                                                        </td>
+                                                        <td>
+                                                            <input asp-for="ExerciseSets[i][j].Notes" type="text" class="form-control form-control-sm" />
+                                                        </td>
+                                                        <td>
+                                                            <button type="button" class="btn btn-sm btn-outline-danger remove-set-btn">
+                                                                <i class="fas fa-times"></i>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary add-set-btn">
+                                        <i class="fas fa-plus"></i> Add Set
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div id="noExercises" class="alert alert-info @(Model.Exercises.Count > 0 ? "d-none" : "")">
+                    No exercises added yet. Click "Add Exercise" to start building your template.
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group mb-4">
+            <button type="submit" class="btn btn-primary">Create Template</button>
+            <a asp-page="./Index" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<!-- Exercise Filter Modal -->
+<div class="modal fade" id="exerciseFilterModal" tabindex="-1" aria-labelledby="exerciseFilterModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exerciseFilterModalLabel">Filter Exercises</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="muscleGroupFilter" class="form-label">Muscle Group</label>
+                    <select id="muscleGroupFilter" class="form-select">
+                        <option value="">All Muscle Groups</option>
+                        @foreach (var group in Model.MuscleGroups)
+                        {
+                            <option value="@group">@group</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="equipmentFilter" class="form-label">Equipment</label>
+                    <select id="equipmentFilter" class="form-select">
+                        <option value="">All Equipment</option>
+                        @foreach (var equipment in Model.EquipmentTypes)
+                        {
+                            <option value="@equipment">@equipment</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="exerciseSearch" class="form-label">Search</label>
+                    <input type="text" id="exerciseSearch" class="form-control" placeholder="Search exercises...">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="applyFilterBtn">Apply Filter</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Templates for JavaScript -->
+<div id="exerciseTemplate" class="d-none">
+    <div class="exercise-item card mb-3" data-index="INDEX">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Exercise #<span class="exercise-num">NUM</span></h6>
+            <div>
+                <button type="button" class="btn btn-sm btn-outline-secondary move-up-btn">
+                    <i class="fas fa-arrow-up"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary move-down-btn">
+                    <i class="fas fa-arrow-down"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-exercise-btn">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <input type="hidden" name="Exercises[INDEX].SequenceNum" class="sequence-num" value="INDEX" />
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="control-label">Exercise</label>
+                    <div class="input-group">
+                        <select name="Exercises[INDEX].ExerciseTypeId" class="form-select exercise-select">
+                            <option value="">Select an exercise...</option>
+                            @foreach (var exercise in Model.ExerciseTypes)
+                            {
+                                <option value="@exercise.Value">@exercise.Text</option>
+                            }
+                        </select>
+                        <button type="button" class="btn btn-outline-secondary filter-exercise-btn" data-bs-toggle="modal" data-bs-target="#exerciseFilterModal">
+                            <i class="fas fa-filter"></i>
+                        </button>
+                    </div>
+                    <span class="text-danger field-validation-valid" data-valmsg-for="Exercises[INDEX].ExerciseTypeId" data-valmsg-replace="true"></span>
+                </div>
+                <div class="col-md-6">
+                    <label class="control-label">Exercise Notes</label>
+                    <textarea name="Exercises[INDEX].Notes" class="form-control" rows="1"></textarea>
+                    <span class="text-danger field-validation-valid" data-valmsg-for="Exercises[INDEX].Notes" data-valmsg-replace="true"></span>
+                </div>
+            </div>
+            
+            <div class="sets-container">
+                <h6>Sets</h6>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Type</th>
+                                <th>Default Reps</th>
+                                <th>Default Weight (kg)</th>
+                                <th>Notes</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="sets-table-body">
+                        </tbody>
+                    </table>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-primary add-set-btn">
+                    <i class="fas fa-plus"></i> Add Set
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="setTemplate" class="d-none">
+    <tr class="set-row" data-set-index="SET_INDEX">
+        <td>
+            <span class="set-num">NUM</span>
+            <input type="hidden" name="ExerciseSets[EX_INDEX][SET_INDEX].SequenceNum" class="set-sequence-num" value="SET_INDEX" />
+        </td>
+        <td>
+            <select name="ExerciseSets[EX_INDEX][SET_INDEX].SettypeId" class="form-select form-select-sm">
+                @foreach (var setType in Model.SetTypes)
+                {
+                    <option value="@setType.Value">@setType.Text</option>
+                }
+            </select>
+        </td>
+        <td>
+            <input name="ExerciseSets[EX_INDEX][SET_INDEX].DefaultReps" type="number" class="form-control form-control-sm" min="0" value="10" />
+        </td>
+        <td>
+            <input name="ExerciseSets[EX_INDEX][SET_INDEX].DefaultWeight" type="number" step="0.5" class="form-control form-control-sm" min="0" value="0" />
+        </td>
+        <td>
+            <input name="ExerciseSets[EX_INDEX][SET_INDEX].Notes" type="text" class="form-control form-control-sm" />
+        </td>
+        <td>
+            <button type="button" class="btn btn-sm btn-outline-danger remove-set-btn">
+                <i class="fas fa-times"></i>
+            </button>
+        </td>
+    </tr>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        $(document).ready(function() {
+            const exercisesContainer = $('#exercisesContainer');
+            const noExercisesAlert = $('#noExercises');
+            const exerciseTemplate = $('#exerciseTemplate').html();
+            const setTemplate = $('#setTemplate').html();
+            let exerciseCount = @Model.Exercises.Count;
+            
+            // Add new exercise
+            $('#addExerciseBtn').click(function() {
+                const newExerciseHtml = exerciseTemplate.replace(/INDEX/g, exerciseCount);
+                const newExercise = $(newExerciseHtml.replace(/NUM/g, exerciseCount + 1));
+                exercisesContainer.append(newExercise);
+                
+                // Add initial set
+                addSet(exerciseCount, 0);
+                
+                // Update UI
+                exerciseCount++;
+                updateExerciseMoveButtons();
+                noExercisesAlert.addClass('d-none');
+                updateValidation();
+            });
+            
+            // Remove exercise
+            $(document).on('click', '.remove-exercise-btn', function() {
+                $(this).closest('.exercise-item').remove();
+                exerciseCount--;
+                
+                // Re-number exercises
+                updateExerciseSequencing();
+                
+                if (exerciseCount === 0) {
+                    noExercisesAlert.removeClass('d-none');
+                }
+            });
+            
+            // Move exercise up
+            $(document).on('click', '.move-up-btn', function() {
+                const currentExercise = $(this).closest('.exercise-item');
+                const prevExercise = currentExercise.prev('.exercise-item');
+                
+                if (prevExercise.length) {
+                    prevExercise.before(currentExercise);
+                    updateExerciseSequencing();
+                }
+            });
+            
+            // Move exercise down
+            $(document).on('click', '.move-down-btn', function() {
+                const currentExercise = $(this).closest('.exercise-item');
+                const nextExercise = currentExercise.next('.exercise-item');
+                
+                if (nextExercise.length) {
+                    nextExercise.after(currentExercise);
+                    updateExerciseSequencing();
+                }
+            });
+            
+            // Add set
+            $(document).on('click', '.add-set-btn', function() {
+                const exerciseItem = $(this).closest('.exercise-item');
+                const exerciseIndex = exerciseItem.data('index');
+                const setsTableBody = exerciseItem.find('.sets-table-body');
+                const setCount = setsTableBody.find('tr').length;
+                
+                addSet(exerciseIndex, setCount);
+            });
+            
+            // Remove set
+            $(document).on('click', '.remove-set-btn', function() {
+                const row = $(this).closest('tr');
+                const tbody = row.closest('tbody');
+                
+                row.remove();
+                
+                // Re-number sets
+                updateSetSequencing(tbody);
+            });
+            
+            // Apply exercise filter
+            $('#applyFilterBtn').click(function() {
+                const muscleGroup = $('#muscleGroupFilter').val();
+                const equipment = $('#equipmentFilter').val();
+                const searchTerm = $('#exerciseSearch').val().toLowerCase();
+                
+                // Get current exercise selects that are open in the filter
+                const currentSelect = $('.exercise-select').filter(function() {
+                    return $(this).is(':focus') || $(this).data('filtered');
+                }).first();
+                
+                if (currentSelect.length) {
+                    currentSelect.data('filtered', true);
+                    
+                    // Apply filters via AJAX
+                    $.ajax({
+                        url: '@Url.Page("Create", "FilterExercises")',
+                        type: 'GET',
+                        data: {
+                            muscleGroup: muscleGroup,
+                            equipment: equipment,
+                            searchTerm: searchTerm
+                        },
+                        success: function(data) {
+                            // Update the select options
+                            currentSelect.empty();
+                            currentSelect.append('<option value="">Select an exercise...</option>');
+                            
+                            $.each(data, function(index, exercise) {
+                                currentSelect.append(`<option value="${exercise.value}">${exercise.text}</option>`);
+                            });
+                            
+                            // Close the modal
+                            $('#exerciseFilterModal').modal('hide');
+                        }
+                    });
+                } else {
+                    // Close the modal if no select is focused
+                    $('#exerciseFilterModal').modal('hide');
+                }
+            });
+            
+            // Helper functions
+            function updateExerciseSequencing() {
+                exercisesContainer.find('.exercise-item').each(function(index) {
+                    const exercise = $(this);
+                    exercise.data('index', index);
+                    exercise.find('.exercise-num').text(index + 1);
+                    
+                    // Update hidden sequence field
+                    exercise.find('.sequence-num')
+                        .val(index)
+                        .attr('name', `Exercises[${index}].SequenceNum`);
+                    
+                    // Update other field names
+                    exercise.find('select.exercise-select')
+                        .attr('name', `Exercises[${index}].ExerciseTypeId`);
+                    
+                    exercise.find('textarea')
+                        .attr('name', `Exercises[${index}].Notes`);
+                    
+                    // Update set indices
+                    const setsTableBody = exercise.find('.sets-table-body');
+                    setsTableBody.find('.set-row').each(function(setIndex) {
+                        updateSetIndices($(this), index, setIndex);
+                    });
+                });
+                
+                updateExerciseMoveButtons();
+            }
+            
+            function updateExerciseMoveButtons() {
+                // Enable/disable move buttons based on position
+                exercisesContainer.find('.exercise-item').each(function(index) {
+                    const isFirst = index === 0;
+                    const isLast = index === exerciseCount - 1;
+                    
+                    $(this).find('.move-up-btn').prop('disabled', isFirst);
+                    $(this).find('.move-down-btn').prop('disabled', isLast);
+                });
+            }
+            
+            function addSet(exerciseIndex, setIndex) {
+                const setsTableBody = $(`.exercise-item[data-index="${exerciseIndex}"]`).find('.sets-table-body');
+                let newSetHtml = setTemplate
+                    .replace(/EX_INDEX/g, exerciseIndex)
+                    .replace(/SET_INDEX/g, setIndex);
+                
+                newSetHtml = newSetHtml.replace(/NUM/g, setIndex + 1);
+                
+                setsTableBody.append(newSetHtml);
+                updateValidation();
+            }
+            
+            function updateSetSequencing(tbody) {
+                tbody.find('.set-row').each(function(setIndex) {
+                    const exerciseIndex = $(this).closest('.exercise-item').data('index');
+                    $(this).data('set-index', setIndex);
+                    $(this).find('.set-num').text(setIndex + 1);
+                    
+                    updateSetIndices($(this), exerciseIndex, setIndex);
+                });
+            }
+            
+            function updateSetIndices(setRow, exerciseIndex, setIndex) {
+                // Update sequence field
+                setRow.find('.set-sequence-num')
+                    .val(setIndex)
+                    .attr('name', `ExerciseSets[${exerciseIndex}][${setIndex}].SequenceNum`);
+                
+                // Update other field names
+                setRow.find('select')
+                    .attr('name', `ExerciseSets[${exerciseIndex}][${setIndex}].SettypeId`);
+                
+                const inputs = setRow.find('input:not(.set-sequence-num)');
+                inputs.eq(0).attr('name', `ExerciseSets[${exerciseIndex}][${setIndex}].DefaultReps`);
+                inputs.eq(1).attr('name', `ExerciseSets[${exerciseIndex}][${setIndex}].DefaultWeight`);
+                inputs.eq(2).attr('name', `ExerciseSets[${exerciseIndex}][${setIndex}].Notes`);
+            }
+            
+            function updateValidation() {
+                // Re-parse validation attributes after dynamic changes
+                $('form').removeData('validator');
+                $('form').removeData('unobtrusiveValidation');
+                $.validator.unobtrusive.parse('form');
+            }
+            
+            // Initialize
+            updateExerciseMoveButtons();
+            
+            // Show initial data nicely formatted
+            @if (Model.Exercises.Count == 0) {
+                <text>
+                // Add a default exercise if there are none
+                $('#addExerciseBtn').click();
+                </text>
+            }
+        });
+    </script>
+}

@@ -1,0 +1,22 @@
+@model dynamic
+@{
+    ViewData["Title"] = "Access Denied";
+    Layout = "_SharedLayout";
+}
+
+<div class="access-denied-container">
+    <i class="bi bi-shield-lock"></i>
+    <h2>Access Denied</h2>
+    <p>You don't have permission to access this content with your current share token.</p>
+    
+    @if (Model != null && !string.IsNullOrEmpty(Model.Message))
+    {
+        <div class="alert alert-danger">
+            <strong>Reason:</strong> @Model.Message
+        </div>
+    }
+    
+    <div class="mt-4">
+        <a asp-controller="Shared" asp-action="Index" class="btn btn-primary">Return to Accessible Content</a>
+    </div>
+</div>

@@ -1,0 +1,90 @@
+@page
+@model WorkoutTrackerWeb.Pages.Sessions.RescheduleModel
+
+@{
+    ViewData["Title"] = "Reschedule Missed Workout";
+}
+
+<h1>Reschedule Missed Workout</h1>
+
+<h4>@Model.WorkoutSession.Name</h4>
+<hr />
+<div class="row">
+    <div class="col-md-6">
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> This workout was marked as missed because it wasn't completed on time.
+        </div>
+        
+        <form method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input type="hidden" asp-for="WorkoutSession.WorkoutSessionId" />
+            <input type="hidden" asp-for="WorkoutSession.UserId" />
+            <input type="hidden" asp-for="WorkoutSession.Name" />
+            
+            <div class="form-group mb-3">
+                <label asp-for="NewDateTime" class="control-label">New Workout Date/Time</label>
+                <input asp-for="NewDateTime" class="form-control" type="datetime-local" />
+                <span asp-validation-for="NewDateTime" class="text-danger"></span>
+                <small class="form-text text-muted">Choose a new date and time for this workout</small>
+            </div>
+            
+            <div class="form-group mb-3">
+                <label asp-for="WorkoutSession.Description" class="control-label">Notes</label>
+                <textarea asp-for="WorkoutSession.Description" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="WorkoutSession.Description" class="text-danger"></span>
+            </div>
+            
+            <div class="form-group d-flex justify-content-between mb-3">
+                <button type="submit" class="btn btn-primary">Reschedule Workout</button>
+                <button type="submit" asp-page-handler="Cancel" class="btn btn-outline-secondary">Cancel</button>
+            </div>
+        </form>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Original Workout Details</h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">Name</dt>
+                    <dd class="col-sm-8">@Model.WorkoutSession.Name</dd>
+                    
+                    <dt class="col-sm-4">Original Date</dt>
+                    <dd class="col-sm-8">@Model.WorkoutSession.StartDateTime.ToString("dd/MM/yyyy HH:mm")</dd>
+                    
+                    <dt class="col-sm-4">Template</dt>
+                    <dd class="col-sm-8">@(Model.WorkoutSession.WorkoutTemplateId.HasValue ? "Yes" : "No")</dd>
+                    
+                    @if (!string.IsNullOrEmpty(Model.WorkoutSession.Description))
+                    {
+                        <dt class="col-sm-4">Notes</dt>
+                        <dd class="col-sm-8">@Model.WorkoutSession.Description</dd>
+                    }
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div>
+    <a asp-page="./Index" class="btn btn-secondary mt-3">Back to List</a>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        // Format datetime-local input
+        document.addEventListener('DOMContentLoaded', function () {
+            var datetimeInput = document.querySelector('[type="datetime-local"]');
+            if (datetimeInput) {
+                var value = datetimeInput.value;
+                if (value) {
+                    // Keep only YYYY-MM-DDTHH:mm format
+                    datetimeInput.value = value.slice(0, 16);
+                }
+            }
+        });
+    </script>
+}

@@ -1,0 +1,95 @@
+/* Dark Mode Overrides for Mobile Components
+ * Extends dark mode theme for responsive components
+ */
+
+/* Variables to use across responsive components */
+:root {
+  --stat-card-bg: white;
+  --tab-bg: white;
+  --filter-toggle-bg: white;
+  --filters-container-bg: white;
+  --shortcut-menu-bg: white;
+  --mobile-context-nav-bg: white;
+  --mobile-swipe-action-bg: #dc3545;
+}
+
+/* Dark mode overrides */
+[data-theme="dark"] {
+  --stat-card-bg: #1E1E1E;
+  --tab-bg: #1A1A1A;
+  --filter-toggle-bg: #212121;
+  --filters-container-bg: #1A1A1A;
+  --shortcut-menu-bg: #1A1A1A;
+  --mobile-context-nav-bg: #1E1E1E;
+  --mobile-swipe-action-bg: #9c2734;
+}
+
+/* Apply variable-based colors to mobile components */
+.stat-card {
+  background-color: var(--stat-card-bg);
+}
+
+.mobile-tabs {
+  background-color: var(--tab-bg);
+}
+
+.mobile-filters-toggle {
+  background-color: var(--filter-toggle-bg);
+}
+
+.mobile-filters-container {
+  background-color: var(--filters-container-bg);
+}
+
+.session-shortcut-menu {
+  background-color: var(--shortcut-menu-bg);
+}
+
+.session-shortcut-menu-item {
+  border-bottom-color: rgba(128, 128, 128, 0.2);
+}
+
+.mobile-context-nav-item {
+  background-color: var(--mobile-context-nav-bg);
+}
+
+.swipe-action-indicator {
+  background-color: var(--mobile-swipe-action-bg);
+}
+
+/* Dark mode specific card adjustments */
+[data-theme="dark"] .stat-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .mobile-tabs {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .session-shortcut-menu {
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+}
+
+/* Text colors for dark mode mobile components */
+[data-theme="dark"] .session-shortcut-menu-item {
+  color: var(--text-dark);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .mobile-context-nav-item {
+  color: var(--text-dark);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+/* Apply dark theme to mobile modals */
+[data-theme="dark"] .modal-content {
+  background-color: var(--container-bg);
+}
+
+[data-theme="dark"] .modal-header {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .modal-footer {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}

@@ -1,0 +1,428 @@
+@page
+@model WorkoutTrackerWeb.Areas.Coach.Pages.Clients.IndexModel
+@{
+    ViewData["Title"] = "Client Management";
+}
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4><i class="bi bi-people-fill me-2"></i>My Clients</h4>
+            <a href="/Coach/Clients/Invite" class="btn btn-primary">
+                <i class="bi bi-person-plus-fill me-2"></i>Invite New Client
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Client Management Tabs -->
+<ul class="nav nav-tabs mb-4" id="clientTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="active-tab" data-bs-toggle="tab" data-bs-target="#active" type="button" role="tab" aria-controls="active" aria-selected="true">
+            Active Clients <span class="badge bg-primary rounded-pill ms-2">@Model.ActiveClients.Count</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab" aria-controls="pending" aria-selected="false">
+            Pending Invitations <span class="badge bg-warning rounded-pill ms-2">@Model.PendingClients.Count</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="inactive-tab" data-bs-toggle="tab" data-bs-target="#inactive" type="button" role="tab" aria-controls="inactive" aria-selected="false">
+            Inactive Clients <span class="badge bg-secondary rounded-pill ms-2">@Model.InactiveClients.Count</span>
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="groups-tab" data-bs-toggle="tab" data-bs-target="#groups" type="button" role="tab" aria-controls="groups" aria-selected="false">
+            Client Groups <span class="badge bg-info rounded-pill ms-2">@Model.ClientGroups.Count</span>
+        </button>
+    </li>
+</ul>
+
+<!-- Alert for status messages -->
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert @(Model.StatusMessageType == "Success" ? "alert-success" : "alert-danger") alert-dismissible fade show" role="alert">
+        @Model.StatusMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<!-- Tab Contents -->
+<div class="tab-content" id="clientTabsContent">
+    <!-- Active Clients Tab -->
+    <div class="tab-pane fade show active" id="active" role="tabpanel" aria-labelledby="active-tab">
+        @if (Model.ActiveClients.Any())
+        {
+            <div class="row">
+                <div class="col-md-12 mb-3">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" id="activeClientSearch" class="form-control" placeholder="Search active clients...">
+                    </div>
+                </div>
+            </div>
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="activeClientsList">
+                @foreach (var client in Model.ActiveClients)
+                {
+                    <div class="col client-card" data-client-name="@client.Name.ToLower()">
+                        <div class="card h-100 border-primary">
+                            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">@client.Name</h5>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-primary" type="button" id="clientMenu@(client.Id)" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="clientMenu@(client.Id)">
+                                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#clientProfileModal" data-client-id="@client.Id"><i class="bi bi-person-badge me-2"></i>View Profile</a></li>
+                                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#assignWorkoutModal" data-client-id="@client.Id"><i class="bi bi-calendar-plus me-2"></i>Assign Workout</a></li>
+                                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#setGoalModal" data-client-id="@client.Id"><i class="bi bi-flag me-2"></i>Set Goal</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editPermissionsModal" data-client-id="@client.Id"><i class="bi bi-key me-2"></i>Edit Permissions</a></li>
+                                        <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deactivateClientModal" data-client-id="@client.Id"><i class="bi bi-person-dash me-2"></i>Deactivate</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="client-info mb-3">
+                                    <p><i class="bi bi-envelope me-2"></i>@client.Email</p>
+                                    <p><i class="bi bi-calendar me-2"></i>Client since: @client.StartDate.ToString("MMM d, yyyy")</p>
+                                    @if (!string.IsNullOrEmpty(client.Group))
+                                    {
+                                        <p><i class="bi bi-people me-2"></i>Group: <span class="badge bg-info">@client.Group</span></p>
+                                    }
+                                </div>
+                                <div class="client-metrics">
+                                    <h6 class="mb-2">Recent Activity</h6>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span>Last Workout:</span>
+                                        <span>@(client.LastWorkout.HasValue ? client.LastWorkout.Value.ToString("MMM d, yyyy") : "None")</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <span>Active Goals:</span>
+                                        <span>@client.ActiveGoalsCount</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span>Workouts (30d):</span>
+                                        <span>@client.WorkoutsLast30Days</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <div class="d-grid gap-2">
+                                    <a asp-area="Coach" asp-page="/Clients/Details" asp-route-id="@client.Id" class="btn btn-outline-primary">
+                                        <i class="bi bi-graph-up me-2"></i>View Progress
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div id="noActiveClientsFound" class="alert alert-info text-center mt-3 d-none">
+                No clients found matching your search.
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info text-center">
+                <i class="bi bi-info-circle me-2"></i>You don't have any active clients yet.
+                <p class="mt-2">Invite new clients using the button above or check your pending invitations.</p>
+            </div>
+        }
+    </div>
+
+    <!-- Pending Invitations Tab -->
+    <div class="tab-pane fade" id="pending" role="tabpanel" aria-labelledby="pending-tab">
+        @if (Model.PendingClients.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Invitation Email</th>
+                            <th>Sent Date</th>
+                            <th>Expiry Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var client in Model.PendingClients)
+                        {
+                            <tr>
+                                <td>@client.Email</td>
+                                <td>@(client.InvitationDate.HasValue ? client.InvitationDate.Value.ToString("MMM d, yyyy") : "N/A")</td>
+                                <td>@client.ExpiryDate?.ToString("MMM d, yyyy")</td>
+                                <td>
+                                    <span class="badge bg-warning">Pending</span>
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#resendInvitationModal" data-client-id="@client.Id" data-client-email="@client.Email">
+                                            <i class="bi bi-envelope"></i> Resend
+                                        </button>
+                                        <form method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="clientId" value="@client.Id" />
+                                            <button type="submit" asp-page-handler="CancelInvitation" class="btn btn-sm btn-outline-danger">
+                                                <i class="bi bi-x-circle"></i> Cancel
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info text-center">
+                <i class="bi bi-info-circle me-2"></i>You don't have any pending invitations.
+                <p class="mt-2">Invite new clients using the button at the top of the page.</p>
+            </div>
+        }
+    </div>
+
+    <!-- Inactive Clients Tab -->
+    <div class="tab-pane fade" id="inactive" role="tabpanel" aria-labelledby="inactive-tab">
+        @if (Model.InactiveClients.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Relationship Period</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var client in Model.InactiveClients)
+                        {
+                            <tr>
+                                <td>@client.Name</td>
+                                <td>@client.Email</td>
+                                <td>@client.StartDate.ToString("MMM d, yyyy") - @client.EndDate?.ToString("MMM d, yyyy")</td>
+                                <td>
+                                    @if (client.Status == "Paused")
+                                    {
+                                        <span class="badge bg-info">Paused</span>
+                                    }
+                                    else if (client.Status == "Ended")
+                                    {
+                                        <span class="badge bg-secondary">Ended</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">@client.Status</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        @if (client.Status == "Paused")
+                                        {
+                                            <form method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="clientId" value="@client.Id" />
+                                                <button type="submit" asp-page-handler="ReactivateClient" class="btn btn-sm btn-success">
+                                                    <i class="bi bi-play-fill"></i> Reactivate
+                                                </button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#reinviteClientModal" data-client-id="@client.Id" data-client-email="@client.Email">
+                                                <i class="bi bi-envelope"></i> Reinvite
+                                            </button>
+                                        }
+                                        <a asp-area="Coach" asp-page="/Clients/History" asp-route-id="@client.Id" class="btn btn-sm btn-outline-secondary">
+                                            <i class="bi bi-clock-history"></i> History
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info text-center">
+                <i class="bi bi-info-circle me-2"></i>You don't have any inactive clients.
+            </div>
+        }
+    </div>
+
+    <!-- Client Groups Tab -->
+    <div class="tab-pane fade" id="groups" role="tabpanel" aria-labelledby="groups-tab">
+        <div class="row mb-4">
+            <div class="col-md-12 d-flex justify-content-end">
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createGroupModal">
+                    <i class="bi bi-plus-circle me-2"></i>Create New Group
+                </button>
+            </div>
+        </div>
+
+        @if (Model.ClientGroups.Any())
+        {
+            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                @foreach (var group in Model.ClientGroups)
+                {
+                    var bgColor = !string.IsNullOrEmpty(group.ColorCode) ? group.ColorCode : "#17a2b8"; // Default to info color if not set
+                    var textColor = bgColor == "#ffc107" || bgColor == "#ffffff" ? "#212529" : "#ffffff"; // Dark text for yellow and white
+                    
+                    <div class="col">
+                        <div class="card h-100" style="border-color: @bgColor;">
+                            <div class="card-header d-flex justify-content-between align-items-center" style="background-color: @bgColor; color: @textColor;">
+                                <h5 class="mb-0">@group.Name</h5>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm" style="background-color: @bgColor; border-color: @textColor; color: @textColor;" type="button" id="groupMenu@(group.Id)" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="groupMenu@(group.Id)">
+                                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editGroupModal" data-group-id="@group.Id" data-group-name="@group.Name" data-group-description="@group.Description" data-group-color="@group.ColorCode"><i class="bi bi-pencil me-2"></i>Edit Group</a></li>
+                                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#assignGroupWorkoutModal" data-group-id="@group.Id"><i class="bi bi-calendar-plus me-2"></i>Assign Workout</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteGroupModal" data-group-id="@group.Id"><i class="bi bi-trash me-2"></i>Delete Group</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <p class="card-text">@group.Description</p>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>Members:</span>
+                                    <span>@group.MemberCount</span>
+                                </div>
+                                <h6 class="mt-3">Members:</h6>
+                                <ul class="list-group">
+                                    @foreach (var member in group.Members.Take(3))
+                                    {
+                                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                                            @member
+                                            <a asp-area="Coach" asp-page="/Clients/Details" asp-route-id="@group.MemberIds[group.Members.IndexOf(member)]" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                        </li>
+                                    }
+                                    @if (group.MemberCount > 3)
+                                    {
+                                        <li class="list-group-item text-center text-muted">
+                                            And @(group.MemberCount - 3) more...
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                            <div class="card-footer">
+                                <div class="d-grid gap-2">
+                                    <a asp-area="Coach" asp-page="/Clients/Group" asp-route-id="@group.Id" class="btn btn-outline-info">
+                                        <i class="bi bi-people me-2"></i>Manage Group
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info text-center">
+                <i class="bi bi-info-circle me-2"></i>You haven't created any client groups yet.
+                <p class="mt-2">Groups help you organize clients and assign workouts to multiple clients at once.</p>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Create Group Modal -->
+<div class="modal fade" id="createGroupModal" tabindex="-1" aria-labelledby="createGroupModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="CreateGroup">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createGroupModalLabel">Create New Client Group</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="groupName" class="form-label">Group Name</label>
+                        <input type="text" class="form-control" id="groupName" name="groupName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="groupDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="groupDescription" name="groupDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Add Clients to Group</label>
+                        <div class="form-check">
+                            @foreach (var client in Model.ActiveClients)
+                            {
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="client@(client.Id)" name="selectedClients" value="@client.Id">
+                                    <label class="form-check-label" for="client@(client.Id)">
+                                        @client.Name
+                                    </label>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Create Group</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Redirect to the dedicated Invite page when showInvite=true
+            @if (Model.ShowInvite)
+            {
+                <text>
+                    window.location.href = "@Url.Page("./Invite")";
+                </text>
+            }
+            
+            // Switch to the pending tab if ViewData indicates it
+            @if (ViewData["ActiveTab"] as string == "pending")
+            {
+                <text>
+                    $('#clientTabs button[data-bs-target="#pending"]').tab('show');
+                </text>
+            }
+            
+            // Search functionality for active clients
+            $("#activeClientSearch").on("keyup", function() {
+                var value = $(this).val().toLowerCase();
+                var found = false;
+                
+                $(".client-card").each(function() {
+                    var clientName = $(this).data("client-name");
+                    if (clientName.indexOf(value) > -1) {
+                        $(this).show();
+                        found = true;
+                    } else {
+                        $(this).hide();
+                    }
+                });
+                
+                if (found) {
+                    $("#noActiveClientsFound").addClass("d-none");
+                } else {
+                    $("#noActiveClientsFound").removeClass("d-none");
+                }
+            });
+        });
+    </script>
+}

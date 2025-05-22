@@ -1,0 +1,492 @@
+@page
+@model WorkoutTrackerWeb.Areas.Admin.Pages.Feedback.DetailsModel
+@using WorkoutTrackerWeb.Models
+
+@{
+    ViewData["Title"] = "Feedback Details";
+}
+
+<div class="container px-0">
+    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+    {
+        <div class="alert @(Model.IsSuccess ? "alert-success" : "alert-danger") alert-dismissible fade show" role="alert">
+            @Model.StatusMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1>Feedback Details</h1>
+        <div>
+            <div class="btn-group">
+                <a asp-page="./Edit" asp-route-id="@Model.Feedback.FeedbackId" class="btn btn-primary">
+                    <i class="bi bi-pencil"></i> Edit
+                </a>
+                <a asp-page="./Index" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to List
+                </a>
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#replyModal">
+                    <i class="bi bi-reply"></i> Reply
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Main details card -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">@Model.Feedback.Subject</h5>
+                    <div>
+                        <span class="badge @GetTypeBadgeClass(Model.Feedback.Type)">@Model.Feedback.Type.ToString()</span>
+                        <span class="badge @GetStatusBadgeClass(Model.Feedback.Status) ms-2">@Model.Feedback.Status.ToString()</span>
+                        @if (Model.Feedback.Priority.HasValue)
+                        {
+                            <span class="badge @GetPriorityBadgeClass(Model.Feedback.Priority.Value) ms-2">
+                                @Model.Feedback.Priority.Value.ToString() Priority
+                            </span>
+                        }
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <h6 class="fw-bold">Message:</h6>
+                        <div class="border p-3 bg-light rounded">
+                            @Html.Raw(Model.Feedback.Message.Replace(Environment.NewLine, "<br />"))
+                        </div>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(Model.Feedback.PublicResponse))
+                    {
+                        <div class="mb-4">
+                            <h6 class="fw-bold">Public Response:</h6>
+                            <div class="border p-3 rounded bg-success-subtle">
+                                @Html.Raw(Model.Feedback.PublicResponse.Replace(Environment.NewLine, "<br />"))
+                            </div>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(Model.Feedback.AdminNotes))
+                    {
+                        <div class="mb-4">
+                            <h6 class="fw-bold">Admin Notes:</h6>
+                            <div class="border p-3 bg-warning-subtle rounded">
+                                @Html.Raw(Model.Feedback.AdminNotes.Replace(Environment.NewLine, "<br />"))
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Status timeline -->
+                    <div class="mt-4">
+                        <h6 class="fw-bold mb-3">Status History</h6>
+                        <div class="timeline">
+                            <div class="timeline-item">
+                                <div class="timeline-marker timeline-marker-new"></div>
+                                <div class="timeline-content">
+                                    <h6>New Submission</h6>
+                                    <p class="timeline-date">@Model.Feedback.SubmissionDate.ToString("dd/MM/yyyy HH:mm")</p>
+                                </div>
+                            </div>
+                            @if (Model.Feedback.Status != FeedbackStatus.New)
+                            {
+                                <div class="timeline-item">
+                                    <div class="timeline-marker @GetStatusTimelineClass(Model.Feedback.Status)"></div>
+                                    <div class="timeline-content">
+                                        <h6>Status Updated to @Model.Feedback.Status</h6>
+                                        <p class="timeline-date">@(Model.Feedback.LastUpdated?.ToString("dd/MM/yyyy HH:mm") ?? "Unknown")</p>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="row g-3" asp-page-handler="UpdateStatus">
+                        <input type="hidden" name="feedbackId" value="@Model.Feedback.FeedbackId" />
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Update Status</label>
+                            <div class="input-group">
+                                <select name="newStatus" class="form-select">
+                                    @foreach (var status in Enum.GetValues<FeedbackStatus>())
+                                    {
+                                        <option value="@((int)status)" selected="@(Model.Feedback.Status == status)">
+                                            @status.ToString()
+                                        </option>
+                                    }
+                                </select>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-arrow-clockwise"></i> Update
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label class="form-label">Set Priority</label>
+                            <div class="input-group">
+                                <select name="NewPriority" class="form-select">
+                                    <option value="">No Priority</option>
+                                    @foreach (var priority in Enum.GetValues<FeedbackPriority>())
+                                    {
+                                        <option value="@((int)priority)" selected="@(Model.Feedback.Priority == priority)">
+                                            @priority.ToString()
+                                        </option>
+                                    }
+                                </select>
+                                <button type="submit" asp-page-handler="UpdatePriority" class="btn btn-warning">
+                                    <i class="bi bi-flag"></i> Set
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" asp-for="Feedback.IsPublished"
+                                       id="isPublished" onchange="document.getElementById('publishForm').submit();">
+                                <label class="form-check-label" for="isPublished">
+                                    Publish feedback and response publicly
+                                </label>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    <form id="publishForm" method="post" asp-page-handler="TogglePublish" class="d-none">
+                        <input type="hidden" name="id" value="@Model.Feedback.FeedbackId" />
+                        <input type="hidden" name="isPublished" value="@(!Model.Feedback.IsPublished)" />
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Submission Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Submission Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-2">
+                        <strong>Date Submitted:</strong> @Model.Feedback.SubmissionDate.ToString("dd/MM/yyyy HH:mm")
+                    </div>
+                    
+                    @if (Model.Feedback.LastUpdated.HasValue)
+                    {
+                        <div class="mb-2">
+                            <strong>Last Updated:</strong> @Model.Feedback.LastUpdated.Value.ToString("dd/MM/yyyy HH:mm")
+                        </div>
+                    }
+                    
+                    @if (Model.Feedback.EstimatedCompletionDate.HasValue)
+                    {
+                        <div class="mb-2">
+                            <strong>Estimated Completion:</strong> 
+                            @Model.Feedback.EstimatedCompletionDate.Value.ToString("dd/MM/yyyy")
+                        </div>
+                    }
+                    
+                    <hr>
+                    
+                    @if (Model.Feedback.User != null)
+                    {
+                        <div class="mb-2">
+                            <strong>Submitted By:</strong> 
+                            <a asp-area="Admin" asp-page="/Users/Details" asp-route-id="@Model.Feedback.User.IdentityUserId">
+                                @Model.Feedback.User.Name
+                            </a>
+                        </div>
+                    }
+                    
+                    @if (!string.IsNullOrEmpty(Model.Feedback.ContactEmail))
+                    {
+                        <div class="mb-2">
+                            <strong>Contact Email:</strong>
+                            <a href="mailto:@Model.Feedback.ContactEmail">@Model.Feedback.ContactEmail</a>
+                        </div>
+                    }
+                    
+                    @if (!string.IsNullOrEmpty(Model.Feedback.Category))
+                    {
+                        <div class="mb-2">
+                            <strong>Category:</strong> @Model.Feedback.Category
+                        </div>
+                    }
+                    
+                    <hr>
+                    
+                    <div class="mb-2">
+                        <strong>Assigned To:</strong>
+                        @if (!string.IsNullOrEmpty(Model.Feedback.AssignedToAdminId))
+                        {
+                            <span>@Model.AssignedToAdminName</span>
+                            <button type="button" class="btn btn-sm btn-outline-secondary ms-2" 
+                                    data-bs-toggle="modal" data-bs-target="#assignModal">
+                                Change
+                            </button>
+                        }
+                        else
+                        {
+                            <span>Not assigned</span>
+                            <button type="button" class="btn btn-sm btn-outline-primary ms-2" 
+                                    data-bs-toggle="modal" data-bs-target="#assignModal">
+                                Assign
+                            </button>
+                        }
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Client Info -->
+            @if (!string.IsNullOrEmpty(Model.Feedback.BrowserInfo) || !string.IsNullOrEmpty(Model.Feedback.DeviceInfo))
+            {
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Client Information</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (!string.IsNullOrEmpty(Model.Feedback.BrowserInfo))
+                        {
+                            <div class="mb-2">
+                                <strong>Browser:</strong> @Model.Feedback.BrowserInfo
+                            </div>
+                        }
+                        
+                        @if (!string.IsNullOrEmpty(Model.Feedback.DeviceInfo))
+                        {
+                            <div class="mb-2">
+                                <strong>Device:</strong> @Model.Feedback.DeviceInfo
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            
+            <!-- Template Responses -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Template Responses</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        <button type="button" class="list-group-item list-group-item-action"
+                                onclick="useTemplate('Thank you for your feedback! We\'ll look into this issue and get back to you soon.')">
+                            General Thank You
+                        </button>
+                        <button type="button" class="list-group-item list-group-item-action"
+                                onclick="useTemplate('Thank you for reporting this bug. Our team is investigating the issue and will provide an update as soon as possible.')">
+                            Bug Report Response
+                        </button>
+                        <button type="button" class="list-group-item list-group-item-action"
+                                onclick="useTemplate('Thank you for your feature suggestion! We\'ve added it to our feature backlog for consideration in future updates.')">
+                            Feature Request Response
+                        </button>
+                        <button type="button" class="list-group-item list-group-item-action"
+                                onclick="useTemplate('We\'ve reviewed your feedback and resolved the issue you reported. The fix will be available in our next update.')">
+                            Issue Resolved
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reply Modal -->
+<div class="modal fade" id="replyModal" tabindex="-1" aria-labelledby="replyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="replyModalLabel">Reply to Feedback</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" asp-page-handler="Reply">
+                <div class="modal-body">
+                    <input type="hidden" name="id" value="@Model.Feedback.FeedbackId" />
+                    
+                    <div class="mb-3">
+                        <label for="publicResponse" class="form-label">Public Response</label>
+                        <textarea id="publicResponse" name="publicResponse" class="form-control" rows="5" 
+                                  placeholder="Enter your response to this feedback (visible to the user)">@Model.Feedback.PublicResponse</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="adminNotes" class="form-label">Admin Notes (Internal Only)</label>
+                        <textarea id="adminNotes" name="adminNotes" class="form-control" rows="3" 
+                                  placeholder="Add internal notes about this feedback (not visible to users)">@Model.Feedback.AdminNotes</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="estimatedCompletionDate" class="form-label">Estimated Completion Date (Optional)</label>
+                        <input type="date" id="estimatedCompletionDate" name="estimatedCompletionDate" class="form-control" 
+                               value="@(Model.Feedback.EstimatedCompletionDate?.ToString("yyyy-MM-dd"))" />
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="sendEmail" name="sendEmail" checked>
+                        <label class="form-check-label" for="sendEmail">
+                            Send response via email to @(Model.Feedback.ContactEmail ?? "user")
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Send Reply</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Modal -->
+<div class="modal fade" id="assignModal" tabindex="-1" aria-labelledby="assignModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="assignModalLabel">Assign Feedback</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" asp-page-handler="Assign">
+                <div class="modal-body">
+                    <input type="hidden" name="id" value="@Model.Feedback.FeedbackId" />
+                    
+                    <div class="mb-3">
+                        <label for="adminUserId" class="form-label">Assign To Admin</label>
+                        <select id="adminUserId" name="adminUserId" class="form-select">
+                            <option value="">-- Unassigned --</option>
+                            @foreach (var admin in Model.AdminUsers)
+                            {
+                                <option value="@admin.Id" selected="@(Model.Feedback.AssignedToAdminId == admin.Id)">
+                                    @admin.UserName
+                                </option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Assignment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        /* Timeline styling */
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 9px;
+            width: 2px;
+            background: #e9ecef;
+        }
+        
+        .timeline-item {
+            position: relative;
+            margin-bottom: 25px;
+        }
+        
+        .timeline-marker {
+            position: absolute;
+            left: -30px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #6c757d;
+            box-shadow: 0 0 0 4px white;
+        }
+        
+        .timeline-marker-new { background: #ffc107; }
+        .timeline-marker-inprogress { background: #0dcaf0; }
+        .timeline-marker-completed { background: #198754; }
+        .timeline-marker-rejected { background: #dc3545; }
+        
+        .timeline-content {
+            padding: 10px 15px;
+            border-radius: 4px;
+            background: #f8f9fa;
+        }
+        
+        .timeline-date {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+    </style>
+}
+
+@section Scripts {
+    <script>
+        function useTemplate(text) {
+            document.getElementById('publicResponse').value = text;
+            // Open the modal to allow editing the template
+            var replyModal = new bootstrap.Modal(document.getElementById('replyModal'));
+            replyModal.show();
+        }
+    </script>
+}
+
+@functions {
+    string GetTypeBadgeClass(FeedbackType type)
+    {
+        return type switch
+        {
+            FeedbackType.BugReport => "bg-danger",
+            FeedbackType.FeatureRequest => "bg-primary",
+            FeedbackType.GeneralFeedback => "bg-secondary",
+            FeedbackType.Question => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+
+    string GetStatusBadgeClass(FeedbackStatus status)
+    {
+        return status switch
+        {
+            FeedbackStatus.New => "bg-warning",
+            FeedbackStatus.InProgress => "bg-info",
+            FeedbackStatus.Completed => "bg-success",
+            FeedbackStatus.Rejected => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    string GetPriorityBadgeClass(FeedbackPriority priority)
+    {
+        return priority switch
+        {
+            FeedbackPriority.Low => "bg-success",
+            FeedbackPriority.Medium => "bg-warning",
+            FeedbackPriority.High => "bg-danger",
+            FeedbackPriority.Critical => "bg-danger text-white",
+            _ => "bg-secondary"
+        };
+    }
+
+    string GetStatusTimelineClass(FeedbackStatus status)
+    {
+        return status switch
+        {
+            FeedbackStatus.New => "timeline-marker-new",
+            FeedbackStatus.InProgress => "timeline-marker-inprogress",
+            FeedbackStatus.Completed => "timeline-marker-completed",
+            FeedbackStatus.Rejected => "timeline-marker-rejected",
+            _ => ""
+        };
+    }
+}

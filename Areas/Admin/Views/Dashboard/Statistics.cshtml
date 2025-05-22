@@ -1,0 +1,128 @@
+@{
+    ViewData["Title"] = "System Statistics";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid">
+    <h1 class="mt-4 mb-3">@ViewData["Title"]</h1>
+    
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-area="Admin" asp-controller="Dashboard" asp-action="Index">Dashboard</a></li>
+            <li class="breadcrumb-item active">System Statistics</li>
+        </ol>
+    </nav>
+    
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i> 
+                This page displays real-time system metrics including database connection pool health and query cache performance.
+                These metrics can help optimize application performance and diagnose bottlenecks.
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-12">
+            <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" 
+                            data-bs-target="#overview" type="button" role="tab" 
+                            aria-controls="overview" aria-selected="true">
+                        Overview
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="connection-pool-tab" data-bs-toggle="tab" 
+                            data-bs-target="#connection-pool" type="button" role="tab" 
+                            aria-controls="connection-pool" aria-selected="false">
+                        Database Connection Pool
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="query-cache-tab" data-bs-toggle="tab" 
+                            data-bs-target="#query-cache" type="button" role="tab" 
+                            aria-controls="query-cache" aria-selected="false">
+                        Query Cache
+                    </button>
+                </li>
+            </ul>
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
+                    <div class="card card-body border-top-0">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card shadow-sm h-100">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-database me-2"></i> Database Connection Pool
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        @await Component.InvokeAsync("ConnectionPoolMetrics")
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card shadow-sm h-100">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">
+                                            <i class="bi bi-speedometer2 me-2"></i> Query Cache Metrics
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        @await Component.InvokeAsync("CacheMetricsDashboard")
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="connection-pool" role="tabpanel" aria-labelledby="connection-pool-tab">
+                    <div class="card card-body border-top-0">
+                        <h4>Database Connection Pool Statistics</h4>
+                        <p class="lead">This section provides detailed metrics about SQL Server connection pool performance.</p>
+                        
+                        @await Component.InvokeAsync("ConnectionPoolMetrics")
+                        
+                        <div class="alert alert-warning mt-3">
+                            <i class="bi bi-lightbulb me-2"></i> <strong>Best Practice:</strong> 
+                            Keep pool utilization below 80% for optimal performance. Consider increasing the maximum pool size 
+                            if you consistently see high utilization or pending requests.
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="query-cache" role="tabpanel" aria-labelledby="query-cache-tab">
+                    <div class="card card-body border-top-0">
+                        <h4>Query Cache Performance Metrics</h4>
+                        <p class="lead">This section shows hit rates and performance metrics for the query result cache.</p>
+                        
+                        @await Component.InvokeAsync("CacheMetricsDashboard")
+                        
+                        <div class="alert alert-info mt-3">
+                            <i class="bi bi-lightbulb me-2"></i> <strong>Performance Tip:</strong> 
+                            A higher cache hit rate means better application performance. Consider adjusting cache expiration settings
+                            or adding more cacheable queries if the hit rate is below 70%.
+                        </div>
+                        
+                        <div class="mt-4">
+                            <a asp-area="Admin" asp-controller="Cache" asp-action="Index" class="btn btn-primary">
+                                <i class="bi bi-gear me-1"></i> Cache Management
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Auto-refresh the page every 60 seconds to keep metrics current
+        setTimeout(function() {
+            window.location.reload();
+        }, 60000);
+    </script>
+}

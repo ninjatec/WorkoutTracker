@@ -1,0 +1,88 @@
+{
+  "name": "WorkoutTracker.online",
+  "short_name": "WorkoutTracker",
+  "description": "Track your workouts, analyze progress, and achieve your fitness goals",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#455A64",
+  "theme_color": "#455A64",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/images/icons/favicon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icons/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icons/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icons/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icons/maskable-icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Workout",
+      "short_name": "New Workout",
+      "description": "Start a new workout session",
+      "url": "/Sessions/Create",
+      "icons": [
+        {
+          "src": "/images/icons/shortcuts/new-workout.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "My Workouts",
+      "short_name": "Workouts",
+      "description": "View your workout history",
+      "url": "/Sessions/Index",
+      "icons": [
+        {
+          "src": "/images/icons/shortcuts/workouts.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "short_name": "Reports",
+      "description": "View your workout reports and statistics",
+      "url": "/Reports/Index",
+      "icons": [
+        {
+          "src": "/images/icons/shortcuts/reports.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

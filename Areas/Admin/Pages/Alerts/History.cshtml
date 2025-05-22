@@ -1,0 +1,223 @@
+@page
+@model WorkoutTrackerWeb.Areas.Admin.Pages.Alerts.HistoryModel
+@{
+    ViewData["Title"] = "Alert History";
+    Layout = "_AdminLayout";
+}
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>Alert History</h2>
+                <a asp-page="./Index" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Alerts
+                </a>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.StatusMessage != null)
+    {
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <partial name="_StatusMessage" model="Model.StatusMessage" />
+            </div>
+        </div>
+    }
+
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Filter Alert History</h6>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label for="fromDate" class="form-label">From Date</label>
+                            <input type="date" id="fromDate" name="fromDate" class="form-control" value="@Model.FromDate?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="col-md-4">
+                            <label for="toDate" class="form-label">To Date</label>
+                            <input type="date" id="toDate" name="toDate" class="form-control" value="@Model.ToDate?.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="col-md-2">
+                            <label for="maxResults" class="form-label">Max Results</label>
+                            <input type="number" id="maxResults" name="maxResults" class="form-control" value="@Model.MaxResults" min="10" max="1000" step="10" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-filter"></i> Apply Filters
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Alert History</h6>
+                </div>
+                <div class="card-body">
+                    @if (Model.AlertHistory != null && Model.AlertHistory.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover" id="historyTable" width="100%" cellspacing="0">
+                                <thead>
+                                    <tr>
+                                        <th>Metric</th>
+                                        <th>Category</th>
+                                        <th>Severity</th>
+                                        <th>Value</th>
+                                        <th>Threshold</th>
+                                        <th>Triggered</th>
+                                        <th>Resolved</th>
+                                        <th>Time to Resolve</th>
+                                        <th>Acknowledged</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var alert in Model.AlertHistory)
+                                    {
+                                        <tr>
+                                            <td>@alert.MetricName</td>
+                                            <td>@alert.MetricCategory</td>
+                                            <td>
+                                                @if (alert.Severity == WorkoutTrackerWeb.Models.Alerting.AlertSeverity.Critical)
+                                                {
+                                                    <span class="badge bg-danger">Critical</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-warning">Warning</span>
+                                                }
+                                            </td>
+                                            <td>@alert.ActualValue</td>
+                                            <td>@alert.ThresholdValue</td>
+                                            <td>@alert.TriggeredAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                            <td>
+                                                @if (alert.ResolvedAt.HasValue)
+                                                {
+                                                    @alert.ResolvedAt.Value.ToString("yyyy-MM-dd HH:mm:ss")
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">Not resolved</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (alert.TimeToResolve.HasValue)
+                                                {
+                                                    @($"{alert.TimeToResolve.Value.TotalMinutes:F1} minutes")
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">N/A</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (alert.WasAcknowledged)
+                                                {
+                                                    <div>
+                                                        <span class="badge bg-success">Yes</span>
+                                                        <span class="d-block small">by @alert.AcknowledgedBy</span>
+                                                        @if (alert.TimeToAcknowledge.HasValue)
+                                                        {
+                                                            <span class="d-block small text-muted">(@($"{alert.TimeToAcknowledge.Value.TotalMinutes:F1} min"))</span>
+                                                        }
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">No</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <button type="button" class="btn btn-sm btn-info view-details" 
+                                                        data-bs-toggle="modal" data-bs-target="#detailsModal" 
+                                                        data-details="@alert.Details" 
+                                                        data-note="@alert.AcknowledgementNote" 
+                                                        data-metric="@alert.MetricName">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i> No alert history found for the selected period.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1" aria-labelledby="detailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detailsModalLabel">Alert Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <h6 id="modalMetricName"></h6>
+                <div class="mb-3">
+                    <h6>Alert Details:</h6>
+                    <p id="modalDetails" class="p-2 bg-light rounded"></p>
+                </div>
+                <div id="modalNoteContainer" class="mb-3">
+                    <h6>Acknowledgement Note:</h6>
+                    <p id="modalNote" class="p-2 bg-light rounded"></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $('#historyTable').DataTable({
+                order: [[5, 'desc']], // Sort by triggered date
+                pageLength: 25
+            });
+            
+            // Handle showing alert details in modal
+            $('.view-details').click(function () {
+                const details = $(this).data('details');
+                const note = $(this).data('note');
+                const metric = $(this).data('metric');
+                
+                $('#modalMetricName').text(metric);
+                $('#modalDetails').text(details || 'No details available');
+                
+                if (note) {
+                    $('#modalNote').text(note);
+                    $('#modalNoteContainer').show();
+                } else {
+                    $('#modalNoteContainer').hide();
+                }
+            });
+        });
+    </script>
+}

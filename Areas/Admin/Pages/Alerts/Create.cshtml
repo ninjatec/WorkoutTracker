@@ -1,0 +1,201 @@
+@page
+@model WorkoutTrackerWeb.Areas.Admin.Pages.Alerts.CreateModel
+@{
+    ViewData["Title"] = "Create Alert Threshold";
+    Layout = "_AdminLayout";
+}
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>Create Alert Threshold</h2>
+                <a asp-page="./Index" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Alert Threshold Details</h6>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="AlertThreshold.MetricName" class="form-label">Metric Name</label>
+                                    <input asp-for="AlertThreshold.MetricName" class="form-control" />
+                                    <span asp-validation-for="AlertThreshold.MetricName" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="AlertThreshold.MetricCategory" class="form-label">Category</label>
+                                    <select asp-for="AlertThreshold.MetricCategory" class="form-select">
+                                        <option value="System">System</option>
+                                        <option value="Database">Database</option>
+                                        <option value="Application">Application</option>
+                                        <option value="User">User</option>
+                                        <option value="API">API</option>
+                                        <option value="Network">Network</option>
+                                        <option value="Performance">Performance</option>
+                                        <option value="Security">Security</option>
+                                        <option value="Storage">Storage</option>
+                                        <option value="Memory">Memory</option>
+                                        <option value="CPU">CPU</option>
+                                        <option value="Cache">Cache</option>
+                                    </select>
+                                    <span asp-validation-for="AlertThreshold.MetricCategory" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="AlertThreshold.WarningThreshold" class="form-label">Warning Threshold</label>
+                                    <input asp-for="AlertThreshold.WarningThreshold" class="form-control" type="number" step="0.01" />
+                                    <span asp-validation-for="AlertThreshold.WarningThreshold" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="AlertThreshold.CriticalThreshold" class="form-label">Critical Threshold</label>
+                                    <input asp-for="AlertThreshold.CriticalThreshold" class="form-control" type="number" step="0.01" />
+                                    <span asp-validation-for="AlertThreshold.CriticalThreshold" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="AlertThreshold.Direction" class="form-label">Threshold Direction</label>
+                                    <select asp-for="AlertThreshold.Direction" asp-items="Html.GetEnumSelectList<WorkoutTrackerWeb.Models.Alerting.ThresholdDirection>()" class="form-select"></select>
+                                    <span asp-validation-for="AlertThreshold.Direction" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="AlertThreshold.EscalationMinutes" class="form-label">Escalation Minutes</label>
+                                    <input asp-for="AlertThreshold.EscalationMinutes" class="form-control" type="number" min="1" max="1440" />
+                                    <div class="form-text text-muted">Time in minutes before unacknowledged alerts are escalated. Leave empty for no escalation.</div>
+                                    <span asp-validation-for="AlertThreshold.EscalationMinutes" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label asp-for="AlertThreshold.Description" class="form-label">Description</label>
+                                    <textarea asp-for="AlertThreshold.Description" class="form-control" rows="3"></textarea>
+                                    <span asp-validation-for="AlertThreshold.Description" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <div class="form-check form-switch">
+                                    <input asp-for="AlertThreshold.EmailEnabled" class="form-check-input" type="checkbox" />
+                                    <label asp-for="AlertThreshold.EmailEnabled" class="form-check-label">Enable Email Notifications</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check form-switch">
+                                    <input asp-for="AlertThreshold.NotificationEnabled" class="form-check-input" type="checkbox" />
+                                    <label asp-for="AlertThreshold.NotificationEnabled" class="form-check-label">Enable In-App Notifications</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check form-switch">
+                                    <input asp-for="AlertThreshold.IsEnabled" class="form-check-input" type="checkbox" checked />
+                                    <label asp-for="AlertThreshold.IsEnabled" class="form-check-label">Enable This Threshold</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <div class="d-grid gap-2 d-sm-flex justify-content-sm-end">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Create
+                                    </button>
+                                    <a asp-page="./Index" class="btn btn-secondary">
+                                        <i class="fas fa-times"></i> Cancel
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        $(document).ready(function() {
+            // Example metric suggestions
+            const metricSuggestions = [
+                "CPU Usage Percentage", 
+                "Memory Usage Percentage", 
+                "Disk Space Available", 
+                "Database Connection Count", 
+                "HTTP Requests Per Second", 
+                "Average Response Time", 
+                "Error Rate Percentage", 
+                "Active User Count", 
+                "Failed Login Attempts", 
+                "Queue Length", 
+                "API Response Time", 
+                "Network Throughput"
+            ];
+            
+            // Initialize tooltip for escalation minutes
+            $('[data-toggle="tooltip"]').tooltip();
+            
+            // Helper to update critical threshold based on warning and direction
+            $('#AlertThreshold_Direction').change(function() {
+                updateThresholdHint();
+            });
+            
+            $('#AlertThreshold_WarningThreshold').change(function() {
+                updateThresholdHint();
+            });
+            
+            function updateThresholdHint() {
+                const direction = $('#AlertThreshold_Direction').val();
+                const warningValue = parseFloat($('#AlertThreshold_WarningThreshold').val());
+                
+                if (isNaN(warningValue)) return;
+                
+                let criticalValue = 0;
+                if (direction === "0") { // Above
+                    criticalValue = warningValue * 1.2; // 20% higher than warning
+                } else if (direction === "1") { // Below
+                    criticalValue = warningValue * 0.8; // 20% lower than warning
+                } else {
+                    return;
+                }
+                
+                // Only set if empty or default value
+                const currentCritical = $('#AlertThreshold_CriticalThreshold').val();
+                if (!currentCritical || currentCritical === "0") {
+                    $('#AlertThreshold_CriticalThreshold').val(criticalValue.toFixed(2));
+                }
+            }
+        });
+    </script>
+}

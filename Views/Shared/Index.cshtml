@@ -1,0 +1,61 @@
+@model IEnumerable<WorkoutTrackerWeb.Models.WorkoutSession>
+
+@{
+    ViewData["Title"] = "Shared Workouts";
+}
+
+<h1>@ViewData["Title"]</h1>
+
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">Shared Workouts for @ViewBag.UserName</h5>
+                </div>
+                <div class="card-body">
+                    @if (!Model.Any())
+                    {
+                        <p>No workouts found.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Date</th>
+                                        <th>Duration</th>
+                                        <th>Exercises</th>
+                                        <th>Description</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var session in Model.OrderByDescending(s => s.StartDateTime))
+                                    {
+                                        <tr>
+                                            <td>@session.Name</td>
+                                            <td>@session.StartDateTime.ToShortDateString()</td>
+                                            <td>@(session.EndDateTime.HasValue ? $"{(session.EndDateTime.Value - session.StartDateTime).TotalMinutes:F0} minutes" : "In Progress")</td>
+                                            <td>@session.WorkoutExercises.Count()</td>
+                                            <td>@(string.IsNullOrEmpty(session.Description) ? "-" : session.Description)</td>
+                                            <td>
+                                                <div class="btn-group">
+                                                    <a asp-controller="Shared" asp-action="Session" asp-route-id="@session.WorkoutSessionId" asp-route-token="@ViewBag.ShareToken.Token" class="btn btn-sm btn-primary">
+                                                        View
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

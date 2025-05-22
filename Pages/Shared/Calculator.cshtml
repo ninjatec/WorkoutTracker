@@ -1,0 +1,185 @@
+@page
+@model WorkoutTrackerWeb.Pages.Shared.CalculatorModel
+@{
+    ViewData["Title"] = "1RM Calculator";
+    Layout = "_SharedLayout";
+}
+
+<div class="container">
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <h1>One Rep Max (1RM) Calculator</h1>
+    <p class="lead mb-4">
+        Estimated maximum weight that can be lifted for a single repetition based on the shared workout data.
+    </p>
+
+    @if (Model.ExerciseSummaries.Any())
+    {
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h4 class="mb-0"><i class="bi bi-graph-up me-2"></i> Estimated 1RM by Exercise (Last @Model.ReportPeriod Days)</h4>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-3">Here are the estimated one-rep max values for each exercise, calculated from the shared workout data:</p>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Exercise</th>
+                                        <th>Calculation Method</th>
+                                        <th>Estimated 1RM</th>
+                                        <th>Sets</th>
+                                        <th>Date Range</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @{
+                                        // Group by exercise name for better readability
+                                        var exerciseGroups = Model.ExerciseSummaries
+                                            .GroupBy(s => s.ExerciseName);
+                                    }
+                                    
+                                    @foreach (var exerciseGroup in exerciseGroups)
+                                    {
+                                        var firstRow = true;
+                                        
+                                        // Get the average calculation first to highlight it
+                                        var averageRow = exerciseGroup.FirstOrDefault(s => s.Formula == "Average");
+                                        if (averageRow != null)
+                                        {
+                                            <tr class="table-primary">
+                                                <td>@averageRow.ExerciseName</td>
+                                                <td><strong>Average (All Methods)</strong></td>
+                                                <td><strong>@averageRow.EstimatedOneRM.ToString("F2")</strong> kg</td>
+                                                <td>@averageRow.SetsCount</td>
+                                                <td>@averageRow.FirstSetDate.ToString("dd/MM/yyyy") - @averageRow.LastSetDate.ToString("dd/MM/yyyy")</td>
+                                            </tr>
+                                            firstRow = false;
+                                        }
+                                        
+                                        @foreach (var summary in exerciseGroup.Where(s => s.Formula != "Average"))
+                                        {
+                                            <tr>
+                                                @if (firstRow)
+                                                {
+                                                    <td>@summary.ExerciseName</td>
+                                                    firstRow = false;
+                                                }
+                                                else
+                                                {
+                                                    <td></td> <!-- Empty cell to keep exercises grouped visually -->
+                                                }
+                                                <td>@summary.Formula</td>
+                                                <td>@summary.EstimatedOneRM.ToString("F2") kg</td>
+                                                <td>@summary.SetsCount</td>
+                                                <td>@summary.FirstSetDate.ToString("dd/MM/yyyy") - @summary.LastSetDate.ToString("dd/MM/yyyy")</td>
+                                            </tr>
+                                        }
+                                        
+                                        <!-- Add a spacer row between exercises -->
+                                        <tr class="table-light"><td colspan="5"></td></tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (Model.RecentSets.Any())
+    {
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h4 class="mb-0"><i class="bi bi-list-check me-2"></i> Recent Sets (Last @Model.ReportPeriod Days)</h4>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-3">These recent sets from the shared workout data were used to estimate 1RM:</p>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Exercise</th>
+                                        <th>Session</th>
+                                        <th>Date</th>
+                                        <th>Weight</th>
+                                        <th>Reps</th>
+                                        <th>Estimated 1RM</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var set in Model.RecentSets)
+                                    {
+                                        <tr>
+                                            <td>@set.ExerciseName</td>
+                                            <td>@set.SessionName</td>
+                                            <td>@set.SessionDate.ToString("dd/MM/yyyy")</td>
+                                            <td>@String.Format("{0:F2}", set.Weight) kg</td>
+                                            <td>@set.Reps</td>
+                                            <td>@String.Format("{0:F2}", set.EstimatedOneRM) kg</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4>About One Rep Max Calculation</h4>
+                </div>
+                <div class="card-body">
+                    <p>
+                        A one rep max (1RM) is the maximum amount of weight you can lift for a single repetition of an exercise.
+                        Knowing your 1RM is valuable for designing effective training programs and tracking progress, but direct 
+                        1RM testing can be risky and time-consuming.
+                    </p>
+                    <p>
+                        This calculator uses seven scientifically validated formulas to estimate 1RM based on the weight lifted 
+                        for multiple repetitions:
+                    </p>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="mb-1">
+                                <li><strong>Brzycki:</strong> load × (36 / (37 - reps))</li>
+                                <li><strong>Epley:</strong> load × (1 + 0.0333 × reps)</li>
+                                <li><strong>Lander:</strong> (100 × load) / (101.3 - 2.67123 × reps)</li>
+                                <li><strong>Lombardi:</strong> (load × reps)<sup>0.1</sup></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul>
+                                <li><strong>Mayhew et al.:</strong> (100 × load) / (52.2 + (41.9 × e<sup>-0.055 × reps</sup>))</li>
+                                <li><strong>O'Conner et al.:</strong> load × (1 + 0.025 × reps)</li>
+                                <li><strong>Wathan:</strong> (100 × load) / (48.8 + (53.8 × e<sup>-0.075 × reps</sup>))</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <p class="mb-0">
+                        For best results, the calculator identifies sets that used 2-6 reps with a challenging weight, which
+                        typically provide the most accurate 1RM estimates.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,104 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center mb-5">
+    <h1 class="display-4" style="color: var(--primary-color);">Welcome to WorkoutTracker</h1>
+</div>
+
+@if (!User.Identity.IsAuthenticated)
+{
+    <div class="container">
+        <div class="row justify-content-center mb-5">
+            <div class="col-md-8 text-center">
+                <p class="lead mb-4">Track your workouts, set goals, and achieve your fitness dreams with WorkoutTracker.</p>
+                <a asp-area="Identity" asp-page="/Account/Login" class="btn btn-primary btn-lg">
+                    <i class="bi bi-box-arrow-in-right"></i> Get Started - Log In
+                </a>
+            </div>
+        </div>
+
+        @if (Model.RecentBlogPosts.Any())
+        {
+            <div class="row">
+                <div class="col-12 text-center mb-4">
+                    <h2>Latest from Our Blog</h2>
+                    <p class="text-muted">Expert tips and insights to help you on your fitness journey</p>
+                </div>
+            </div>
+            <div class="row row-cols-1 row-cols-md-3 g-4 mb-4">
+                @foreach (var post in Model.RecentBlogPosts)
+                {
+                    <div class="col">
+                        <div class="card h-100 shadow-sm">
+                            @if (!string.IsNullOrEmpty(post.ImageUrl))
+                            {
+                                <img src="@post.ImageUrl" class="card-img-top" alt="@post.Title" style="height: 200px; object-fit: cover;">
+                            }
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <a asp-page="/Blog/Post" asp-route-slug="@post.Slug" class="text-decoration-none">@post.Title</a>
+                                </h5>
+                                <div class="mb-2 text-muted small">
+                                    <i class="bi bi-calendar"></i> @post.PublishedOn?.ToString("MMM dd, yyyy")
+                                    <span class="mx-2">|</span>
+                                    <i class="bi bi-eye"></i> @post.ViewCount views
+                                </div>
+                                <p class="card-text">@post.Summary</p>
+                            </div>
+                            <div class="card-footer bg-transparent">
+                                @foreach (var category in post.Categories)
+                                {
+                                    <a asp-page="/Blog/Category" asp-route-slug="@category.Slug" class="badge bg-primary text-decoration-none me-1">@category.Name</a>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="text-center">
+                <a asp-page="/Blog/Index" class="btn btn-outline-primary">
+                    <i class="bi bi-journal-text"></i> View All Blog Posts
+                </a>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Workout Management</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item text-center"><div class="d-grid"><div class="mx-auto" style="width: 200px;"><a href="/Sessions/Index/" class="btn btn-primary btn-sm w-100">Manage Workouts</a></div></div></li>
+                        <li class="list-group-item text-center"><div class="d-grid"><div class="mx-auto" style="width: 200px;"><a href="/Workouts/QuickWorkout" class="btn btn-primary btn-sm w-100">Quick Workout</a></div></div></li>
+                        <li class="list-group-item text-center"><div class="d-grid"><div class="mx-auto" style="width: 200px;"><a href="/Goals/Index" class="btn btn-primary btn-sm w-100">Manage Goals</a></div></div></li>
+                        <li class="list-group-item text-center"><div class="d-grid"><div class="mx-auto" style="width: 200px;"><a href="Templates/Templates/List" class="btn btn-primary btn-sm w-100">Templates</a></div></div></li>
+                        <li class="list-group-item text-center"><div class="d-grid"><div class="mx-auto" style="width: 200px;"><a href="Workouts/ScheduledWorkouts" class="btn btn-primary btn-sm w-100">Scheduled Workouts</a></div></div></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">Data Management</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item text-center"><div class="d-grid"><div class="mx-auto" style="width: 200px;"><a href="/ExerciseTypes/Index/" class="btn btn-primary btn-sm w-100">Exercise Types</a></div></div></li>
+                        <li class="list-group-item text-center"><div class="d-grid"><div class="mx-auto" style="width: 200px;"><a href="/SetTypes/Index/" class="btn btn-primary btn-sm w-100">Set Types</a></div></div></li>
+                        <li class="list-group-item text-center"><div class="d-grid"><div class="mx-auto" style="width: 200px;"><a href="/Reports/Index/" class="btn btn-primary btn-sm w-100">Reports</a></div></div></li>
+                        <li class="list-group-item text-center"><div class="d-grid"><div class="mx-auto" style="width: 200px;"><a href="/Calculator/OneRepMax" class="btn btn-primary btn-sm w-100">1RM Calculator</a></div></div></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+}

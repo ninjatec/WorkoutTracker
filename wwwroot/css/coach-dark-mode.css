@@ -1,0 +1,121 @@
+/* Dark Mode Overrides for Coach Portal
+ * Extends dark mode theme for coach-specific components
+ */
+
+/* Template card dark theme styling */
+[data-theme="dark"] .coach-title {
+  color: #5a9de9;
+}
+
+[data-theme="dark"] .coach-card {
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+[data-theme="dark"] .coach-card .card-header {
+  background-color: #1e3040;
+}
+
+[data-theme="dark"] .coach-menu .list-group-item {
+  background-color: #212121;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-light);
+}
+
+[data-theme="dark"] .coach-menu .list-group-item:hover:not(.active) {
+  background-color: #2c2c2c;
+}
+
+/* Exercise row styling */
+[data-theme="dark"] .exercise-row {
+  border-bottom-color: #333;
+}
+
+[data-theme="dark"] .set-list {
+  color: #B0B0B0;
+}
+
+[data-theme="dark"] .template-meta {
+  color: #B0B0B0;
+}
+
+[data-theme="dark"] .exercise-card {
+  border-left-color: #5a9de9;
+}
+
+/* Status indicators */
+[data-theme="dark"] .status-due-soon {
+  color: #e8c159;
+}
+
+[data-theme="dark"] .status-overdue {
+  color: #e86a6a;
+}
+
+/* Coach client list */
+[data-theme="dark"] .client-list-item {
+  background-color: var(--component-bg);
+  border-color: #333;
+}
+
+[data-theme="dark"] .client-list-item:hover {
+  background-color: #252525;
+}
+
+/* Coach template editor */
+[data-theme="dark"] .template-editor {
+  background-color: var(--component-bg);
+  border-color: #333;
+}
+
+/* Coach reports and charts */
+[data-theme="dark"] .chart-container canvas {
+  filter: invert(0.85) hue-rotate(180deg);
+}
+
+[data-theme="dark"] .metric-card {
+  background-color: var(--card-bg);
+  border-color: #333;
+}
+
+[data-theme="dark"] .metric-value {
+  color: var(--text-light);
+}
+
+/* Coach dashboard cards */
+[data-theme="dark"] .client-card {
+  background-color: var(--card-bg);
+  border-color: #333;
+}
+
+[data-theme="dark"] .client-card:hover {
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+  border-color: #4A4A4A;
+}
+}
+
+[data-theme="dark"] .status-on-track {
+  color: #6bca8e;
+}
+
+/* Goal dashboard */
+[data-theme="dark"] .goal-analytics {
+  background-color: #1e1e1e;
+}
+
+[data-theme="dark"] .analytics-value {
+  color: #6bca8e;
+}
+
+[data-theme="dark"] .analytics-label {
+  color: #B0B0B0;
+}
+
+[data-theme="dark"] .goal-card {
+  background-color: #212121;
+  border-left-color: #6bca8e;
+}
+
+/* Schedule options */
+[data-theme="dark"] .schedule-options {
+  border-color: #333;
+}

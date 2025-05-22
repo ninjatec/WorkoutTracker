@@ -1,0 +1,73 @@
+@model WorkoutTrackerWeb.Models.AppVersion
+
+@{
+    ViewData["Title"] = "Create Version";
+    Layout = "~/Areas/Admin/Views/Shared/_AdminLayout.cshtml";
+}
+
+<div class="container mt-4">
+    <h1>Create Version</h1>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">New Version Information</h5>
+        </div>
+        <div class="card-body">
+            <form asp-action="Create">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                <div class="form-row">
+                    <div class="form-group col-md-3">
+                        <label asp-for="Major" class="control-label">Major Version</label>
+                        <input asp-for="Major" class="form-control" required min="0" />
+                        <span asp-validation-for="Major" class="text-danger"></span>
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label asp-for="Minor" class="control-label">Minor Version</label>
+                        <input asp-for="Minor" class="form-control" required min="0" />
+                        <span asp-validation-for="Minor" class="text-danger"></span>
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label asp-for="Patch" class="control-label">Patch Version</label>
+                        <input asp-for="Patch" class="form-control" required min="0" />
+                        <span asp-validation-for="Patch" class="text-danger"></span>
+                    </div>
+                    <div class="form-group col-md-3">
+                        <label asp-for="BuildNumber" class="control-label">Build Number</label>
+                        <input asp-for="BuildNumber" class="form-control" required min="0" />
+                        <span asp-validation-for="BuildNumber" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="Description" class="control-label"></label>
+                    <input asp-for="Description" class="form-control" required maxlength="100" />
+                    <span asp-validation-for="Description" class="text-danger"></span>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="GitCommitHash" class="control-label">Git Commit Hash</label>
+                    <input asp-for="GitCommitHash" class="form-control" maxlength="40" />
+                    <span asp-validation-for="GitCommitHash" class="text-danger"></span>
+                    <small class="form-text text-muted">Optional. The Git commit hash associated with this version.</small>
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="ReleaseNotes" class="control-label">Release Notes</label>
+                    <textarea asp-for="ReleaseNotes" class="form-control" rows="5" maxlength="255"></textarea>
+                    <span asp-validation-for="ReleaseNotes" class="text-danger"></span>
+                    <small class="form-text text-muted">Optional. Release notes or change log for this version.</small>
+                </div>
+
+                <div class="form-group">
+                    <button type="submit" class="btn btn-success">Create</button>
+                    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

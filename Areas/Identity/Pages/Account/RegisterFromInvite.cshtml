@@ -1,0 +1,172 @@
+@page
+@using Microsoft.AspNetCore.Hosting
+@using Microsoft.Extensions.Hosting
+@inject IWebHostEnvironment Environment
+@model WorkoutTrackerWeb.Areas.Identity.Pages.Account.RegisterFromInviteModel
+@{
+    ViewData["Title"] = "Register from Invitation";
+    var isDevelopment = Environment.IsDevelopment();
+}
+
+<div class="container">
+    <div class="row justify-content-center mt-4">
+        <div class="col-md-8">
+            @if (!string.IsNullOrEmpty(TempData["UserExistsWarning"] as string))
+            {
+                <div class="alert alert-danger mb-4">
+                    <h5><i class="bi bi-exclamation-circle-fill me-2"></i>Account Already Exists</h5>
+                    <p>@TempData["UserExistsWarning"]</p>
+                    <a asp-page="./Login" asp-route-returnUrl="/Identity/Account/AcceptCoachInvitation?relationshipId=@Model.RelationshipId&token=@Model.Token" class="btn btn-outline-dark mt-2">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Sign in instead
+                    </a>
+                </div>
+            }
+
+            @if (isDevelopment)
+            {
+                <div class="card mb-3 border-warning">
+                    <div class="card-header bg-warning text-dark">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0"><i class="bi bi-bug me-2"></i>Developer Diagnostics</h5>
+                            <button class="btn btn-sm btn-outline-dark" id="toggleDiagnostics">Show/Hide</button>
+                        </div>
+                    </div>
+                    <div class="card-body" id="diagnosticsContent" style="display: none;">
+                        <dl class="row">
+                            <dt class="col-sm-4">Email:</dt>
+                            <dd class="col-sm-8">@Model.Email</dd>
+                            
+                            <dt class="col-sm-4">Relationship ID:</dt>
+                            <dd class="col-sm-8">@Model.RelationshipId</dd>
+                            
+                            <dt class="col-sm-4">Token:</dt>
+                            <dd class="col-sm-8">@Model.Token</dd>
+                            
+                            <dt class="col-sm-4">Email Normalization:</dt>
+                            <dd class="col-sm-8">@(Model.Email?.ToUpperInvariant() ?? "null")</dd>
+                        </dl>
+                        
+                        <div class="alert alert-info">
+                            <p class="mb-0"><strong>Check logs for details:</strong> The diagnostic information, including email existence checks, is written to application logs.</p>
+                        </div>
+                        
+                        <form method="post" asp-page-handler="ResetEmailCheck">
+                            <input type="hidden" name="email" value="@Model.Email" />
+                            <input type="hidden" name="token" value="@Model.Token" />
+                            <input type="hidden" name="relationshipId" value="@Model.RelationshipId" />
+                            <button type="submit" class="btn btn-warning">Override Email Check</button>
+                        </form>
+                    </div>
+                </div>
+            }
+
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-person-plus-fill me-2"></i>Complete Your Registration</h4>
+                </div>
+                <div class="card-body">
+                    <form id="registerForm" method="post">
+                        <input type="hidden" asp-for="Email" value="@Model.Email" />
+                        <input type="hidden" name="token" value="@Model.Token" />
+                        <input type="hidden" name="relationshipId" value="@Model.RelationshipId" />
+                        
+                        <div class="alert alert-info">
+                            <h5><i class="bi bi-info-circle me-2"></i>Coach Invitation</h5>
+                            @if (!string.IsNullOrEmpty(Model.CoachName))
+                            {
+                                <p>You've been invited by <strong>@Model.CoachName</strong> to join WorkoutTracker as a client.</p>
+                            }
+                            else
+                            {
+                                <p>You've been invited to join WorkoutTracker as a client.</p>
+                            }
+                            
+                            @if (!string.IsNullOrEmpty(Model.InvitationMessage))
+                            {
+                                <p class="mb-0"><strong>Message from coach:</strong> @Model.InvitationMessage</p>
+                            }
+                        </div>
+                        
+                        @if (TempData["EmailCheckOverride"] == null)
+                        {
+                            <div class="alert alert-light border mb-3">
+                                <h6 class="text-muted"><i class="bi bi-question-circle me-2"></i>Already have an account?</h6>
+                                <p class="text-muted mb-0 small">If you've already registered with <strong>@Model.Email</strong>, please <a asp-page="./Login" asp-route-returnUrl="/Identity/Account/AcceptCoachInvitation?relationshipId=@Model.RelationshipId&token=@Model.Token" class="fw-bold">sign in</a> to accept this invitation.</p>
+                            </div>
+                        }
+                        
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                        
+                        <div class="form-floating mb-3">
+                            <input asp-for="Input.Email" class="form-control" placeholder="name@example.com" readonly />
+                            <label asp-for="Input.Email"></label>
+                            <span asp-validation-for="Input.Email" class="text-danger"></span>
+                        </div>
+                        
+                        <div class="form-floating mb-3">
+                            <input asp-for="Input.UserName" class="form-control" placeholder="Username" autocomplete="username" />
+                            <label asp-for="Input.UserName"></label>
+                            <span asp-validation-for="Input.UserName" class="text-danger"></span>
+                            <div class="form-text">Choose a unique username (3-50 characters)</div>
+                        </div>
+                        
+                        <div class="form-floating mb-3">
+                            <input asp-for="Input.FullName" class="form-control" placeholder="Your Name" />
+                            <label asp-for="Input.FullName"></label>
+                            <span asp-validation-for="Input.FullName" class="text-danger"></span>
+                        </div>
+                        
+                        <div class="form-floating mb-3">
+                            <input asp-for="Input.Password" class="form-control" autocomplete="new-password" placeholder="Password" />
+                            <label asp-for="Input.Password"></label>
+                            <span asp-validation-for="Input.Password" class="text-danger"></span>
+                            <div class="form-text">
+                                Password requirements:
+                                <ul class="mb-0">
+                                    <li>At least 8 characters long</li>
+                                    <li>At least one digit (0-9)</li>
+                                    <li>At least one lowercase letter</li>
+                                    <li>At least one uppercase letter</li>
+                                    <li>At least one special character (!@@&#35;$%^&amp;*)</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="form-floating mb-4">
+                            <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" placeholder="Confirm Password" />
+                            <label asp-for="Input.ConfirmPassword"></label>
+                            <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button id="registerSubmit" type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-check-circle me-2"></i>Register and Connect
+                            </button>
+                            <a class="btn btn-outline-secondary" asp-page="./Login" asp-route-returnUrl="/Identity/Account/AcceptCoachInvitation?relationshipId=@Model.RelationshipId&token=@Model.Token">
+                                <i class="bi bi-arrow-left me-2"></i>I already have an account
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    
+    @if (isDevelopment)
+    {
+        <script>
+            document.getElementById('toggleDiagnostics').addEventListener('click', function() {
+                var content = document.getElementById('diagnosticsContent');
+                if (content.style.display === 'none') {
+                    content.style.display = 'block';
+                } else {
+                    content.style.display = 'none';
+                }
+            });
+        </script>
+    }
+}

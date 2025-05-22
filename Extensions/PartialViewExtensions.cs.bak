@@ -1,0 +1,107 @@
+using System;
+using System.IO;            ViewDataDictionary viewDataDict;
+            if (viewData != null)
+            {
+                viewDataDict = viewData;
+            }
+            else
+            {
+                var metadataProvider = controller.HttpContext.RequestServices.GetService(typeof(IModelMetadataProvider)) as IModelMetadataProvider;
+                viewDataDict = new ViewDataDictionary<TModel>(metadataProvider, controller.ModelState) { Model = model };
+            }
+            
+            var viewContext = new ViewContext(
+                controller.ControllerContext,
+                new EmptyView(),
+                viewDataDict,
+                factory.GetTempData(controller.HttpContext),
+                sw,
+                new HtmlHelperOptions()
+            );tem.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Razor;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.Mvc.ViewEngines;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.ViewComponents;
+
+namespace WorkoutTrackerWeb.Extensions
+{
+    public static class PartialViewExtensions
+    {
+        public static async Task<string> RenderPartialToStringAsync<TModel>(
+            this Controller controller,
+            string partialName,
+            TModel model,
+            ViewDataDictionary viewData = null)
+        {
+            if (string.IsNullOrEmpty(partialName))
+            {
+                throw new ArgumentNullException(nameof(partialName));
+            }
+
+            var factory = controller.HttpContext.RequestServices.GetService(typeof(ITempDataDictionaryFactory)) as ITempDataDictionaryFactory;
+            var viewEngine = controller.HttpContext.RequestServices.GetService(typeof(ICompositeViewEngine)) as ICompositeViewEngine;
+
+            using var sw = new StringWriter();
+            var viewContext = new ViewContext(
+                controller.ControllerContext,
+                new EmptyView(),
+                viewData ?? new ViewDataDictionary<TModel>(
+                    metadataProvider: new EmptyMetadataProvider(),
+                    modelState: controller.ModelState) { Model = model },
+                factory.GetTempData(controller.HttpContext),
+                sw,
+                new HtmlHelperOptions()
+            );
+
+            var result = viewEngine.FindView(controller.ControllerContext, partialName, false);
+
+            if (!result.Success)
+            {
+                throw new InvalidOperationException($"Couldn't find view '{partialName}'");
+            }
+
+            await result.View.RenderAsync(viewContext);
+
+            return sw.ToString();
+        }
+
+        public static async Task<string> RenderViewComponentToStringAsync(
+            this Controller controller,
+            string componentName,
+            object arguments = null)
+        {
+            if (string.IsNullOrEmpty(componentName))
+            {
+                throw new ArgumentNullException(nameof(componentName));
+            }
+
+            var viewComponentHelper = controller.HttpContext.RequestServices.GetService(typeof(IViewComponentHelper)) as IViewComponentHelper;
+
+            if (viewComponentHelper is ViewComponentHelper helper)
+            {
+                helper.Contextualize(controller.ViewContext);
+            }
+
+            using var sw = new StringWriter();
+            var result = arguments == null 
+                ? await viewComponentHelper.InvokeAsync(componentName)
+                : await viewComponentHelper.InvokeAsync(componentName, arguments);
+
+            result.WriteTo(sw, System.Text.Encodings.Web.HtmlEncoder.Default);
+            
+            return sw.ToString();
+        }
+
+        private class EmptyView : IView
+        {
+            public string Path => string.Empty;
+            public async Task RenderAsync(ViewContext context)
+            {
+                await Task.CompletedTask;
+            }
+        }
+    }
+}

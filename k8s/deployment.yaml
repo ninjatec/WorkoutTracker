@@ -1,0 +1,134 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workouttracker
+  namespace: web
+  labels:
+    app: workouttracker
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 2
+  selector:
+    matchLabels:
+      app: workouttracker
+  template:
+    metadata:
+      labels:
+        app: workouttracker
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8080"
+        prometheus.io/scheme: "http"
+    spec:
+      imagePullSecrets:
+      - name: regcred
+      containers:
+      - name: workout-tracker
+        image: ninjatec/workout-tracker:2.4.0.3
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "384Mi"
+            cpu: "100m"
+          limits:
+            memory: "1024Mi"
+            cpu: "2000m"
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        startupProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 12
+          timeoutSeconds: 3
+        env:
+        - name: DOTNET_ENVIRONMENT
+          value: "Production"
+        - name: ASPNETCORE_ENVIRONMENT
+          value: "Production"
+        - name: MAINTENANCE_MODE
+          value: "false"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: HANGFIRE_PROCESSING_ENABLED
+          value: "false"
+        - name: HANGFIRE_WORKER_COUNT
+          value: "0"
+        - name: ConnectionStrings__DefaultConnection
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: ConnectionStrings__DefaultConnection
+        - name: ConnectionStrings__WorkoutTrackerWebContext
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: ConnectionStrings__WorkoutTrackerWebContext
+        - name: ConnectionStrings__Redis
+          value: "redis-master.web.svc.cluster.local:6379,abortConnect=false,allowAdmin=true,syncTimeout=10000,connectTimeout=10000,responseTimeout=10000,keepAlive=180,configCheckSeconds=5,tiebreaker=,connectRetry=5,ssl=false"
+        - name: EmailSettings__MailServer
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__MailServer
+        - name: EmailSettings__MailPort
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__MailPort
+        - name: EmailSettings__SenderName
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__SenderName
+        - name: EmailSettings__SenderEmail
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__SenderEmail
+        - name: EmailSettings__UserName
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__UserName
+        - name: EmailSettings__Password
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__Password
+        - name: EmailSettings__UseSsl
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: EmailSettings__UseSsl
+        - name: ApiKeys__ApiNinjas
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: ApiKeys__ApiNinjas

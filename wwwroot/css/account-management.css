@@ -1,0 +1,84 @@
+/* 
+ * Account Management Area Specific Styling
+ * Enhances the visual presentation and contrast in the account management section
+ */
+
+/* Account management navigation sidebar */
+.account-management-nav .list-group-item {
+  padding: 0.75rem 1.25rem;
+  border-radius: 0;
+  font-size: 1.05rem;
+  transition: all 0.25s ease;
+}
+
+/* Visual indicator for the current page */
+.account-management-nav .list-group-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background-color: var(--accent-color);
+}
+
+/* Light mode styling */
+.account-management-nav .list-group-item:not(.active) {
+  background-color: #f8f9fa;
+  border-left: 4px solid transparent;
+}
+
+/* Dark mode styling */
+[data-theme="dark"] .account-management-nav .list-group-item:not(.active) {
+  background-color: #212121;
+  border-left: 4px solid transparent;
+}
+
+/* Form element styling */
+.card-body .form-control {
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.card-body .form-control:focus {
+  border-color: var(--primary-dark);
+}
+
+/* Physical measurements section */
+.physical-measurements {
+  position: relative;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  margin-bottom: 1.5rem;
+  background-color: rgba(240, 242, 245, 0.5);
+}
+
+[data-theme="dark"] .physical-measurements {
+  background-color: rgba(35, 40, 45, 0.5);
+  border-color: #444;
+}
+
+/* Input groups for measurements */
+.input-group .input-group-text {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+  min-width: 40px;
+  text-align: center;
+  justify-content: center;
+}
+
+[data-theme="dark"] .input-group .input-group-text {
+  background-color: var(--primary-dark);
+  color: white;
+  border-color: #102a38;
+}
+
+/* Section headers */
+.border-bottom {
+  border-color: var(--primary-light) !important;
+}
+
+[data-theme="dark"] .border-bottom {
+  border-color: var(--primary-dark) !important;
+}

@@ -1,0 +1,119 @@
+@page
+@model WorkoutTrackerWeb.Areas.Admin.Pages.RateLimiting.IpWhitelistModel
+@{
+    ViewData["Title"] = "IP Whitelist Management";
+}
+
+<h1>IP Whitelist Management</h1>
+<p class="lead">Manage IP addresses that are exempt from rate limiting.</p>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (Model.HasLoadError)
+{
+    <div class="alert alert-warning">
+        <h5>Error Loading Whitelist</h5>
+        <p>There was a problem loading the IP whitelist. Please check the application logs for more details.</p>
+        <p><strong>Error:</strong> @Model.LoadErrorMessage</p>
+        <p>
+            <a asp-page="./IpWhitelist" class="btn btn-primary">
+                <i class="bi bi-arrow-clockwise"></i> Retry
+            </a>
+        </p>
+    </div>
+}
+else
+{
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Add IP to Whitelist</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" asp-page-handler="Add">
+                        <div class="form-group mb-3">
+                            <label asp-for="NewIpAddress" class="form-label">IP Address</label>
+                            <input asp-for="NewIpAddress" class="form-control" placeholder="Enter IP address (e.g. 192.168.1.1)" required />
+                            <span asp-validation-for="NewIpAddress" class="text-danger"></span>
+                            <div class="form-text">Add an IP address that will be exempt from rate limiting.</div>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label asp-for="Description" class="form-label">Description (Optional)</label>
+                            <input asp-for="Description" class="form-control" placeholder="e.g. Office IP, API Server, etc." />
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                            <div class="form-text">Provide a brief description to remember why this IP is whitelisted.</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add to Whitelist</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Current Whitelisted IPs</h5>
+            <span class="badge bg-primary">Total: @Model.WhitelistedIps.Count</span>
+        </div>
+        <div class="card-body">
+            @if (!Model.WhitelistedIps.Any())
+            {
+                <p class="text-muted">No IP addresses are currently whitelisted.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>IP Address</th>
+                                <th>Description</th>
+                                <th>Added By</th>
+                                <th>Added On</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ip in Model.WhitelistedIps)
+                            {
+                                <tr>
+                                    <td><code>@ip.IpAddress</code></td>
+                                    <td>@(string.IsNullOrEmpty(ip.Description) ? "-" : ip.Description)</td>
+                                    <td>@(string.IsNullOrEmpty(ip.CreatedBy) ? "-" : ip.CreatedBy)</td>
+                                    <td>@ip.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                                    <td>
+                                        <form method="post" asp-page-handler="Remove" class="d-inline">
+                                            <input type="hidden" name="ipAddress" value="@ip.IpAddress" />
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="bi bi-trash"></i> Remove
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PWA Icons for WorkoutTracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 { color: #455A64; }
+        h2 { color: #607D8B; margin-top: 30px; }
+        pre { background: #f5f5f5; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        .note { background: #FFF3CD; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>PWA Icons for WorkoutTracker</h1>
+    
+    <div class="note">
+        <strong>Note:</strong> This is a guide for creating the PWA icon files that are missing from your project. 
+        These files are referenced in your manifest.json file but are currently returning 404 errors.
+    </div>
+    
+    <h2>Required Icon Files</h2>
+    <p>Based on your manifest.json, the following icon files need to be created in the <code>/wwwroot/images/icons/</code> directory:</p>
+    
+    <table>
+        <tr>
+            <th>Filename</th>
+            <th>Size</th>
+            <th>Purpose</th>
+        </tr>
+        <tr>
+            <td>icon-72x72.png</td>
+            <td>72x72 pixels</td>
+            <td>Small screen devices</td>
+        </tr>
+        <tr>
+            <td>icon-96x96.png</td>
+            <td>96x96 pixels</td>
+            <td>Medium screen devices</td>
+        </tr>
+        <tr>
+            <td>icon-128x128.png</td>
+            <td>128x128 pixels</td>
+            <td>Large screen devices</td>
+        </tr>
+        <tr>
+            <td>icon-144x144.png</td>
+            <td>144x144 pixels</td>
+            <td>Large screen devices (high DPI)</td>
+        </tr>
+        <tr>
+            <td>icon-152x152.png</td>
+            <td>152x152 pixels</td>
+            <td>iOS/iPadOS</td>
+        </tr>
+        <tr>
+            <td>icon-192x192.png</td>
+            <td>192x192 pixels</td>
+            <td>Android home screen</td>
+        </tr>
+        <tr>
+            <td>icon-384x384.png</td>
+            <td>384x384 pixels</td>
+            <td>Large Android devices</td>
+        </tr>
+        <tr>
+            <td>icon-512x512.png</td>
+            <td>512x512 pixels</td>
+            <td>PWA stores and high-end devices</td>
+        </tr>
+        <tr>
+            <td>maskable-icon.png</td>
+            <td>196x196 pixels</td>
+            <td>Adaptive icons for Android</td>
+        </tr>
+    </table>
+    
+    <h2>PWA Shortcut Icons</h2>
+    <p>Your manifest.json also refers to shortcut icons that need to be created in the <code>/wwwroot/images/icons/shortcuts/</code> directory:</p>
+    
+    <table>
+        <tr>
+            <th>Filename</th>
+            <th>Size</th>
+            <th>Purpose</th>
+        </tr>
+        <tr>
+            <td>new-workout.png</td>
+            <td>96x96 pixels</td>
+            <td>New Workout shortcut</td>
+        </tr>
+        <tr>
+            <td>workouts.png</td>
+            <td>96x96 pixels</td>
+            <td>My Workouts shortcut</td>
+        </tr>
+        <tr>
+            <td>reports.png</td>
+            <td>96x96 pixels</td>
+            <td>Reports shortcut</td>
+        </tr>
+    </table>
+    
+    <h2>How to Create These Icons</h2>
+    <p>You have a few options to create these icon files:</p>
+    
+    <ol>
+        <li>
+            <strong>Using an image editor</strong> (Photoshop, GIMP, Pixelmator, etc.):
+            <ul>
+                <li>Open your logo file (Logo_Without_Words.png)</li>
+                <li>Resize the image to each of the required dimensions</li>
+                <li>Save as PNG with the appropriate filename</li>
+            </ul>
+        </li>
+        <li>
+            <strong>Using online PWA icon generators</strong>:
+            <ul>
+                <li><a href="https://app-manifest.firebaseapp.com/" target="_blank">PWA Asset Generator</a></li>
+                <li><a href="https://www.pwabuilder.com/imageGenerator" target="_blank">PWA Builder Image Generator</a></li>
+            </ul>
+        </li>
+        <li>
+            <strong>Using the command line</strong> (if you install ImageMagick):
+            <pre>brew install imagemagick</pre>
+            <pre>convert Logo_Without_Words.png -resize 144x144 images/icons/icon-144x144.png</pre>
+        </li>
+    </ol>
+    
+    <h2>Meta Tag Fixes</h2>
+    <p>The console also showed a warning about a deprecated meta tag. To fix it, add this tag to your layout file's head section:</p>
+    <pre>&lt;meta name="mobile-web-app-capable" content="yes"&gt;</pre>
+    
+    <h2>Testing</h2>
+    <p>After creating these icons and placing them in the correct directories, refresh your application and check if the 404 errors are resolved.</p>
+</body>
+</html>

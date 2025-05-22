@@ -1,0 +1,67 @@
+@page
+@model WorkoutTrackerWeb.Pages.Shared.TokenRequiredModel
+@{
+    ViewData["Title"] = "Token Required";
+    Layout = "_SharedLayout";
+}
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-warning mt-5">
+                <div class="card-header bg-warning text-dark">
+                    <h3 class="mb-0"><i class="bi bi-key me-2"></i> Access Token Required</h3>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-shield-lock text-warning" style="font-size: 5rem;"></i>
+                    </div>
+                    
+                    <h4 class="text-center mb-3">You need a valid token to view this shared workout</h4>
+                    
+                    <p class="text-center">
+                        This workout has been shared with you, but it requires a valid access token.
+                    </p>
+                    
+                    <form method="post" class="mt-4">
+                        <div class="mb-3">
+                            <label for="token" class="form-label">Enter Access Token</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-key-fill"></i></span>
+                                <input type="text" id="token" name="token" class="form-control" placeholder="Enter your access token here" required 
+                                    asp-for="Token" />
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-box-arrow-in-right me-1"></i> Access Workout
+                                </button>
+                            </div>
+                            <div class="form-text">The token was provided to you by the person who shared this workout.</div>
+                            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                            {
+                                <div class="alert alert-danger mt-3">
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i> @Model.ErrorMessage
+                                </div>
+                            }
+                        </div>
+                    </form>
+                    
+                    <div class="alert alert-info mt-4">
+                        <h5><i class="bi bi-info-circle"></i> What is an access token?</h5>
+                        <p>
+                            An access token is a unique code that grants you permission to view a shared workout. 
+                            The person who shared this workout with you should have provided this token.
+                        </p>
+                        <p class="mb-0">
+                            If you don't have an access token or lost it, please contact the person who shared this workout with you.
+                        </p>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <a href="/shared" class="btn btn-outline-secondary">
+                            <i class="bi bi-house me-1"></i> Return to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

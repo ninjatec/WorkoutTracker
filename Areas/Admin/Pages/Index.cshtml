@@ -1,0 +1,219 @@
+@page
+@model WorkoutTrackerWeb.Areas.Admin.Pages.IndexModel
+@{
+    ViewData["Title"] = "Admin Dashboard";
+}
+
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Admin Dashboard</h1>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card bg-primary bg-gradient text-white mb-4">
+                <div class="card-body">
+                    <h2 class="card-title">Welcome to the Admin Dashboard</h2>
+                    <p class="card-text">
+                        This is the administrative area of the Workout Tracker application. Here you can manage users, 
+                        monitor system performance, and perform other administrative tasks.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- First Row: User Management & Coach Management -->
+    <div class="row">
+        <div class="col-md-6">
+            <!-- User Management Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">User Management</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">Total Users</h6>
+                        <span class="badge bg-primary rounded-pill">@Model.UserCount</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">Active Today</h6>
+                        <span class="badge bg-success rounded-pill">@Model.ActiveUsersToday</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h6 class="mb-0">Admin Users</h6>
+                        <span class="badge bg-warning rounded-pill">@Model.AdminCount</span>
+                    </div>
+                    <div class="d-grid">
+                        <a asp-area="Admin" asp-page="/Users/Index" class="btn btn-outline-primary">
+                            <i class="bi bi-people"></i> Manage Users
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <!-- Coach Management Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Coach Management</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">Total Coaches</h6>
+                        <span class="badge bg-primary rounded-pill">@Model.CoachCount</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h6 class="mb-0">Coach-Client Relationships</h6>
+                        <span class="badge bg-info rounded-pill">@Model.CoachClientRelationshipCount</span>
+                    </div>
+                    <div class="d-grid">
+                        <a asp-area="Admin" asp-page="/Coaches/Index" class="btn btn-outline-primary">
+                            <i class="bi bi-person-badge"></i> Manage Coaches
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Second Row: System Status & Activity Stats -->
+    <div class="row">
+        <div class="col-md-6">
+            <!-- System Status Card -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">System Status</h5>
+                    <a class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" href="#databaseDetails" role="button" aria-expanded="false">
+                        <i class="bi bi-info-circle"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">Database</h6>
+                        <span class="badge @(Model.DatabaseStatus ? "bg-success" : "bg-danger")">
+                            @(Model.DatabaseStatus ? "Connected" : "Disconnected")
+                        </span>
+                    </div>
+                    <!-- Database connection details - Collapsible section -->
+                    <div class="collapse mb-3" id="databaseDetails">
+                        <div class="card card-body bg-light">
+                            <h6 class="card-subtitle mb-2 text-muted">Connection Resilience</h6>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Circuit Breaker:</span>
+                                <span class="badge @(Model.IsCircuitBreakerOpen ? "bg-danger" : "bg-success")">
+                                    @(Model.IsCircuitBreakerOpen ? "Open" : "Closed")
+                                </span>
+                            </div>
+                            @if (Model.CircuitBreakerLastStateChange.HasValue)
+                            {
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Last State Change:</span>
+                                    <span>@Model.CircuitBreakerLastStateChange.Value.ToString("g")</span>
+                                </div>
+                            }
+                            <h6 class="card-subtitle mt-3 mb-2 text-muted">Connection Pool</h6>
+                            @if (Model.ConnectionPoolInfo.Count > 0)
+                            {
+                                @foreach (var info in Model.ConnectionPoolInfo)
+                                {
+                                    <div class="d-flex justify-content-between mb-1 small">
+                                        <span>@info.Key:</span>
+                                        <span>@info.Value</span>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="small text-muted">No pool information available</div>
+                            }
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">API Services</h6>
+                        <span class="badge @(Model.ApiStatus ? "bg-success" : "bg-danger")">
+                            @(Model.ApiStatus ? "Online" : "Offline")
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">Email Service</h6>
+                        <span class="badge @(Model.EmailStatus ? "bg-success" : "bg-danger")">
+                            @(Model.EmailStatus ? "Working" : "Failing")
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h6 class="mb-0">Redis</h6>
+                        <span class="badge @(Model.RedisStatus ? "bg-success" : "bg-danger")">
+                            @(Model.RedisStatus ? "Connected" : "Disconnected")
+                        </span>
+                    </div>
+                    <div class="d-grid">
+                        <a href="/health" target="_blank" class="btn btn-outline-primary">
+                            <i class="bi bi-heart-pulse"></i> Health Checks
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <!-- Activity Stats Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Activity Stats</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">Total Workout Sessions</h6>
+                        <span class="badge bg-primary rounded-pill">@Model.SessionCount</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0">Total Sets</h6>
+                        <span class="badge bg-primary rounded-pill">@Model.SetCount</span>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h6 class="mb-0">Total Reps</h6>
+                        <span class="badge bg-primary rounded-pill">@Model.RepCount</span>
+                    </div>
+                    <div class="d-grid">
+                        <a href="/metrics" target="_blank" class="btn btn-outline-primary">
+                            <i class="bi bi-bar-chart"></i> View Metrics
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <!-- Recent User Registrations -->
+        <div class="col-md-12">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent User Registrations</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.RecentUsers.Any())
+                    {
+                        <div class="list-group">
+                            @foreach (var user in Model.RecentUsers)
+                            {
+                                <a asp-area="Admin" asp-page="/Users/Details" asp-route-id="@user.Id" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>@user.Email</strong>
+                                    </div>
+                                    <span class="badge bg-secondary">
+                                        @user.CreatedDate.ToString("dd/MM/yyyy")
+                                    </span>
+                                </a>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No recent user registrations</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

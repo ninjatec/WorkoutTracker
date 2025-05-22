@@ -1,0 +1,608 @@
+@page
+@using WorkoutTrackerWeb.Extensions
+@model WorkoutTrackerWeb.Pages.Workouts.QuickWorkoutModel
+@{
+    ViewData["Title"] = "Quick Workout";
+    var statusAlert = !string.IsNullOrEmpty(Model.StatusMessage) ? "alert-info" : "";
+}
+
+<div class="container-fluid mt-3 quick-workout-container">
+    <h2 class="display-6">Quick Workout</h2>
+    <p class="lead">Add exercises with minimal clicks - optimized for gym use.</p>
+
+    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+    {
+        <div class="alert @statusAlert alert-dismissible fade show" role="alert">
+            @Model.StatusMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    <!-- Alert container for AJAX messages -->
+    <div id="alertContainer" class="mb-3"></div>
+
+    <!-- Accordion container for all panels -->
+    <div class="accordion mb-4" id="quickWorkoutAccordion">
+        <!-- PANEL 1: Active Session -->
+        <div class="accordion-item shadow-sm">
+            <h2 class="accordion-header" id="sessionHeading">
+                <button class="accordion-button @(Model.QuickWorkout.HasActiveSession ? "" : "collapsed")" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#sessionCollapse" 
+                        aria-expanded="@(Model.QuickWorkout.HasActiveSession ? "true" : "false")" 
+                        aria-controls="sessionCollapse">
+                    @if (Model.QuickWorkout.HasActiveSession)
+                    {
+                        <span class="text-success">
+                            <i class="bi bi-play-circle-fill me-2"></i>Active Session
+                        </span>
+                    }
+                    else
+                    {
+                        <span>
+                            <i class="bi bi-plus-circle me-2"></i>Start New Session
+                        </span>
+                    }
+                </button>
+            </h2>
+            <div id="sessionCollapse" 
+                 class="accordion-collapse collapse @(Model.QuickWorkout.HasActiveSession ? "show" : "")" 
+                 aria-labelledby="sessionHeading">
+                <div class="accordion-body">
+                    @if (Model.QuickWorkout.HasActiveSession && Model.QuickWorkout.CurrentSession != null)
+                    {
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title mb-0">@Model.QuickWorkout.CurrentSession.Name</h5>
+                            <span class="badge bg-primary">
+                                Started @Model.QuickWorkout.CurrentSession.StartDateTime.ToString("HH:mm")
+                            </span>
+                        </div>
+                        <div class="d-flex gap-2 mt-2">
+                            <a asp-page="/Sessions/Details" asp-route-id="@Model.QuickWorkout.CurrentSession.WorkoutSessionId" 
+                               class="btn btn-outline-primary flex-grow-1">
+                                <i class="bi bi-eye me-1"></i> View Details
+                            </a>
+                            <button type="button" class="btn btn-outline-success flex-grow-1" 
+                                   id="finishWorkoutBtn" data-session-id="@Model.QuickWorkout.CurrentSession.WorkoutSessionId">
+                                <i class="bi bi-check-circle me-1"></i> Finish Workout
+                            </button>
+                        </div>
+                    }
+                    else
+                    {
+                        <form method="post" asp-page-handler="CreateSession">
+                            <div class="mb-3">
+                                <label for="NewSessionName" class="form-label">Session Name</label>
+                                <input type="text" class="form-control" id="NewSessionName" name="NewSessionName" 
+                                       value="@($"Quick Workout {DateTime.Now:yyyy-MM-dd HH:mm}")" />
+                            </div>
+                            <div class="mb-3">
+                                <label for="StartTime" class="form-label">Start Time</label>
+                                <input type="datetime-local" class="form-control" id="StartTime" name="StartTime" 
+                                       value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" />
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-play-fill me-1"></i> Start Workout
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+        
+        <!-- PANEL 2: Add Set -->
+        <div class="accordion-item shadow-sm">
+            <h2 class="accordion-header" id="addSetHeading">
+                <button class="accordion-button @(!Model.QuickWorkout.HasActiveSession ? "collapsed" : "")" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#addSetCollapse" 
+                        aria-expanded="@(!Model.QuickWorkout.HasActiveSession ? "false" : "true")" 
+                        aria-controls="addSetCollapse">
+                    <i class="bi bi-plus-circle-dotted me-2"></i>Add Set
+                </button>
+            </h2>
+            <div id="addSetCollapse" 
+                 class="accordion-collapse collapse @(!Model.QuickWorkout.HasActiveSession ? "" : "show")" 
+                 aria-labelledby="addSetHeading">
+                <div class="accordion-body">
+                    @if (!Model.QuickWorkout.HasActiveSession)
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Start a session first to add exercises
+                        </div>
+                    }
+                    else
+                    {
+                        <form method="post" asp-page-handler="AddSet" id="addSetForm">
+                            @Html.AntiForgeryToken()
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <label asp-for="QuickWorkout.ExerciseTypeId" class="form-label">Exercise</label>
+                                        <select asp-for="QuickWorkout.ExerciseTypeId" class="form-select" required>
+                                            <option value="">-- Select Exercise --</option>
+                                            @foreach (var exercise in Model.QuickWorkout.ExerciseTypes)
+                                            {
+                                                <option value="@exercise.ExerciseTypeId">@exercise.Name</option>
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <label asp-for="QuickWorkout.SettypeId" class="form-label">Set Type</label>
+                                        <select asp-for="QuickWorkout.SettypeId" id="setTypeDropdown" class="form-select" required>
+                                            <option value="">-- Select Type --</option>
+                                            @foreach (var setType in Model.QuickWorkout.SetTypes)
+                                            {
+                                                @if (setType.Name == "Working")
+                                                {
+                                                    <option value="@setType.SettypeId" selected>@setType.Name</option>
+                                                }
+                                                else
+                                                {
+                                                    <option value="@setType.SettypeId">@setType.Name</option>
+                                                }
+                                            }
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <label asp-for="QuickWorkout.Weight" class="form-label">Weight (kg)</label>
+                                        <input asp-for="QuickWorkout.Weight" class="form-control" type="number" step="0.5" required />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <label asp-for="QuickWorkout.NumberReps" class="form-label">Reps</label>
+                                        <input asp-for="QuickWorkout.NumberReps" class="form-control" type="number" required />
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-success w-100">
+                                <i class="bi bi-plus-lg me-1"></i> Add Set
+                            </button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+
+    <!-- PANEL 3: Recent Sets -->
+    @if (Model.QuickWorkout.HasActiveSession)
+    {
+        <div class="accordion-item shadow-sm" id="recentSetsContainer">
+            <h2 class="accordion-header" id="recentSetsHeading">
+                <button class="accordion-button" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#recentSetsCollapse" 
+                        aria-expanded="true" 
+                        aria-controls="recentSetsCollapse">
+                    <i class="bi bi-clock-history me-2"></i>Recent Sets
+                </button>
+            </h2>
+            <div id="recentSetsCollapse" 
+                 class="accordion-collapse collapse show" 
+                 aria-labelledby="recentSetsHeading">
+                <div class="accordion-body">
+                    @if (Model.QuickWorkout.RecentWorkoutSets.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Exercise</th>
+                                        <th>Weight</th>
+                                        <th>Reps</th>
+                                        <th>Type</th>
+                                        <th>Notes</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var set in Model.QuickWorkout.RecentWorkoutSets)
+                                    {
+                                        <tr id="set-row-@set.WorkoutSetId" data-set-id="@set.WorkoutSetId">
+                                            <td>@set.WorkoutExercise.ExerciseType?.Name</td>
+                                            <td>@(set.Weight?.ToString("N1") ?? "-") kg</td>
+                                            <td>@(set.Reps?.ToString() ?? "-")</td>
+                                            <td>@(set.Settype?.Name ?? "Regular")</td>
+                                            <td>@set.Notes</td>
+                                            <td>
+                                                <div class="btn-group">
+                                                    <button class="btn btn-sm btn-primary edit-set-btn" data-set-id="@set.WorkoutSetId" title="Edit">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-info clone-set-btn" data-set-id="@set.WorkoutSetId" title="Clone">
+                                                        <i class="bi bi-files"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-danger delete-set-btn" data-set-id="@set.WorkoutSetId" title="Delete">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No sets added to this workout yet. Add your first set above.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+    </div>
+
+    <!-- PANEL 4: Exercise Selection - Only shown when a workout is active -->
+    @if (Model.QuickWorkout.HasActiveSession)
+    {
+        <div class="accordion-item shadow-sm">
+            <h2 class="accordion-header" id="exerciseSelectionHeading">
+                <button class="accordion-button collapsed" 
+                        type="button" 
+                        data-bs-toggle="collapse" 
+                        data-bs-target="#exerciseSelectionCollapse" 
+                        aria-expanded="false" 
+                        aria-controls="exerciseSelectionCollapse">
+                    <i class="bi bi-grid-3x3-gap me-2"></i>Exercise Selection
+                </button>
+            </h2>
+            <div id="exerciseSelectionCollapse" 
+                 class="accordion-collapse collapse" 
+                 aria-labelledby="exerciseSelectionHeading">
+                <div class="accordion-body p-0">
+                    <div class="card border-0">
+                        <div class="card-header bg-light p-0">
+                            <ul class="nav nav-tabs nav-fill card-header-tabs border-bottom-0" id="exerciseTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="by-muscle-tab" data-bs-toggle="tab" 
+                                            data-bs-target="#by-muscle" type="button" role="tab">By Muscle</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="recent-tab" data-bs-toggle="tab" 
+                                            data-bs-target="#recent" type="button" role="tab">Recent</button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="favorites-tab" data-bs-toggle="tab" 
+                                            data-bs-target="#favorites" type="button" role="tab">Favorites</button>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="card-body">
+                            <div class="tab-content" id="exerciseTabsContent">
+                                <!-- By Muscle Tab -->
+                                <div class="tab-pane fade show active" id="by-muscle" role="tabpanel">
+                                    <div id="muscle-group-list" class="d-flex flex-wrap gap-2 mb-3">
+                                        @foreach (var muscleGroup in Model.QuickWorkout.MuscleGroups)
+                                        {
+                                            <button type="button" class="btn btn-outline-primary wordcloud-btn" data-muscle="@muscleGroup">
+                                                @muscleGroup.ToTitleCase()
+                                            </button>
+                                        }
+                                        <button type="button" class="btn btn-outline-secondary wordcloud-btn" data-muscle="Other">Other</button>
+                                    </div>
+                                    <button id="back-to-muscles-btn" type="button" class="btn btn-link mb-2" style="display:none;">
+                                        <i class="bi bi-arrow-left"></i> Back to Muscle Groups
+                                    </button>
+                                    <div id="exercise-list" class="list-group mb-2" style="display:none;"></div>
+                                </div>
+                                <!-- Recent Tab -->
+                                <div class="tab-pane fade" id="recent" role="tabpanel">
+                                    <div class="list-group">
+                                        @foreach (var exercise in Model.QuickWorkout.RecentExercises)
+                                        {
+                                            <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" 
+                                                    onclick="selectExercise(@exercise.ExerciseType.ExerciseTypeId, '@exercise.ExerciseType.Name')">
+                                                @exercise.ExerciseType.Name
+                                                <span class="badge bg-primary rounded-pill">@exercise.UseCount</span>
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                                <!-- Favorites Tab -->
+                                <div class="tab-pane fade" id="favorites" role="tabpanel">
+                                    <div class="list-group">
+                                        @foreach (var exercise in Model.QuickWorkout.FavoriteExercises)
+                                        {
+                                            <button type="button" class="list-group-item list-group-item-action" 
+                                                    onclick="selectExercise(@exercise.ExerciseTypeId, '@exercise.Name')">
+                                                @exercise.Name
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    </div> <!-- End of accordion container -->
+    
+    @* Removed inactive workout message card *@
+</div>
+
+<!-- Finish Workout Modal - Updated for AJAX functionality -->
+<div class="modal fade" id="finishWorkoutModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Finish Workout</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you ready to finish this workout session?</p>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Finishing your workout will set the end time and mark it as completed.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="confirmFinishBtn" 
+                        @(Model.QuickWorkout.HasActiveSession && Model.QuickWorkout.CurrentSession != null ? 
+                        $"data-session-id=\"{Model.QuickWorkout.CurrentSession.WorkoutSessionId}\"" : "")>
+                    <i class="bi bi-check-circle me-1"></i>Finish Workout
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Set Modal -->
+<div class="modal fade" id="editSetModal" tabindex="-1" aria-labelledby="editSetModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editSetModalLabel">Edit Set</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editSetId">
+                <input type="hidden" id="editExerciseId">
+                
+                <div class="mb-3">
+                    <label for="editWeight" class="form-label">Weight (kg)</label>
+                    <input type="number" class="form-control" id="editWeight" step="0.5" min="0">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="editReps" class="form-label">Reps</label>
+                    <input type="number" class="form-control" id="editReps" min="0">
+                </div>
+                
+                <div class="mb-3">
+                    <label for="editSetType" class="form-label">Set Type</label>
+                    <select class="form-select" id="editSetType">
+                        <!-- Will be populated dynamically -->
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="editNotes" class="form-label">Notes</label>
+                    <input type="text" class="form-control" id="editNotes">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveSetChanges">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Delete Modal -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmDeleteModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete this set? This action cannot be undone.
+                <input type="hidden" id="deleteSetId">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Word cloud style for muscle group buttons */
+    #muscle-group-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5em 0.5em;
+        align-items: flex-end;
+        justify-content: flex-start;
+        margin-bottom: 1em;
+    }
+    .wordcloud-btn {
+        border-radius: 2em;
+        transition: box-shadow 0.2s, background 0.2s, color 0.2s;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        padding: 0.3em 1.2em;
+        line-height: 1.2;
+        margin-right: 0.2em;
+        margin-bottom: 0.2em;
+    }
+    .wordcloud-btn:hover, .wordcloud-btn:focus {
+        background: #0d6efd;
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(13,110,253,0.12);
+    }
+</style>
+
+@section Scripts {
+    <script src="~/js/quickworkout-drilldown.js"></script>
+    <script src="~/js/quickworkout-ajax.js"></script>
+    <script>
+        window.quickWorkoutAllExercises = [
+            @foreach (var ex in Model.QuickWorkout.ExerciseTypes)
+            {
+                <text>{ exerciseTypeId: @ex.ExerciseTypeId, name: '@ex.Name.Replace("'", "\'")', muscle: '@(ex.Muscle ?? ex.PrimaryMuscleGroup ?? "Other")' },</text>
+            }
+        ];
+        window.quickWorkoutMuscleGroups = [
+            @foreach (var mg in Model.QuickWorkout.MuscleGroups.Distinct())
+            {
+                <text>'@mg',</text>
+            }
+        ];
+        
+        function selectExercise(id, name) {
+            var dropdown = document.querySelector('select[name="QuickWorkout.ExerciseTypeId"]');
+            if (dropdown) {
+                dropdown.value = id;
+                dropdown.dispatchEvent(new Event('change'));
+                
+                // Expand the add set panel when an exercise is selected
+                var addSetCollapse = document.getElementById('addSetCollapse');
+                var bsCollapse = new bootstrap.Collapse(addSetCollapse, {
+                    toggle: false
+                });
+                bsCollapse.show();
+            }
+        }
+        
+        // Add event handlers for the finish workout functionality
+        $(document).ready(function() {
+            // Finish workout confirmation
+            $('#confirmFinishBtn').click(function() {
+                const sessionId = $(this).data('session-id');
+                if (sessionId) {
+                    $.ajax({
+                        url: `/api/QuickWorkout/FinishSession/${sessionId}`,
+                        method: 'POST',
+                        contentType: 'application/json',
+                        success: function(response) {
+                            $('#finishWorkoutModal').modal('hide');
+                            
+                            // Show success message
+                            const alert = `
+                                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                    <i class="bi bi-check-circle me-2"></i> Workout finished successfully!
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            `;
+                            $('#alertContainer').html(alert);
+                            
+                            // Reload the page after a brief delay
+                            setTimeout(() => location.reload(), 1500);
+                        },
+                        error: function(xhr) {
+                            console.error('Error finishing workout:', xhr);
+                            $('#finishWorkoutModal').modal('hide');
+                            
+                            // Show error message
+                            const alert = `
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                    <i class="bi bi-exclamation-triangle me-2"></i> Error finishing workout: ${xhr.responseJSON?.error || 'Please try again'}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            `;
+                            $('#alertContainer').html(alert);
+                        }
+                    });
+                }
+            });
+            
+            // Link the finish workout button in the session section to the modal
+            $('#finishWorkoutBtn').click(function() {
+                $('#finishWorkoutModal').modal('show');
+            });
+            
+            // Enhance the add set form to use AJAX
+            $('#addSetForm').on('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = $(this).serializeArray();
+                let payload = {};
+                
+                // Extract workout session ID from the current session
+                const sessionId = @(Model.QuickWorkout.CurrentSession?.WorkoutSessionId ?? 0);
+                
+                if (!sessionId) {
+                    showAlert('No active session found. Please start a workout session first.', 'warning');
+                    return;
+                }
+                
+                // Convert form data to JSON payload
+                formData.forEach(item => {
+                    const key = item.name.replace('QuickWorkout.', '');
+                    payload[key] = item.value;
+                });
+                
+                // Instead of using the API directly, use the page handler that already has proper auth
+                $.ajax({
+                    url: '?handler=AddSet',
+                    method: 'POST',
+                    headers: {
+                        'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                    },
+                    data: {
+                        'QuickWorkout.ExerciseTypeId': payload.ExerciseTypeId,
+                        'QuickWorkout.SettypeId': payload.SettypeId,
+                        'QuickWorkout.Weight': payload.Weight,
+                        'QuickWorkout.NumberReps': payload.NumberReps
+                    },
+                    success: function(data) {
+                        showAlert('Set added successfully!', 'success');
+                        
+                        // Reset form fields
+                        resetFormFields();
+                        
+                        // Reload the page to show the new set
+                        // In a future enhancement, we could update the UI without reloading
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        console.error('Error adding set:', xhr);
+                        showAlert('Failed to add set. Please try again.', 'danger');
+                    }
+                });
+            });
+            
+            function resetFormFields() {
+                // Reset all form fields except the exercise dropdown
+                const exerciseId = $('select[name="QuickWorkout.ExerciseTypeId"]').val();
+                $('#addSetForm')[0].reset();
+                $('select[name="QuickWorkout.ExerciseTypeId"]').val(exerciseId);
+            }
+            
+            function showAlert(message, type) {
+                const alert = `
+                    <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                        ${message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                
+                $('#alertContainer').html(alert);
+                
+                // Auto dismiss after 5 seconds
+                setTimeout(() => {
+                    $('.alert').alert('close');
+                }, 5000);
+            }
+        });
+    </script>
+}

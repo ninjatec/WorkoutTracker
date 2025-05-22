@@ -1,0 +1,136 @@
+/* Responsive Tables Component for WorkoutTracker
+ * Transforms standard tables into mobile-friendly layouts
+ */
+
+/* Base table class - applies to all tables first */
+.table {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+/* Responsive table styles - transforms tables on small screens */
+.table-responsive-stack {
+  width: 100%;
+}
+
+/* Apply these styles for mobile views */
+@media (max-width: 767px) {
+  /* Style the table headings and cells for stacked view */
+  .table-responsive-stack thead {
+    display: none; /* Hide the header on mobile */
+  }
+  
+  .table-responsive-stack tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid var(--primary-light);
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 0.5rem;
+    background-color: var(--container-bg);
+  }
+  
+  .table-responsive-stack tbody td {
+    display: block;
+    border: none;
+    position: relative;
+    padding: 0.5rem 0.5rem 0.5rem 50%;
+    text-align: left;
+    min-height: 30px;
+  }
+  
+  /* Add labels for each cell based on heading */
+  .table-responsive-stack td:before {
+    content: attr(data-title);
+    display: inline-block;
+    position: absolute;
+    left: 0.5rem;
+    width: 45%;
+    white-space: nowrap;
+    font-weight: 600;
+    color: var(--primary-dark);
+  }
+  
+  /* Improve spacing between rows in the stacked view */
+  .table-responsive-stack tbody td:not(:last-child) {
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+  }
+  
+  /* Style action columns differently */
+  .table-responsive-stack td.action-column {
+    text-align: center;
+    padding: 0.75rem 0.5rem;
+    background-color: rgba(0,0,0,0.02);
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+  }
+  
+  .table-responsive-stack td.action-column:before {
+    display: none; /* No label needed for action buttons */
+  }
+  
+  /* Improve button spacing in action columns */
+  .table-responsive-stack td.action-column .btn {
+    margin: 0.25rem;
+    min-width: var(--touch-target-size);
+  }
+  
+  /* Dark mode overrides for responsive-stack tables */
+  [data-theme="dark"] .table-responsive-stack tr {
+    border-color: #333;
+    background-color: var(--container-bg);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  
+  [data-theme="dark"] .table-responsive-stack tbody td {
+    color: var(--text-light);
+  }
+  
+  [data-theme="dark"] .table-responsive-stack td:before {
+    color: #7fb1ee;
+    font-weight: 600;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.5);
+  }
+  
+  [data-theme="dark"] .table-responsive-stack tbody td:not(:last-child) {
+    border-bottom-color: rgba(255,255,255,0.05);
+  }
+  
+  [data-theme="dark"] .table-responsive-stack td.action-column {
+    background-color: #1A1A1A;
+    border-top: 1px solid #333;
+  }
+  
+  /* Adjust pagination for mobile */
+  .pagination {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+}
+
+/* Highly responsive DataTables specific overrides */
+@media (max-width: 767px) {
+  .dataTables_wrapper .dataTables_length,
+  .dataTables_wrapper .dataTables_filter {
+    float: none;
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+  
+  .dataTables_wrapper .dataTables_filter input {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 0.5rem;
+  }
+  
+  .dataTables_wrapper .dataTables_info,
+  .dataTables_wrapper .dataTables_paginate {
+    float: none;
+    text-align: center;
+    margin-top: 1rem;
+  }
+  
+  .dataTables_wrapper .dataTables_paginate .paginate_button {
+    padding: 0.4em 0.8em;
+  }
+}

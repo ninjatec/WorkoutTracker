@@ -1,0 +1,84 @@
+@page "{id:int}"
+@model WorkoutTrackerWeb.Areas.Admin.Pages.Alerts.ResolveModel
+@{
+    ViewData["Title"] = "Resolve Alert";
+    Layout = "_AdminLayout";
+}
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>Resolve Alert</h2>
+                <a asp-page="./Index" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    @if (Model.StatusMessage != null)
+    {
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <partial name="_StatusMessage" model="Model.StatusMessage" />
+            </div>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Alert Details</h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert @(Model.Alert.Severity == WorkoutTrackerWeb.Models.Alerting.AlertSeverity.Critical ? "alert-danger" : "alert-warning")">
+                        <h5>
+                            <i class="fas @(Model.Alert.Severity == WorkoutTrackerWeb.Models.Alerting.AlertSeverity.Critical ? "fa-exclamation-triangle" : "fa-exclamation-circle")"></i>
+                            @Model.Alert.Severity Alert: @Model.Alert.AlertThreshold.MetricName
+                        </h5>
+                        <p>@Model.Alert.Details</p>
+                        <ul class="list-unstyled">
+                            <li><strong>Metric:</strong> @Model.Alert.AlertThreshold.MetricName</li>
+                            <li><strong>Category:</strong> @Model.Alert.AlertThreshold.MetricCategory</li>
+                            <li><strong>Current Value:</strong> @Model.Alert.CurrentValue</li>
+                            <li><strong>Threshold:</strong> 
+                                @(Model.Alert.Severity == WorkoutTrackerWeb.Models.Alerting.AlertSeverity.Critical
+                                    ? Model.Alert.AlertThreshold.CriticalThreshold
+                                    : Model.Alert.AlertThreshold.WarningThreshold)
+                            </li>
+                            <li><strong>Direction:</strong> @Model.Alert.AlertThreshold.Direction</li>
+                            <li><strong>Triggered:</strong> @Model.Alert.TriggeredAt.ToString("yyyy-MM-dd HH:mm:ss")</li>
+                            <li><strong>Time Active:</strong> @((DateTime.UtcNow - Model.Alert.TriggeredAt).TotalMinutes.ToString("F1")) minutes</li>
+                            @if (Model.Alert.IsAcknowledged)
+                            {
+                                <li><strong>Acknowledged By:</strong> @Model.Alert.AcknowledgedBy</li>
+                                <li><strong>Acknowledgement Note:</strong> @Model.Alert.AcknowledgementNote</li>
+                            }
+                        </ul>
+                    </div>
+
+                    <form method="post">
+                        <input type="hidden" asp-for="Alert.Id" />
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i> 
+                            Resolving this alert will mark it as resolved and move it to the alert history. 
+                            This action cannot be undone.
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-sm-flex justify-content-sm-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-flag-checkered"></i> Resolve Alert
+                            </button>
+                            <a asp-page="./Index" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

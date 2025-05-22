@@ -1,0 +1,39 @@
+@page
+@model WorkoutTrackerWeb.Pages.Shared.InvalidTokenModel
+@{
+    ViewData["Title"] = "Invalid Token";
+    Layout = "_SharedLayout";
+}
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-warning mt-5">
+                <div class="card-header bg-warning text-dark">
+                    <h3 class="mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i> Invalid Token</h3>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-key-fill text-warning" style="font-size: 5rem;"></i>
+                    </div>
+                    
+                    <h4 class="text-center mb-3">The access token is invalid or has expired</h4>
+                    
+                    <p class="text-center">
+                        The shared workout link you're trying to access contains an invalid or expired token.
+                    </p>
+                    
+                    <p class="text-center">
+                        Please ask the person who shared this workout with you to provide a new link.
+                    </p>
+                    
+                    <div class="text-center mt-4">
+                        <a href="javascript:history.back()" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i> Go Back
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

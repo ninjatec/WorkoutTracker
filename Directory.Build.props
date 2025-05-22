@@ -1,0 +1,20 @@
+<Project>
+  <!-- Nullable reference types configuration -->
+  <PropertyGroup>
+    <!-- 
+      Nullable reference types modes:
+      - annotations: Use nullable annotations but don't enforce them (allows gradual adoption)
+      - enable: Full enforcement of nullable reference types (target state)
+      - disable: Turns off nullable reference type checking
+    -->
+    <NullableContextOptions>disable</NullableContextOptions>
+    <Nullable>disable</Nullable>
+    
+    <!-- We'll gradually add nullable file-by-file with #nullable enable directives -->
+    <LangVersion>latest</LangVersion>
+    
+    <!-- Documentation configuration -->
+    <DocumentationMode>Partial</DocumentationMode>
+    <NoWarn>$(NoWarn);CS1591</NoWarn> <!-- CS1591: Missing XML comment for publicly visible type or member -->
+  </PropertyGroup>
+</Project>

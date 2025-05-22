@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#455A64" />
+    <title>@ViewData["Title"] - WorkoutTracker (Shared)</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/responsive.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/WorkoutTrackerWeb.styles.css" asp-append-version="true" />
+    <!-- DataTables CSS (Bootstrap 5 version) -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" />
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    @{
+        // Get token from Model if available
+        string tokenParam = null;
+        try {
+            var shareTokenProp = Model?.GetType().GetProperty("ShareToken");
+            if (shareTokenProp != null)
+            {
+                var shareToken = shareTokenProp.GetValue(Model);
+                if (shareToken != null)
+                {
+                    var tokenProp = shareToken.GetType().GetProperty("Token");
+                    if (tokenProp != null)
+                    {
+                        tokenParam = tokenProp.GetValue(shareToken) as string;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Silently handle any reflection errors
+        }
+    }
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-dark border-bottom box-shadow mb-3">
+            <div class="container container-mobile-friendly">
+                <a class="navbar-brand" asp-page="/Shared/Index" asp-route-token="@tokenParam">
+                    <i class="bi bi-bar-chart-fill me-2"></i>WorkoutTracker
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-light" asp-page="/Shared/Index" asp-route-token="@tokenParam">
+                                <i class="bi bi-list-check me-1"></i>Sessions
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" asp-page="/Shared/Reports" asp-route-token="@tokenParam">
+                                <i class="bi bi-graph-up me-1"></i>Reports
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-light" asp-page="/Shared/Calculator" asp-route-token="@tokenParam">
+                                <i class="bi bi-calculator me-1"></i>1RM Calculator
+                            </a>
+                        </li>
+                    </ul>
+                    @try
+                    {
+                        // Get token details for display if from ViewBag (MVC compatibility) or Model (Razor Pages)
+                        dynamic shareToken = null;
+                        
+                        if (ViewBag?.ShareToken != null)
+                        {
+                            shareToken = ViewBag.ShareToken;
+                        }
+                        else if (Model?.ShareToken != null)
+                        {
+                            shareToken = Model.ShareToken;
+                        }
+                        
+                        if (shareToken != null)
+                        {
+                            <div class="token-info text-light">
+                                @try
+                                {
+                                    int daysLeft = shareToken.DaysUntilExpiration;
+                                    int hoursLeft = shareToken.HoursUntilExpiration;
+                                    int minutesLeft = shareToken.MinutesUntilExpiration;
+                                    
+                                    <span class="token-expiry @(daysLeft < 3 ? "text-warning" : "")">
+                                        @if (daysLeft > 0)
+                                        {
+                                            <span>Expires in @daysLeft days</span>
+                                        }
+                                        else if (hoursLeft > 0)
+                                        {
+                                            <span>Expires in @hoursLeft hours</span>
+                                        }
+                                        else
+                                        {
+                                            <span>Expires in @minutesLeft minutes</span>
+                                        }
+                                    </span>
+                                }
+                                catch { /* Handle reflection errors silently */ }
+                                
+                                @try
+                                {
+                                    var maxAccess = shareToken.MaxAccessCount;
+                                    var remaining = shareToken.RemainingAccesses;
+                                    
+                                    if (maxAccess != null)
+                                    {
+                                        <span class="ms-3 access-count @(remaining < 3 ? "text-warning" : "")">
+                                            @remaining of @maxAccess accesses left
+                                        </span>
+                                    }
+                                }
+                                catch { /* Handle reflection errors silently */ }
+                            </div>
+                        }
+                    }
+                    catch { /* Handle reflection errors silently */ }
+                
+                    @try
+                    {
+                        string userName = ViewBag?.UserName ?? Model?.UserName;
+                        if (!string.IsNullOrEmpty(userName))
+                        {
+                            <div class="text-light ms-auto d-none d-md-block">
+                                <span class="me-2">Workouts by:</span>
+                                <span class="badge bg-primary">@userName</span>
+                            </div>
+                        }
+                    }
+                    catch { /* Handle reflection errors silently */ }
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container container-mobile-friendly">
+        @try
+        {
+            string userName = ViewBag?.UserName ?? Model?.UserName;
+            if (!string.IsNullOrEmpty(userName))
+            {
+                <div class="shared-info mb-3">
+                    <div class="alert alert-info">
+                        You are viewing workout data shared by <strong>@userName</strong>
+                    </div>
+                </div>
+            }
+        }
+        catch { /* Handle reflection errors silently */ }
+        
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted">
+        <div class="container container-mobile-friendly">
+            <div class="row">
+                <div class="col-12 col-md-6 mb-3 mb-md-0 text-center text-md-start">
+                    <div class="d-flex flex-column flex-sm-row align-items-center align-items-md-start justify-content-center justify-content-md-start">
+                        <span class="d-block d-sm-inline-block me-sm-2">&copy; @DateTime.Now.Year - WorkoutTracker</span>
+                        <a asp-page="/Shared/Privacy" asp-route-token="@tokenParam" class="mt-1 mt-sm-0">Privacy</a>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 text-center text-md-end">
+                    <div class="footer-links">
+                        <div class="d-flex flex-wrap justify-content-center justify-content-md-end">
+                            <a asp-page="/Help/Index" class="text-dark me-2 mb-2"><i class="bi bi-question-circle"></i> Help</a>
+                            <a asp-page="/Feedback/Create" class="text-dark me-2 mb-2"><i class="bi bi-chat-dots"></i> Feedback</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/responsive-tables.js" asp-append-version="true"></script>
+    
+    <!-- DataTables JS (Bootstrap 5 version) -->
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

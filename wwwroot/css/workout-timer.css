@@ -1,0 +1,178 @@
+/**
+ * Workout Timer CSS
+ * Provides styles for the workout timer component
+ */
+
+.workout-timer-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1050;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.workout-timer {
+    background-color: #fff;
+    border-radius: 8px;
+    max-width: 90%;
+    width: 350px;
+    padding: 1rem;
+    margin: auto;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.timer-header {
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.timer-display {
+    font-size: 3rem;
+    font-weight: bold;
+    text-align: center;
+    margin: 1rem 0;
+    font-family: monospace;
+}
+
+.timer-presets {
+    margin-bottom: 1rem;
+}
+
+.timer-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.timer-controls button {
+    flex: 1;
+}
+
+.timer-settings {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #dee2e6;
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .workout-timer {
+        width: 95%;
+        max-width: 350px;
+    }
+    
+    .timer-display {
+        font-size: 2.5rem;
+    }
+    
+    .timer-controls button {
+        padding: 0.5rem;
+    }
+    
+    /* Make sure timer doesn't get hidden under mobile navigation bars */
+    .workout-timer-container {
+        padding: 2rem 0;
+        overflow-y: auto;
+    }
+}
+
+/* Timer fade-in animation */
+.workout-timer {
+    animation: timerFadeIn 0.3s ease;
+}
+
+@keyframes timerFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Different colors for rest/exercise timers */
+.workout-timer.rest-mode .timer-display {
+    color: #0dcaf0; /* bootstrap info color */
+}
+
+.workout-timer.exercise-mode .timer-display {
+    color: #198754; /* bootstrap success color */
+}
+
+/* Time running out alert animation */
+.timer-display.time-alert {
+    animation: timeAlert 0.5s ease infinite alternate;
+}
+
+@keyframes timeAlert {
+    from {
+        color: inherit;
+    }
+    to {
+        color: #dc3545; /* bootstrap danger color */
+    }
+}
+
+/* Floating timer button for mobile screens */
+.floating-timer-button {
+    position: fixed;
+    bottom: 70px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: #0d6efd;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    z-index: 1030;
+}
+
+.floating-timer-button i {
+    font-size: 1.3rem;
+}
+
+/* Hide floating button on larger screens */
+@media (min-width: 992px) {
+    .floating-timer-button {
+        display: none;
+    }
+}
+
+/* Timer button container in quick workout page */
+.timer-buttons-container {
+    border-top: 1px solid #dee2e6;
+    padding-top: 1rem;
+}
+
+/* Progress indicator for timer */
+.timer-progress {
+    position: relative;
+    height: 8px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    margin: 0.5rem 0 1rem;
+    overflow: hidden;
+}
+
+.timer-progress-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background-color: #0d6efd;
+    transition: width 1s linear;
+    width: 100%;
+}

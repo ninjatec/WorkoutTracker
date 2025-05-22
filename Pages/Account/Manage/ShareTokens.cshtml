@@ -1,0 +1,359 @@
+@page
+@model WorkoutTrackerWeb.Pages.Account.Manage.ShareTokensModel
+@{
+    ViewData["Title"] = "Manage Share Tokens";
+    var allWorkoutSessionsText = "All workout sessions";
+}
+
+<h1>Account Management</h1>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="list-group mb-4 account-management-nav">
+            <a asp-page="./Index" class="list-group-item list-group-item-action">Profile</a>
+            <a asp-page="./ShareTokens" class="list-group-item list-group-item-action active">Share Tokens</a>
+        </div>
+    </div>
+    <div class="col-md-9">
+        <h2>@ViewData["Title"]</h2>
+        <hr />
+
+        <partial name="_StatusMessage" for="StatusMessage" />
+
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Create New Share Token</h5>
+                        <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#collapseNewToken">
+                            <i class="bi bi-plus-circle"></i> Create Token
+                        </button>
+                    </div>
+                    <div class="collapse" id="collapseNewToken">
+                        <div class="card-body">
+                            <form method="post" asp-page-handler="Create">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label asp-for="CreateTokenInput.Name"></label>
+                                            <input asp-for="CreateTokenInput.Name" class="form-control" />
+                                            <span asp-validation-for="CreateTokenInput.Name" class="text-danger"></span>
+                                        </div>
+                                        <div class="form-group">
+                                            <label asp-for="CreateTokenInput.Description"></label>
+                                            <textarea asp-for="CreateTokenInput.Description" class="form-control" rows="2"></textarea>
+                                            <span asp-validation-for="CreateTokenInput.Description" class="text-danger"></span>
+                                        </div>
+                                        <div class="form-group">
+                                            <label asp-for="CreateTokenInput.WorkoutSessionId"></label>
+                                            <select asp-for="CreateTokenInput.WorkoutSessionId" asp-items="Model.WorkoutSessionItems" class="form-control"></select>
+                                            <small class="form-text text-muted">Leave empty to share all workout sessions.</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label asp-for="CreateTokenInput.ExpiryDays"></label>
+                                            <input asp-for="CreateTokenInput.ExpiryDays" class="form-control" />
+                                            <span asp-validation-for="CreateTokenInput.ExpiryDays" class="text-danger"></span>
+                                        </div>
+                                        <div class="form-group">
+                                            <label asp-for="CreateTokenInput.MaxAccessCount"></label>
+                                            <input asp-for="CreateTokenInput.MaxAccessCount" class="form-control" placeholder="Unlimited" />
+                                            <span asp-validation-for="CreateTokenInput.MaxAccessCount" class="text-danger"></span>
+                                            <small class="form-text text-muted">Leave empty for unlimited access.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Permissions</label>
+                                            <div class="form-check">
+                                                <input asp-for="CreateTokenInput.AllowReportAccess" class="form-check-input" />
+                                                <label asp-for="CreateTokenInput.AllowReportAccess" class="form-check-label"></label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input asp-for="CreateTokenInput.AllowCalculatorAccess" class="form-check-input" />
+                                                <label asp-for="CreateTokenInput.AllowCalculatorAccess" class="form-check-label"></label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group text-end">
+                                    <button type="submit" class="btn btn-success">Create Token</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Your Share Tokens</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (!Model.UserTokens.Any())
+                        {
+                            <div class="alert alert-info">
+                                <p class="mb-0">You haven't created any share tokens yet. Use the form above to create your first token.</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="accordion" id="shareTokenAccordion">
+                                @foreach (var token in Model.UserTokens)
+                                {
+                                    var headerId = $"heading-{token.Id}";
+                                    var collapseId = $"collapse-{token.Id}";
+                                    var detailsId = $"details-{token.Id}";
+                                    var editId = $"edit-{token.Id}";
+                                    
+                                    <div class="accordion-item @(!token.IsValid ? "border-danger" : "")">
+                                        <h2 class="accordion-header" id="@headerId">
+                                            <button class="accordion-button collapsed @(!token.IsValid ? "text-danger" : "")" type="button" 
+                                                    data-bs-toggle="collapse" data-bs-target="#@collapseId" 
+                                                    aria-expanded="false" aria-controls="@collapseId">
+                                                <div class="d-flex w-100 justify-content-between align-items-center">
+                                                    <div>
+                                                        <strong>@(string.IsNullOrEmpty(token.Name) ? $"Share {token.CreatedAt:yyyy-MM-dd}" : token.Name)</strong>
+                                                        <span class="badge bg-light text-dark mb-1">
+                                                            @if (token.WorkoutSessionId != null && token.WorkoutSessionId != 0)
+                                                            {
+                                                                <i class="fas fa-dumbbell me-1"></i> @(token.WorkoutSessionName ?? $"Workout Session #{token.WorkoutSessionId}")
+                                                            }
+                                                            else
+                                                            {
+                                                                <i class="fas fa-calendar me-1"></i> @allWorkoutSessionsText
+                                                            }
+                                                        </span>
+                                                    </div>
+                                                    <div class="ms-3">
+                                                        @if (token.IsValid)
+                                                        {
+                                                            <span class="badge bg-success">Active</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            if (!token.IsActive)
+                                                            {
+                                                                <span class="badge bg-secondary">Revoked</span>
+                                                            }
+                                                            else if (token.ExpiresAt <= DateTime.UtcNow)
+                                                            {
+                                                                <span class="badge bg-warning text-dark">Expired</span>
+                                                            }
+                                                            else if (token.HasUsageLimits && token.RemainingUses <= 0)
+                                                            {
+                                                                <span class="badge bg-info">Usage limit reached</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="badge bg-danger">Invalid</span>
+                                                            }
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        </h2>
+                                        <div id="@collapseId" class="accordion-collapse collapse" aria-labelledby="@headerId" data-bs-parent="#shareTokenAccordion">
+                                            <div class="accordion-body">
+                                                <ul class="nav nav-tabs" role="tablist">
+                                                    <li class="nav-item" role="presentation">
+                                                        <button class="nav-link active" id="@($"{detailsId}-tab")" data-bs-toggle="tab" 
+                                                                data-bs-target="#@detailsId" type="button" role="tab" 
+                                                                aria-controls="@detailsId" aria-selected="true">
+                                                            Details
+                                                        </button>
+                                                    </li>
+                                                    <li class="nav-item" role="presentation">
+                                                        <button class="nav-link" id="@($"{editId}-tab")" data-bs-toggle="tab" 
+                                                                data-bs-target="#@editId" type="button" role="tab" 
+                                                                aria-controls="@editId" aria-selected="false">
+                                                            Edit
+                                                        </button>
+                                                    </li>
+                                                </ul>
+                                                
+                                                <div class="tab-content p-3 border border-top-0 rounded-bottom">
+                                                    <div class="tab-pane fade show active" id="@detailsId" role="tabpanel" aria-labelledby="@($"{detailsId}-tab")">
+                                                        <div class="row">
+                                                            <div class="col-md-6">
+                                                                <h5>Share Information</h5>
+                                                                <dl class="row">
+                                                                    <dt class="col-sm-4">Created</dt>
+                                                                    <dd class="col-sm-8">@token.CreatedAt.ToString("g")</dd>
+                                                                    
+                                                                    <dt class="col-sm-4">Expires</dt>
+                                                                    <dd class="col-sm-8">
+                                                                        @token.ExpiresAt.ToString("g")
+                                                                        @if (token.IsValid)
+                                                                        {
+                                                                            <br />
+                                                                            @if (token.DaysUntilExpiration > 0)
+                                                                            {
+                                                                                <small class="text-muted">@token.DaysUntilExpiration days left</small>
+                                                                            }
+                                                                            else
+                                                                            {
+                                                                                <small class="text-danger">Expires today</small>
+                                                                            }
+                                                                        }
+                                                                    </dd>
+                                                                    
+                                                                    <dt class="col-sm-4">Usage</dt>
+                                                                    <dd class="col-sm-8">
+                                                                        @token.AccessCount uses
+                                                                        @if (token.HasUsageLimits)
+                                                                        {
+                                                                            <br />
+                                                                            <small class="@(token.RemainingUses < 3 ? "text-danger" : "text-muted")">
+                                                                                @token.RemainingUses of @token.MaxAccessCount remaining
+                                                                            </small>
+                                                                        }
+                                                                    </dd>
+                                                                    
+                                                                    <dt class="col-sm-4">Description</dt>
+                                                                    <dd class="col-sm-8">@(string.IsNullOrEmpty(token.Description) ? "No description" : token.Description)</dd>
+                                                                </dl>
+                                                                
+                                                                <h5>Permissions</h5>
+                                                                <ul class="list-group mb-3">
+                                                                    <li class="list-group-item @(token.AllowReportAccess ? "list-group-item-success" : "list-group-item-danger")">
+                                                                        <i class="bi @(token.AllowReportAccess ? "bi-check-circle" : "bi-x-circle")"></i>
+                                                                        Reports
+                                                                    </li>
+                                                                    <li class="list-group-item @(token.AllowCalculatorAccess ? "list-group-item-success" : "list-group-item-danger")">
+                                                                        <i class="bi @(token.AllowCalculatorAccess ? "bi-check-circle" : "bi-x-circle")"></i>
+                                                                        Calculator
+                                                                    </li>
+                                                                </ul>
+                                                                
+                                                                <div class="d-flex">
+                                                                    @if (token.IsActive)
+                                                                    {
+                                                                        <form method="post" asp-page-handler="Revoke" class="me-2">
+                                                                            <input type="hidden" name="id" value="@token.Id" />
+                                                                            <button type="submit" class="btn btn-warning" 
+                                                                                    onclick="return confirm('Are you sure you want to revoke this share token? It will no longer be valid.')">
+                                                                                <i class="bi bi-ban"></i> Revoke
+                                                                            </button>
+                                                                        </form>
+                                                                    }
+                                                                    <form method="post" asp-page-handler="Delete">
+                                                                        <input type="hidden" name="id" value="@token.Id" />
+                                                                        <button type="submit" class="btn btn-danger" 
+                                                                                onclick="return confirm('Are you sure you want to permanently delete this share token? This action cannot be undone.')">
+                                                                            <i class="bi bi-trash"></i> Delete
+                                                                        </button>
+                                                                    </form>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <h5>Sharing Link</h5>
+                                                                <p>Share this link with others to give them access to your workout data:</p>
+                                                                <div class="input-group mb-3">
+                                                                    <input type="text" class="form-control" id="tokenValue-@token.Id" 
+                                                                           value="@($"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}/Shared/Index?token={token.Token}")" 
+                                                                           readonly>
+                                                                    <button class="btn btn-outline-secondary" type="button" 
+                                                                            onclick="copyToken('@token.Id')">
+                                                                        <i class="bi bi-clipboard"></i> Copy
+                                                                    </button>
+                                                                </div>
+                                                                
+                                                                <h5>Token Details</h5>
+                                                                <div class="form-group">
+                                                                    <label>Raw Token</label>
+                                                                    <input type="text" class="form-control" value="@token.Token" readonly>
+                                                                    <small class="text-muted">This is the raw token value.</small>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="tab-pane fade" id="@editId" role="tabpanel" aria-labelledby="@($"{editId}-tab")">
+                                                        <form method="post" asp-page-handler="Update">
+                                                            <input type="hidden" name="EditTokenInput.Id" value="@token.Id" />
+                                                            
+                                                            <div class="row">
+                                                                <div class="col-md-6">
+                                                                    <div class="form-group mb-3">
+                                                                        <label for="EditTokenInput_Name_@token.Id">Name</label>
+                                                                        <input type="text" class="form-control" id="EditTokenInput_Name_@token.Id" 
+                                                                               name="EditTokenInput.Name" value="@token.Name" maxlength="100">
+                                                                    </div>
+                                                                    
+                                                                    <div class="form-group mb-3">
+                                                                        <label for="EditTokenInput_Description_@token.Id">Description</label>
+                                                                        <textarea class="form-control" id="EditTokenInput_Description_@token.Id" 
+                                                                                  name="EditTokenInput.Description" rows="2" maxlength="500">@token.Description</textarea>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="col-md-6">
+                                                                    <div class="form-group mb-3">
+                                                                        <label for="EditTokenInput_ExpiryDays_@token.Id">Add Days to Expiry</label>
+                                                                        <input type="number" class="form-control" id="EditTokenInput_ExpiryDays_@token.Id" 
+                                                                               name="EditTokenInput.ExpiryDays" value="7" min="0" max="365">
+                                                                        <small class="text-muted">Current expiry: @token.ExpiresAt.ToString("g")</small>
+                                                                    </div>
+                                                                    
+                                                                    <div class="form-group mb-3">
+                                                                        <label for="EditTokenInput_MaxAccessCount_@token.Id">Maximum Access Count</label>
+                                                                        <input type="number" class="form-control" id="EditTokenInput_MaxAccessCount_@token.Id" 
+                                                                               name="EditTokenInput.MaxAccessCount" value="@token.MaxAccessCount" min="1">
+                                                                        <small class="text-muted">Current usage: @token.AccessCount. Leave empty for unlimited access.</small>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <div class="form-group mb-3">
+                                                                <label>Permissions</label>
+                                                                <div class="form-check">
+                                                                    <input type="checkbox" class="form-check-input" id="EditTokenInput_AllowReportAccess_@token.Id" 
+                                                                           name="EditTokenInput.AllowReportAccess" @(token.AllowReportAccess ? "checked" : "")>
+                                                                    <label class="form-check-label" for="EditTokenInput_AllowReportAccess_@token.Id">Allow access to reports</label>
+                                                                </div>
+                                                                <div class="form-check">
+                                                                    <input type="checkbox" class="form-check-input" id="EditTokenInput_AllowCalculatorAccess_@token.Id" 
+                                                                           name="EditTokenInput.AllowCalculatorAccess" @(token.AllowCalculatorAccess ? "checked" : "")>
+                                                                    <label class="form-check-label" for="EditTokenInput_AllowCalculatorAccess_@token.Id">Allow access to calculator</label>
+                                                                </div>
+                                                            </div>
+                                                            
+                                                            <div class="text-end">
+                                                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        function copyToken(id) {
+            var tokenInput = document.getElementById('tokenValue-' + id);
+            tokenInput.select();
+            document.execCommand('copy');
+            
+            // Show temporary feedback
+            var button = event.currentTarget;
+            var originalText = button.innerHTML;
+            button.innerHTML = '<i class="bi bi-check"></i> Copied!';
+            setTimeout(function() {
+                button.innerHTML = originalText;
+            }, 2000);
+        }
+    </script>
+}

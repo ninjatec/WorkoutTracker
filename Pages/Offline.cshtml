@@ -1,0 +1,54 @@
+@page
+@model WorkoutTrackerWeb.Pages.OfflineModel
+@{
+    ViewData["Title"] = "Connection Required";
+    Layout = "_Layout";
+}
+
+<div class="text-center offline-page">
+    <h1 class="display-4 mb-4">Internet Connection Required</h1>
+    
+    <div class="offline-icon mb-4">
+        <i class="bi bi-wifi-off"></i>
+    </div>
+    
+    <p class="lead mb-5">
+        WorkoutTracker requires an internet connection to function.
+    </p>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Please check your connection</h5>
+            <ul class="list-group list-group-flush text-start">
+                <li class="list-group-item">Ensure you are connected to the internet</li>
+                <li class="list-group-item">Refresh the page once your connection is restored</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="offline-actions mt-4">
+        <button onclick="window.location.reload()" class="btn btn-primary me-2">
+            <i class="bi bi-arrow-clockwise"></i> Refresh Page
+        </button>
+        <a href="/" class="btn btn-secondary">
+            <i class="bi bi-house-door"></i> Try Homepage
+        </a>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        .offline-page {
+            padding: 2rem 1rem;
+        }
+        
+        .offline-icon {
+            font-size: 5rem;
+            color: #6c757d;
+        }
+        
+        .offline-actions {
+            margin-top: 2rem;
+        }
+    </style>
+}

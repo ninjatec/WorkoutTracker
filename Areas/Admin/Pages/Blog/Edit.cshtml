@@ -1,0 +1,147 @@
+@page "{id:int}"
+@model WorkoutTrackerWeb.Areas.Admin.Pages.Blog.EditModel
+@{
+    ViewData["Title"] = "Edit Blog Post";
+}
+
+<div class="container">
+    <h1>Edit Blog Post</h1>
+    
+    <form method="post" enctype="multipart/form-data">
+        <input type="hidden" asp-for="BlogPost.Id" />
+        <input type="hidden" asp-for="BlogPost.AuthorId" />
+        
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        
+        <div class="mb-3">
+            <label asp-for="BlogPost.Title" class="form-label">Title</label>
+            <input asp-for="BlogPost.Title" class="form-control" />
+            <span asp-validation-for="BlogPost.Title" class="text-danger"></span>
+        </div>
+        
+        <div class="mb-3">
+            <label asp-for="BlogPost.Slug" class="form-label">Slug</label>
+            <div class="input-group">
+                <input asp-for="BlogPost.Slug" class="form-control" />
+                <button type="button" id="generateSlugBtn" class="btn btn-outline-secondary">Generate from Title</button>
+            </div>
+            <small class="form-text text-muted">URL-friendly version of the title (e.g., "my-blog-post")</small>
+            <span asp-validation-for="BlogPost.Slug" class="text-danger"></span>
+        </div>
+        
+        <div class="mb-3">
+            <label asp-for="BlogPost.Summary" class="form-label">Summary</label>
+            <textarea asp-for="BlogPost.Summary" class="form-control" rows="3"></textarea>
+            <small class="form-text text-muted">A brief summary shown in blog listings (max 500 characters)</small>
+            <span asp-validation-for="BlogPost.Summary" class="text-danger"></span>
+        </div>
+        
+        <div class="mb-3">
+            <label asp-for="BlogPost.Content" class="form-label">Content</label>
+            <textarea asp-for="BlogPost.Content" id="Content" class="form-control" rows="10"></textarea>
+            <span asp-validation-for="BlogPost.Content" class="text-danger"></span>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Featured Image</label>
+            @if (!string.IsNullOrEmpty(Model.BlogPost.ImageUrl))
+            {
+                <div class="mb-2">
+                    <img src="@Model.BlogPost.ImageUrl" alt="Current featured image" style="max-width: 300px; max-height: 200px;" class="img-thumbnail" />
+                </div>
+                <div class="form-check mb-2">
+                    <input type="checkbox" class="form-check-input" id="removeImage" name="RemoveImage" />
+                    <label class="form-check-label" for="removeImage">Remove current image</label>
+                </div>
+            }
+            <input type="file" class="form-control" name="FeaturedImage" accept="image/*" />
+            <small class="form-text text-muted">Upload a new featured image (optional)</small>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Categories</label>
+            <div class="row">
+                @foreach (var category in Model.Categories)
+                {
+                    <div class="col-md-4 col-sm-6">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" name="SelectedCategories" 
+                                   value="@category.Id" id="cat_@category.Id" 
+                                   @(Model.SelectedCategories.Contains(category.Id) ? "checked" : "") />
+                            <label class="form-check-label" for="cat_@category.Id">@category.Name</label>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Tags</label>
+            <div class="row">
+                @foreach (var tag in Model.Tags)
+                {
+                    <div class="col-md-3 col-sm-4">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" name="SelectedTags" 
+                                   value="@tag.Id" id="tag_@tag.Id" 
+                                   @(Model.SelectedTags.Contains(tag.Id) ? "checked" : "") />
+                            <label class="form-check-label" for="tag_@tag.Id">@tag.Name</label>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <div class="form-check">
+                <input type="checkbox" asp-for="BlogPost.Published" class="form-check-input" id="blogPublished" />
+                <label asp-for="BlogPost.Published" class="form-check-label" for="blogPublished">Published</label>
+            </div>
+            <small class="form-text text-muted">Check to make this post visible to all users</small>
+        </div>
+        
+        <div class="mb-3 mt-4">
+            <button type="submit" class="btn btn-primary" id="saveButton">Save Changes</button>
+            <a asp-page="./Index" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/lib/tinymce/tinymce.min.js"></script>
+    <script src="~/js/blog-editor.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Generate slug from title
+            document.getElementById('generateSlugBtn').addEventListener('click', function() {
+                const title = document.getElementById('BlogPost_Title').value;
+                if (title) {
+                    const slug = title.toLowerCase()
+                        .replace(/[^\w\s-]/g, '') // Remove non-word chars
+                        .replace(/[\s_-]+/g, '-') // Replace spaces and underscores with hyphens
+                        .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+                    
+                    document.getElementById('BlogPost_Slug').value = slug;
+                }
+            });
+
+            // Ensure TinyMCE content is saved before form submission
+            document.querySelector('form').addEventListener('submit', function(e) {
+                if (tinymce.get('Content')) {
+                    // Force synchronization of the TinyMCE editor content with the form
+                    tinymce.triggerSave();
+                    
+                    // For debugging - log the content and published state
+                    console.log("Content being submitted:", document.getElementById('Content').value);
+                    console.log("Published state:", document.getElementById('blogPublished').checked);
+                }
+            });
+            
+            // Log when the published checkbox is changed
+            document.getElementById('blogPublished').addEventListener('change', function() {
+                console.log("Published checkbox changed to:", this.checked);
+            });
+        });
+    </script>
+}

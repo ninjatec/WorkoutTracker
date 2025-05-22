@@ -1,0 +1,122 @@
+/* Responsive Forms Component for WorkoutTracker
+ * Enhances form elements for mobile interaction
+ */
+
+/* Base form styles optimized for mobile input */
+.form-control {
+  height: var(--form-control-height);
+  font-size: 16px; /* Prevents iOS zoom on focus */
+  padding: 12px;
+}
+
+/* Better select elements for touch */
+.form-select {
+  height: var(--form-control-height);
+  padding-top: 12px;
+  padding-bottom: 12px;
+  font-size: 16px;
+}
+
+/* Enhanced checkbox and radio controls for touch */
+.form-check {
+  padding-left: 2rem;
+  margin-bottom: 1rem;
+}
+
+.form-check-input {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-left: -2rem;
+  margin-top: 0;
+}
+
+.form-check-label {
+  padding-top: 0.25rem;
+  min-height: var(--touch-target-size);
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Input groups optimization */
+.input-group {
+  margin-bottom: 1rem;
+}
+
+.input-group-text {
+  padding: 0.5rem 1rem;
+  min-height: var(--form-control-height);
+}
+
+/* Single-column form layout for narrow screens */
+@media (max-width: 767px) {
+  .form-row,
+  .row.g-3 {
+    flex-direction: column;
+    margin-right: 0;
+    margin-left: 0;
+  }
+  
+  .form-row > .col,
+  .form-row > [class*="col-"],
+  .row.g-3 > .col,
+  .row.g-3 > [class*="col-"] {
+    padding-right: 0;
+    padding-left: 0;
+    margin-bottom: 1rem;
+  }
+}
+
+/* Improved date/time pickers */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  min-height: var(--form-control-height);
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  padding: 10px 12px;
+}
+
+/* Enhanced file upload control */
+.form-control-file {
+  min-height: var(--form-control-height);
+  padding: 10px 0;
+}
+
+/* Improved range inputs */
+input[type="range"] {
+  height: var(--touch-target-size);
+  padding: 0;
+}
+
+/* Fixes for selects with validation classes */
+.was-validated .form-select:valid,
+.form-select.is-valid,
+.was-validated .form-select:invalid,
+.form-select.is-invalid {
+  background-position: right calc(0.375em + 0.9rem) center;
+}
+
+/* Form button layout for mobile */
+.form-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+@media (min-width: 576px) {
+  .form-buttons {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+}
+
+/* Better date picker experience on mobile */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+}

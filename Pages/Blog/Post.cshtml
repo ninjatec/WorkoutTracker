@@ -1,0 +1,183 @@
+@page "{slug}"
+@model WorkoutTrackerWeb.Pages.Blog.PostModel
+@{
+    ViewData["Title"] = Model.Post.Title;
+    ViewData["Description"] = Model.Post.Summary;
+    ViewData["OgImage"] = Model.Post.ImageUrl;
+}
+
+@section Styles {
+    <style>
+        .blog-header-image {
+            height: 400px;
+            object-fit: cover;
+            width: 100%;
+        }
+        .blog-content {
+            font-size: 1.1rem;
+            line-height: 1.8;
+        }
+        .blog-content img {
+            max-width: 100%;
+            height: auto;
+            margin: 20px 0;
+        }
+        .blog-meta {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .blog-author {
+            font-weight: bold;
+        }
+        blockquote {
+            border-left: 4px solid #0d6efd;
+            padding-left: 1rem;
+            font-style: italic;
+            color: #495057;
+        }
+        .share-buttons {
+            margin-top: 2rem;
+        }
+        .share-button {
+            display: inline-block;
+            margin-right: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            text-decoration: none;
+            color: white;
+        }
+        .share-button:hover {
+            opacity: 0.9;
+            color: white;
+        }
+        .share-button.facebook {
+            background-color: #3b5998;
+        }
+        .share-button.twitter {
+            background-color: #1da1f2;
+        }
+        .share-button.linkedin {
+            background-color: #0077b5;
+        }
+    </style>
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-page="/Index">Home</a></li>
+                    <li class="breadcrumb-item"><a asp-page="./Index">Blog</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">@Model.Post.Title</li>
+                </ol>
+            </nav>
+
+            <article>
+                <header class="mb-4">
+                    <h1 class="display-4">@Model.Post.Title</h1>
+                    <div class="blog-meta mb-3">
+                        <span class="blog-author"><i class="bi bi-person"></i> @Model.Post.AuthorName</span>
+                        <span class="mx-2">|</span>
+                        <span><i class="bi bi-calendar"></i> @Model.Post.PublishedOn?.ToString("MMMM dd, yyyy")</span>
+                        <span class="mx-2">|</span>
+                        <span><i class="bi bi-eye"></i> @Model.Post.ViewCount views</span>
+                    </div>
+                    <div class="mb-3">
+                        @foreach (var category in Model.Post.Categories)
+                        {
+                            <a asp-page="./Category" asp-route-slug="@category.Slug" class="badge bg-primary text-decoration-none me-1">@category.Name</a>
+                        }
+                        @foreach (var tag in Model.Post.Tags)
+                        {
+                            <a asp-page="./Tag" asp-route-slug="@tag.Slug" class="badge bg-secondary text-decoration-none me-1">@tag.Name</a>
+                        }
+                    </div>
+                </header>
+
+                @if (!string.IsNullOrEmpty(Model.Post.ImageUrl))
+                {
+                    <img src="@Model.Post.ImageUrl" class="blog-header-image rounded mb-4" alt="@Model.Post.Title">
+                }
+
+                <div class="blog-content">
+                    @Html.Raw(Model.Post.Content)
+                </div>
+
+                <div class="share-buttons">
+                    <h5>Share This Post</h5>
+                    @{
+                        var postUrl = Url.Page("./Post", new { slug = Model.Post.Slug });
+                        var encodedUrl = Uri.EscapeDataString(postUrl);
+                        var encodedTitle = Uri.EscapeDataString(Model.Post.Title);
+                    }
+                    <a href="https://www.facebook.com/sharer/sharer.php?u=@encodedUrl" target="_blank" class="share-button facebook">
+                        <i class="bi bi-facebook"></i> Facebook
+                    </a>
+                    <a href="https://twitter.com/intent/tweet?url=@encodedUrl&text=@encodedTitle" target="_blank" class="share-button twitter">
+                        <i class="bi bi-twitter"></i> Twitter
+                    </a>
+                    <a href="https://www.linkedin.com/shareArticle?mini=true&url=@encodedUrl&title=@encodedTitle" target="_blank" class="share-button linkedin">
+                        <i class="bi bi-linkedin"></i> LinkedIn
+                    </a>
+                </div>
+            </article>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Posts</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        @foreach (var recentPost in Model.RecentPosts)
+                        {
+                            <a asp-page="./Post" asp-route-slug="@recentPost.Slug" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">@recentPost.Title</h6>
+                                </div>
+                                <small class="text-muted">@recentPost.PublishedOn?.ToString("MMM dd, yyyy")</small>
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">Categories</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        @foreach (var category in Model.Categories)
+                        {
+                            <a asp-page="./Category" asp-route-slug="@category.Slug" 
+                               class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                                @category.Name
+                                <span class="badge bg-primary rounded-pill">@category.PostCount</span>
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4 shadow-sm">
+                <div class="card-header">
+                    <h5 class="mb-0">Popular Tags</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap">
+                        @foreach (var tag in Model.Tags)
+                        {
+                            <a asp-page="./Tag" asp-route-slug="@tag.Slug" 
+                               class="badge bg-secondary text-decoration-none me-1 mb-1 p-2">
+                                @tag.Name (@tag.PostCount)
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

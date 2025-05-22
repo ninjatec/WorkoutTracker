@@ -1,0 +1,228 @@
+@page
+@model WorkoutTrackerWeb.Pages.Sessions.IndexModel
+
+@{
+    ViewData["Title"] = "Workouts";
+}
+
+<h1>Workouts</h1>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        @Model.SuccessMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @Model.ErrorMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<p>
+    <a asp-page="Create" class="btn btn-primary mb-3">Create New</a>
+</p>
+
+<div class="row mb-3">
+    <div class="col-md-8">
+        <form asp-page="./Index" method="get" class="form-inline">
+            <div class="form-group mr-2">
+                <input type="text" name="SearchString" value="@Model.CurrentFilter" placeholder="Search workouts..." class="form-control" />
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">Search</button>
+                @if (!string.IsNullOrEmpty(Model.CurrentFilter))
+                {
+                    <a asp-page="./Index" class="btn btn-secondary ml-2">Clear</a>
+                }
+            </div>
+            <input type="hidden" name="sortOrder" value="@Model.CurrentSort" />
+        </form>
+    </div>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>
+                <a asp-page="./Index" asp-route-sortOrder="@Model.NameSort" asp-route-currentFilter="@Model.CurrentFilter">
+                    @Html.DisplayNameFor(model => model.WorkoutSessions[0].Name)
+                </a>
+            </th>
+            <th>
+                <a asp-page="./Index" asp-route-sortOrder="@Model.DateSort" asp-route-currentFilter="@Model.CurrentFilter">
+                    Start Time
+                </a>
+            </th>
+            <th>
+                Status
+            </th>
+            <th>
+                @Html.DisplayNameFor(model => model.WorkoutSessions[0].User)
+            </th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model.WorkoutSessions)
+        {
+            <tr class="@(item.Status == "Missed" ? "table-warning" : "")">
+                <td>
+                    @Html.DisplayFor(modelItem => item.Name)
+                </td>
+                <td>
+                    @item.StartDateTime.ToString("dd/MM/yyyy HH:mm")
+                </td>
+                <td>
+                    @switch (item.Status)
+                    {
+                        case "Missed":
+                            <span class="badge badge-warning">Missed</span>
+                            break;
+                        case "Completed":
+                            <span class="badge badge-success">Completed</span>
+                            break;
+                        case "Scheduled":
+                            <span class="badge badge-info">Scheduled</span>
+                            break;
+                        default:
+                            <span class="badge badge-secondary">@(string.IsNullOrEmpty(item.Status) ? "In Progress" : item.Status)</span>
+                            break;
+                    }
+                </td>
+                <td>
+                    @Html.DisplayFor(modelItem => item.User.Name)
+                </td>                <td>
+                    <a asp-page="./Details" asp-route-id="@item.WorkoutSessionId">Details</a> |
+                    <a asp-page="./Delete" asp-route-id="@item.WorkoutSessionId">Delete</a>
+                    @if (item.Status == "Missed")
+                    {
+                        <text> | </text>
+                        <a asp-page="./Reschedule" asp-route-id="@item.WorkoutSessionId" class="text-primary">Reschedule</a>
+                    }
+                    @if (item.Status != "Completed" && item.Status != "Missed")
+                    {
+                        <text> | </text>
+                        <form method="post" asp-page-handler="CompleteWorkout" asp-route-id="@item.WorkoutSessionId" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-success">Complete</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@{
+    var prevDisabled = !Model.WorkoutSessions.HasPreviousPage ? "disabled" : "";
+    var nextDisabled = !Model.WorkoutSessions.HasNextPage ? "disabled" : "";
+    
+    // Calculate the range of page numbers to display
+    const int maxPagesDisplayed = 5;
+    int startPage = Math.Max(1, Model.WorkoutSessions.PageIndex - maxPagesDisplayed / 2);
+    int endPage = Math.Min(Model.WorkoutSessions.TotalPages, startPage + maxPagesDisplayed - 1);
+    
+    // Adjust the start page if we're near the end
+    if (endPage - startPage + 1 < maxPagesDisplayed && startPage > 1)
+    {
+        startPage = Math.Max(1, endPage - maxPagesDisplayed + 1);
+    }
+}
+
+<nav aria-label="Page navigation">
+    <div class="d-flex justify-content-center">
+        <ul class="pagination pagination-sm flex-wrap">
+            <li class="page-item @prevDisabled">
+                <a asp-page="./Index"
+                   asp-route-sortOrder="@Model.CurrentSort"
+                   asp-route-pageIndex="@(Model.WorkoutSessions.PageIndex - 1)"
+                   asp-route-currentFilter="@Model.CurrentFilter"
+                   class="page-link @prevDisabled">
+                    Previous
+                </a>
+            </li>
+            
+            @if (startPage > 1)
+            {
+                <li class="page-item">
+                    <a asp-page="./Index"
+                       asp-route-sortOrder="@Model.CurrentSort"
+                       asp-route-pageIndex="1"
+                       asp-route-currentFilter="@Model.CurrentFilter"
+                       class="page-link">1</a>
+                </li>
+                @if (startPage > 2)
+                {
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                }
+            }
+            
+            @for (var i = startPage; i <= endPage; i++)
+            {
+                <li class="page-item @(i == Model.WorkoutSessions.PageIndex ? "active" : "")">
+                    <a asp-page="./Index"
+                       asp-route-sortOrder="@Model.CurrentSort"
+                       asp-route-pageIndex="@i"
+                       asp-route-currentFilter="@Model.CurrentFilter"
+                       class="page-link">
+                        @i
+                    </a>
+                </li>
+            }
+            
+            @if (endPage < Model.WorkoutSessions.TotalPages)
+            {
+                @if (endPage < Model.WorkoutSessions.TotalPages - 1)
+                {
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                }
+                <li class="page-item">
+                    <a asp-page="./Index"
+                       asp-route-sortOrder="@Model.CurrentSort"
+                       asp-route-pageIndex="@Model.WorkoutSessions.TotalPages"
+                       asp-route-currentFilter="@Model.CurrentFilter"
+                       class="page-link">@Model.WorkoutSessions.TotalPages</a>
+                </li>
+            }
+            
+            <li class="page-item @nextDisabled">
+                <a asp-page="./Index"
+                   asp-route-sortOrder="@Model.CurrentSort"
+                   asp-route-pageIndex="@(Model.WorkoutSessions.PageIndex + 1)"
+                   asp-route-currentFilter="@Model.CurrentFilter"
+                   class="page-link @nextDisabled">
+                    Next
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>
+
+@section Styles {
+    <style>
+        .badge-warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        .badge-success {
+            background-color: #28a745;
+            color: white;
+        }
+        .badge-info {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .badge-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+    </style>
+}

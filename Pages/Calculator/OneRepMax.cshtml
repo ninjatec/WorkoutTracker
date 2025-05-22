@@ -1,0 +1,500 @@
+@page
+@model WorkoutTrackerWeb.Pages.Calculator.OneRepMaxModel
+@{
+    ViewData["Title"] = "One Rep Max Calculator";
+}
+
+<div class="container">
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <h1>One Rep Max (1RM) Calculator</h1>
+    <p class="lead mb-4">
+        Estimate your maximum strength without the risk of performing a true 1RM attempt using scientifically validated formulas.
+    </p>
+
+    <div class="text-end mb-4">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#calculateModal">
+            <i class="bi bi-calculator"></i> Calculate New 1RM
+        </button>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-12">
+            @if (Model.OneRepMaxResults != null && Model.OneRepMaxResults.Any())
+            {
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Your Estimated 1RM Results</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-7">
+                                <div class="alert alert-primary mb-4">
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-shrink-0">
+                                            <i class="bi bi-trophy fs-1 me-3"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="alert-heading">Average 1RM: @Model.AverageOneRepMax.ToString("F2") kg</h4>
+                                            <p class="mb-0">Based on @Model.Weight kg for @Model.Reps reps</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <h6 class="mb-3">Results by Formula:</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Formula</th>
+                                                <th>Estimated 1RM (kg)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var result in Model.OneRepMaxResults)
+                                            {
+                                                <tr>
+                                                    <td>@result.Key</td>
+                                                    <td>@result.Value.ToString("F2")</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <div class="mt-3">
+                                    <p class="text-muted small">
+                                        Different formulas may yield slightly different results based on the specific research methodologies used to develop them.
+                                        Using an average gives you a more reliable estimate.
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <div class="card h-100">
+                                    <div class="card-header bg-success text-white">
+                                        <h5 class="mb-0">Save This Result</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <form method="post" asp-page-handler="SaveResult">
+                                            <input type="hidden" asp-for="Weight" />
+                                            <input type="hidden" asp-for="Reps" />
+                                            
+                                            <div class="form-group mb-3">
+                                                <label asp-for="ExerciseTypeId" class="form-label">Exercise</label>
+                                                <select asp-for="ExerciseTypeId" class="form-select" asp-items="Model.ExerciseTypeSelectList" required>
+                                                    <option value="">-- Select Exercise --</option>
+                                                </select>
+                                                <small class="form-text text-muted">The exercise you performed</small>
+                                            </div>
+                                            
+                                            <div class="form-group">
+                                                <button type="submit" class="btn btn-success">Save to Your Profile</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+            
+    @if (Model.ExerciseSummaries.Any())
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap">
+                            <h5 class="mb-2 mb-md-0">Your 1RM Estimates by Exercise
+                                @if (Model.ReportPeriod == int.MaxValue)
+                                {
+                                    <span>(All Time)</span>
+                                }
+                                else if (Model.ReportPeriod == 365)
+                                {
+                                    <span>(Last 1 Year)</span>
+                                }
+                                else
+                                {
+                                    <span>(Last @Model.ReportPeriod Days)</span>
+                                }
+                            </h5>
+                            <div class="d-flex flex-wrap">
+                                @{
+
+                                    var periodOptions = new List<(int value, string label)>
+                                    {
+                                        (30, "Last 30 Days"),
+                                        (60, "Last 60 Days"),
+                                        (90, "Last 90 Days"),
+                                        (120, "Last 120 Days"),
+                                        (int.MaxValue, "All Time")
+                                    };
+                                    var optionsHtml = new System.Text.StringBuilder();
+                                    foreach (var opt in periodOptions)
+                                    {
+                                        var selected = Model.ReportPeriod == opt.value ? " selected" : "";
+                                        optionsHtml.Append($"<option value=\"{opt.value}\"{selected}>{opt.label}</option>");
+                                    }
+                                }
+                                <form method="get" class="d-flex align-items-center me-3">
+                                    <label for="reportPeriod" class="me-2">Show data for:</label>
+                                    <select id="reportPeriod" name="reportPeriod" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;">
+                                        @Html.Raw(optionsHtml.ToString())
+                                    </select>
+                                </form>
+                                <!-- New formula filter dropdown -->
+                                <form method="get" class="d-flex align-items-center">
+                                    <input type="hidden" name="currentPage" value="1" />
+                                    <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                                    <input type="hidden" name="reportPeriod" value="@Model.ReportPeriod" />
+                                    <label for="selectedFormula" class="me-2 text-white">Formula:</label>
+                                    <select id="selectedFormula" name="selectedFormula" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;">
+                                        @foreach (var formula in Model.AvailableFormulas)
+                                        {
+                                            <option value="@formula" selected="@(Model.SelectedFormula == formula)">
+                                                @(formula == "All" ? "All Formulas" : formula)
+                                            </option>
+                                        }
+                                    </select>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <p class="mb-0">
+                                Showing exercises sorted by highest estimated 1RM weight
+                                @if (Model.SelectedFormula != "All")
+                                {
+                                    <span class="badge bg-info ms-2">Filtered by: @Model.SelectedFormulaDisplayName</span>
+                                }
+                            </p>
+                            <form method="get" class="d-flex align-items-center">
+                                <input type="hidden" name="currentPage" value="@Model.CurrentPage" />
+                                <input type="hidden" name="reportPeriod" value="@Model.ReportPeriod" />
+                                <input type="hidden" name="selectedFormula" value="@Model.SelectedFormula" />
+                                <label for="PageSize" class="me-2">Show:</label>
+                                <select id="PageSize" name="PageSize" class="form-select form-select-sm" onchange="this.form.submit()" style="width: auto;">
+                                    @foreach (var size in Model.PageSizeOptions)
+                                    {
+                                        <option value="@size" selected="@(Model.PageSize == size)">@size</option>
+                                    }
+                                </select>
+                            </form>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Exercise</th>
+                                        <th>Calculation Method</th>
+                                        <th>Estimated 1RM</th>
+                                        <th>Sets</th>
+                                        <th>Date Range</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @{
+                                        // Group by exercise name for better readability
+                                        var exerciseGroups = Model.ExerciseSummaries
+                                            .GroupBy(s => s.ExerciseName);
+                                    }
+                                    
+                                    @foreach (var exerciseGroup in exerciseGroups)
+                                    {
+                                        var firstRow = true;
+                                        
+                                        // Get the average calculation first to highlight it if showing all formulas or specifically the average
+                                        var averageRow = exerciseGroup.FirstOrDefault(s => s.Formula == "Average");
+                                        if (averageRow != null && (Model.SelectedFormula == "All" || Model.SelectedFormula == "Average"))
+                                        {
+                                            <tr class="table-primary">
+                                                <td>@averageRow.ExerciseName</td>
+                                                <td><strong>Average (All Methods)</strong></td>
+                                                <td><strong>@averageRow.EstimatedOneRM.ToString("F2") kg</strong></td>
+                                                <td>@averageRow.SetsCount</td>
+                                                <td>@averageRow.FirstSetDate.ToString("dd/MM/yyyy") - @averageRow.LastSetDate.ToString("dd/MM/yyyy")</td>
+                                            </tr>
+                                            firstRow = false;
+                                        }
+                                        
+                                        @if (Model.SelectedFormula == "All")
+                                        {
+                                            @foreach (var summary in exerciseGroup.Where(s => s.Formula != "Average"))
+                                            {
+                                                <tr>
+                                                    @if (firstRow)
+                                                    {
+                                                        <td>@summary.ExerciseName</td>
+                                                        firstRow = false;
+                                                    }
+                                                    else
+                                                    {
+                                                        <td></td> <!-- Empty cell to keep exercises grouped visually -->
+                                                    }
+                                                    <td>@summary.Formula</td>
+                                                    <td>@summary.EstimatedOneRM.ToString("F2") kg</td>
+                                                    <td>@summary.SetsCount</td>
+                                                    <td>@summary.FirstSetDate.ToString("dd/MM/yyyy") - @summary.LastSetDate.ToString("dd/MM/yyyy")</td>
+                                                </tr>
+                                            }
+                                        }
+                                        else if (Model.SelectedFormula != "Average") // Only show the specific formula
+                                        {
+                                            @foreach (var summary in exerciseGroup.Where(s => s.Formula == Model.SelectedFormula))
+                                            {
+                                                <tr>
+                                                    <td>@summary.ExerciseName</td>
+                                                    <td>@summary.Formula</td>
+                                                    <td>@summary.EstimatedOneRM.ToString("F2") kg</td>
+                                                    <td>@summary.SetsCount</td>
+                                                    <td>@summary.FirstSetDate.ToString("dd/MM/yyyy") - @summary.LastSetDate.ToString("dd/MM/yyyy")</td>
+                                                </tr>
+                                            }
+                                        }
+                                        
+                                        <!-- Add a spacer row between exercises -->
+                                        <tr class="table-light"><td colspan="5"></td></tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Pagination controls -->
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div>
+                                @if (Model.TotalExercises > 0)
+                                {
+                                    <span>Showing @(((Model.CurrentPage - 1) * Model.PageSize) + 1) to @(Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalExercises)) of @Model.TotalExercises exercises</span>
+                                }
+                                else
+                                {
+                                    <span>No exercises found</span>
+                                }
+                            </div>
+                            <nav aria-label="Page navigation">
+                                <ul class="pagination pagination-sm mb-0">
+                                    <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
+                                        <a class="page-link" asp-page="./OneRepMax" asp-route-currentPage="1" asp-route-pageSize="@Model.PageSize" asp-route-reportPeriod="@Model.ReportPeriod" asp-route-selectedFormula="@Model.SelectedFormula">First</a>
+                                    </li>
+                                    <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
+                                        <a class="page-link" asp-page="./OneRepMax" asp-route-currentPage="@(Model.CurrentPage - 1)" asp-route-pageSize="@Model.PageSize" asp-route-reportPeriod="@Model.ReportPeriod" asp-route-selectedFormula="@Model.SelectedFormula">Previous</a>
+                                    </li>
+                                    
+                                    @{
+                                        int startPage = Math.Max(1, Model.CurrentPage - 2);
+                                        int endPage = Math.Min(startPage + 4, Model.TotalPages);
+                                        if (endPage - startPage < 4 && startPage > 1)
+                                        {
+                                            startPage = Math.Max(1, endPage - 4);
+                                        }
+                                    }
+                                    
+                                    @for (int i = startPage; i <= endPage; i++)
+                                    {
+                                        <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                            <a class="page-link" asp-page="./OneRepMax" asp-route-currentPage="@i" asp-route-pageSize="@Model.PageSize" asp-route-reportPeriod="@Model.ReportPeriod" asp-route-selectedFormula="@Model.SelectedFormula">@i</a>
+                                        </li>
+                                    }
+                                    
+                                    <li class="page-item @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")">
+                                        <a class="page-link" asp-page="./OneRepMax" asp-route-currentPage="@(Model.CurrentPage + 1)" asp-route-pageSize="@Model.PageSize" asp-route-reportPeriod="@Model.ReportPeriod" asp-route-selectedFormula="@Model.SelectedFormula">Next</a>
+                                    </li>
+                                    <li class="page-item @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")">
+                                        <a class="page-link" asp-page="./OneRepMax" asp-route-currentPage="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-reportPeriod="@Model.ReportPeriod" asp-route-selectedFormula="@Model.SelectedFormula">Last</a>
+                                    </li>
+                                </ul>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    
+    @if (Model.RecentSets.Any())
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Your Recent Sets 
+                            @if (Model.ReportPeriod == int.MaxValue)
+                            {
+                                <span>(All Time)</span>
+                            }
+                            else if (Model.ReportPeriod == 365)
+                            {
+                                <span>(Last 1 Year)</span>
+                            }
+                            else
+                            {
+                                <span>(Last @Model.ReportPeriod Days)</span>
+                            }
+                        </h5>
+                        <form method="get" class="d-none">
+                            <input type="hidden" name="currentPage" value="@Model.CurrentPage" />
+                            <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                            <input type="hidden" name="reportPeriod" value="@Model.ReportPeriod" />
+                        </form>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-3">Your most recent sets that can be used to calculate 1RM:</p>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Exercise</th>
+                                        <th>Session</th>
+                                        <th>Date</th>
+                                        <th>Weight</th>
+                                        <th>Reps</th>
+                                        <th>Est. 1RM</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var set in Model.RecentSets)
+                                    {
+                                        <tr>
+                                            <td>@set.ExerciseName</td>
+                                            <td>@set.SessionName</td>
+                                            <td>@set.SessionDate.ToString("dd/MM/yyyy")</td>
+                                            <td>@set.Weight.ToString("F2") kg</td>
+                                            <td>@set.Reps</td>
+                                            <td>@set.EstimatedOneRM.ToString("F2") kg</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (!Model.ExerciseSummaries.Any() && !Model.RecentSets.Any())
+    {
+        <div class="alert alert-warning mt-4" role="alert">
+            <h5 class="alert-heading">No qualifying workout data found</h5>
+            <p>
+                We couldn't find any sets in your workout history that can be used to estimate your 1RM for the selected period 
+                @if (Model.ReportPeriod == int.MaxValue)
+                {
+                    <span>(All Time)</span>
+                }
+                else if (Model.ReportPeriod == 365)
+                {
+                    <span>(Last 1 Year)</span>
+                }
+                else
+                {
+                    <span>(Last @Model.ReportPeriod Days)</span>
+                }.
+            </p>
+            <ul>
+                @if (Model.ReportPeriod != int.MaxValue)
+                {
+                    <li>You may not have logged any sets in the selected time period.</li>
+                }
+                else
+                {
+                    <li>You may not have logged any qualifying sets yet.</li>
+                }
+                <li>All your sets may be marked as warmup, or missing weight/reps.</li>
+                <li>Your sets may use more than 10 reps, or have weight ≤ 0.</li>
+                <li>If you believe this is an error, please check your workout logs or contact support.</li>
+            </ul>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>About One Rep Max Calculation</h5>
+                </div>
+                <div class="card-body">
+                    <p>
+                        A one rep max (1RM) is the maximum amount of weight you can lift for a single repetition of an exercise.
+                        Knowing your 1RM is valuable for designing effective training programs and tracking progress, but direct 
+                        1RM testing can be risky and time-consuming.
+                    </p>
+                    <p>
+                        This calculator uses seven scientifically validated formulas to estimate your 1RM based on the weight you
+                        can lift for multiple repetitions:
+                    </p>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <ul class="mb-1">
+                                <li><strong>Brzycki:</strong> load × (36 / (37 - reps))</li>
+                                <li><strong>Epley:</strong> load × (1 + 0.0333 × reps)</li>
+                                <li><strong>Lander:</strong> (100 × load) / (101.3 - 2.67123 × reps)</li>
+                                <li><strong>Lombardi:</strong> (load × reps)<sup>0.1</sup></li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <ul>
+                                <li><strong>Mayhew et al.:</strong> (100 × load) / (52.2 + (41.9 × e<sup>-0.055 × reps</sup>))</li>
+                                <li><strong>O'Conner et al.:</strong> load × (1 + 0.025 × reps)</li>
+                                <li><strong>Wathan:</strong> (100 × load) / (48.8 + (53.8 × e<sup>-0.075 × reps</sup>))</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <p class="mb-0">
+                        For best results, perform a set of 2-6 reps with a weight that challenges you but allows you to complete
+                        all reps with good form.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for 1RM Calculation -->
+<div class="modal fade" id="calculateModal" tabindex="-1" aria-labelledby="calculateModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="calculateModalLabel">Calculate Your 1RM</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post">
+                <div class="modal-body">
+                    <div class="form-group mb-3">
+                        <label asp-for="Weight" class="form-label">Weight Lifted (kg)</label>
+                        <input type="number" id="Weight" asp-for="Weight" class="form-control" step="0.25" min="0.25" required />
+                        <span asp-validation-for="Weight" class="text-danger"></span>
+                        <small class="form-text text-muted">The weight you lifted for multiple reps</small>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label asp-for="Reps" class="form-label">Number of Reps</label>
+                        <input type="number" id="Reps" asp-for="Reps" class="form-control" min="1" max="20" required />
+                        <span asp-validation-for="Reps" class="text-danger"></span>
+                        <small class="form-text text-muted">For best results, use 2-6 reps with a challenging weight</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Calculate 1RM</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

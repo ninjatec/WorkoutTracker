@@ -1,0 +1,97 @@
+@page "{id:int}"
+@model WorkoutTrackerWeb.Areas.Admin.Pages.Blog.DeleteModel
+@{
+    ViewData["Title"] = "Delete Blog Post";
+}
+
+<div class="container">
+    <h1>Delete Blog Post</h1>
+    
+    <div class="alert alert-danger">
+        <h3>Are you sure you want to delete this blog post?</h3>
+        <p>This action cannot be undone.</p>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>@Model.BlogPost.Title</h4>
+        </div>
+        <div class="card-body">
+            @if (!string.IsNullOrEmpty(Model.BlogPost.ImageUrl))
+            {
+                <div class="mb-3">
+                    <img src="@Model.BlogPost.ImageUrl" alt="@Model.BlogPost.Title" class="img-fluid mb-3" style="max-height: 200px;" />
+                </div>
+            }
+            
+            <div class="mb-3">
+                <h5>Summary</h5>
+                <p>@Model.BlogPost.Summary</p>
+            </div>
+            
+            <div class="mb-3">
+                <h5>Status</h5>
+                <p>
+                    @if (Model.BlogPost.Published)
+                    {
+                        <span class="badge bg-success">Published</span>
+                        <span>on @Model.BlogPost.PublishedOn?.ToString("MMMM d, yyyy")</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">Draft</span>
+                    }
+                </p>
+            </div>
+            
+            <div class="mb-3">
+                <h5>Creation</h5>
+                <p>Created on @Model.BlogPost.CreatedOn.ToString("MMMM d, yyyy")</p>
+                @if (Model.BlogPost.UpdatedOn.HasValue)
+                {
+                    <p>Last updated on @Model.BlogPost.UpdatedOn?.ToString("MMMM d, yyyy")</p>
+                }
+            </div>
+            
+            <div class="mb-3">
+                <h5>Categories</h5>
+                <div>
+                    @if (Model.Categories.Any())
+                    {
+                        foreach (var category in Model.Categories)
+                        {
+                            <span class="badge bg-primary me-1">@category.Name</span>
+                        }
+                    }
+                    else
+                    {
+                        <span class="text-muted">No categories</span>
+                    }
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <h5>Tags</h5>
+                <div>
+                    @if (Model.Tags.Any())
+                    {
+                        foreach (var tag in Model.Tags)
+                        {
+                            <span class="badge bg-info text-dark me-1">@tag.Name</span>
+                        }
+                    }
+                    else
+                    {
+                        <span class="text-muted">No tags</span>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <form method="post">
+        <input type="hidden" asp-for="BlogPost.Id" />
+        <button type="submit" class="btn btn-danger">Delete</button>
+        <a asp-page="./Index" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>

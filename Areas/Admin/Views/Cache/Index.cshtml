@@ -1,0 +1,82 @@
+@{
+    ViewData["Title"] = "Cache Management";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container-fluid">
+    <h1 class="mt-4">@ViewData["Title"]</h1>
+    
+    <div class="row">
+        <div class="col-12">
+            @if (TempData["Success"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    @TempData["Success"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+            
+            @if (TempData["Error"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    @TempData["Error"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            }
+        </div>
+    </div>
+    
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Cache Operations</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <form asp-action="InvalidatePrefix" method="post" class="mb-3">
+                                @Html.AntiForgeryToken()
+                                <div class="input-group">
+                                    <input type="text" class="form-control" name="prefix" placeholder="Cache prefix to invalidate (e.g. user:sessions)" required>
+                                    <button type="submit" class="btn btn-danger">
+                                        <i class="bi bi-trash"></i> Invalidate Prefix
+                                    </button>
+                                </div>
+                                <small class="form-text text-muted">
+                                    Invalidates all cache entries with the specified prefix. Be careful with broad prefixes.
+                                </small>
+                            </form>
+                        </div>
+                        <div class="col-md-6">
+                            <form asp-action="RegisterCommonEntities" method="post">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-link"></i> Register Common Entities for Invalidation
+                                </button>
+                                <small class="form-text text-muted d-block mt-2">
+                                    Registers common entity types for automatic cache invalidation when database changes occur.
+                                </small>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            @await Component.InvokeAsync("CacheMetricsDashboard")
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Auto-refresh the page every 60 seconds to update metrics
+        setTimeout(function() {
+            window.location.reload();
+        }, 60000);
+    </script>
+}

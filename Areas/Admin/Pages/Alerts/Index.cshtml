@@ -1,0 +1,223 @@
+@page
+@model WorkoutTrackerWeb.Areas.Admin.Pages.Alerts.IndexModel
+@{
+    ViewData["Title"] = "Alert Thresholds";
+    Layout = "_AdminLayout";
+}
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2>Alert Thresholds</h2>
+                <a asp-page="Create" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Create New Threshold
+                </a>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.StatusMessage != null)
+    {
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <partial name="_StatusMessage" model="Model.StatusMessage" />
+            </div>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Configured Alert Thresholds</h6>
+                </div>
+                <div class="card-body">
+                    @if (Model.AlertThresholds != null && Model.AlertThresholds.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover" id="thresholdsTable" width="100%" cellspacing="0">
+                                <thead>
+                                    <tr>
+                                        <th>Metric Name</th>
+                                        <th>Category</th>
+                                        <th>Warning</th>
+                                        <th>Critical</th>
+                                        <th>Direction</th>
+                                        <th>Email</th>
+                                        <th>In-App</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var threshold in Model.AlertThresholds)
+                                    {
+                                        <tr>
+                                            <td>@threshold.MetricName</td>
+                                            <td>@threshold.MetricCategory</td>
+                                            <td>@threshold.WarningThreshold</td>
+                                            <td>@threshold.CriticalThreshold</td>
+                                            <td>@threshold.Direction</td>
+                                            <td>
+                                                @if (threshold.EmailEnabled)
+                                                {
+                                                    <span class="badge bg-success">Enabled</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Disabled</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (threshold.NotificationEnabled)
+                                                {
+                                                    <span class="badge bg-success">Enabled</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Disabled</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (threshold.IsEnabled)
+                                                {
+                                                    <span class="badge bg-success">Active</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-warning">Inactive</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <a asp-page="./Edit" asp-route-id="@threshold.Id" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a asp-page="./Details" asp-route-id="@threshold.Id" class="btn btn-sm btn-info">
+                                                    <i class="fas fa-info-circle"></i>
+                                                </a>
+                                                <a asp-page="./Delete" asp-route-id="@threshold.Id" class="btn btn-sm btn-danger">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i> No alert thresholds have been configured yet. 
+                            <a asp-page="Create" class="alert-link">Create your first threshold</a>.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Active Alerts</h6>
+                </div>
+                <div class="card-body">
+                    @if (Model.ActiveAlerts != null && Model.ActiveAlerts.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover" id="alertsTable" width="100%" cellspacing="0">
+                                <thead>
+                                    <tr>
+                                        <th>Metric</th>
+                                        <th>Severity</th>
+                                        <th>Current Value</th>
+                                        <th>Threshold</th>
+                                        <th>Triggered</th>
+                                        <th>Acknowledged</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var alert in Model.ActiveAlerts)
+                                    {
+                                        <tr class="@(alert.Severity == WorkoutTrackerWeb.Models.Alerting.AlertSeverity.Critical ? "table-danger" : "table-warning")">
+                                            <td>@alert.AlertThreshold.MetricName</td>
+                                            <td>
+                                                @if (alert.Severity == WorkoutTrackerWeb.Models.Alerting.AlertSeverity.Critical)
+                                                {
+                                                    <span class="badge bg-danger">Critical</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-warning">Warning</span>
+                                                }
+                                            </td>
+                                            <td>@alert.CurrentValue</td>
+                                            <td>
+                                                @(alert.Severity == WorkoutTrackerWeb.Models.Alerting.AlertSeverity.Critical 
+                                                    ? alert.AlertThreshold.CriticalThreshold 
+                                                    : alert.AlertThreshold.WarningThreshold)
+                                            </td>
+                                            <td>@alert.TriggeredAt.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                            <td>
+                                                @if (alert.IsAcknowledged)
+                                                {
+                                                    <span class="badge bg-success">Yes</span>
+                                                    <div class="small">By: @alert.AcknowledgedBy</div>
+                                                    <div class="small">@alert.AcknowledgedAt?.ToString("yyyy-MM-dd HH:mm:ss")</div>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-danger">No</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <a asp-page="./AlertDetails" asp-route-id="@alert.Id" class="btn btn-sm btn-info">
+                                                    <i class="fas fa-eye"></i> Details
+                                                </a>
+                                                @if (!alert.IsAcknowledged)
+                                                {
+                                                    <a asp-page="./Acknowledge" asp-route-id="@alert.Id" class="btn btn-sm btn-success">
+                                                        <i class="fas fa-check"></i> Acknowledge
+                                                    </a>
+                                                }
+                                                <a asp-page="./Resolve" asp-route-id="@alert.Id" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-flag-checkered"></i> Resolve
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle me-2"></i> No active alerts at this time.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function () {
+            $('#thresholdsTable').DataTable({
+                order: [[0, 'asc']],
+                pageLength: 25
+            });
+
+            $('#alertsTable').DataTable({
+                order: [[4, 'desc']], // Sort by triggered date
+                pageLength: 10
+            });
+        });
+    </script>
+}

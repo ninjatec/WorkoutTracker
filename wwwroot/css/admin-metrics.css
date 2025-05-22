@@ -1,0 +1,65 @@
+/* Admin Metrics Dashboard Styles */
+
+/* Chart container heights */
+.chart-container {
+    position: relative;
+    height: 150px; /* Reduced height for all charts */
+}
+
+/* Taller charts for specific cases */
+.chart-container.chart-medium {
+    height: 180px;
+}
+
+.chart-container.chart-large {
+    height: 220px;
+}
+
+/* Card body padding adjustments */
+.card-body.chart-card-body {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .chart-container {
+        height: 120px;
+    }
+    
+    .chart-container.chart-medium {
+        height: 150px;
+    }
+    
+    .chart-container.chart-large {
+        height: 180px;
+    }
+}
+
+/* Dashboard Overview */
+.dashboard-header {
+    margin-bottom: 1.5rem;
+}
+
+/* Chart legends */
+.chart-legend {
+    font-size: 0.8rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: 0.5rem;
+}
+
+.chart-legend-item {
+    display: flex;
+    align-items: center;
+    margin-right: 1rem;
+    margin-bottom: 0.25rem;
+}
+
+.chart-legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    margin-right: 4px;
+}

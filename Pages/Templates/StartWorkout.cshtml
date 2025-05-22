@@ -1,0 +1,254 @@
+@page "{id:int}"
+@model WorkoutTrackerWeb.Pages.Templates.StartWorkoutModel
+@{
+    ViewData["Title"] = "Start Workout";
+}
+
+<div class="container-fluid">
+    <div class="mb-3">
+        <a asp-page="Details" asp-route-id="@Model.WorkoutTemplate.WorkoutTemplateId" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Template
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-success text-white">
+            <h1 class="h3 mb-0">Start Workout from Template: @Model.WorkoutTemplate.Name</h1>
+        </div>
+        <div class="card-body">
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <p class="mb-3">
+                        You're about to start a new workout based on the template <strong>@Model.WorkoutTemplate.Name</strong>.
+                        This will create a new session with all the exercises and sets from the template.
+                    </p>
+                    
+                    <h5>Template Overview</h5>
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Exercise</th>
+                                    <th>Sets</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var exercise in Model.WorkoutTemplate.TemplateExercises.OrderBy(e => e.SequenceNum))
+                                {
+                                    <tr>
+                                        <td>@exercise.SequenceNum</td>
+                                        <td>@exercise.ExerciseType.Name</td>
+                                        <td>@exercise.TemplateSets.Count</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card bg-light">
+                        <div class="card-body">
+                            <h5>New Workout</h5>
+                            <ul class="nav nav-tabs mb-3" id="workoutOptionTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="start-now-tab" data-bs-toggle="tab" data-bs-target="#start-now" 
+                                            type="button" role="tab" aria-controls="start-now" aria-selected="true">
+                                        Start Now
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="schedule-tab" data-bs-toggle="tab" data-bs-target="#schedule" 
+                                            type="button" role="tab" aria-controls="schedule" aria-selected="false">
+                                        Schedule
+                                    </button>
+                                </li>
+                            </ul>
+                            
+                            <div class="tab-content" id="workoutOptionTabsContent">
+                                <!-- Start Workout Now Tab -->
+                                <div class="tab-pane fade show active" id="start-now" role="tabpanel" aria-labelledby="start-now-tab">
+                                    <form method="post" id="startNowForm">
+                                        <input type="hidden" name="TemplateId" value="@Model.WorkoutTemplate.WorkoutTemplateId" />
+                                        
+                                        <div class="mb-3">
+                                            <label for="sessionName" class="form-label">Session Name</label>
+                                            <input type="text" id="sessionName" name="SessionName" class="form-control" 
+                                                   value="@Model.DefaultSessionName" required />
+                                            <div class="form-text">A name for your workout session</div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="sessionDate" class="form-label">Date</label>
+                                            <input type="datetime-local" id="sessionDate" name="SessionDate" class="form-control" 
+                                                   value="@DateTime.Now.ToString("yyyy-MM-ddTHH:mm")" required />
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="sessionNotes" class="form-label">Notes</label>
+                                            <textarea id="sessionNotes" name="SessionNotes" class="form-control" rows="3"></textarea>
+                                        </div>
+                                        
+                                        <button type="submit" class="btn btn-success w-100">
+                                            <i class="bi bi-play-circle"></i> Start Workout Now
+                                        </button>
+                                    </form>
+                                </div>
+                                
+                                <!-- Schedule Workout Tab -->
+                                <div class="tab-pane fade" id="schedule" role="tabpanel" aria-labelledby="schedule-tab">
+                                    <form method="post" id="scheduleForm" asp-page="/Workouts/ScheduledWorkouts" asp-page-handler="ScheduleWorkout">
+                                        <input type="hidden" name="templateId" value="@Model.WorkoutTemplate.WorkoutTemplateId" />
+                                        
+                                        <div class="mb-3">
+                                            <label for="scheduleName" class="form-label">Schedule Name</label>
+                                            <input type="text" id="scheduleName" name="name" class="form-control" 
+                                                   value="@Model.DefaultSessionName" required />
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="scheduleDescription" class="form-label">Description</label>
+                                            <textarea id="scheduleDescription" name="description" class="form-control" rows="2"></textarea>
+                                        </div>
+                                        
+                                        <div class="row mb-3">
+                                            <div class="col-md-6">
+                                                <label for="startDate" class="form-label">Start Date</label>
+                                                <input type="date" class="form-control" id="startDate" name="startDate" required />
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="workoutTime" class="form-label">Time</label>
+                                                <input type="time" class="form-control" id="workoutTime" name="workoutTime" value="17:00" required />
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Recurrence Pattern</label>
+                                            <div class="d-flex flex-wrap gap-2">
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="recurrencePattern" id="recurrenceOnce" value="Once" checked />
+                                                    <label class="form-check-label" for="recurrenceOnce">One-time</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="recurrencePattern" id="recurrenceWeekly" value="Weekly" />
+                                                    <label class="form-check-label" for="recurrenceWeekly">Weekly</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="recurrencePattern" id="recurrenceBiWeekly" value="BiWeekly" />
+                                                    <label class="form-check-label" for="recurrenceBiWeekly">Bi-Weekly</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="recurrencePattern" id="recurrenceMonthly" value="Monthly" />
+                                                    <label class="form-check-label" for="recurrenceMonthly">Monthly</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="weeklyOptions" class="mb-3 d-none">
+                                            <label class="form-label">Days of Week</label>
+                                            <div class="d-flex flex-wrap gap-2">
+                                                @foreach (var day in Enum.GetValues(typeof(DayOfWeek)))
+                                                {
+                                                    <div class="form-check form-check-inline">
+                                                        <input class="form-check-input" type="checkbox" name="daysOfWeek" id="day@(day)" value="@day" />
+                                                        <label class="form-check-label" for="day@(day)">@day</label>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="monthlyOptions" class="mb-3 d-none">
+                                            <label for="dayOfMonth" class="form-label">Day of Month</label>
+                                            <select id="dayOfMonth" name="dayOfMonth" class="form-select">
+                                                @for (int i = 1; i <= 31; i++)
+                                                {
+                                                    <option value="@i">@i</option>
+                                                }
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="endDate" class="form-label">End Date</label>
+                                            <input type="date" class="form-control" id="endDate" name="endDate" />
+                                            <small class="text-muted">Optional. Leave blank for recurring workouts with no end date.</small>
+                                        </div>
+                                        
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="sendReminder" name="sendReminder" value="true" checked />
+                                            <label class="form-check-label" for="sendReminder">
+                                                Send workout reminders
+                                            </label>
+                                        </div>
+                                        
+                                        <div id="reminderOptions" class="mb-3">
+                                            <label for="reminderHoursBefore" class="form-label">Hours Before Workout</label>
+                                            <select id="reminderHoursBefore" name="reminderHoursBefore" class="form-select">
+                                                <option value="1">1 hour</option>
+                                                <option value="2">2 hours</option>
+                                                <option value="3" selected>3 hours</option>
+                                                <option value="6">6 hours</option>
+                                                <option value="12">12 hours</option>
+                                                <option value="24">24 hours</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <button type="submit" class="btn btn-primary w-100">
+                                            <i class="bi bi-calendar-plus"></i> Schedule Workout
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set default start date to today
+            var today = new Date();
+            var formattedDate = today.toISOString().split('T')[0];
+            document.getElementById('startDate').value = formattedDate;
+            
+            // Toggle recurrence pattern options
+            document.querySelectorAll('input[name="recurrencePattern"]').forEach(function(radio) {
+                radio.addEventListener('change', function() {
+                    var pattern = this.value;
+                    
+                    // Hide all pattern-specific options
+                    document.getElementById('weeklyOptions').classList.add('d-none');
+                    document.getElementById('monthlyOptions').classList.add('d-none');
+                    
+                    // Show options for the selected pattern
+                    if (pattern === 'Weekly' || pattern === 'BiWeekly') {
+                        document.getElementById('weeklyOptions').classList.remove('d-none');
+                        
+                        // Check the day of week that matches today
+                        var today = new Date().getDay();
+                        document.getElementById('day' + today).checked = true;
+                    } else if (pattern === 'Monthly') {
+                        document.getElementById('monthlyOptions').classList.remove('d-none');
+                        
+                        // Set default day of month to today's date
+                        var dayOfMonth = new Date().getDate();
+                        document.getElementById('dayOfMonth').value = dayOfMonth;
+                    }
+                });
+            });
+            
+            // Toggle reminder options
+            document.getElementById('sendReminder').addEventListener('change', function() {
+                if (this.checked) {
+                    document.getElementById('reminderOptions').classList.remove('d-none');
+                } else {
+                    document.getElementById('reminderOptions').classList.add('d-none');
+                }
+            });
+        });
+    </script>
+}

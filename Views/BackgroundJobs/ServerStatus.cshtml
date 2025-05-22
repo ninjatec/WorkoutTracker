@@ -1,0 +1,242 @@
+@{
+    ViewData["Title"] = "Server Status";
+}
+
+<div class="container">
+    <h1>Server Status</h1>
+    <p class="lead">Monitoring information for background job servers and workers</p>
+    
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Active Servers</h5>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.Servers != null && ViewBag.Servers.Count > 0)
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover" id="serversTable">
+                                <thead>
+                                    <tr>
+                                        <th>Server ID</th>
+                                        <th>Workers</th>
+                                        <th>Queues</th>
+                                        <th>Started</th>
+                                        <th>Heartbeat</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var server in ViewBag.Servers)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <strong>@server.Name</strong>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-primary">@server.WorkersCount active</span>
+                                            </td>
+                                            <td>
+                                                @string.Join(", ", server.Queues)
+                                            </td>
+                                            <td>
+                                                @server.StartedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")
+                                                <br />
+                                                <small class="text-muted">
+                                                    @{
+                                                        var uptime = DateTime.Now - server.StartedAt;
+                                                        if (uptime.TotalDays >= 1)
+                                                        {
+                                                            @($"{(int)uptime.TotalDays}d {uptime.Hours}h {uptime.Minutes}m")
+                                                        }
+                                                        else if (uptime.TotalHours >= 1)
+                                                        {
+                                                            @($"{(int)uptime.TotalHours}h {uptime.Minutes}m {uptime.Seconds}s")
+                                                        }
+                                                        else
+                                                        {
+                                                            @($"{uptime.Minutes}m {uptime.Seconds}s")
+                                                        }
+                                                    } ago
+                                                </small>
+                                            </td>
+                                            <td>
+                                                @{
+                                                    var lastHeartbeat = DateTime.Now - server.LastHeartbeat;
+                                                    string heartbeatClass = lastHeartbeat.TotalSeconds > 30 ? "text-danger" : "text-success";
+                                                }
+                                                <span class="@heartbeatClass">
+                                                    @if (lastHeartbeat.TotalMinutes >= 1)
+                                                    {
+                                                        @($"{(int)lastHeartbeat.TotalMinutes}m {lastHeartbeat.Seconds}s ago")
+                                                    }
+                                                    else
+                                                    {
+                                                        @($"{lastHeartbeat.Seconds}s ago")
+                                                    }
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> No active servers found. The background job system may not be running.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Workers</h5>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.Workers != null && ViewBag.Workers.Count > 0)
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover" id="workersTable">
+                                <thead>
+                                    <tr>
+                                        <th>Worker ID</th>
+                                        <th>State</th>
+                                        <th>Current Job</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var worker in ViewBag.Workers)
+                                    {
+                                        <tr>
+                                            <td>@worker.WorkerId.Substring(0, Math.Min(worker.WorkerId.Length, 8))</td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(worker.JobId))
+                                                {
+                                                    <span class="badge bg-primary">Working</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-success">Idle</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(worker.JobId))
+                                                {
+                                                    <a href="@Url.Action("Details", new { id = worker.JobId })">
+                                                        <code>@worker.JobId.Substring(0, Math.Min(worker.JobId.Length, 8))</code>
+                                                    </a>
+                                                    <small>
+                                                        @if (!string.IsNullOrEmpty(worker.JobName))
+                                                        {
+                                                            @(" - " + worker.JobName)
+                                                        }
+                                                    </small>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">No active job</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> No active workers found.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Queues</h5>
+                </div>
+                <div class="card-body">
+                    @if (ViewBag.Queues != null && ViewBag.Queues.Count > 0)
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover" id="queuesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Queue</th>
+                                        <th>Length</th>
+                                        <th>Fetched</th>
+                                        <th>Enqueued</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var queue in ViewBag.Queues)
+                                    {
+                                        <tr>
+                                            <td>@queue.Name</td>
+                                            <td>
+                                                <span class="badge bg-@(queue.Length > 0 ? "warning" : "success")">
+                                                    @queue.Length
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-@(queue.Fetched > 0 ? "primary" : "secondary")">
+                                                    @queue.Fetched
+                                                </span>
+                                            </td>
+                                            <td>@(queue.EnqueuedAt.HasValue ? queue.EnqueuedAt.Value.ToLocalTime().ToString("HH:mm:ss") : "N/A")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> No active queues found.
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-4">
+        <a href="@Url.Action("Index")" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <script>
+        $(document).ready(function() {
+            // Initialize data tables with minimal options - just paging
+            $('#serversTable, #workersTable, #queuesTable').DataTable({
+                "paging": true,
+                "ordering": true,
+                "info": true,
+                "pageLength": 10
+            });
+            
+            // Auto-refresh the page every 30 seconds
+            setTimeout(function() {
+                location.reload();
+            }, 30000);
+        });
+    </script>
+}

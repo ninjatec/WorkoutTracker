@@ -1,0 +1,144 @@
+@page
+@model WorkoutTrackerWeb.Pages.Shared.SessionModel
+@{
+    ViewData["Title"] = Model.WorkoutSession.Name;
+    Layout = "_SharedLayout";
+}
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1>@Model.WorkoutSession.Name</h1>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Session Details</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-4">Date & Time</dt>
+                        <dd class="col-sm-8">@Model.WorkoutSession.StartDateTime.ToString("MMM d, yyyy h:mm tt")</dd>
+
+                        <dt class="col-sm-4">Duration</dt>
+                        <dd class="col-sm-8">
+                            @if (Model.WorkoutSession.Duration > 0)
+                            {
+                                var duration = TimeSpan.FromMinutes(Model.WorkoutSession.Duration);
+                                @duration.ToString(@"hh\:mm\:ss")
+                            }
+                            else
+                            {
+                                <span>-</span>
+                            }
+                        </dd>
+
+                        <dt class="col-sm-4">Status</dt>
+                        <dd class="col-sm-8">
+                            @switch (Model.WorkoutSession.Status?.ToLower())
+                            {
+                                case "completed":
+                                    <span class="badge bg-success">Completed</span>
+                                    break;
+                                case "in progress":
+                                    <span class="badge bg-primary">In Progress</span>
+                                    break;
+                                case "scheduled":
+                                    <span class="badge bg-info">Scheduled</span>
+                                    break;
+                                case "missed":
+                                    <span class="badge bg-warning">Missed</span>
+                                    break;
+                                default:
+                                    <span class="badge bg-secondary">@(Model.WorkoutSession.Status ?? "Unknown")</span>
+                                    break;
+                            }
+                        </dd>
+
+                        @if (!string.IsNullOrEmpty(Model.WorkoutSession.Description))
+                        {
+                            <dt class="col-sm-4">Notes</dt>
+                            <dd class="col-sm-8">@Model.WorkoutSession.Description</dd>
+                        }
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (!Model.ExerciseSets.Any())
+    {
+        <div class="alert alert-info">
+            <p class="mb-0">No exercises recorded for this session.</p>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Exercises</h5>
+                    </div>
+                    <div class="card-body">
+                        @foreach (var exercise in Model.ExerciseSets)
+                        {
+                            <div class="exercise-group mb-4">
+                                <h4>@exercise.Key</h4>
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Set</th>
+                                                <th class="text-center">Weight</th>
+                                                <th class="text-center">Reps</th>
+                                                <th>Notes</th>
+                                                <th class="text-center">Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var set in exercise.Value)
+                                            {
+                                                <tr>
+                                                    <td>@set.SetNumber</td>
+                                                    <td class="text-center">@(set.Weight?.ToString("N1") ?? "-") kg</td>
+                                                    <td class="text-center">@(set.Reps ?? 0)</td>
+                                                    <td>@(set.Notes ?? "-")</td>
+                                                    <td class="text-center">
+                                                        @if (set.IsCompleted)
+                                                        {
+                                                            <span class="badge bg-success">Completed</span>
+                                                        }
+                                                        else if (set.Status == "Failed")
+                                                        {
+                                                            <span class="badge bg-danger">Failed</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="badge bg-secondary">Not Started</span>
+                                                        }
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Any client-side interaction can be added here
+        });
+    </script>
+}

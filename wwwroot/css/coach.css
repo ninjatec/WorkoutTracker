@@ -1,0 +1,273 @@
+/* Coach Portal Styles */
+
+/* Common Coach Area Styles */
+.coach-container {
+    padding: 20px 0;
+}
+
+.coach-title {
+    color: #1a73e8;
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+}
+
+.coach-card {
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+    transition: transform 0.2s;
+}
+
+.coach-card:hover {
+    transform: translateY(-5px);
+}
+
+.coach-card .card-header {
+    font-weight: 600;
+    border-bottom: 0;
+}
+
+.coach-menu .list-group-item.active {
+    background-color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+.coach-menu .list-group-item:hover:not(.active) {
+    background-color: #f8f9fa;
+}
+
+/* Templates Area Styles */
+.template-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.template-card .card-body {
+    flex: 1;
+}
+
+.template-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 15px;
+}
+
+.exercise-row {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.exercise-row:last-child {
+    border-bottom: none;
+}
+
+.exercise-list {
+    max-height: 350px;
+    overflow-y: auto;
+}
+
+.set-list {
+    margin-left: 20px;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.filter-controls {
+    margin-bottom: 20px;
+}
+
+.template-meta {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 15px;
+}
+
+.exercise-card {
+    margin-bottom: 15px;
+    border-left: 4px solid #1a73e8;
+}
+
+.set-controls {
+    display: flex;
+    align-items: center;
+    margin: 10px 0;
+}
+
+.set-controls .form-group {
+    margin-right: 15px;
+    margin-bottom: 0;
+}
+
+.add-exercise-btn {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
+.exercise-header {
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    font-weight: 600;
+}
+
+/* DataTables Customization */
+.dataTables_wrapper .dataTables_filter {
+    margin-bottom: 15px;
+}
+
+.dataTables_wrapper .dataTables_length select {
+    min-width: 60px;
+}
+
+.dataTables_wrapper .dataTables_info {
+    padding-top: 0.85em;
+}
+
+/* Badge and Status Styles */
+.badge.bg-success {
+    background-color: #28a745 !important;
+}
+
+.badge.bg-secondary {
+    background-color: #6c757d !important;
+}
+
+.badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #212529;
+}
+
+/* Assignment Modal Styles */
+.modal-header {
+    border-bottom: 2px solid #f0f0f0;
+}
+
+.modal-footer {
+    border-top: 2px solid #f0f0f0;
+}
+
+/* Schedule Options Styling */
+.schedule-options {
+    padding: 15px;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    margin-top: 15px;
+}
+
+/* Goal Dashboard Styles */
+.goal-analytics {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.analytics-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.analytics-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #198754;
+}
+
+.analytics-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-top: 5px;
+}
+
+.goal-card {
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: transform 0.2s;
+    border-left: 4px solid #198754;
+}
+
+.goal-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.goal-header {
+    margin-bottom: 8px;
+}
+
+.goal-description {
+    font-size: 0.95rem;
+    margin-bottom: 10px;
+    color: #212529;
+}
+
+.goal-progress {
+    margin-top: 8px;
+}
+
+.goal-actions {
+    margin-left: 10px;
+}
+
+/* Feedback Modal Styles */
+#quickFeedbackModal .modal-body {
+    padding: 20px;
+}
+
+#quickFeedbackModal label.fw-bold {
+    margin-bottom: 0.25rem;
+    color: #495057;
+}
+
+#quickFeedbackModal p {
+    margin-bottom: 0.5rem;
+}
+
+#feedbackType {
+    border-color: #198754;
+}
+
+#feedbackMessage {
+    border-color: #198754;
+    resize: vertical;
+}
+
+/* Status indicators */
+.status-due-soon {
+    color: #ffc107;
+}
+
+.status-overdue {
+    color: #dc3545;
+}
+
+.status-on-track {
+    color: #198754;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .set-controls {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .set-controls .form-group {
+        margin-right: 0;
+        margin-bottom: 10px;
+        width: 100%;
+    }
+    
+    .card-header {
+        padding: 0.75rem;
+    }
+    
+    .card-body {
+        padding: 0.75rem;
+    }
+}

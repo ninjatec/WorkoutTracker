@@ -1,0 +1,75 @@
+@model WorkoutTrackerWeb.Models.AppVersion
+
+@{
+    ViewData["Title"] = "Version Details";
+    Layout = "~/Areas/Admin/Views/Shared/_AdminLayout.cshtml";
+}
+
+<div class="container mt-4">
+    <h1>Version Details</h1>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0">Version @Model.GetVersionString()</h5>
+        </div>
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-3">Version</dt>
+                <dd class="col-sm-9">@Model.GetFullVersionString()</dd>
+
+                <dt class="col-sm-3">Status</dt>
+                <dd class="col-sm-9">
+                    @if (Model.IsCurrent)
+                    {
+                        <span class="badge badge-success">Current</span>
+                    }
+                    else
+                    {
+                        <span class="badge badge-secondary">Historic</span>
+                    }
+                </dd>
+
+                <dt class="col-sm-3">Description</dt>
+                <dd class="col-sm-9">@Model.Description</dd>
+
+                <dt class="col-sm-3">Release Date</dt>
+                <dd class="col-sm-9">@Model.ReleaseDate.ToString("yyyy-MM-dd HH:mm:ss")</dd>
+
+                @if (!string.IsNullOrEmpty(Model.GitCommitHash))
+                {
+                    <dt class="col-sm-3">Git Commit</dt>
+                    <dd class="col-sm-9"><code>@Model.GitCommitHash</code></dd>
+                }
+
+                @if (!string.IsNullOrEmpty(Model.ReleaseNotes))
+                {
+                    <dt class="col-sm-3">Release Notes</dt>
+                    <dd class="col-sm-9">
+                        <pre class="release-notes">@Model.ReleaseNotes</pre>
+                    </dd>
+                }
+            </dl>
+        </div>
+        <div class="card-footer">
+            <div class="btn-group">
+                <a asp-action="Index" class="btn btn-secondary">Back to List</a>
+                @if (!Model.IsCurrent)
+                {
+                    <a asp-action="SetCurrent" asp-route-id="@Model.VersionId" class="btn btn-primary">
+                        <i class="bi bi-check-circle"></i> Set as Current
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .release-notes {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 0.25rem;
+        white-space: pre-wrap;
+        font-size: 14px;
+    }
+</style>

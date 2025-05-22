@@ -1,0 +1,399 @@
+﻿@inject WorkoutTrackerWeb.Services.UserPreferenceService UserPreferenceService
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#455A64" />
+    
+    <!-- Favicon -->
+    <link rel="icon" href="~/favicon.ico" sizes="any" />
+    <link rel="icon" type="image/png" sizes="32x32" href="~/images/icons/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="~/images/icons/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="~/images/icons/apple-touch-icon.png" />
+    <title>@ViewData["Title"] - WorkoutTracker.online</title>
+    <script type="importmap"></script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/responsive.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/shared-dark-mode.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/bootstrap-dark-overrides.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/status-badges.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/dark-mode-edge-cases.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/table-dark-mode.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/responsive/dark-mode-overrides.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/account-nav-enhancements.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/account-management.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/WorkoutTrackerWeb.styles.css" asp-append-version="true" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <!-- DataTables CSS (Bootstrap 5 version) -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" />
+    <!-- Chart.js for reports -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body class="mobile-bottom-nav-active" data-theme="@(User.Identity?.IsAuthenticated == true ? await UserPreferenceService.GetThemePreferenceAsync(User.Identity?.Name) : "light")">
+    @await Component.InvokeAsync("MaintenanceBanner")
+    
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-dark border-bottom box-shadow mb-3">
+            <div class="container-fluid container-mobile-friendly">
+                <a class="navbar-brand" asp-area="" asp-page="/Index">
+                    <img src="~/images/Logo_Without_Words.png" alt="Workout Tracker Logo" class="navbar-logo" />
+                    <span class="desktop-only">WorkoutTracker.online</span>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-page="/Index">Home</a>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="trainingDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-activity"></i> Training
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="trainingDropdown">
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Sessions/Index"><i class="bi bi-list-check me-2"></i>Workouts</a></li>
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Templates/Index" asp-route-handler="" asp-page-handler=""><i class="bi bi-card-list me-2"></i>Templates</a></li>
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Workouts/ScheduledWorkouts"><i class="bi bi-calendar-check me-2"></i>Scheduled Workouts</a></li>
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Workouts/QuickWorkout"><i class="bi bi-stopwatch me-2"></i>Quick Workout</a></li>
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Goals/Index"><i class="bi bi-trophy me-2"></i>Goals</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="reportingDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-graph-up"></i> Reporting
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="reportingDropdown">
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Reports/Index"><i class="bi bi-graph-up me-2"></i>Reports</a></li>
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Dashboard/Index"><i class="bi bi-speedometer2 me-2"></i>Interactive Dashboard</a></li>
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Calculator/OneRepMax"><i class="bi bi-calculator me-2"></i>1RM Calculator</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="sharingDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-share"></i> Sharing
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="sharingDropdown">
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Account/Manage/ShareTokens">Manage Share Tokens</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" asp-area="" asp-page="/Help/Sharing">How Sharing Works</a></li>
+                            </ul>
+                        </li>
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="dataDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-database"></i> Data
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="dataDropdown">
+                                <li><a class="dropdown-item" asp-page="/ExerciseTypes/Index"><i class="bi bi-activity me-2"></i>Exercise Types</a></li>
+                                <li><a class="dropdown-item" asp-page="/SetTypes/Index"><i class="bi bi-list-columns me-2"></i>Set Types</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" asp-page="/DataPortability/Export">Export Data</a></li>
+                                <li><a class="dropdown-item" asp-page="/DataPortability/Import">Import Data</a></li>
+                                <li><a class="dropdown-item" asp-page="/DataPortability/ImportTrainAI">Import from TrainAI</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item text-danger" asp-page="/Account/DeleteWorkoutData">Delete All Workout Data</a></li>
+                            </ul>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-page="/Blog/Index"><i class="bi bi-journal-text"></i> Blog</a>
+                        </li>
+                        @if (User.IsInRole("Coach"))
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="coachDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-person-check"></i> Coach
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="coachDropdown">
+                                    <li><a class="dropdown-item" asp-area="Coach" asp-page="/Index"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
+                                    <li><a class="dropdown-item" asp-area="Coach" asp-page="/Clients/Index"><i class="bi bi-people me-2"></i>My Clients</a></li>
+                                    <li><a class="dropdown-item" asp-area="Coach" asp-page="/ScheduledWorkouts"><i class="bi bi-calendar-check me-2"></i>Scheduled Workouts</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" asp-area="Coach" asp-page="/Templates/Index"><i class="bi bi-card-list me-2"></i>Templates</a></li>
+                                    <li><a class="dropdown-item" asp-area="Coach" asp-page="/Templates/Create"><i class="bi bi-plus-square me-2"></i>Create Template</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" asp-area="Coach" asp-page="/Reports/Index"><i class="bi bi-bar-chart me-2"></i>Reports</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="/Coach/Clients/Invite"><i class="bi bi-envelope-plus me-2"></i>Invite Client</a></li>
+                                </ul>
+                            </li>
+                        }
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-shield-lock"></i> Admin
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                                    <li><a class="dropdown-item" asp-area="Admin" asp-page="/Index">Dashboard</a></li>
+                                    <li><a class="dropdown-item" asp-area="Admin" asp-page="/Users/Index">User Management</a></li>
+                                    <li><a class="dropdown-item" asp-area="Admin" asp-page="/Feedback/Index">Feedback Management</a></li>
+                                    <li><a class="dropdown-item" asp-area="Admin" asp-page="/Blog/Index"><i class="bi bi-journal-text me-2"></i>Blog Management</a></li>
+                                    <li><a class="dropdown-item" asp-area="" asp-page="/HangfireDiagnostics/Index">Hangfire Diagnostics</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" asp-area="Admin" asp-controller="Versions" asp-action="Index">Version Management</a></li>
+                                </ul>
+                            </li>
+                        }
+                    </ul>
+                    <div class="d-flex align-items-center">
+                        <button id="themeToggle" class="btn btn-outline-light me-2">
+                            <i class="bi bi-moon"></i>
+                        </button>
+                        @if (User.Identity != null && User.Identity.IsAuthenticated)
+                        {
+                            <ul class="navbar-nav">
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-area="" asp-page="/Account/Manage/Index" title="Manage">Hello @User.Identity?.Name!</a>
+                                </li>
+                                <li class="nav-item">
+                                    <form id="logoutForm" class="form-inline" asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="@Url.Page("/Index", new { area = "" })" method="post">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="nav-link btn btn-link text-light">Logout</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        }
+                        else
+                        {
+                            <ul class="navbar-nav">
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-area="Identity" asp-page="/Account/Register" asp-route-returnUrl="@Context.Request.Path">Register</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-area="Identity" asp-page="/Account/Login" asp-route-returnUrl="@Context.Request.Path">Login</a>
+                                </li>
+                            </ul>
+                        }
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+    
+    <!-- Mobile Context Navigation -->
+    <div class="mobile-context-nav container-mobile-friendly">
+        <a href="#" class="mobile-context-nav-item" id="currentContextPath">
+            <i class="bi bi-house"></i> Home
+        </a>
+    </div>
+    
+    <div class="container container-mobile-friendly">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <!-- Session Navigation Shortcuts -->
+    <div class="session-shortcuts">
+        <button type="button" class="session-shortcut-button" id="sessionShortcutButton">
+            <i class="bi bi-list"></i>
+        </button>
+        <div class="session-shortcut-menu" id="sessionShortcutMenu">
+            <a href="/Sessions/Create" class="session-shortcut-menu-item">
+                <i class="bi bi-plus-circle"></i> New Session
+            </a>
+            <a href="/Templates" class="session-shortcut-menu-item">
+                <i class="bi bi-card-list"></i> Templates
+            </a>
+            <a href="/Workouts/QuickWorkout" class="session-shortcut-menu-item">
+                <i class="bi bi-stopwatch"></i> Quick Workout
+            </a>
+            <a href="/Sessions/Index" class="session-shortcut-menu-item">
+                <i class="bi bi-list-check"></i> All Sessions
+            </a>
+            <a href="/Reports/Index" class="session-shortcut-menu-item">
+                <i class="bi bi-graph-up"></i> Reports
+            </a>
+            <a href="/Calculator/OneRepMax" class="session-shortcut-menu-item">
+                <i class="bi bi-calculator"></i> 1RM Calculator
+            </a>
+        </div>
+    </div>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="mobile-bottom-nav">
+        <div class="mobile-bottom-nav-container">
+            <a href="/Index" class="mobile-nav-item" id="navHome">
+                <i class="bi bi-house"></i>
+                <span>Home</span>
+            </a>
+            <a href="/Sessions/Index" class="mobile-nav-item" id="navWorkouts">
+                <i class="bi bi-list-check"></i>
+                <span>Workouts</span>
+            </a>
+            <a href="/Workouts/QuickWorkout" class="mobile-nav-item" id="navQuick">
+                <i class="bi bi-stopwatch"></i>
+                <span>Quick</span>
+            </a>
+            <a href="/Sessions/Create" class="mobile-nav-item" id="navAdd">
+                <i class="bi bi-plus-circle"></i>
+                <span>Add</span>
+            </a>
+            <a href="/Reports/Index" class="mobile-nav-item" id="navReports">
+                <i class="bi bi-graph-up"></i>
+                <span>Reports</span>
+            </a>
+            <a href="#" class="mobile-nav-item" id="navMore" data-bs-toggle="offcanvas" data-bs-target="#mobileMenuOffcanvas">
+                <i class="bi bi-three-dots"></i>
+                <span>More</span>
+            </a>
+        </div>
+    </nav>
+    
+    <!-- Mobile More Menu (Off-canvas) -->
+    <div class="offcanvas offcanvas-bottom" tabindex="-1" id="mobileMenuOffcanvas" aria-labelledby="mobileMenuOffcanvasLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="mobileMenuOffcanvasLabel">More Options</h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div class="row g-3">
+                <div class="col-4 text-center">
+                    <a href="/Workouts/QuickWorkout" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-stopwatch fs-4 d-block mb-2"></i>
+                        Quick Workout
+                    </a>
+                </div>
+                <div class="col-4 text-center">
+                    <a href="/Calculator/OneRepMax" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-calculator fs-4 d-block mb-2"></i>
+                        1RM Calculator
+                    </a>
+                </div>
+                <div class="col-4 text-center">
+                    <a href="/DataPortability/Export" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-download fs-4 d-block mb-2"></i>
+                        Export Data
+                    </a>
+                </div>
+                <div class="col-4 text-center">
+                    <a href="/DataPortability/Import" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-upload fs-4 d-block mb-2"></i>
+                        Import Data
+                    </a>
+                </div>
+                <div class="col-4 text-center">
+                    <a href="/Account/Manage/ShareTokens" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-share fs-4 d-block mb-2"></i>
+                        Sharing
+                    </a>
+                </div>
+                <div class="col-4 text-center">
+                    <a href="/Workouts/ScheduledWorkouts" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-calendar-check fs-4 d-block mb-2"></i>
+                        Scheduled Workouts
+                    </a>
+                </div>
+                <div class="col-4 text-center">
+                    <a href="/Templates" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-card-list fs-4 d-block mb-2"></i>
+                        Templates
+                    </a>
+                </div>
+                <div class="col-4 text-center">
+                    <a href="/Help/Index" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-question-circle fs-4 d-block mb-2"></i>
+                        Help
+                    </a>
+                </div>
+                <div class="col-4 text-center">
+                    <a href="/Feedback/Create" class="d-block p-3 mobile-menu-item">
+                        <i class="bi bi-chat-dots fs-4 d-block mb-2"></i>
+                        Feedback
+                    </a>
+                </div>
+                @if (User.IsInRole("Coach"))
+                {
+                    <div class="col-4 text-center">
+                        <a asp-area="Coach" asp-page="/Index" class="d-block p-3 mobile-menu-item">
+                            <i class="bi bi-person-check fs-4 d-block mb-2"></i>
+                            Coach Dashboard
+                        </a>
+                    </div>
+                    <div class="col-4 text-center">
+                        <a asp-area="Coach" asp-page="/Clients/Index" class="d-block p-3 mobile-menu-item">
+                            <i class="bi bi-people fs-4 d-block mb-2"></i>
+                            My Clients
+                        </a>
+                    </div>
+                    <div class="col-4 text-center">
+                        <a asp-area="Coach" asp-page="/Templates/Index" class="d-block p-3 mobile-menu-item">
+                            <i class="bi bi-card-list fs-4 d-block mb-2"></i>
+                            Coach Templates
+                        </a>
+                    </div>
+                    <div class="col-4 text-center">
+                        <a asp-area="Coach" asp-page="/WorkoutSchedule/Index" class="d-block p-3 mobile-menu-item">
+                            <i class="bi bi-calendar-week fs-4 d-block mb-2"></i>
+                            Scheduling
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <footer class="border-top footer mt-5">
+        <div class="container-fluid container-mobile-friendly py-2">
+            <div class="row">
+                <div class="col-12 col-md-6 mb-2 mb-md-0 text-center text-md-start">
+                    <div class="d-flex flex-column flex-sm-row align-items-center align-items-md-start justify-content-center justify-content-md-start">
+                        <img src="~/images/Logo_With_words.png" alt="Workout Tracker Logo" class="footer-logo mb-2 mb-sm-0 me-sm-2" />
+                        <div>
+                            <span class="d-block d-sm-inline-block me-sm-2 text-muted">&copy; 2025 - Ninjatec</span>
+                            <a asp-area="" asp-page="/Privacy" class="text-muted">Privacy</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 text-center text-md-end">
+                    <div class="footer-links">
+                        <div class="d-flex flex-wrap justify-content-center justify-content-md-end">
+                            <a asp-page="/Help/Index" class="text-muted me-2 mb-1"><i class="bi bi-question-circle"></i> Help Center</a>
+                            <a asp-page="/Feedback/Create" class="text-muted me-2 mb-1"><i class="bi bi-chat-dots"></i> Feedback</a>
+                            <a asp-page="/Help/FAQ" class="text-muted me-2 mb-1">FAQs</a>
+                            <a asp-page="/Help/Glossary" class="text-muted me-2 mb-1">Glossary</a>
+                            <a asp-page="/Help/VideoTutorials" class="text-muted me-2 mb-1">Video Tutorials</a>
+                            @await Component.InvokeAsync("VersionInfo")
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- jQuery with CDN and local fallback -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" 
+            integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" 
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        // Fallback to local if CDN fails
+        if (typeof jQuery === 'undefined') {
+            document.write('<script src="~/lib/jquery/dist/jquery.min.js"><\/script>');
+        }
+    </script>
+    
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+    <script src="~/js/unregister-service-worker.js" asp-append-version="true"></script>
+    
+    <!-- DataTables JS (after jQuery is loaded) -->
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+    
+    <script src="~/js/module-loader.js" asp-append-version="true"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/responsive-tables.js" asp-append-version="true"></script>
+    <script src="~/js/mobile-navigation.js" asp-append-version="true"></script>
+    <script src="~/js/lazy-loading.js" asp-append-version="true"></script>
+    <script src="~/js/progressive-images.js" asp-append-version="true"></script>
+    <script src="~/js/theme-toggle.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

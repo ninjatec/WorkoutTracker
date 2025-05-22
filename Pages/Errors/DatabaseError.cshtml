@@ -1,0 +1,50 @@
+@page
+@model WorkoutTrackerWeb.Pages.Errors.DatabaseErrorModel
+@{
+    ViewData["Title"] = "Database Service Temporarily Unavailable";
+}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-6 offset-md-3 mt-5">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4><i class="bi bi-database-x"></i> Database Service Temporarily Unavailable</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <p>Our database service is experiencing temporary issues. This usually resolves quickly.</p>
+                    </div>
+                    
+                    <p>Here's what you can do:</p>
+                    <ul>
+                        <li>Wait a few moments and try again</li>
+                        <li>Refresh this page</li>
+                        <li>Try again later if the issue persists</li>
+                    </ul>
+
+                    <div class="mt-4">
+                        <a href="/" class="btn btn-primary">
+                            <i class="bi bi-house-door"></i> Return to Home Page
+                        </a>
+                        <button onclick="window.location.reload()" class="btn btn-outline-secondary ms-2">
+                            <i class="bi bi-arrow-repeat"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                <div class="card-footer text-muted">
+                    <small>Error ID: @Model.ErrorId</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Auto-refresh the page after 10 seconds
+        setTimeout(function() {
+            window.location.reload();
+        }, 10000);
+    </script>
+}

@@ -1,0 +1,193 @@
+@page
+@model WorkoutTrackerWeb.Pages.Shared.ReportsModel
+@{
+    ViewData["Title"] = "Workout Reports";
+    Layout = "_SharedLayout";
+    int reportPeriod = Model.ReportPeriod;
+    int currentPage = Model.CurrentPage;
+    int totalPages = Model.TotalPages;
+}
+
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-page="./Index">Shared Workouts</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Reports</li>
+                </ol>
+            </nav>
+            <h1>Workout Reports</h1>
+            <p>Track workout progress and performance with detailed reports.</p>
+        </div>
+    </div>
+
+    <!-- Personal Records (PR) Table -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Personal Records (PRs) by Exercise Type</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Exercise</th>
+                                    <th>Max Weight (kg)</th>
+                                    <th>Record Date</th>
+                                    <th>Session</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (Model.PersonalRecords != null && Model.PersonalRecords.Any())
+                                {
+                                    @foreach (var record in Model.PersonalRecords)
+                                    {
+                                        <tr>
+                                            <td>@record.ExerciseName</td>
+                                            <td><strong>@record.MaxWeight</strong></td>
+                                            <td>@record.RecordDate.ToString("dd/MM/yy")</td>
+                                            <td>@record.WorkoutSessionName</td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="4" class="text-center">No personal records found.</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                        @{
+                            var prevDisabled = Model.PersonalRecords == null || !Model.PersonalRecords.Any() || currentPage == 1;
+                            var nextDisabled = Model.PersonalRecords == null || !Model.PersonalRecords.Any() || currentPage == totalPages;
+                        }
+
+                        <nav aria-label="Personal Records pagination">
+                            <ul class="pagination justify-content-center">
+                                <li class="page-item @(prevDisabled ? "disabled" : "")">
+                                    <a class="page-link" asp-page="./Reports" asp-route-pageNumber="@(currentPage - 1)" asp-route-period="@reportPeriod" asp-route-token="@Model.ShareToken">Previous</a>
+                                </li>
+                                @for (var i = 1; i <= totalPages; i++)
+                                {
+                                    <li class="page-item @(i == currentPage ? "active" : "")">
+                                        <a class="page-link" asp-page="./Reports" asp-route-pageNumber="@i" asp-route-period="@reportPeriod" asp-route-token="@Model.ShareToken">@i</a>
+                                    </li>
+                                }
+                                <li class="page-item @(nextDisabled ? "disabled" : "")">
+                                    <a class="page-link" asp-page="./Reports" asp-route-pageNumber="@(currentPage + 1)" asp-route-period="@reportPeriod" asp-route-token="@Model.ShareToken">Next</a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weight Progress Chart -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card" id="weightProgressContainer" data-loading="true" style="min-height: 650px;">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>Weight Progress by Exercise Type (Last @reportPeriod Days)</h5>
+                    <form method="get" class="d-flex align-items-center">
+                        <input type="hidden" name="pageNumber" value="@currentPage" />
+                        <input type="hidden" name="token" value="@Model.ShareToken" />
+                        <label for="period" class="me-2">Period:</label>
+                        <select id="period" name="period" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                            <option value="30" selected="@(reportPeriod == 30)">30 Days</option>
+                            <option value="60" selected="@(reportPeriod == 60)">60 Days</option>
+                            <option value="90" selected="@(reportPeriod == 90)">90 Days</option>
+                            <option value="120" selected="@(reportPeriod == 120)">120 Days</option>
+                        </select>
+                    </form>
+                </div>
+                <div class="card-body" style="height: 600px;">
+                    <div class="text-center loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                    </div>
+                    <canvas id="weightProgressChart" style="display: none;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card" id="overallChartContainer" data-loading="true" style="min-height: 450px;">
+                <div class="card-header">
+                    <h5>Overall Rep Success/Failure (Last @reportPeriod Days)</h5>
+                </div>
+                <div class="card-body" style="height: 400px;">
+                    <div class="text-center loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                    </div>
+                    <canvas id="overallChart" style="display: none;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card" id="exerciseStatusContainer" data-loading="true" style="min-height: 450px;">
+                <div class="card-header">
+                    <h5>Success Rate by Exercise Type (Last @reportPeriod Days)</h5>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    <div class="text-center loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                    </div>
+                    <div id="exerciseStatusContent" style="display: none;">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Exercise</th>
+                                    <th>Successful</th>
+                                    <th>Failed</th>
+                                    <th>Success Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody id="exerciseStatusTable">
+                                <!-- Will be filled asynchronously -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card" id="exerciseChartContainer" data-loading="true" style="min-height: 550px;">
+                <div class="card-header">
+                    <h5>Recent Exercise Performance (Last @reportPeriod Days)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                    </div>
+                    <canvas id="exerciseChart" width="800" height="600" style="display: none;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment@1.0.0/dist/chartjs-adapter-moment.min.js"></script>
+    <script src="~/js/reports.js"></script>
+}

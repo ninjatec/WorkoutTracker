@@ -1,0 +1,138 @@
+/* Dark Mode Enhancements for Tables
+ * Improves dark mode styling for tables, tr elements and striped rows
+ */
+
+/* Table base colors in dark mode */
+[data-theme="dark"] .table {
+  color: var(--text-light);
+}
+
+/* Enhanced table striping for dark mode */
+[data-theme="dark"] .table-striped > tbody > tr:nth-of-type(odd) > * {
+  color: var(--text-light);
+  background-color: var(--table-row-odd-bg);
+}
+
+[data-theme="dark"] .table-striped > tbody > tr:nth-of-type(even) > * {
+  color: var(--text-light);
+  background-color: var(--table-row-even-bg);
+}
+
+/* For older Bootstrap versions using different selectors */
+[data-theme="dark"] .table-striped tbody tr:nth-of-type(odd) {
+  background-color: var(--table-row-odd-bg);
+}
+
+[data-theme="dark"] .table-striped tbody tr:nth-of-type(even) {
+  background-color: var(--table-row-even-bg);
+}
+
+/* Table hover states in dark mode */
+[data-theme="dark"] .table-hover > tbody > tr:hover > * {
+  background-color: #2a2a2a;
+  color: white;
+}
+
+/* Table rows with special status */
+[data-theme="dark"] tr.active,
+[data-theme="dark"] .table > tbody > tr.active > td {
+  background-color: rgba(70, 90, 101, 0.25) !important;
+  color: white;
+}
+
+[data-theme="dark"] tr.inactive,
+[data-theme="dark"] .table > tbody > tr.inactive > td {
+  background-color: #1A1A1A !important;
+  color: #888;
+}
+
+[data-theme="dark"] tr.highlighted,
+[data-theme="dark"] .table > tbody > tr.highlighted > td {
+  background-color: rgba(70, 90, 101, 0.5) !important;
+  color: white;
+}
+
+/* Table headings */
+[data-theme="dark"] .table > thead > tr > th {
+  border-bottom-color: #333;
+  background-color: #1A1A1A;
+}
+
+/* Table cells with special status */
+[data-theme="dark"] td.highlight {
+  background-color: #2C2C2C !important;
+  color: white;
+}
+
+/* Consistent table cell spacing and borders */
+[data-theme="dark"] .table td,
+[data-theme="dark"] .table th {
+  border-color: #333;
+  border-bottom-color: #333;
+  padding: 0.75rem;
+}
+
+/* Better visibility for table cell borders */
+[data-theme="dark"] .table-bordered {
+  border-color: #333;
+}
+
+[data-theme="dark"] .table-bordered > :not(caption) > * > * {
+  border-color: #333;
+}
+
+/* Table footer styling */
+[data-theme="dark"] .table tfoot tr td {
+  border-top-color: #444;
+  background-color: #1A1A1A;
+  font-weight: bold;
+}
+
+/* Table row attributes by data- attributes */
+[data-theme="dark"] tr[data-status="active"] {
+  background-color: rgba(70, 90, 101, 0.25) !important;
+}
+
+[data-theme="dark"] tr[data-status="inactive"] {
+  background-color: #1A1A1A !important;
+  color: #888;
+}
+
+[data-theme="dark"] tr[data-status="completed"] {
+  background-color: rgba(25, 135, 84, 0.2) !important;
+}
+
+[data-theme="dark"] tr[data-status="pending"] {
+  background-color: rgba(13, 202, 240, 0.2) !important;
+}
+
+[data-theme="dark"] tr[data-status="failed"] {
+  background-color: rgba(220, 53, 69, 0.2) !important;
+}
+
+/* Fix any hardcoded white backgrounds in tables */
+[data-theme="dark"] .table .bg-white,
+[data-theme="dark"] .bg-white.table {
+  background-color: #1A1A1A !important;
+  color: var(--text-light);
+}
+
+/* Fix for tables containing form elements */
+[data-theme="dark"] .table input,
+[data-theme="dark"] .table select,
+[data-theme="dark"] .table textarea {
+  background-color: #252525;
+  color: var(--text-light);
+  border-color: #444;
+}
+
+/* Fix for responsive tables */
+[data-theme="dark"] .table-responsive {
+  border-color: #333;
+}
+
+/* Fix for tables with small text */
+[data-theme="dark"] .table .small,
+[data-theme="dark"] .table small {
+  color: #aaa;
+}

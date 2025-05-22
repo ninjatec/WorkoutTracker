@@ -1,0 +1,246 @@
+@page
+@model WorkoutTrackerWeb.Pages.TemplateAssignments.AssignTemplateModel
+@{
+    ViewData["Title"] = "Assign Template";
+}
+
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a asp-page="/Templates/Index">Templates</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Assign Template</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h1 class="h3 mb-0">Assign Template: @Model.Template?.Name</h1>
+                </div>
+                <div class="card-body">
+                    @if (Model.Template == null)
+                    {
+                        <div class="alert alert-danger">
+                            <p>Template not found. Please select a valid template to assign.</p>
+                            <a asp-page="/Templates/Index" class="btn btn-primary">Back to Templates</a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <h5>Template Details</h5>
+                                <dl class="row">
+                                    <dt class="col-sm-3">Name</dt>
+                                    <dd class="col-sm-9">@Model.Template.Name</dd>
+                                    
+                                    <dt class="col-sm-3">Description</dt>
+                                    <dd class="col-sm-9">@Model.Template.Description</dd>
+                                    
+                                    <dt class="col-sm-3">Category</dt>
+                                    <dd class="col-sm-9">@Model.Template.Category</dd>
+                                    
+                                    <dt class="col-sm-3">Exercises</dt>
+                                    <dd class="col-sm-9">@Model.ExerciseCount</dd>
+                                </dl>
+                            </div>
+                        </div>
+
+                        @if (User.IsInRole("Coach"))
+                        {
+                            <form method="post">
+                                <input type="hidden" asp-for="TemplateId" />
+                                
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label asp-for="Assignment.ClientId" class="form-label">Client</label>
+                                            <select asp-for="Assignment.ClientId" asp-items="Model.ClientList" class="form-select" required>
+                                                <option value="">-- Select a client --</option>
+                                            </select>
+                                            <span asp-validation-for="Assignment.ClientId" class="text-danger"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mb-4">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label asp-for="Assignment.Name" class="form-label">Assignment Name</label>
+                                            <input asp-for="Assignment.Name" class="form-control" required value="@Model.Template.Name" />
+                                            <span asp-validation-for="Assignment.Name" class="text-danger"></span>
+                                            <small class="form-text text-muted">A descriptive name for this assignment (e.g. "Summer Strength Program")</small>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label asp-for="Assignment.Notes" class="form-label">Notes</label>
+                                            <textarea asp-for="Assignment.Notes" class="form-control" rows="3"></textarea>
+                                            <span asp-validation-for="Assignment.Notes" class="text-danger"></span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label asp-for="Assignment.StartDate" class="form-label">Start Date</label>
+                                            <input asp-for="Assignment.StartDate" type="date" class="form-control" required value="@DateTime.Now.ToString("yyyy-MM-dd")" />
+                                            <span asp-validation-for="Assignment.StartDate" class="text-danger"></span>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label asp-for="Assignment.EndDate" class="form-label">End Date (Optional)</label>
+                                            <input asp-for="Assignment.EndDate" type="date" class="form-control" />
+                                            <span asp-validation-for="Assignment.EndDate" class="text-danger"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <div class="form-check mb-3">
+                                            <input asp-for="ScheduleWorkouts" class="form-check-input" id="scheduleWorkouts" />
+                                            <label asp-for="ScheduleWorkouts" class="form-check-label">Schedule workouts for this assignment</label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-12 scheduling-options" id="schedulingOptions" style="display: none;">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <h5 class="card-title">Scheduling Options</h5>
+                                                
+                                                <div class="mb-3">
+                                                    <label class="form-label">Recurrence Pattern</label>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="RecurrencePattern" id="recurrenceOnce" value="Once" checked />
+                                                        <label class="form-check-label" for="recurrenceOnce">One time only</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="RecurrencePattern" id="recurrenceWeekly" value="Weekly" />
+                                                        <label class="form-check-label" for="recurrenceWeekly">Weekly</label>
+                                                    </div>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="radio" name="RecurrencePattern" id="recurrenceMonthly" value="Monthly" />
+                                                        <label class="form-check-label" for="recurrenceMonthly">Monthly</label>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="mb-3 weekly-options" id="weeklyDaysOptions" style="display: none;">
+                                                    <label class="form-label">Day of Week</label>
+                                                    <select name="DaysOfWeek" class="form-select">
+                                                        <option value="Monday">Monday</option>
+                                                        <option value="Tuesday">Tuesday</option>
+                                                        <option value="Wednesday">Wednesday</option>
+                                                        <option value="Thursday">Thursday</option>
+                                                        <option value="Friday">Friday</option>
+                                                        <option value="Saturday">Saturday</option>
+                                                        <option value="Sunday">Sunday</option>
+                                                    </select>
+                                                </div>
+                                                
+                                                <div class="mb-3 monthly-options" id="monthlyDayOptions" style="display: none;">
+                                                    <label class="form-label">Day of Month</label>
+                                                    <select name="DayOfMonth" class="form-select">
+                                                        @for (int i = 1; i <= 28; i++)
+                                                        {
+                                                            <option value="@i">@i</option>
+                                                        }
+                                                    </select>
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <label class="form-label" for="workoutTime">Workout Time</label>
+                                                    <input type="time" class="form-control" id="workoutTime" name="WorkoutTime" value="17:00" />
+                                                </div>
+                                                
+                                                <div class="mb-3">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" name="SendReminder" id="sendReminder" value="true" />
+                                                        <label class="form-check-label" for="sendReminder">Send reminder to client</label>
+                                                    </div>
+                                                </div>
+                                                
+                                                <div class="mb-3 reminder-options" id="reminderOptions" style="display: none;">
+                                                    <label class="form-label">Hours before workout</label>
+                                                    <select name="ReminderHoursBefore" class="form-select">
+                                                        <option value="1">1 hour</option>
+                                                        <option value="3" selected>3 hours</option>
+                                                        <option value="6">6 hours</option>
+                                                        <option value="12">12 hours</option>
+                                                        <option value="24">24 hours</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-4">
+                                    <button type="submit" class="btn btn-primary">Assign Template</button>
+                                    <a asp-page="/Templates/Details" asp-route-id="@Model.TemplateId" class="btn btn-secondary">Cancel</a>
+                                </div>
+                            </form>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info">
+                                <p>Only coaches can assign templates to clients. If you're a coach, please sign in with your coach account.</p>
+                                <a asp-page="/Templates/Index" class="btn btn-primary">Back to Templates</a>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Toggle scheduling options
+            const scheduleWorkoutsCheckbox = document.getElementById('scheduleWorkouts');
+            const schedulingOptions = document.getElementById('schedulingOptions');
+            
+            if (scheduleWorkoutsCheckbox) {
+                scheduleWorkoutsCheckbox.addEventListener('change', function() {
+                    schedulingOptions.style.display = this.checked ? 'block' : 'none';
+                });
+            }
+            
+            // Toggle recurrence pattern options
+            const recurrencePatternRadios = document.querySelectorAll('input[name="RecurrencePattern"]');
+            const weeklyOptions = document.getElementById('weeklyDaysOptions');
+            const monthlyOptions = document.getElementById('monthlyDayOptions');
+            
+            recurrencePatternRadios.forEach(function(radio) {
+                radio.addEventListener('change', function() {
+                    if (this.value === 'Weekly') {
+                        weeklyOptions.style.display = 'block';
+                        monthlyOptions.style.display = 'none';
+                    } else if (this.value === 'Monthly') {
+                        weeklyOptions.style.display = 'none';
+                        monthlyOptions.style.display = 'block';
+                    } else {
+                        weeklyOptions.style.display = 'none';
+                        monthlyOptions.style.display = 'none';
+                    }
+                });
+            });
+            
+            // Toggle reminder options
+            const sendReminderCheckbox = document.getElementById('sendReminder');
+            const reminderOptions = document.getElementById('reminderOptions');
+            
+            if (sendReminderCheckbox) {
+                sendReminderCheckbox.addEventListener('change', function() {
+                    reminderOptions.style.display = this.checked ? 'block' : 'none';
+                });
+            }
+        });
+    </script>
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

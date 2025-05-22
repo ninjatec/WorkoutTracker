@@ -1,0 +1,655 @@
+@page
+@model WorkoutTrackerWeb.Pages.ExerciseTypes.EnrichExercisesModel
+@{
+    ViewData["Title"] = "Enrich Exercises";
+}
+
+<h1>Enrich Exercises</h1>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5>Exercise Data Enrichment</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    This tool will search for manually created exercises with empty fields and attempt to populate them with data from the API Ninjas service.
+                </p>
+                <p>
+                    The following fields will be enriched if empty:
+                </p>
+                <ul>
+                    <li>Exercise Type (cardio, strength, etc.)</li>
+                    <li>Muscle Group</li>
+                    <li>Equipment</li>
+                    <li>Difficulty</li>
+                    <li>Instructions</li>
+                </ul>
+                
+                @if (!string.IsNullOrEmpty(Model.StatusMessage))
+                {
+                    var statusClass = Model.StatusMessage.StartsWith("Error") ? "danger" : "success";
+                    <div class="alert alert-@statusClass alert-dismissible fade show" role="alert">
+                        @Model.StatusMessage
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                }
+                
+                <div class="d-flex align-items-center mb-3">
+                    <div class="form-check me-3">
+                        <form method="post">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="autoSelectMatches" asp-for="AutoSelectMatches">
+                                <label class="form-check-label" for="autoSelectMatches">Auto-select best match (don't prompt for ambiguous matches)</label>
+                            </div>
+                            <button type="submit" class="btn btn-primary mt-2" id="startButton" @(Model.IsJobInProgress ? "disabled" : "")>
+                                <i class="fas fa-magic"></i> Find and Enrich Exercises
+                            </button>
+                        </form>
+                    </div>
+                    
+                    @if (Model.IsJobInProgress)
+                    {
+                        <div class="me-2">
+                            <form method="post" asp-page-handler="Cancel" class="d-inline">
+                                <button type="submit" class="btn btn-danger" id="cancelButton">
+                                    <i class="fas fa-stop"></i> Cancel Enrichment
+                                </button>
+                            </form>
+                        </div>
+                    }
+                    
+                    <div class="ms-auto">
+                        <span class="badge rounded-pill bg-secondary" id="connectionStatus">Connecting...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending Selections Section -->
+        @if (Model.IsJobInProgress && Model.PendingSelectionsCount > 0)
+        {
+            <div class="card mb-4" id="pendingSelectionsSection">
+                <div class="card-header bg-warning text-dark">
+                    <h5>
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        @Model.PendingSelectionsCount Exercise@(Model.PendingSelectionsCount == 1 ? "" : "s") Need@(Model.PendingSelectionsCount == 1 ? "s" : "") Your Input
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p>
+                        We found multiple potential matches from the API for these exercises. Please select the best match for each one:
+                    </p>
+                    
+                    @if (Model.PendingSelections == null)
+                    {
+                        <div class="alert alert-info">
+                            <a href="?showPending=true" class="btn btn-primary">
+                                <i class="fas fa-list"></i> Show Pending Selections (@Model.PendingSelectionsCount)
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="accordion" id="pendingSelectionsAccordion">
+                            @foreach (var pendingSelection in Model.PendingSelections)
+                            {
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="heading-@pendingSelection.Id">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" 
+                                                data-bs-target="#collapse-@pendingSelection.Id" aria-expanded="true" 
+                                                aria-controls="collapse-@pendingSelection.Id">
+                                            <strong>@pendingSelection.ExerciseName</strong> - Select Best Match 
+                                            (@pendingSelection.ApiExerciseOptions.Count options)
+                                        </button>
+                                    </h2>
+                                    <div id="collapse-@pendingSelection.Id" class="accordion-collapse collapse show" 
+                                         aria-labelledby="heading-@pendingSelection.Id" data-bs-parent="#pendingSelectionsAccordion">
+                                        <div class="accordion-body">
+                                            <div class="row mb-3">
+                                                <div class="col-md-12">
+                                                    <div class="card bg-light">
+                                                        <div class="card-header">
+                                                            <h6>Current Exercise Data</h6>
+                                                        </div>
+                                                        <div class="card-body">
+                                                            <p><strong>Name:</strong> @pendingSelection.ExerciseType?.Name</p>
+                                                            <p><strong>Type:</strong> @(pendingSelection.ExerciseType?.Type ?? "<em>Empty</em>")</p>
+                                                            <p><strong>Muscle:</strong> @(pendingSelection.ExerciseType?.Muscle ?? "<em>Empty</em>")</p>
+                                                            <p><strong>Equipment:</strong> @(pendingSelection.ExerciseType?.Equipment ?? "<em>Empty</em>")</p>
+                                                            <p><strong>Difficulty:</strong> @(pendingSelection.ExerciseType?.Difficulty ?? "<em>Empty</em>")</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <h6>Select the best match from the API:</h6>
+                                            
+                                            <form method="post" asp-page-handler="ResolveSelection">
+                                                <input type="hidden" name="pendingSelectionId" value="@pendingSelection.Id" />
+                                                
+                                                <div class="list-group">
+                                                    @for (int i = 0; i < pendingSelection.ApiExerciseOptions.Count; i++)
+                                                    {
+                                                        var apiExercise = pendingSelection.ApiExerciseOptions[i];
+                                                        <div class="list-group-item list-group-item-action">
+                                                            <div class="form-check">
+                                                                <input class="form-check-input" type="radio" name="selectedApiExerciseIndex" 
+                                                                       id="option-@pendingSelection.Id-@i" value="@i" required
+                                                                       @(i == 0 ? "checked" : "")>
+                                                                <label class="form-check-label w-100" for="option-@pendingSelection.Id-@i">
+                                                                    <div class="d-flex justify-content-between">
+                                                                        <h6>@apiExercise.Name</h6>
+                                                                        <span class="badge rounded-pill bg-info">
+                                                                            @apiExercise.Type / @apiExercise.Muscle
+                                                                        </span>
+                                                                    </div>
+                                                                    
+                                                                    <div class="row mt-2">
+                                                                        <div class="col-md-6">
+                                                                            <p><strong>Type:</strong> @apiExercise.Type</p>
+                                                                            <p><strong>Muscle:</strong> @apiExercise.Muscle</p>
+                                                                        </div>
+                                                                        <div class="col-md-6">
+                                                                            <p><strong>Equipment:</strong> @apiExercise.Equipment</p>
+                                                                            <p><strong>Difficulty:</strong> @apiExercise.Difficulty</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    <div class="collapse" id="instructions-@pendingSelection.Id-@i">
+                                                                        <div class="card card-body mt-2">
+                                                                            <h6>Instructions:</h6>
+                                                                            <p>@apiExercise.Instructions</p>
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    <button class="btn btn-sm btn-outline-secondary mt-2" type="button" 
+                                                                            data-bs-toggle="collapse" data-bs-target="#instructions-@pendingSelection.Id-@i" 
+                                                                            aria-expanded="false" aria-controls="instructions-@pendingSelection.Id-@i">
+                                                                        Show/Hide Instructions
+                                                                    </button>
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                </div>
+                                                
+                                                <div class="mt-3">
+                                                    <button type="submit" class="btn btn-success">
+                                                        <i class="fas fa-check"></i> Apply Selected Match
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        
+        @if (Model.PendingSelectionsCount > 0)
+        {
+            <div class="alert alert-warning">
+                <p>
+                    <strong>@Model.PendingSelectionsCount</strong> exercise@(Model.PendingSelectionsCount == 1 ? "" : "s")
+                    need@(Model.PendingSelectionsCount == 1 ? "s" : "") your input to complete the enrichment process.
+                </p>
+                @if (Model.PendingSelections == null)
+                {
+                    <a href="?showPending=true" class="btn btn-warning">
+                        <i class="fas fa-list"></i> Show Pending Selections
+                    </a>
+                }
+            </div>
+        }
+        else if (await Model.GetAllPendingSelectionsCountAsync() > 0)
+        {
+            <div class="alert alert-info">
+                <p>
+                    <i class="fas fa-info-circle"></i> 
+                    There are pending exercise selections from previous jobs that need your input.
+                </p>
+                <a asp-page="./PendingSelections" class="btn btn-info">
+                    <i class="fas fa-list"></i> View All Pending Selections
+                </a>
+            </div>
+        }
+
+        <!-- Progress Section -->
+        <div class="card mb-4" id="progressSection" style="@(Model.IsJobInProgress ? "" : "display: none;")">
+            <div class="card-header">
+                <h5>Enrichment Progress</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="progress">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-info" 
+                             role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                    </div>
+                </div>
+                <p><strong>Status: </strong><span id="progressStatus">Initializing...</span></p>
+                <p><strong>Details: </strong><span id="progressDetails"></span></p>
+                <div id="errorMessage" class="alert alert-danger d-none mt-3"></div>
+            </div>
+        </div>
+        
+        <!-- Results Card (shown after completion) -->
+        <div class="card mb-4" id="resultsSection" style="display: none;">
+            <div class="card-header">
+                <h5>Enrichment Results</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <p><strong>Exercises Found:</strong> <span id="exercisesFound">0</span></p>
+                    <p><strong>Successfully Enriched:</strong> <span id="exercisesEnriched">0</span></p>
+                    <p><strong>Failed to Enrich:</strong> <span id="exercisesFailed">0</span></p>
+                    <p id="pendingSelectionsResult" class="d-none"><strong>Pending User Selections:</strong> <span id="exercisesPending">0</span> <a href="?showPending=true" class="btn btn-sm btn-warning">Show Pending</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mb-3">
+    <a asp-page="./Index" class="btn btn-secondary">
+        <i class="fas fa-list"></i> Back to Exercise List
+    </a>
+</div>
+
+@section Scripts {
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.min.js"></script>
+    
+    <script>
+        // Elements
+        const progressSection = document.getElementById('progressSection');
+        const resultsSection = document.getElementById('resultsSection');
+        const progressBar = document.getElementById('progressBar');
+        const progressStatus = document.getElementById('progressStatus');
+        const progressDetails = document.getElementById('progressDetails');
+        const errorMessage = document.getElementById('errorMessage');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const startButton = document.getElementById('startButton');
+        const cancelButton = document.getElementById('cancelButton');
+        const exercisesFound = document.getElementById('exercisesFound');
+        const exercisesEnriched = document.getElementById('exercisesEnriched');
+        const exercisesFailed = document.getElementById('exercisesFailed');
+        const pendingSelectionsResult = document.getElementById('pendingSelectionsResult');
+        const exercisesPending = document.getElementById('exercisesPending');
+        
+        // SignalR connection state tracking
+        let connection;
+        let isConnected = false;
+        let jobRegistered = false;
+        let jobStatusCheckInterval;
+        
+        // Initialize connection
+        function initializeConnection() {
+            // Create the connection
+            connection = new signalR.HubConnectionBuilder()
+                .withUrl("/importProgressHub")
+                .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+                .build();
+                
+            // Handle connection status changes
+            connection.onreconnecting(error => {
+                console.warn("SignalR reconnecting", error);
+                connectionStatus.textContent = "Reconnecting...";
+                connectionStatus.className = "badge rounded-pill reconnecting bg-warning";
+                isConnected = false;
+            });
+            
+            connection.onreconnected(() => {
+                console.log("SignalR reconnected");
+                connectionStatus.textContent = "Connected";
+                connectionStatus.className = "badge rounded-pill connected bg-success";
+                isConnected = true;
+                
+                // Re-register for job updates if we have a jobId
+                const jobId = "@Model.JobId";
+                if (jobId && !jobRegistered) {
+                    registerForJobUpdates(jobId);
+                }
+                
+                // Clear the polling interval if we're reconnected
+                clearJobStatusPolling();
+            });
+            
+            connection.onclose((error) => {
+                console.error("SignalR connection closed", error);
+                connectionStatus.textContent = "Disconnected";
+                connectionStatus.className = "badge rounded-pill disconnected bg-danger";
+                isConnected = false;
+                
+                // Show error only if we have an active job
+                const jobId = "@Model.JobId";
+                if (jobId && progressBar.style.width !== "100%") {
+                    errorMessage.textContent = "Lost connection to server. Your enrichment process is still running. The page will check status periodically.";
+                    errorMessage.classList.remove('d-none');
+                    
+                    // Start polling for job status
+                    startJobStatusPolling();
+                }
+            });
+
+            // Handle progress updates from the server
+            connection.on("ReceiveProgress", (progress) => {
+                console.log("Progress update:", progress);
+                
+                // Show progress section
+                progressSection.style.display = '';
+                
+                // Update progress bar
+                const percent = progress.percentComplete;
+                progressBar.style.width = `${percent}%`;
+                progressBar.setAttribute('aria-valuenow', percent);
+                progressBar.textContent = `${percent}%`;
+                
+                // Update status text
+                progressStatus.textContent = progress.status || "Processing...";
+                
+                // Update details if provided
+                if (progress.details) {
+                    progressDetails.textContent = progress.details;
+                    
+                    // Extract numbers for the results display
+                    const detailsText = progress.details;
+                    const enrichedMatch = detailsText.match(/Enriched: (\d+)/);
+                    const failedMatch = detailsText.match(/Failed: (\d+)/);
+                    const pendingMatch = detailsText.match(/Pending: (\d+)/);
+                    const totalItems = progress.totalItems || 0;
+                    
+                    if (enrichedMatch && failedMatch) {
+                        exercisesFound.textContent = totalItems;
+                        exercisesEnriched.textContent = enrichedMatch[1];
+                        exercisesFailed.textContent = failedMatch[1];
+                        
+                        // Check if we have pending selections
+                        if (pendingMatch && parseInt(pendingMatch[1]) > 0) {
+                            exercisesPending.textContent = pendingMatch[1];
+                            pendingSelectionsResult.classList.remove('d-none');
+                        } else {
+                            pendingSelectionsResult.classList.add('d-none');
+                        }
+                    }
+                }
+                
+                // Handle error messages
+                if (progress.errorMessage) {
+                    errorMessage.textContent = progress.errorMessage;
+                    errorMessage.classList.remove('d-none');
+                    progressBar.classList.remove('bg-info');
+                    progressBar.classList.add('bg-danger');
+                }
+                
+                // Handle completion
+                if (percent >= 100 && !progress.errorMessage) {
+                    progressBar.classList.remove('bg-info');
+                    progressBar.classList.add('bg-success');
+                    startButton.disabled = false;
+                    
+                    // Update TempData on server automatically when job completes
+                    // (no direct way to do this, but next page load will reset)
+                    
+                    // Show results section
+                    resultsSection.style.display = '';
+                    
+                    // Handle case where we have pending selections needing user input
+                    if (progress.currentItem && progress.currentItem.includes("need your selection")) {
+                        progressStatus.textContent = "Waiting for user input on some exercises";
+                        progressBar.classList.remove('bg-success');
+                        progressBar.classList.add('bg-warning');
+                        
+                        // Add a button to reload the page if not already there
+                        if (!document.getElementById('reloadButton')) {
+                            const reloadButton = document.createElement('a');
+                            reloadButton.id = 'reloadButton';
+                            reloadButton.href = '?showPending=true';
+                            reloadButton.className = 'btn btn-warning mt-3';
+                            reloadButton.innerHTML = '<i class="fas fa-sync"></i> Show Pending Selections';
+                            progressSection.querySelector('.card-body').appendChild(reloadButton);
+                        }
+                    }
+                }
+            });
+            
+            // Handle job registration status
+            connection.on("jobRegistrationStatus", (status) => {
+                console.log("Job registration status:", status);
+                if (status.success) {
+                    jobRegistered = true;
+                }
+            });
+            
+            // Handle connection status updates
+            connection.on("connectionStatus", (status) => {
+                console.log("Connection status:", status);
+                if (status.isConnected) {
+                    connectionStatus.textContent = "Connected";
+                    connectionStatus.className = "badge rounded-pill connected bg-success";
+                }
+            });
+        }
+        
+        // Function to register for job updates
+        function registerForJobUpdates(jobId) {
+            if (!jobId) return;
+            
+            console.log("Attempting to register for updates on job:", jobId);
+            
+            connection.invoke("RegisterForJobUpdates", jobId)
+                .then(() => {
+                    console.log("Successfully registered for updates on job:", jobId);
+                    jobRegistered = true;
+                    
+                    // Show the progress section since we're monitoring a job
+                    progressSection.style.display = '';
+                })
+                .catch(err => {
+                    console.error("Error registering for job updates:", err);
+                    // Try again later if we're still connected
+                    if (isConnected) {
+                        setTimeout(() => registerForJobUpdates(jobId), 3000);
+                    }
+                });
+        }
+        
+        // Function to start polling for job status updates when SignalR is not available
+        function startJobStatusPolling() {
+            // Clear any existing interval
+            clearJobStatusPolling();
+            
+            const jobId = "@Model.JobId";
+            if (!jobId) return;
+            
+            console.log("Starting job status polling for job:", jobId);
+            
+            // Poll every 5 seconds
+            jobStatusCheckInterval = setInterval(() => {
+                checkJobStatus(jobId);
+            }, 5000);
+        }
+        
+        // Function to clear job status polling
+        function clearJobStatusPolling() {
+            if (jobStatusCheckInterval) {
+                clearInterval(jobStatusCheckInterval);
+                jobStatusCheckInterval = null;
+            }
+        }
+        
+        // Function to check job status via AJAX when SignalR is not available
+        function checkJobStatus(jobId) {
+            if (!jobId) return;
+            
+            console.log("Checking job status for:", jobId);
+            
+            // Make a simple AJAX request to check job status
+            fetch(`/api/jobstatus/${jobId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Job status response:", data);
+                    
+                    if (data.state) {
+                        // Update UI based on job state
+                        if (data.state === "Succeeded") {
+                            // Job completed successfully
+                            progressBar.classList.remove('bg-info');
+                            progressBar.classList.add('bg-success');
+                            progressStatus.textContent = "Enrichment completed successfully";
+                            progressBar.style.width = "100%";
+                            progressBar.setAttribute('aria-valuenow', 100);
+                            progressBar.textContent = "100%";
+                            
+                            // Show results section
+                            resultsSection.style.display = '';
+                            startButton.disabled = false;
+                            
+                            // Clear the interval since we have a final state
+                            clearJobStatusPolling();
+                        } 
+                        else if (data.state === "Failed") {
+                            // Job failed
+                            progressBar.classList.remove('bg-info');
+                            progressBar.classList.add('bg-danger');
+                            progressStatus.textContent = "Enrichment failed";
+                            startButton.disabled = false;
+                            
+                            if (data.errorMessage) {
+                                errorMessage.textContent = data.errorMessage;
+                                errorMessage.classList.remove('d-none');
+                            }
+                            
+                            // Clear the interval since we have a final state
+                            clearJobStatusPolling();
+                        }
+                        else if (data.state === "Processing" || data.state === "Scheduled" || data.state === "Enqueued") {
+                            // Job is still in progress
+                            progressStatus.textContent = `Enrichment in progress (Status: ${data.state})`;
+                            
+                            // If we have progress data available, update the progress bar
+                            if (data.progress && typeof data.progress.percentComplete !== 'undefined') {
+                                const percent = data.progress.percentComplete;
+                                progressBar.style.width = `${percent}%`;
+                                progressBar.setAttribute('aria-valuenow', percent);
+                                progressBar.textContent = `${percent}%`;
+                                
+                                if (data.progress.status) {
+                                    progressStatus.textContent = data.progress.status;
+                                }
+                                
+                                if (data.progress.details) {
+                                    progressDetails.textContent = data.progress.details;
+                                    
+                                    // Extract numbers for the results display
+                                    const detailsText = data.progress.details;
+                                    const enrichedMatch = detailsText.match(/Enriched: (\d+)/);
+                                    const failedMatch = detailsText.match(/Failed: (\d+)/);
+                                    const pendingMatch = detailsText.match(/Pending: (\d+)/);
+                                    const totalItems = data.progress.totalItems || 0;
+                                    
+                                    if (enrichedMatch && failedMatch) {
+                                        exercisesFound.textContent = totalItems;
+                                        exercisesEnriched.textContent = enrichedMatch[1];
+                                        exercisesFailed.textContent = failedMatch[1];
+                                        
+                                        // Check if we have pending selections
+                                        if (pendingMatch && parseInt(pendingMatch[1]) > 0) {
+                                            exercisesPending.textContent = pendingMatch[1];
+                                            pendingSelectionsResult.classList.remove('d-none');
+                                        } else {
+                                            pendingSelectionsResult.classList.add('d-none');
+                                        }
+                                    }
+                                }
+                                
+                                // Check if we have pending selections that need attention
+                                if (data.progress.currentItem && data.progress.currentItem.includes("need your selection")) {
+                                    // Show a notification that we need user input
+                                    progressStatus.textContent = "Waiting for user input on some exercises";
+                                    progressBar.classList.remove('bg-info');
+                                    progressBar.classList.add('bg-warning');
+                                    
+                                    // Add a button to reload the page if not already there
+                                    if (!document.getElementById('reloadButton')) {
+                                        const reloadButton = document.createElement('a');
+                                        reloadButton.id = 'reloadButton';
+                                        reloadButton.href = '?showPending=true';
+                                        reloadButton.className = 'btn btn-warning mt-3';
+                                        reloadButton.innerHTML = '<i class="fas fa-sync"></i> Show Pending Selections';
+                                        progressSection.querySelector('.card-body').appendChild(reloadButton);
+                                    }
+                                }
+                            }
+                            
+                            // Keep the poll running
+                        }
+                        else {
+                            // Unknown state
+                            progressStatus.textContent = `Enrichment status: ${data.state}`;
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error("Error checking job status:", error);
+                    // Don't stop polling on errors, just try again next time
+                });
+        }
+        
+        // Start the connection and register for job updates if needed
+        function startConnection() {
+            console.log("Starting SignalR connection...");
+            
+            connection.start()
+                .then(() => {
+                    console.log("SignalR connected!");
+                    connectionStatus.textContent = "Connected";
+                    connectionStatus.className = "badge rounded-pill connected bg-success";
+                    isConnected = true;
+                    
+                    // Register for job updates if we have a job ID
+                    const jobId = "@Model.JobId";
+                    if (jobId && !jobRegistered) {
+                        registerForJobUpdates(jobId);
+                        
+                        // Show progress section since we have an active job
+                        progressSection.style.display = '';
+                    }
+                })
+                .catch(err => {
+                    console.error("SignalR Connection Error: ", err);
+                    connectionStatus.textContent = "Connection Failed";
+                    connectionStatus.className = "badge rounded-pill disconnected bg-danger";
+                    
+                    // If we have a job ID, start polling as fallback
+                    const jobId = "@Model.JobId";
+                    if (jobId) {
+                        startJobStatusPolling();
+                        
+                        // Show progress section since we have an active job
+                        progressSection.style.display = '';
+                    }
+                    
+                    // Try to reconnect after a delay
+                    setTimeout(startConnection, 5000);
+                });
+        }
+
+        // Initialize when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize SignalR connection
+            initializeConnection();
+            
+            // Start the connection
+            startConnection();
+        });
+    </script>
+}
