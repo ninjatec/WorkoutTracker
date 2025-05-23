@@ -56,6 +56,7 @@ using OpenTelemetry.Trace;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Exporter;
 using OpenTelemetry;
+using System.Diagnostics;
 
 namespace WorkoutTrackerWeb
 {
@@ -94,50 +95,166 @@ namespace WorkoutTrackerWeb
 
             var openTelemetryConfig = builder.Configuration.GetSection("OpenTelemetry").Get<OpenTelemetryConfig>() ?? new OpenTelemetryConfig();
 
-            if (openTelemetryConfig.Enabled)
+            // Only enable OpenTelemetry in production
+            if (!builder.Environment.IsDevelopment() && openTelemetryConfig.Enabled)
             {
-                builder.Services.AddOpenTelemetry()
-                    .ConfigureResource(resource => resource
-                        .AddService(openTelemetryConfig.ServiceName,
-                                   serviceVersion: openTelemetryConfig.ServiceVersion,
-                                   serviceInstanceId: Environment.MachineName))
-                    .WithTracing(tracing => {
-                        // Add instrumentation sources
-                        tracing.AddAspNetCoreInstrumentation()
-                              .AddHttpClientInstrumentation()
+                try
+                {
+                    Log.Information("Configuring OpenTelemetry with endpoint: {Endpoint}, Service: {ServiceName}, Version: {ServiceVersion}", 
+                        openTelemetryConfig.OtlpExporterEndpoint, openTelemetryConfig.ServiceName, openTelemetryConfig.ServiceVersion);
+
+                    if (string.IsNullOrEmpty(openTelemetryConfig.OtlpExporterEndpoint))
+                    {
+                        throw new InvalidOperationException("OpenTelemetry OTLP exporter endpoint is not configured");
+                    }
+
+                    if (string.IsNullOrEmpty(openTelemetryConfig.ServiceName))
+                    {
+                        throw new InvalidOperationException("OpenTelemetry service name is not configured");
+                    }
+
+                    builder.Services.AddOpenTelemetry()
+                        .ConfigureResource(resource => resource
+                            .AddService(openTelemetryConfig.ServiceName,
+                                       serviceVersion: openTelemetryConfig.ServiceVersion,
+                                       serviceInstanceId: Environment.MachineName))
+                        .WithTracing(tracing => {
+                            // Configure sampling
+                            if (openTelemetryConfig.SamplingProbability > 0 && openTelemetryConfig.SamplingProbability <= 1.0)
+                            {
+                                tracing.SetSampler(new TraceIdRatioBasedSampler(openTelemetryConfig.SamplingProbability));
+                                Log.Information("OpenTelemetry sampling configured with probability: {SamplingProbability}", openTelemetryConfig.SamplingProbability);
+                            }
+
+                            // Add instrumentation sources
+                            tracing.AddAspNetCoreInstrumentation(options => 
+                                {
+                                    options.RecordException = true;
+                                    options.EnrichWithHttpRequest = (activity, request) =>
+                                    {
+                                        var userAgent = request.Headers.UserAgent.ToString();
+                                        if (!string.IsNullOrEmpty(userAgent))
+                                        {
+                                            activity.SetTag("http.user_agent", userAgent);
+                                        }
+                                        
+                                        var clientIp = request.Headers["X-Real-IP"].FirstOrDefault() 
+                                            ?? request.Headers["X-Forwarded-For"].FirstOrDefault() 
+                                            ?? request.HttpContext.Connection.RemoteIpAddress?.ToString();
+                                        if (!string.IsNullOrEmpty(clientIp))
+                                        {
+                                            activity.SetTag("http.client_ip", clientIp);
+                                        }
+                                    };
+                                    options.EnrichWithHttpResponse = (activity, response) =>
+                                    {
+                                        activity.SetTag("http.response.status_code", response.StatusCode);
+                                    };
+                                })
+                              .AddHttpClientInstrumentation(options =>
+                                {
+                                    options.RecordException = true;
+                                    options.EnrichWithHttpRequestMessage = (activity, request) =>
+                                    {
+                                        activity.SetTag("http.request.method", request.Method.Method);
+                                        activity.SetTag("http.url", request.RequestUri?.ToString());
+                                    };
+                                    options.EnrichWithHttpResponseMessage = (activity, response) =>
+                                    {
+                                        activity.SetTag("http.response.status_code", (int)response.StatusCode);
+                                    };
+                                })
                               .AddSqlClientInstrumentation(options => 
                               {
                                   options.SetDbStatementForText = true;
                                   options.RecordException = true;
                               });
 
-                        // Configure Redis instrumentation if enabled
-                        var redisConfig = builder.Configuration.GetSection("Redis").Get<Models.Configuration.RedisConfiguration>();
-                        if (redisConfig?.Enabled == true && !string.IsNullOrEmpty(redisConfig.ConnectionString))
-                        {
-                            tracing.AddRedisInstrumentation(options => {
-                                options.FlushInterval = TimeSpan.FromSeconds(10);
-                                options.EnrichActivityWithTimingEvents = true;
-                                options.SetVerboseDatabaseStatements = true;
-                            });
-                        }
+                            // Add Entity Framework Core instrumentation
+                            builder.Services.AddOpenTelemetry()
+                                .WithTracing(builder => builder.AddEntityFrameworkCoreInstrumentation(options =>
+                                {
+                                    options.SetDbStatementForText = true;
+                                }));
 
-                        // Add custom instrumentation sources
-                        tracing.AddSource(openTelemetryConfig.Sources?.ToArray() ?? new[] { "WorkoutTracker.CustomInstrumentation" });
+                            // Configure Redis instrumentation if enabled
+                            var redisConfig = builder.Configuration.GetSection("Redis").Get<WorkoutTrackerWeb.Services.Redis.RedisConfiguration>();
+                            if (redisConfig?.Enabled == true && !string.IsNullOrEmpty(redisConfig.ConnectionString))
+                            {
+                                try
+                                {
+                                    tracing.AddRedisInstrumentation();
+                                    Log.Information("Redis tracing instrumentation enabled");
+                                }
+                                catch (Exception ex)
+                                {
+                                    Log.Error(ex, "Failed to configure Redis tracing instrumentation");
+                                    throw; // Re-throw to prevent running without Redis tracing
+                                }
+                            }
 
-                        // Configure OpenTelemetry Protocol exporter
-                        tracing.AddOtlpExporter(otlpOptions =>
-                        {
-                            otlpOptions.Endpoint = new Uri(openTelemetryConfig.OtlpExporterEndpoint ?? "http://tempo:4317");
-                            otlpOptions.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                            // Add custom instrumentation sources including Hangfire
+                            var sources = (openTelemetryConfig.Sources?.ToList() ?? new List<string> { "WorkoutTracker.CustomInstrumentation" })
+                                .Concat(new[] { "Hangfire" })
+                                .Distinct()
+                                .ToArray();
+                            
+                            tracing.AddSource(sources);
+                            Log.Information("OpenTelemetry sources configured: {Sources}", string.Join(", ", sources));
+
+                            // Configure OpenTelemetry Protocol exporter with error handling
+                            try
+                            {
+                                var endpoint = openTelemetryConfig.OtlpExporterEndpoint ?? "http://tempo:4317";
+                                var uri = new Uri(endpoint); // Validate URI format
+                                
+                                tracing.AddOtlpExporter(otlpOptions =>
+                                {
+                                    otlpOptions.Endpoint = uri;
+                                    otlpOptions.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                                    otlpOptions.TimeoutMilliseconds = 30000; // 30 second timeout
+                                });
+                                Log.Information("OTLP exporter configured successfully with endpoint: {Endpoint}", endpoint);
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Error(ex, "Failed to configure OTLP exporter. Application will not start to prevent running without tracing.");
+                                throw; // Re-throw to prevent application startup
+                            }
+
+                            // Add console exporter if enabled
+                            if (openTelemetryConfig.ConsoleExporterEnabled)
+                            {
+                                try
+                                {
+                                    tracing.AddConsoleExporter();
+                                    Log.Information("Console exporter enabled for OpenTelemetry traces");
+                                }
+                                catch (Exception ex)
+                                {
+                                    Log.Error(ex, "Failed to configure console exporter");
+                                }
+                            }
                         });
 
-                        // Add console exporter if enabled
-                        if (openTelemetryConfig.ConsoleExporterEnabled)
-                        {
-                            tracing.AddConsoleExporter();
-                        }
-                    });
+                    Log.Information("OpenTelemetry configuration completed successfully");
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Critical failure in OpenTelemetry configuration. Application will not start to prevent running without tracing.");
+                    throw; // Re-throw to prevent application startup
+                }
+            }
+            else
+            {
+                if (builder.Environment.IsDevelopment())
+                {
+                    Log.Information("OpenTelemetry is disabled in development environment");
+                }
+                else 
+                {
+                    Log.Warning("OpenTelemetry is disabled in production environment. This may be unintentional.");
+                }
             }
 
             // Add TelemetryService
