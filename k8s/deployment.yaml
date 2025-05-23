@@ -135,10 +135,10 @@ spec:
         - name: OTLP_ENDPOINT
           valueFrom:
             secretKeyRef:
-              name: workouttracker-tempo-secrets
+              name: workouttracker-secrets
               key: OTLP_ENDPOINT
         - name: OTEL_AUTH_BEARER
           valueFrom:
             secretKeyRef:
-              name: workouttracker-tempo-secrets
+              name: workouttracker-secrets
               key: OTEL_AUTH_BEARER
