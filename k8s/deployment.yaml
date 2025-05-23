@@ -132,3 +132,13 @@ spec:
             secretKeyRef:
               name: workouttracker-secrets
               key: ApiKeys__ApiNinjas
+        - name: OTLP_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-tempo-secrets
+              key: OTLP_ENDPOINT
+        - name: OTEL_AUTH_BEARER
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-tempo-secrets
+              key: OTEL_AUTH_BEARER

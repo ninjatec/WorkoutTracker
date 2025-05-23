@@ -12,11 +12,18 @@ using WorkoutTrackerWeb.Services.Hangfire;
 using WorkoutTrackerWeb.Services.Logging;
 using WorkoutTrackerWeb.Services.Alerting;
 using WorkoutTrackerWeb.Services.Calculations;
+using WorkoutTrackerWeb.Services.Cache;
+using WorkoutTrackerWeb.Services.Redis;
+using WorkoutTrackerWeb.Extensions;
 using WorkoutTrackerWeb.Middleware;
 using WorkoutTrackerWeb.Hubs;
+using WorkoutTrackerWeb.HealthChecks;
+using WorkoutTrackerWeb.Models.Configuration;
+using WorkoutTrackerWeb.Utilities;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.DataProtection;
 using System.IO;
+using System.IO.Compression;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using System.Text.Json;
@@ -27,38 +34,28 @@ using AspNetCoreRateLimit;
 using Serilog;
 using Serilog.Events;
 using Serilog.Context;
+using Serilog.Enrichers.Span;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.AspNetCore.HttpOverrides;
 using Hangfire;
 using Hangfire.SqlServer;
 using Hangfire.Dashboard;
 using Hangfire.Redis.StackExchange;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.SqlServer;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.AspNetCore.StaticFiles;
 using StackExchange.Redis;
 using HealthChecks.Redis;
-using HealthChecks.System;
-using Microsoft.AspNetCore.HttpOverrides;
-using WorkoutTrackerWeb.Services.TempData;
-using Microsoft.EntityFrameworkCore.SqlServer;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Diagnostics;
-using WorkoutTrackerWeb.HealthChecks;
-using Microsoft.Extensions.Options;
-using WorkoutTrackerWeb.Models;
-using WorkoutTrackerWeb.Services.Redis;
-using WorkoutTrackerWeb.Extensions;
-using WorkoutTrackerWeb.Services.Metrics;
-using Microsoft.AspNetCore.Authorization;
-using WorkoutTrackerWeb.Services.Cache;
-using Microsoft.AspNetCore.ResponseCompression;
-using System.IO.Compression;
-using System;
-using System.Linq;
-using Hangfire.Common;
-using Hangfire.States;
-using Hangfire.Storage;
-using WorkoutTrackerWeb.Utilities;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Exporter;
+using OpenTelemetry;
 
 namespace WorkoutTrackerWeb
 {
@@ -72,13 +69,13 @@ namespace WorkoutTrackerWeb
                     .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production"}.json", optional: true, reloadOnChange: true)
                     .AddEnvironmentVariables()
                     .Build())
+                .Enrich.FromLogContext()
+                .Enrich.WithSpan()
                 .CreateLogger();
 
             try
             {
                 Log.Information("Starting up WorkoutTracker application");
-
-                // Run as synchronous to avoid issues with top-level statements
                 MainAsync(args).GetAwaiter().GetResult();
             }
             catch (Exception ex)
@@ -94,6 +91,57 @@ namespace WorkoutTrackerWeb
         private static async Task MainAsync(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
+            var openTelemetryConfig = builder.Configuration.GetSection("OpenTelemetry").Get<OpenTelemetryConfig>() ?? new OpenTelemetryConfig();
+
+            if (openTelemetryConfig.Enabled)
+            {
+                builder.Services.AddOpenTelemetry()
+                    .ConfigureResource(resource => resource
+                        .AddService(openTelemetryConfig.ServiceName,
+                                   serviceVersion: openTelemetryConfig.ServiceVersion,
+                                   serviceInstanceId: Environment.MachineName))
+                    .WithTracing(tracing => {
+                        // Add instrumentation sources
+                        tracing.AddAspNetCoreInstrumentation()
+                              .AddHttpClientInstrumentation()
+                              .AddSqlClientInstrumentation(options => 
+                              {
+                                  options.SetDbStatementForText = true;
+                                  options.RecordException = true;
+                              });
+
+                        // Configure Redis instrumentation if enabled
+                        var redisConfig = builder.Configuration.GetSection("Redis").Get<Models.Configuration.RedisConfiguration>();
+                        if (redisConfig?.Enabled == true && !string.IsNullOrEmpty(redisConfig.ConnectionString))
+                        {
+                            tracing.AddRedisInstrumentation(options => {
+                                options.FlushInterval = TimeSpan.FromSeconds(10);
+                                options.EnrichActivityWithTimingEvents = true;
+                                options.SetVerboseDatabaseStatements = true;
+                            });
+                        }
+
+                        // Add custom instrumentation sources
+                        tracing.AddSource(openTelemetryConfig.Sources?.ToArray() ?? new[] { "WorkoutTracker.CustomInstrumentation" });
+
+                        // Configure OpenTelemetry Protocol exporter
+                        tracing.AddOtlpExporter(otlpOptions =>
+                        {
+                            otlpOptions.Endpoint = new Uri(openTelemetryConfig.OtlpExporterEndpoint ?? "http://tempo:4317");
+                            otlpOptions.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                        });
+
+                        // Add console exporter if enabled
+                        if (openTelemetryConfig.ConsoleExporterEnabled)
+                        {
+                            tracing.AddConsoleExporter();
+                        }
+                    });
+            }
+
+            // Add TelemetryService
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Telemetry.TelemetryService>();
 
             var allowedHosts = builder.Configuration["AllowedHosts"]?.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? Array.Empty<string>();
 
@@ -446,6 +494,9 @@ namespace WorkoutTrackerWeb
 
             builder.Services.AddScoped<IUserService, UserService>();
             builder.Services.AddScoped<UserService>();
+            
+            // Register TelemetryService
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Telemetry.TelemetryService>();
 
             builder.Services.AddScoped<WorkoutDataPortabilityService>();
 
