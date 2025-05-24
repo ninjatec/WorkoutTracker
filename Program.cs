@@ -103,7 +103,7 @@ namespace WorkoutTrackerWeb
                     // Get the endpoint from config or environment variable for better diagnostics
                     var endpoint = openTelemetryConfig.OtlpExporterEndpoint ?? 
                                   Environment.GetEnvironmentVariable("OTLP_ENDPOINT") ?? 
-                                  "http://otel-collector.monitoring:4318";
+                                  "http://otel-collector.monitoring:4317";
                     
                     // Add diagnostic information about authentication
                     var bearerToken = Environment.GetEnvironmentVariable("OTEL_AUTH_BEARER");
@@ -214,14 +214,11 @@ namespace WorkoutTrackerWeb
                             // Configure OpenTelemetry Protocol exporter with error handling
                             try
                             {
-                                var endpoint = openTelemetryConfig.OtlpExporterEndpoint ?? "http://tempo:4318";
+                                var endpoint = openTelemetryConfig.OtlpExporterEndpoint ?? "http://tempo:4317";
                                 var uri = new Uri(endpoint); // Validate URI format
                                 
-                                // Determine protocol based on port number or config
-                                bool useGrpc = uri.Port == 4317;
-                                var protocol = useGrpc ? 
-                                    OpenTelemetry.Exporter.OtlpExportProtocol.Grpc : 
-                                    OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+                                // Always use gRPC protocol for better performance
+                                var protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
                                 
                                 // Get the bearer token from environment variable
                                 var bearerToken = Environment.GetEnvironmentVariable("OTEL_AUTH_BEARER");
