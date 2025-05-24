@@ -100,8 +100,17 @@ namespace WorkoutTrackerWeb
             {
                 try
                 {
-                    Log.Information("Configuring OpenTelemetry with endpoint: {Endpoint}, Service: {ServiceName}, Version: {ServiceVersion}", 
-                        openTelemetryConfig.OtlpExporterEndpoint, openTelemetryConfig.ServiceName, openTelemetryConfig.ServiceVersion);
+                    // Get the endpoint from config or environment variable for better diagnostics
+                    var endpoint = openTelemetryConfig.OtlpExporterEndpoint ?? 
+                                  Environment.GetEnvironmentVariable("OTLP_ENDPOINT") ?? 
+                                  "http://otel-collector.monitoring:4318";
+                    
+                    // Add diagnostic information about authentication
+                    var bearerToken = Environment.GetEnvironmentVariable("OTEL_AUTH_BEARER");
+                    bool hasAuthToken = !string.IsNullOrEmpty(bearerToken);
+                    
+                    Log.Information("Configuring OpenTelemetry with endpoint: {Endpoint}, Service: {ServiceName}, Version: {ServiceVersion}, Auth Configured: {HasAuth}", 
+                        endpoint, openTelemetryConfig.ServiceName, openTelemetryConfig.ServiceVersion, hasAuthToken);
 
                     if (string.IsNullOrEmpty(openTelemetryConfig.OtlpExporterEndpoint))
                     {
@@ -205,20 +214,45 @@ namespace WorkoutTrackerWeb
                             // Configure OpenTelemetry Protocol exporter with error handling
                             try
                             {
-                                var endpoint = openTelemetryConfig.OtlpExporterEndpoint ?? "http://tempo:4317";
+                                var endpoint = openTelemetryConfig.OtlpExporterEndpoint ?? "http://tempo:4318";
                                 var uri = new Uri(endpoint); // Validate URI format
+                                
+                                // Determine protocol based on port number or config
+                                bool useGrpc = uri.Port == 4317;
+                                var protocol = useGrpc ? 
+                                    OpenTelemetry.Exporter.OtlpExportProtocol.Grpc : 
+                                    OpenTelemetry.Exporter.OtlpExportProtocol.HttpProtobuf;
+                                
+                                // Get the bearer token from environment variable
+                                var bearerToken = Environment.GetEnvironmentVariable("OTEL_AUTH_BEARER");
                                 
                                 tracing.AddOtlpExporter(otlpOptions =>
                                 {
                                     otlpOptions.Endpoint = uri;
-                                    otlpOptions.Protocol = OpenTelemetry.Exporter.OtlpExportProtocol.Grpc;
+                                    otlpOptions.Protocol = protocol;
                                     otlpOptions.TimeoutMilliseconds = 30000; // 30 second timeout
+                                    
+                                    // Set authentication headers if token is available
+                                    if (!string.IsNullOrEmpty(bearerToken))
+                                    {
+                                        otlpOptions.Headers = $"Authorization=Bearer {bearerToken}";
+                                        Log.Information("Authentication configured for OTLP exporter");
+                                    }
                                 });
-                                Log.Information("OTLP exporter configured successfully with endpoint: {Endpoint}", endpoint);
+                                
+                                Log.Information("OTLP exporter configured successfully with endpoint: {Endpoint}, protocol: {Protocol}", 
+                                    endpoint, protocol);
                             }
                             catch (Exception ex)
                             {
-                                Log.Error(ex, "Failed to configure OTLP exporter. Application will not start to prevent running without tracing.");
+                                Log.Error(ex, "Failed to configure OTLP exporter with endpoint {Endpoint}. Error details: {ErrorMessage}",
+                                    openTelemetryConfig.OtlpExporterEndpoint, 
+                                    ex.ToString());
+                                    
+                                // Log environment information for debugging
+                                var bearerToken = Environment.GetEnvironmentVariable("OTEL_AUTH_BEARER");
+                                Log.Information("OTEL_AUTH_BEARER present: {HasToken}", !string.IsNullOrEmpty(bearerToken));
+                                
                                 throw; // Re-throw to prevent application startup
                             }
 
@@ -257,8 +291,11 @@ namespace WorkoutTrackerWeb
                 }
             }
 
-            // Add TelemetryService
+            // Add Telemetry Services
             builder.Services.AddScoped<WorkoutTrackerWeb.Services.Telemetry.TelemetryService>();
+            
+            // Add diagnostic trace service to help troubleshoot OpenTelemetry issues
+            builder.Services.AddHostedService<WorkoutTrackerWeb.Services.Telemetry.DiagnosticTraceService>();
 
             var allowedHosts = builder.Configuration["AllowedHosts"]?.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? Array.Empty<string>();
 
