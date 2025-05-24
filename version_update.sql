@@ -1,3 +1,3 @@
 -- Recording deployment version
 INSERT INTO Deployments (Version, GitCommit, DeploymentDate)
-VALUES ('2.4.1.4', '41a4c71807aa7949de456e5b4e4fd6b9700c4763', CURRENT_TIMESTAMP);
+VALUES ('2.4.1.5', '1cca2c036ff84538b1678e8b2a60771977f50be0', CURRENT_TIMESTAMP);
