@@ -464,7 +464,10 @@ namespace WorkoutTrackerWeb.Pages.Templates
                 return RedirectToPage("/Account/Login");
             }
 
+            // Load the template and set together to ensure proper change tracking
             var template = await _context.WorkoutTemplate
+                .Include(t => t.TemplateExercises)
+                    .ThenInclude(e => e.TemplateSets)
                 .FirstOrDefaultAsync(t => t.WorkoutTemplateId == templateId);
 
             if (template == null || template.UserId != currentUser.UserId)
@@ -472,11 +475,10 @@ namespace WorkoutTrackerWeb.Pages.Templates
                 return Forbid();
             }
 
-            // Find the set and verify it belongs to the template
-            var setToUpdate = await _context.WorkoutTemplateSet
-                .Include(s => s.WorkoutTemplateExercise)
-                .FirstOrDefaultAsync(s => s.WorkoutTemplateSetId == setId && 
-                                      s.WorkoutTemplateExercise.WorkoutTemplateId == templateId);
+            // Find the set in the loaded template to ensure proper change tracking
+            var setToUpdate = template.TemplateExercises
+                .SelectMany(e => e.TemplateSets)
+                .FirstOrDefault(s => s.WorkoutTemplateSetId == setId);
 
             if (setToUpdate == null)
             {
@@ -492,7 +494,7 @@ namespace WorkoutTrackerWeb.Pages.Templates
             setToUpdate.Notes = notes ?? string.Empty;
             setToUpdate.RestTime = restTime.HasValue ? TimeSpan.FromSeconds(restTime.Value) : TimeSpan.FromSeconds(60);
             
-            // Update template modification date
+            // Update template modification date - this should now be properly tracked
             template.LastModifiedDate = DateTime.Now;
 
             await _context.SaveChangesAsync();
