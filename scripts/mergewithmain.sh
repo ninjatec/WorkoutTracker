@@ -15,9 +15,9 @@ CURRENT_BRANCH=$(git branch --show-current)
 echo "Current branch: $CURRENT_BRANCH"
 
 # First ensure dev branch is up to date
-echo "Updating dev branch..."
-git checkout dev
-git pull origin dev
+echo "Updating Dev branch..."
+git checkout Dev
+git pull origin Dev
 
 # Check for any uncommitted changes
 if [[ -n $(git status -s) ]]; then
@@ -38,7 +38,7 @@ git pull origin main
 
 # Perform the merge with strategy to prefer dev branch for conflicts
 echo "Merging dev into main with dev branch having precedence..."
-git merge dev -X theirs
+git merge Dev -X theirs
 
 # Confirm the merge worked
 if [[ $? -ne 0 ]]; then
