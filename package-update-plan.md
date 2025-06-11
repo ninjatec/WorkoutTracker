@@ -1,14 +1,35 @@
 # WorkoutTracker Package Update Plan
 
-## Current Package Status (as of May 24, 2025)
+## Current Package Status (as of June 11, 2025)
 
-The project is correctly using .NET 9.0 and most packages are up to date. There are a few packages that could be updated:
+The project is correctly using .NET 9.0 SDK version 9.0.202, which is up to date. There are several packages that could be updated:
 
 ### Immediate Updates
 
-1. **Microsoft.AspNetCore.Session**: Update from 2.3.0 to 9.0.5
-   - This is a critical update to match the version of other ASP.NET Core packages
-   - Command: `dotnet add package Microsoft.AspNetCore.Session --version 9.0.5`
+1. **Microsoft ASP.NET Core and Entity Framework Core Packages**: Update from 9.0.5 to 9.0.6
+   - These are minor updates that include bug fixes and improvements
+   - Command: `dotnet add package [Package-Name] --version 9.0.6`
+   - Packages to update:
+     - Microsoft.AspNetCore.DataProtection.EntityFrameworkCore
+     - Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore
+     - Microsoft.AspNetCore.Identity.EntityFrameworkCore
+     - Microsoft.AspNetCore.Identity.UI
+     - Microsoft.AspNetCore.OutputCaching.StackExchangeRedis
+     - Microsoft.AspNetCore.SignalR.StackExchangeRedis
+     - Microsoft.EntityFrameworkCore.Design
+     - Microsoft.EntityFrameworkCore.SQLite
+     - Microsoft.EntityFrameworkCore.SqlServer
+     - Microsoft.EntityFrameworkCore.Tools
+     - Microsoft.Extensions.Caching.SqlServer
+     - Microsoft.Extensions.Caching.StackExchangeRedis
+     - Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore
+
+2. **Minor Package Updates**:
+   - CsvHelper: 33.0.1 → 33.1.0
+   - Polly: 8.5.2 → 8.6.0
+   - QuestPDF: 2025.5.0 → 2025.5.1
+   - SixLabors.ImageSharp: 3.1.8 → 3.1.9
+   - StackExchange.Redis: 2.8.37 → 2.8.41
 
 ### Updates to Test in Development First
 
@@ -42,12 +63,13 @@ The following OpenTelemetry packages are currently in beta/RC status for .NET 9.
 
 ## Update Execution Plan
 
-1. Create a Git branch for package updates: `git checkout -b package-updates-2025-05-24`
-2. Update the Microsoft.AspNetCore.Session package first
-3. Build and test the application
-4. If successful, commit the change: `git commit -m "Update Microsoft.AspNetCore.Session to 9.0.5"`
-5. Create separate branches for testing the other updates in development
-6. After thorough testing, merge the updates into the main branch
+1. Create a Git branch for package updates: `git checkout -b package-updates-2025-06-11`
+2. Update the Microsoft ASP.NET Core and Entity Framework Core packages to 9.0.6
+3. Update the minor version packages (CsvHelper, Polly, QuestPDF, etc.)
+4. Build and test the application
+5. If successful, commit the changes: `git commit -m "Update packages to latest versions (June 2025)"`
+6. Create separate branches for testing the major updates (Hangfire.Console.Extensions and Microsoft.Data.SqlClient)
+7. After thorough testing, merge the updates into the main branch
 
 ## Future Package Maintenance Plan
 
