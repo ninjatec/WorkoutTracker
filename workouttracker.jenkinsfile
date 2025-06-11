@@ -442,61 +442,24 @@ EOF
         }        
     }
     
-    post {
+   post {
         success {
             script {
-                if (env.DOCKER_PUSH_FAILED == "true") {
-                    echo """====================================================
-Deployment Partially Complete!                               
-Version: ${env.VERSION}                                
-Commit: ${env.GIT_COMMIT}
-
-WARNING: Docker image push failed due to network issues.
-The Docker image will need to be pushed manually.                             
- ===================================================="""
-                } else {
-                    echo """====================================================
-Deployment Complete!                               
-Version: ${env.VERSION}                                
-Commit: ${env.GIT_COMMIT}                              
-===================================================="""
-                }
+                slackSend (
+                    channel: '#jenkins-notifications',
+                    color: 'good',
+                    message: "✅ *SUCCESS:* Build Ansible Image playbook execution completed successfully on ${env.BUILD_URL}"
+                )
             }
-            emailext(
-                to: 'marc.coxall@ninjatec.co.uk',
-                subject: "WorkoutTracker Deployment Succeeded: v${env.VERSION}",
-                body: """
-Deployment Succeeded!
-Version: ${env.VERSION}
-Commit: ${env.GIT_COMMIT}
-Job: ${env.JOB_NAME} #${env.BUILD_NUMBER}
-Build URL: ${env.BUILD_URL}
-"""
-            )
         }
         failure {
-            echo """====================================================
-Deployment FAILED!
-Version: ${env.VERSION}
-Commit: ${env.GIT_COMMIT}
-===================================================="""
-            emailext(
-                to: 'marc.coxall@ninjatec.co.uk',
-                subject: "WorkoutTracker Deployment FAILED: v${env.VERSION}",
-                attachLog: true,
-                body: """
-Deployment FAILED!
-Version: ${env.VERSION}
-Commit: ${env.GIT_COMMIT}
-Job: ${env.JOB_NAME} #${env.BUILD_NUMBER}
-Build URL: ${env.BUILD_URL}
-"""
-            )
-            // Optional: Add notification system here (e.g., email, Slack)
-            // slackSend channel: '#deployments', color: 'danger', message: "Deployment of WorkoutTracker v${env.VERSION} failed!"
-        }
-        aborted {
-            echo "Pipeline was aborted"
+            script {
+                slackSend (
+                    channel: '#jenkins-notifications',
+                    color: 'danger',
+                    message: "❌ *FAILED:* Build Ansible Image playbook execution failed. Check details at ${env.BUILD_URL}"
+                )
+            }
         }
     }
 }
