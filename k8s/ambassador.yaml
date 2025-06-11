@@ -27,7 +27,7 @@ spec:
   acmeProvider:
     authority: none
   tlsSecret:
-    name: ambassador-certs-wot
+    name: ambassador-certs-workouttracker
   tlsContext:
     name: tls-context-workouttracker
   requestPolicy:
@@ -45,7 +45,7 @@ spec:
   acmeProvider:
     authority: none
   tlsSecret:
-    name: ambassador-certs-wot
+    name: ambassador-certs-workouttracker
   tlsContext:
     name: tls-context-workouttracker
   requestPolicy:
@@ -84,7 +84,7 @@ spec:
   hosts:
   - www.workouttracker.online
   - workouttracker.online
-  secret: ambassador-certs-wot
+  secret: ambassador-certs-workouttracker
   secret_namespacing: false
   min_tls_version: v1.2
   cipher_suites:
