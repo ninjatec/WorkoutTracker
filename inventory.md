@@ -67,6 +67,11 @@ This document maintains an up-to-date inventory of all features, components, and
 - Import/Export System
 - Scheduling System
 - Health Monitoring
+  - Components:
+    - Health Check Endpoints
+    - Database Connection Monitoring
+    - Google Analytics Integration
+    - Prometheus Metrics
 - Alerting System
 - Responsive Design System
   - Components:
@@ -670,7 +675,11 @@ This document maintains an up-to-date inventory of all features, components, and
 - Added responsive public-facing blog pages
 - Integrated blog navigation into the main menu
 
-### User Preference Management
-- Includes `ThemePreference` property in the `AppUser` model to store user-selected theme (light or dark).
-- Integrated with the Razor Pages layout to dynamically apply the selected theme.
-- Supports caching and output invalidation for seamless user experience.
+## 2025-06-11: Google Analytics Integration
+- Added Google Analytics 4 tracking code to the main layout template
+- Configured to track user behavior and site usage across all pages
+- Integrated with existing monitoring and health check system
+- Provides insights on user engagement, retention, and site performance
+- Tracking ID: G-FPNTMYLWPW
+- Implementation leverages standard gtag.js script
+- Compliant with privacy policy requirements

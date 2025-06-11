@@ -401,6 +401,7 @@ The application includes comprehensive health monitoring for production environm
   - Custom application metrics for workout sessions, sets, and reps
   - Performance metrics for HTTP requests and active users
   - System metrics for disk space and memory usage
+  - Google Analytics integration for user behavior tracking and insights
 
 ## Deployment
 
