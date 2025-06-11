@@ -448,7 +448,7 @@ EOF
                 slackSend (
                     channel: '#jenkins-notifications',
                     color: 'good',
-                    message: "✅ *SUCCESS:* Build Ansible Image playbook execution completed successfully on ${env.BUILD_URL}"
+                    message: "✅ *SUCCESS:* Build WoT playbook execution completed successfully on ${env.BUILD_URL}"
                 )
             }
         }
@@ -457,7 +457,7 @@ EOF
                 slackSend (
                     channel: '#jenkins-notifications',
                     color: 'danger',
-                    message: "❌ *FAILED:* Build Ansible Image playbook execution failed. Check details at ${env.BUILD_URL}"
+                    message: "❌ *FAILED:* Build WoT playbook execution failed. Check details at ${env.BUILD_URL}"
                 )
             }
         }

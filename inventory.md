@@ -683,3 +683,15 @@ This document maintains an up-to-date inventory of all features, components, and
 - Tracking ID: G-FPNTMYLWPW
 - Implementation leverages standard gtag.js script
 - Compliant with privacy policy requirements
+
+## 2025-06-11: Google Analytics Layout Coverage Fix
+- Fixed Google Analytics tracking not being detected on www.workouttracker.online
+- Added Google Analytics tracking code to all layout templates:
+  - `/Pages/Shared/_Layout.cshtml` - Main Razor Pages layout
+  - `/Pages/Shared/_SharedLayout.cshtml` - Shared/public pages layout
+  - `/Areas/Coach/Pages/Shared/_Layout.cshtml` - Coach portal layout
+  - `/Views/Shared/_SharedLayout.cshtml` - MVC views shared layout
+- Google Analytics code was previously only in `/Views/Shared/_Layout.cshtml`
+- All layouts now include consistent G-FPNTMYLWPW tracking implementation
+- Verified build compilation succeeds with changes
+- Analytics should now be detected across all site sections
