@@ -67,7 +67,7 @@ The following OpenTelemetry packages are currently in beta/RC status for .NET 9.
 2. Update the Microsoft ASP.NET Core and Entity Framework Core packages to 9.0.6
 3. Update the minor version packages (CsvHelper, Polly, QuestPDF, etc.)
 4. Build and test the application
-5. If successful, commit the changes: `git commit -m "Update packages to latest versions (June 2025)"`
+5. If successful, commit the changes: `git commit -m "Update ASP.NET Core & EF Core packages to 9.0.6 and minor packages (June 2025)"`
 6. Create separate branches for testing the major updates (Hangfire.Console.Extensions and Microsoft.Data.SqlClient)
 7. After thorough testing, merge the updates into the main branch
 
