@@ -1,5 +1,0 @@
-Starting Hangfire Schema repair script
-HangFire schema already exists
-[HangFire].[Schema] table already exists
-Schema version 9 already exists - no changes needed
-Hangfire Schema repair completed
