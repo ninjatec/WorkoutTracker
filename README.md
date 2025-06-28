@@ -482,6 +482,15 @@ The application provides comprehensive data portability features:
 
 ## Recent Updates
 
+- **Package Updates (June 28, 2025)**:
+  - Updated Hangfire.Console.Extensions from 1.0.5 to 2.0.0
+  - Updated MailKit from 4.12.1 to 4.13.0
+  - Updated Microsoft.Data.SqlClient from 5.2.2 to 6.0.2
+  - Updated OpenTelemetry.Instrumentation.EntityFrameworkCore from 1.10.0-beta.1 to 1.12.0-beta.2
+  - Updated Polly from 8.6.0 to 8.6.1
+  - Updated SixLabors.ImageSharp from 3.1.9 to 3.1.10
+  - All packages successfully compiled and tested
+
 - **Enhanced Entity Framework Core Relationships**:
   - Fixed foreign key attribute conflicts between WorkoutSchedule and WorkoutSession
   - Properly configured relationships between CoachClientRelationship and AppUser
