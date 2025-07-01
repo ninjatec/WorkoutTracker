@@ -20,6 +20,24 @@ spec:
 apiVersion: getambassador.io/v3alpha1
 kind: Host
 metadata:
+  name: www.ninjatec.co.uk
+  namespace: emissary
+spec:
+  hostname: www.ninjatec.co.uk 
+  acmeProvider: 
+    authority: none
+  tlsSecret:
+    name: ambassador-certs
+  tlsContext:
+    name: tls-context-wot
+  requestPolicy:
+    insecure:
+      action: Redirect
+
+---
+apiVersion: getambassador.io/v3alpha1
+kind: Host
+metadata:
   name: www.workouttracker.online
   namespace: emissary
 spec:
@@ -62,6 +80,7 @@ spec:
   alpn_protocols: h2,http/1.1
   hosts:
   - wot.ninjatec.co.uk
+  - www.ninjatec.co.uk
   secret: ambassador-certs
   secret_namespacing: false
   min_tls_version: v1.2
