@@ -422,7 +422,7 @@ EOF
         
         stage('Commit Version Changes') {
             steps {
-                sshagent (credentials: ['cd7f398f-6e3f-462a-84ff-1c1e2ae3b4d2']) {
+                sshagent (credentials: ['github-deploykey']) {
                 sh """#!/bin/bash
                 set -e # Exit immediately if a command exits with a non-zero status
                 git add ./k8s/deployment.yaml
