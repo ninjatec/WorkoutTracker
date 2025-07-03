@@ -94,7 +94,8 @@ namespace WorkoutTrackerWeb.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting job status for job {JobId}", jobId);
+                var sanitizedJobId = jobId.Replace(Environment.NewLine, "").Replace("\n", "").Replace("\r", "");
+                _logger.LogError(ex, "Error getting job status for job {JobId}", sanitizedJobId);
                 return StatusCode(500, new { message = "An error occurred while checking job status", error = ex.Message });
             }
         }
