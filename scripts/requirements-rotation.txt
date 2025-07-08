@@ -1,0 +1,5 @@
+# SQL Credential Rotation Script Dependencies
+hvac>=1.0.0
+pyodbc>=4.0.0
+kubernetes>=25.0.0
+cryptography>=3.0.0

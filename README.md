@@ -448,6 +448,47 @@ The application is designed to run in a multi-container environment for improved
 - Comprehensive health checks and monitoring
 - Secure secrets management
 
+## Security
+
+### SQL Server Credential Rotation
+
+The application includes an automated SQL Server credential rotation system designed for zero-downtime operations in Kubernetes environments with HashiCorp Vault and External Secrets Operator.
+
+**Features:**
+- Zero-downtime credential rotation
+- Automated backup of old credentials
+- Comprehensive health monitoring
+- Kubernetes CronJob scheduling
+- Rollback capabilities
+- Security-compliant password generation
+
+**Location:** `/scripts/` directory contains:
+- `rotate-sql-credentials.py` - Core rotation logic
+- `rotate-credentials.sh` - User-friendly wrapper script
+- `check-rotation-health.py` - Health monitoring script
+- `README-credential-rotation.md` - Comprehensive documentation
+- `requirements-rotation.txt` - Python dependencies
+- `/k8s/sql-credential-rotation.yaml` - Kubernetes CronJob manifest
+
+**Quick Start:**
+```bash
+# Install dependencies
+pip3 install -r scripts/requirements-rotation.txt
+
+# Check system health
+./scripts/rotate-credentials.sh --check-prereqs
+
+# Perform dry run
+export VAULT_URL="https://vault.company.com"
+export VAULT_TOKEN="hvs.XXXXXXXXXX"
+./scripts/rotate-credentials.sh --dry-run
+
+# Execute rotation
+./scripts/rotate-credentials.sh
+```
+
+For detailed setup and configuration, see `scripts/README-credential-rotation.md`.
+
 ## Data Portability
 
 The application provides comprehensive data portability features:
