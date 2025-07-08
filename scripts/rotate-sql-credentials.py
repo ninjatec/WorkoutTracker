@@ -411,21 +411,21 @@ class SQLCredentialRotator:
             # Drop user from database
             drop_user_sql = f"""
             USE [{self.database}];
-            IF EXISTS (SELECT * FROM sys.database_principals WHERE name = '{old_username}')
+            IF EXISTS (SELECT * FROM sys.database_principals WHERE name = ?)
             BEGIN
-                DROP USER [{old_username}];
+                DROP USER [?];
             END
             """
-            cursor.execute(drop_user_sql)
+            cursor.execute(drop_user_sql, (old_username, old_username))
             
             # Drop login
-            drop_login_sql = f"""
-            IF EXISTS (SELECT * FROM sys.server_principals WHERE name = '{old_username}')
+            drop_login_sql = """
+            IF EXISTS (SELECT * FROM sys.server_principals WHERE name = ?)
             BEGIN
-                DROP LOGIN [{old_username}];
+                DROP LOGIN [?];
             END
             """
-            cursor.execute(drop_login_sql)
+            cursor.execute(drop_login_sql, (old_username, old_username))
             
             conn.commit()
             cursor.close()
