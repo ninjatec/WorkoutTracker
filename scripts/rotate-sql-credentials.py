@@ -298,7 +298,7 @@ class SQLCredentialRotator:
                     path=backup_path,
                     secret=current_secret['data']['data']
                 )
-                logger.info(f"Created backup at: {backup_path}")
+                logger.info("Backup created successfully.")
             
             # Update with new credentials
             current_secret = self.vault_client.secrets.kv.v2.read_secret_version(
