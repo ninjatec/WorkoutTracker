@@ -48,6 +48,7 @@ namespace WorkoutTrackerWeb.Middleware
                 
                 // Script sources - including Google Analytics and inline scripts
                 "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com 'unsafe-eval' 'unsafe-inline'",
+
                 
                 // Style sources - use nonces where possible
                 "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://fonts.googleapis.com 'unsafe-inline'",
