@@ -22,6 +22,7 @@ using WorkoutTrackerWeb.Models.Configuration;
 using WorkoutTrackerWeb.Utilities;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.DataProtection;
+using Aikido.Zen.DotNetCore;
 using System.IO;
 using System.IO.Compression;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -293,6 +294,10 @@ namespace WorkoutTrackerWeb
             
             // Add diagnostic trace service to help troubleshoot OpenTelemetry issues
             builder.Services.AddHostedService<WorkoutTrackerWeb.Services.Telemetry.DiagnosticTraceService>();
+
+            // Add Zen Firewall
+            builder.Services.AddZenFirewall();
+            Log.Information("Zen Firewall configured successfully");
 
             var allowedHosts = builder.Configuration["AllowedHosts"]?.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? Array.Empty<string>();
 
@@ -1195,6 +1200,9 @@ namespace WorkoutTrackerWeb
             app.UseCors("ProductionDomainPolicy");
 
             app.UseRouting();
+
+            // Add Zen Firewall middleware - placed after UseRouting() as recommended
+            app.UseZenFirewall();
 
             app.UseOutputCache();
 
