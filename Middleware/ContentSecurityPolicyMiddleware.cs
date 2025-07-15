@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace WorkoutTrackerWeb.Middleware
 {
@@ -36,24 +37,64 @@ namespace WorkoutTrackerWeb.Middleware
                 return string.Empty;
             }
 
-            // Build CSP header optimized for Cloudflare
-            var cspDirectives = new[]
+            // Get environment-specific settings
+            var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Development";
+            var isProduction = environment.Equals("Production", StringComparison.OrdinalIgnoreCase);
+
+            // Build CSP header optimized for Cloudflare with enhanced security
+            var cspDirectives = new List<string>
             {
                 "default-src 'self'",
-                "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com 'unsafe-inline' 'unsafe-eval'",
-                "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css 'unsafe-inline'",
-                "img-src 'self' data: blob: https://cdn.jsdelivr.net https://challenges.cloudflare.com",
-                "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com data:",
-                "connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online https://challenges.cloudflare.com wss://wot.ninjatec.co.uk wss://workouttracker.online wss://www.workouttracker.online ws://wot.ninjatec.co.uk ws://workouttracker.online ws://www.workouttracker.online wss://* ws://*",
-                "frame-src 'self' https://challenges.cloudflare.com",
-                "frame-ancestors 'self' https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online",
-                "form-action 'self' https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online https://challenges.cloudflare.com",
+                
+                // Script sources - minimize unsafe directives
+                isProduction 
+                    ? "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com 'unsafe-eval'"
+                    : "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com 'unsafe-inline' 'unsafe-eval'",
+                
+                // Style sources - use nonces where possible
+                "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://fonts.googleapis.com 'unsafe-inline'",
+                
+                // Image sources
+                "img-src 'self' data: blob: https://cdn.jsdelivr.net https://challenges.cloudflare.com https://avatars.githubusercontent.com",
+                
+                // Font sources
+                "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com data:",
+                
+                // Connection sources - restrict wildcards
+                $"connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net {GetAllowedDomains()} https://challenges.cloudflare.com {GetWebSocketUrls()}",
+                
+                // Frame sources
+                "frame-src 'self' https://challenges.cloudflare.com https://www.youtube.com",
+                
+                // Frame ancestors
+                $"frame-ancestors 'self' {GetAllowedDomains()}",
+                
+                // Form actions
+                $"form-action 'self' {GetAllowedDomains()} https://challenges.cloudflare.com",
+                
+                // Additional security directives
                 "base-uri 'self'",
                 "object-src 'none'",
+                "media-src 'self' https://cdn.jsdelivr.net",
+                "worker-src 'self' blob:",
+                "manifest-src 'self'",
+                
+                // Upgrade insecure requests
                 "upgrade-insecure-requests"
             };
 
             return string.Join("; ", cspDirectives);
+        }
+
+        private string GetAllowedDomains()
+        {
+            return "https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online";
+        }
+
+        private string GetWebSocketUrls()
+        {
+            // More restrictive WebSocket URLs instead of wildcards
+            return "wss://wot.ninjatec.co.uk wss://workouttracker.online wss://www.workouttracker.online ws://wot.ninjatec.co.uk ws://workouttracker.online ws://www.workouttracker.online";
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -66,11 +107,19 @@ namespace WorkoutTrackerWeb.Middleware
                 // Add CSP header if not already present and CSP is not empty
                 if (!string.IsNullOrEmpty(_cspHeader) && !response.Headers.ContainsKey("Content-Security-Policy"))
                 {
-                    response.Headers["Content-Security-Policy"] = _cspHeader;
+                    // Add CSP reporting endpoint if configured
+                    var cspWithReporting = _cspHeader;
+                    var reportUri = _configuration.GetValue<string>("Security:ContentSecurityPolicy:ReportUri");
+                    if (!string.IsNullOrEmpty(reportUri))
+                    {
+                        cspWithReporting += $"; report-uri {reportUri}";
+                    }
+
+                    response.Headers["Content-Security-Policy"] = cspWithReporting;
                     _logger.LogDebug("Added Content-Security-Policy header to response for {Path}", context.Request.Path);
                 }
 
-                // Add other security headers
+                // Add other security headers with enhanced protection
                 if (!response.Headers.ContainsKey("Permissions-Policy"))
                 {
                     response.Headers["Permissions-Policy"] = _permissionsPolicyHeader;
@@ -91,15 +140,28 @@ namespace WorkoutTrackerWeb.Middleware
                     response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
                 }
 
-                // Add Cloudflare-specific headers
-                if (!response.Headers.ContainsKey("X-Content-Type-Options"))
+                // Add Strict Transport Security for HTTPS
+                if (context.Request.IsHttps && !response.Headers.ContainsKey("Strict-Transport-Security"))
                 {
-                    response.Headers["X-Content-Type-Options"] = "nosniff";
+                    response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload";
                 }
 
-                // Add a custom header to verify this middleware is running
+                // Add Cross-Origin-Embedder-Policy for enhanced security
+                if (!response.Headers.ContainsKey("Cross-Origin-Embedder-Policy"))
+                {
+                    response.Headers["Cross-Origin-Embedder-Policy"] = "require-corp";
+                }
+
+                // Add Cross-Origin-Opener-Policy
+                if (!response.Headers.ContainsKey("Cross-Origin-Opener-Policy"))
+                {
+                    response.Headers["Cross-Origin-Opener-Policy"] = "same-origin";
+                }
+
+                // Add custom headers to verify this middleware is running
                 response.Headers["X-CSP-Applied"] = "true";
                 response.Headers["X-CSP-Source"] = "WorkoutTracker-Middleware";
+                response.Headers["X-CSP-Version"] = "2.0";
 
                 return Task.CompletedTask;
             });
