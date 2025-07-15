@@ -445,10 +445,48 @@ The application is designed to run in a multi-container environment for improved
 - Content Security Policy (CSP) headers
 - Persistent data protection key storage
 - Secure Docker configuration
+- Kubernetes security contexts with restricted capabilities
 - Comprehensive health checks and monitoring
 - Secure secrets management
 
 ## Security
+
+### Kubernetes Security Contexts
+
+The application implements comprehensive security contexts with minimal privilege access:
+
+**Pod-level Security Context:**
+- `runAsNonRoot: true` - Prevents containers from running as root
+- `runAsUser: 1000` - Runs containers as a specific non-root user
+- `runAsGroup: 1000` - Sets the primary group ID
+- `fsGroup: 1000` - Sets filesystem group ownership
+- `seccompProfile: RuntimeDefault` - Applies default seccomp profile
+- `hostNetwork: false` - Prevents access to host network namespace
+- `hostPID: false` - Prevents access to host process namespace
+- `hostIPC: false` - Prevents access to host IPC namespace
+- `shareProcessNamespace: false` - Isolates container processes
+
+**Container-level Security Context:**
+- `allowPrivilegeEscalation: false` - Prevents privilege escalation
+- `privileged: false` - Explicitly denies privileged container mode
+- `readOnlyRootFilesystem: false` - Allows writes to specified volumes only
+- `capabilities.drop: [ALL]` - Drops all Linux capabilities
+- `capabilities.add: [NET_BIND_SERVICE]` - Adds only required capability for port binding
+- `seccompProfile: RuntimeDefault` - Applies container-level seccomp filtering
+- `procMount: Default` - Uses default proc filesystem mount
+
+**Host System Isolation:**
+- Complete isolation from host networking, processes, and IPC
+- No access to host filesystem beyond mounted volumes
+- Restricted system call access via seccomp profiles
+- Zero privileged access to underlying Kubernetes node
+
+These security contexts protect against:
+- Network traffic eavesdropping via capability abuse
+- Host system access and privilege escalation
+- Container breakout attacks
+- Process namespace pollution
+- Unauthorized system call execution
 
 ### SQL Server Credential Rotation
 
@@ -529,8 +567,12 @@ The application provides comprehensive data portability features:
   - Updated Microsoft.Data.SqlClient from 5.2.2 to 6.0.2
   - Updated OpenTelemetry.Instrumentation.EntityFrameworkCore from 1.10.0-beta.1 to 1.12.0-beta.2
   - Updated Polly from 8.6.0 to 8.6.1
-  - Updated SixLabors.ImageSharp from 3.1.9 to 3.1.10
   - All packages successfully compiled and tested
+
+- **Package Removal (July 15, 2025)**:
+  - Removed SixLabors.ImageSharp dependency as it was unused
+  - Removed ResponsiveImageTagHelper which was the only consumer of SixLabors.ImageSharp
+  - This change reduces licensing concerns and application footprint
 
 - **Enhanced Entity Framework Core Relationships**:
   - Fixed foreign key attribute conflicts between WorkoutSchedule and WorkoutSession
@@ -609,3 +651,88 @@ The application provides comprehensive data portability features:
 - Fixed an issue where Hangfire's scheduled job was creating duplicate workout sessions after the original workout had been edited or completed.
 - Enhanced the duplicate workout detection logic to properly check for existing workouts regardless of status.
 - Improved logging across scheduled workout processing to provide better diagnostics.
+
+## Content Security Policy (CSP) for Cloudflare
+
+The application implements a comprehensive Content Security Policy (CSP) that is specifically optimized for Cloudflare environments. The CSP has been enhanced to address scan findings and ensure compatibility with Cloudflare's protection mechanisms.
+
+### CSP Implementation
+
+The CSP is implemented using a dedicated middleware (`ContentSecurityPolicyMiddleware`) that:
+
+1. **Adds Cloudflare-specific domains** to the CSP directives
+2. **Supports Cloudflare challenges** (CAPTCHA, bot detection)
+3. **Includes monitoring and debugging capabilities**
+4. **Uses configuration-based settings** for environment-specific policies
+
+### Key CSP Directives
+
+```csp
+default-src 'self';
+script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com 'unsafe-inline' 'unsafe-eval';
+style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css 'unsafe-inline';
+img-src 'self' data: blob: https://cdn.jsdelivr.net https://challenges.cloudflare.com;
+font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com data:;
+connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online https://challenges.cloudflare.com wss://wot.ninjatec.co.uk wss://workouttracker.online wss://www.workouttracker.online ws://wot.ninjatec.co.uk ws://workouttracker.online ws://www.workouttracker.online wss://* ws://*;
+frame-src 'self' https://challenges.cloudflare.com;
+frame-ancestors 'self' https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online;
+form-action 'self' https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online https://challenges.cloudflare.com;
+base-uri 'self';
+object-src 'none';
+upgrade-insecure-requests
+```
+
+### Cloudflare Compatibility Features
+
+The CSP has been enhanced to support:
+
+- **Cloudflare Challenges**: Added `https://challenges.cloudflare.com` to multiple directives
+- **Cloudflare Insights**: Included `https://static.cloudflareinsights.com` for analytics
+- **Bot Protection**: Allowed necessary resources for Cloudflare's bot detection
+- **CAPTCHA Support**: Frame and script sources for challenge pages
+
+### Testing and Verification
+
+Two test endpoints are available to verify CSP implementation:
+
+1. **General CSP Test**: `/api/securitytest/csp-test`
+2. **Cloudflare-Specific Test**: `/api/securitytest/cloudflare-csp-check`
+
+These endpoints return header information and can be used to verify that CSP headers are being properly applied.
+
+### Configuration
+
+CSP settings can be configured in `appsettings.json`:
+
+```json
+{
+  "Security": {
+    "ContentSecurityPolicy": {
+      "Enabled": true,
+      "ReportOnly": false
+    }
+  }
+}
+```
+
+### Troubleshooting CSP Issues
+
+If Cloudflare scans still show CSP as missing:
+
+1. **Check the test endpoints** to verify headers are being sent
+2. **Verify middleware ordering** in Program.cs
+3. **Check for proxy/load balancer** header stripping
+4. **Review Cloudflare settings** that might affect header detection
+5. **Use browser developer tools** to inspect response headers
+
+### Headers Added
+
+The middleware adds these security headers:
+
+- `Content-Security-Policy`: Main CSP directive
+- `X-Content-Type-Options`: nosniff
+- `X-Frame-Options`: SAMEORIGIN  
+- `Referrer-Policy`: strict-origin-when-cross-origin
+- `Permissions-Policy`: camera=(), microphone=(), geolocation=()
+- `X-CSP-Applied`: true (for debugging)
+- `X-CSP-Source`: WorkoutTracker-Middleware (for debugging)

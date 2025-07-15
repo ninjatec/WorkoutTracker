@@ -168,8 +168,13 @@ namespace WorkoutTrackerWeb.Services
                 string fullPath = Path.GetFullPath(filePath);
                 string fullAllowedPath = Path.GetFullPath(allowedDirectory);
                 
-                // Ensure the file path is within the allowed directory
-                return fullPath.StartsWith(fullAllowedPath, StringComparison.OrdinalIgnoreCase);
+                // Ensure both paths end with directory separator for accurate comparison
+                if (!fullAllowedPath.EndsWith(Path.DirectorySeparatorChar.ToString()))
+                    fullAllowedPath += Path.DirectorySeparatorChar;
+                
+                // Use case-sensitive comparison for security on Linux containers
+                // This prevents path traversal attacks on case-sensitive file systems
+                return fullPath.StartsWith(fullAllowedPath, StringComparison.Ordinal);
             }
             catch
             {
