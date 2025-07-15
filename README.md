@@ -445,10 +445,48 @@ The application is designed to run in a multi-container environment for improved
 - Content Security Policy (CSP) headers
 - Persistent data protection key storage
 - Secure Docker configuration
+- Kubernetes security contexts with restricted capabilities
 - Comprehensive health checks and monitoring
 - Secure secrets management
 
 ## Security
+
+### Kubernetes Security Contexts
+
+The application implements comprehensive security contexts with minimal privilege access:
+
+**Pod-level Security Context:**
+- `runAsNonRoot: true` - Prevents containers from running as root
+- `runAsUser: 1000` - Runs containers as a specific non-root user
+- `runAsGroup: 1000` - Sets the primary group ID
+- `fsGroup: 1000` - Sets filesystem group ownership
+- `seccompProfile: RuntimeDefault` - Applies default seccomp profile
+- `hostNetwork: false` - Prevents access to host network namespace
+- `hostPID: false` - Prevents access to host process namespace
+- `hostIPC: false` - Prevents access to host IPC namespace
+- `shareProcessNamespace: false` - Isolates container processes
+
+**Container-level Security Context:**
+- `allowPrivilegeEscalation: false` - Prevents privilege escalation
+- `privileged: false` - Explicitly denies privileged container mode
+- `readOnlyRootFilesystem: false` - Allows writes to specified volumes only
+- `capabilities.drop: [ALL]` - Drops all Linux capabilities
+- `capabilities.add: [NET_BIND_SERVICE]` - Adds only required capability for port binding
+- `seccompProfile: RuntimeDefault` - Applies container-level seccomp filtering
+- `procMount: Default` - Uses default proc filesystem mount
+
+**Host System Isolation:**
+- Complete isolation from host networking, processes, and IPC
+- No access to host filesystem beyond mounted volumes
+- Restricted system call access via seccomp profiles
+- Zero privileged access to underlying Kubernetes node
+
+These security contexts protect against:
+- Network traffic eavesdropping via capability abuse
+- Host system access and privilege escalation
+- Container breakout attacks
+- Process namespace pollution
+- Unauthorized system call execution
 
 ### SQL Server Credential Rotation
 

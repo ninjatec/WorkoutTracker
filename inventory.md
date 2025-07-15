@@ -42,6 +42,13 @@ This document maintains an up-to-date inventory of all features, components, and
 - Chart.js for Data Visualization
 - DataTables for Interactive Tables
 - Azure/Kubernetes Deployment Support
+  - Hardened security contexts with minimal privilege access
+  - Complete host system isolation (network, PID, IPC namespaces)
+  - Non-root container execution (user ID 1000)
+  - All Linux capabilities dropped except NET_BIND_SERVICE
+  - Privilege escalation prevention with explicit restrictions
+  - Seccomp security profiles enabled at pod and container level
+  - Process namespace isolation for security
 - Output Caching with Redis Backplane
 
 ### Application Components
