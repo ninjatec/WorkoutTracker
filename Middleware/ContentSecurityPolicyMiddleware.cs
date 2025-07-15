@@ -46,9 +46,8 @@ namespace WorkoutTrackerWeb.Middleware
             {
                 "default-src 'self'",
                 
-                // Script sources - temporarily allow unsafe-inline in production due to existing inline handlers
-                // TODO: Remove 'unsafe-inline' after refactoring all inline event handlers to use addEventListener
-                "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com 'unsafe-inline' 'unsafe-eval'",
+                // Script sources - refactored to remove unsafe-inline by replacing inline event handlers with addEventListener
+                "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com 'unsafe-eval'",
                 
                 // Style sources - use nonces where possible
                 "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://fonts.googleapis.com 'unsafe-inline'",
