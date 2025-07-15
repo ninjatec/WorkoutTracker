@@ -86,5 +86,52 @@ namespace WorkoutTrackerWeb.Controllers
                 headers = Response.Headers.ToDictionary(h => h.Key, h => string.Join(", ", h.Value.ToArray()))
             });
         }
+
+        /// <summary>
+        /// Test endpoint specifically for Google Analytics CSP verification
+        /// </summary>
+        [HttpGet("google-analytics-csp-test")]
+        [AllowAnonymous]
+        public IActionResult GoogleAnalyticsCspTest()
+        {
+            _logger.LogInformation("Google Analytics CSP test endpoint called from {UserAgent} at {Timestamp}", 
+                Request.Headers["User-Agent"].ToString(), DateTime.UtcNow);
+
+            // Get the current CSP header that would be applied
+            var cspHeader = Response.Headers["Content-Security-Policy"].ToString();
+            
+            // Check if Google Analytics domains are included
+            var gaDomainsSupported = new Dictionary<string, bool>
+            {
+                ["www.googletagmanager.com"] = cspHeader.Contains("www.googletagmanager.com"),
+                ["googletagmanager.com"] = cspHeader.Contains("googletagmanager.com"),
+                ["www.google-analytics.com"] = cspHeader.Contains("www.google-analytics.com"),
+                ["ssl.google-analytics.com"] = cspHeader.Contains("ssl.google-analytics.com"),
+                ["tagmanager.google.com"] = cspHeader.Contains("tagmanager.google.com"),
+                ["analytics.google.com"] = cspHeader.Contains("analytics.google.com"),
+                ["stats.g.doubleclick.net"] = cspHeader.Contains("stats.g.doubleclick.net")
+            };
+
+            var allSupported = gaDomainsSupported.Values.All(supported => supported);
+
+            return Ok(new
+            {
+                message = "Google Analytics CSP compatibility test",
+                timestamp = DateTime.UtcNow,
+                allGoogleAnalyticsDomainsSupported = allSupported,
+                domainSupport = gaDomainsSupported,
+                cspHeaderApplied = !string.IsNullOrEmpty(cspHeader),
+                cspHeader = cspHeader,
+                recommendations = allSupported ? 
+                    "Google Analytics should work with current CSP policy" : 
+                    "Some Google Analytics domains may be blocked by CSP",
+                testInstructions = new
+                {
+                    step1 = "Check browser console for CSP violations",
+                    step2 = "Monitor /api/CspReport/violations for blocked requests",
+                    step3 = "Test Google Analytics tracking in browser developer tools"
+                }
+            });
+        }
     }
 }

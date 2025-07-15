@@ -96,7 +96,26 @@ Use these endpoints to test:
 ✅ **No CSP reporting** - Added violation reporting endpoint
 ✅ **Weak frame protection** - Enhanced frame-ancestors and X-Frame-Options
 
-### 7. **Monitoring CSP Violations**
+### 7. **Google Analytics CSP Configuration**
+
+✅ **Google Analytics Support Added:**
+- Added comprehensive Google Analytics domains to script-src
+- Added Google Analytics tracking domains to connect-src  
+- Added Google Analytics image tracking to img-src
+- Supports both Universal Analytics and Google Analytics 4
+
+**Included domains:**
+- `https://www.googletagmanager.com` - Google Tag Manager
+- `https://googletagmanager.com` - Alternative GTM domain
+- `https://www.google-analytics.com` - Google Analytics
+- `https://ssl.google-analytics.com` - Secure Google Analytics
+- `https://tagmanager.google.com` - Tag Manager API
+- `https://analytics.google.com` - Analytics API
+- `https://region1.google-analytics.com` - Regional Analytics
+- `https://region1.analytics.google.com` - Regional Analytics API
+- `https://stats.g.doubleclick.net` - DoubleClick tracking
+
+### 8. **Monitoring CSP Violations**
 
 Check your application logs for CSP violations:
 ```bash

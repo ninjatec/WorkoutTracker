@@ -42,25 +42,26 @@ namespace WorkoutTrackerWeb.Middleware
             var isProduction = environment.Equals("Production", StringComparison.OrdinalIgnoreCase);
 
             // Build CSP header optimized for Cloudflare with enhanced security
+            // Updated to include comprehensive Google Analytics and Google Tag Manager domains
             var cspDirectives = new List<string>
             {
                 "default-src 'self'",
                 
                 // Script sources - including Google Analytics and inline scripts
-                "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com 'unsafe-eval' 'unsafe-inline'",
+                "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://googletagmanager.com https://ssl.google-analytics.com https://tagmanager.google.com 'unsafe-eval' 'unsafe-inline'",
 
                 
                 // Style sources - use nonces where possible
                 "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://fonts.googleapis.com 'unsafe-inline'",
                 
                 // Image sources
-                "img-src 'self' data: blob: https://cdn.jsdelivr.net https://challenges.cloudflare.com https://avatars.githubusercontent.com https://app.aikido.dev",
+                "img-src 'self' data: blob: https://cdn.jsdelivr.net https://challenges.cloudflare.com https://avatars.githubusercontent.com https://app.aikido.dev https://www.google-analytics.com https://ssl.google-analytics.com https://stats.g.doubleclick.net",
                 
                 // Font sources
                 "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com data:",
                 
                 // Connection sources - restrict wildcards, include Google Analytics
-                $"connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://www.google-analytics.com https://analytics.google.com https://app.aikido.dev {GetAllowedDomains()} https://challenges.cloudflare.com {GetWebSocketUrls()}",
+                $"connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://www.google-analytics.com https://analytics.google.com https://region1.google-analytics.com https://region1.analytics.google.com https://stats.g.doubleclick.net https://app.aikido.dev {GetAllowedDomains()} https://challenges.cloudflare.com {GetWebSocketUrls()}",
                 
                 // Frame sources
                 "frame-src 'self' https://challenges.cloudflare.com https://www.youtube.com",
