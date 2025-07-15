@@ -43,10 +43,17 @@ class RotationHealthChecker:
         self.issues = []
         self.warnings = []
         
+    def redact_sensitive_data(self, message: str) -> str:
+        """Redact sensitive data such as secret paths or tokens from a message."""
+        redacted_message = re.sub(r'--vault-token\s+\S+', '--vault-token [REDACTED]', message)
+        redacted_message = re.sub(r'--secret-path\s+\S+', '--secret-path [REDACTED]', redacted_message)
+        return redacted_message
+        
     def add_issue(self, issue: str):
         """Add a critical issue"""
-        self.issues.append(issue)
-        logger.error(f"ISSUE: {issue}")
+        sanitized_issue = self.redact_sensitive_data(issue)
+        self.issues.append(sanitized_issue)
+        logger.error(f"ISSUE: {sanitized_issue}")
         
     def add_warning(self, warning: str):
         """Add a warning"""
