@@ -352,6 +352,18 @@ namespace WorkoutTrackerWeb.Services
                     throw new ArgumentException("Invalid file extension.", nameof(fileExtension));
                 }
                 
+                if (fileId == null || fileId.Contains("../") || fileId.Contains(@"..\"))
+                {
+                    _logger.LogError("Invalid file ID provided: {FileId}", fileId);
+                    throw new ArgumentException("Invalid file path.", nameof(fileId));
+                }
+                
+                if (fileExtension == null || fileExtension.Contains("../") || fileExtension.Contains(@"..\"))
+                {
+                    _logger.LogError("Invalid file extension provided: {FileExtension}", fileExtension);
+                    throw new ArgumentException("Invalid file path.", nameof(fileExtension));
+                }
+                
                 string tempDir = GetWritableTempDirectory();
                 string tempFileName = $"{fileId}{fileExtension}";
                 string tempFilePath = Path.Combine(tempDir, tempFileName);
