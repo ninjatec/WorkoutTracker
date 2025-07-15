@@ -442,6 +442,7 @@ The application is designed to run in a multi-container environment for improved
 - Connection strings and email configuration stored securely outside of source code
 
 ## Security Features
+- **Aikido Zen Firewall**: Advanced application security with user context tracking
 - Content Security Policy (CSP) headers
 - Persistent data protection key storage
 - Secure Docker configuration

@@ -766,3 +766,22 @@ This document maintains an up-to-date inventory of all features, components, and
   - Ensures temporary data is cleared on container restart
   - Memory-backed storage prevents persistence of sensitive data
 - **Impact**: Enhanced container security posture while maintaining full application functionality
+
+## 2025-07-15: Zen Firewall Enhancement with User Context
+- **Security Improvement**: Enhanced Aikido Zen Firewall with proper user context tracking
+- **Changes Made**:
+  - Added user context middleware before `UseZenFirewall()` to properly associate security events with authenticated users
+  - Implemented automatic user ID and name extraction from authentication context
+  - Configured proper middleware ordering: `UseRouting()` → User context setup → `UseZenFirewall()`
+  - Added `using Aikido.Zen;` namespace for `Zen.SetUser()` functionality
+  - Integrated with existing `AppUserExtensions.GetUserId()` extension method for consistent user identification
+- **Security Benefits**:
+  - Enhanced threat detection and attribution by linking security events to specific user accounts
+  - Improved security monitoring and incident response capabilities
+  - Better audit trails for security investigations
+  - More accurate threat intelligence and behavior analysis
+- **Implementation Details**:
+  - User context is set only for authenticated users (`IsAuthenticated == true`)
+  - Falls back to "Anonymous" for display name when username is null
+  - Middleware executes after routing but before authorization for optimal security coverage
+- **Impact**: Significantly improved security monitoring and threat detection capabilities while maintaining zero impact on application performance
