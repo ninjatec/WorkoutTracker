@@ -46,16 +46,15 @@ namespace WorkoutTrackerWeb.Middleware
             {
                 "default-src 'self'",
                 
-                // Script sources - minimize unsafe directives
-                isProduction 
-                    ? "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com 'unsafe-eval'"
-                    : "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com 'unsafe-inline' 'unsafe-eval'",
+                // Script sources - temporarily allow unsafe-inline in production due to existing inline handlers
+                // TODO: Remove 'unsafe-inline' after refactoring all inline event handlers to use addEventListener
+                "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com 'unsafe-inline' 'unsafe-eval'",
                 
                 // Style sources - use nonces where possible
                 "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://fonts.googleapis.com 'unsafe-inline'",
                 
                 // Image sources
-                "img-src 'self' data: blob: https://cdn.jsdelivr.net https://challenges.cloudflare.com https://avatars.githubusercontent.com",
+                "img-src 'self' data: blob: https://cdn.jsdelivr.net https://challenges.cloudflare.com https://avatars.githubusercontent.com https://app.aikido.dev",
                 
                 // Font sources
                 "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com data:",
