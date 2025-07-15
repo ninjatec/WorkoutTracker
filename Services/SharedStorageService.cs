@@ -63,6 +63,54 @@ namespace WorkoutTrackerWeb.Services
         }
 
         /// <summary>
+        /// Gets a writable temporary directory that works in container environments
+        /// </summary>
+        private string GetWritableTempDirectory()
+        {
+            // Try different paths in order of preference for containers
+            string[] tempPaths = {
+                Environment.GetEnvironmentVariable("TMPDIR"), // User-specified temp directory
+                "/app/temp", // Application-specific temp directory
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "temp"), // Relative to app
+                "/tmp", // Standard temp directory
+                Path.GetTempPath() // System default
+            };
+
+            foreach (string tempPath in tempPaths)
+            {
+                if (string.IsNullOrEmpty(tempPath))
+                    continue;
+
+                try
+                {
+                    // Ensure directory exists
+                    if (!Directory.Exists(tempPath))
+                    {
+                        Directory.CreateDirectory(tempPath);
+                    }
+
+                    // Test write permissions by creating a test file
+                    string testFile = Path.Combine(tempPath, $"writetest_{Guid.NewGuid():N}.tmp");
+                    File.WriteAllText(testFile, "test");
+                    File.Delete(testFile);
+
+                    _logger.LogDebug("Using writable temp directory: {TempPath}", tempPath);
+                    return tempPath;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug("Cannot write to directory {TempPath}: {Error}", tempPath, ex.Message);
+                    continue;
+                }
+            }
+
+            // If all else fails, fall back to current directory
+            string currentDir = AppDomain.CurrentDomain.BaseDirectory;
+            _logger.LogWarning("No writable temp directory found, using current directory: {CurrentDir}", currentDir);
+            return currentDir;
+        }
+
+        /// <summary>
         /// Validates that a file ID is safe to use in file operations
         /// </summary>
         private static bool IsValidFileId(string fileId)
@@ -299,7 +347,7 @@ namespace WorkoutTrackerWeb.Services
                     throw new ArgumentException("Invalid file extension.", nameof(fileExtension));
                 }
                 
-                string tempDir = Path.GetTempPath();
+                string tempDir = GetWritableTempDirectory();
                 string tempFileName = $"{fileId}{fileExtension}";
                 string tempFilePath = Path.Combine(tempDir, tempFileName);
                 
@@ -514,7 +562,7 @@ namespace WorkoutTrackerWeb.Services
                     throw new ArgumentException("Invalid file ID. File IDs must contain only alphanumeric characters, dashes, and underscores.", nameof(fileId));
                 }
                 
-                string tempDir = Path.GetTempPath();
+                string tempDir = GetWritableTempDirectory();
                 
                 try
                 {
@@ -629,7 +677,7 @@ namespace WorkoutTrackerWeb.Services
             {
                 var (fileStream, extension) = await RetrieveFileAsync(fileId);
                 
-                string tempDir = Path.GetTempPath();
+                string tempDir = GetWritableTempDirectory();
                 string tempFileName = $"{Path.GetRandomFileName()}{extension}";
                 string tempFilePath = Path.Combine(tempDir, tempFileName);
                 
@@ -675,7 +723,7 @@ namespace WorkoutTrackerWeb.Services
                     throw new ArgumentException("Invalid file ID. File IDs must contain only alphanumeric characters, dashes, and underscores.", nameof(fileId));
                 }
                 
-                string tempDir = Path.GetTempPath();
+                string tempDir = GetWritableTempDirectory();
                 try
                 {
                     string[] possibleFiles = Directory.GetFiles(tempDir, $"{fileId}*");
@@ -758,7 +806,7 @@ namespace WorkoutTrackerWeb.Services
                     return false;
                 }
                 
-                string tempDir = Path.GetTempPath();
+                string tempDir = GetWritableTempDirectory();
                 try
                 {
                     string[] possibleFiles = Directory.GetFiles(tempDir, $"{fileId}*");

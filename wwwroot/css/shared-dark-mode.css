@@ -125,3 +125,13 @@
 [data-theme="dark"] .set-type-super {
   background-color: rgba(111, 66, 193, 0.15);
 }
+
+/* Aikido Security Badge */
+[data-theme="dark"] .aikido-security-badge {
+  filter: brightness(1.1) contrast(1.05);
+  transition: filter 0.3s ease;
+}
+
+[data-theme="dark"] .aikido-security-badge:hover {
+  filter: brightness(1.2) contrast(1.1);
+}
