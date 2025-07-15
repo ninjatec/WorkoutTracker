@@ -45,7 +45,7 @@ spec:
         imagePullPolicy: Always
         securityContext:
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: false
+          readOnlyRootFilesystem: true
           runAsNonRoot: true
           runAsUser: 1000
           runAsGroup: 1000
@@ -60,6 +60,13 @@ spec:
           procMount: Default
         ports:
         - containerPort: 8080
+        volumeMounts:
+        - name: logs-volume
+          mountPath: /app/logs
+        - name: temp-volume
+          mountPath: /app/temp
+        - name: tmp-volume
+          mountPath: /tmp
         resources:
           requests:
             memory: "384Mi"
@@ -107,6 +114,8 @@ spec:
           value: "false"
         - name: HANGFIRE_WORKER_COUNT
           value: "0"
+        - name: TMPDIR
+          value: "/app/temp"
         - name: ConnectionStrings__DefaultConnection
           valueFrom:
             secretKeyRef:
@@ -169,3 +178,16 @@ spec:
             secretKeyRef:
               name: workouttracker-secrets
               key: OTEL_AUTH_BEARER
+      volumes:
+      - name: logs-volume
+        emptyDir:
+          medium: Memory
+          sizeLimit: 100Mi
+      - name: temp-volume
+        emptyDir:
+          medium: Memory
+          sizeLimit: 200Mi
+      - name: tmp-volume
+        emptyDir:
+          medium: Memory
+          sizeLimit: 100Mi
