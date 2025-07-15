@@ -529,6 +529,32 @@ namespace WorkoutTrackerWeb.Services
                 throw new ArgumentException("Invalid file path provided.", nameof(filePath));
             }
 
+            // Additional security validation: Ensure the file path is within allowed directories
+            string[] allowedDirectories = {
+                GetWritableTempDirectory(),
+                Path.GetTempPath(),
+                AppDomain.CurrentDomain.BaseDirectory,
+                Environment.GetEnvironmentVariable("TMPDIR"),
+                "/app/temp",
+                "/tmp"
+            };
+
+            bool isPathAllowed = false;
+            foreach (string allowedDir in allowedDirectories)
+            {
+                if (!string.IsNullOrEmpty(allowedDir) && IsValidFilePath(fullPath, allowedDir))
+                {
+                    isPathAllowed = true;
+                    break;
+                }
+            }
+
+            if (!isPathAllowed)
+            {
+                _logger.LogError("File path is outside allowed directories. Path: {FilePath}", fullPath);
+                throw new UnauthorizedAccessException($"File path is outside allowed directories: {fullPath}");
+            }
+
             if (!File.Exists(fullPath))
             {
                 throw new FileNotFoundException($"File not found: {fullPath}");
