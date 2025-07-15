@@ -135,3 +135,30 @@
 [data-theme="dark"] .aikido-security-badge:hover {
   filter: brightness(1.2) contrast(1.1);
 }
+
+/* Aikido Badge Fallback Styling */
+.aikido-badge-fallback {
+  display: inline-block;
+  background-color: #198754;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.aikido-badge-link:hover .aikido-badge-fallback {
+  background-color: #157347;
+  text-decoration: none;
+}
+
+[data-theme="dark"] .aikido-badge-fallback {
+  background-color: #20c997;
+  color: #000;
+}
+
+[data-theme="dark"] .aikido-badge-link:hover .aikido-badge-fallback {
+  background-color: #0dcaf0;
+}

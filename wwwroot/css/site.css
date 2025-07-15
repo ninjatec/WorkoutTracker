@@ -630,3 +630,30 @@ a:focus, button:focus {
   border-color: #4A4A4A;
   color: var(--text-light);
 }
+
+/* Aikido Badge Fallback Styling for Light Theme */
+.aikido-badge-fallback {
+  display: inline-block;
+  background-color: #198754;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.aikido-badge-link {
+  text-decoration: none;
+}
+
+.aikido-badge-link:hover .aikido-badge-fallback {
+  background-color: #157347;
+  text-decoration: none;
+  color: white;
+}
+
+.aikido-badge-link:hover {
+  text-decoration: none;
+}
