@@ -1030,6 +1030,13 @@ namespace WorkoutTrackerWeb.Services
                     filePath = fileIdOrPath;
                 }
                 
+                // Validate the file path to prevent path traversal attacks
+                if (!IsValidFilePath(filePath))
+                {
+                    _logger.LogWarning("Invalid file path detected (potential path traversal): {FilePath}", filePath);
+                    throw new ArgumentException("Invalid file path detected", nameof(filePath));
+                }
+                
                 // Verify the file exists and has content
                 if (!File.Exists(filePath))
                 {
@@ -1090,7 +1097,7 @@ namespace WorkoutTrackerWeb.Services
                     var result = await dataPortabilityService.ImportUserDataAsync(userId, jsonContent, skipExisting);
                     var duration = DateTime.UtcNow - startTime;
                     
-                    _logger.LogInformation("File import completed in {Duration} with result: success={Success}, message={Message}", 
+                    _logger.LogInformation("Import completed in {Duration} with result: success={Success}, message={Message}", 
                         duration, result.success, result.message);
                     
                     // Report completion or failure
@@ -1375,6 +1382,13 @@ namespace WorkoutTrackerWeb.Services
                     }
                 }
                 
+                // Validate the file path to prevent path traversal attacks
+                if (!IsValidFilePath(filePath))
+                {
+                    _logger.LogWarning("Invalid file path detected (potential path traversal): {FilePath}", filePath);
+                    throw new ArgumentException("Invalid file path detected", nameof(filePath));
+                }
+                
                 // Verify the file exists and has content
                 if (!File.Exists(filePath))
                 {
@@ -1532,9 +1546,54 @@ namespace WorkoutTrackerWeb.Services
                 }
             }
         }
+
+        // Helper method to validate file paths and prevent path traversal attacks
+        private static bool IsValidFilePath(string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                return false;
+            
+            try
+            {
+                // Get the full path to normalize it and remove any relative path components
+                string fullPath = Path.GetFullPath(filePath);
+                
+                // Check for path traversal patterns
+                if (filePath.Contains("..") || 
+                    filePath.Contains("~") ||
+                    filePath.Contains("\\..\\") || 
+                    filePath.Contains("/../") ||
+                    filePath.StartsWith("/") && !Path.IsPathRooted(filePath) ||
+                    filePath.Contains(":") && !Path.IsPathRooted(filePath))
+                {
+                    return false;
+                }
+                
+                // Ensure the path doesn't contain invalid characters
+                char[] invalidChars = Path.GetInvalidPathChars();
+                foreach (char invalidChar in invalidChars)
+                {
+                    if (filePath.Contains(invalidChar))
+                        return false;
+                }
+                
+                // Additional check: ensure the resolved path is within expected directories
+                string tempPath = Path.GetTempPath();
+                string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                
+                return fullPath.StartsWith(tempPath, StringComparison.OrdinalIgnoreCase) ||
+                       fullPath.StartsWith(appDataPath, StringComparison.OrdinalIgnoreCase) ||
+                       fullPath.StartsWith("/tmp/", StringComparison.OrdinalIgnoreCase) ||
+                       fullPath.StartsWith("/var/tmp/", StringComparison.OrdinalIgnoreCase);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
     }
 
-    // Common job progress class for consistent reporting
+    // Simple job progress class for consistent reporting
     public class JobProgress
     {
         public string Status { get; set; }

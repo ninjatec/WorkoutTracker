@@ -62,6 +62,73 @@ namespace WorkoutTrackerWeb.Services
             _keyService = keyService;
         }
 
+        /// <summary>
+        /// Validates that a file ID is safe to use in file operations
+        /// </summary>
+        private static bool IsValidFileId(string fileId)
+        {
+            if (string.IsNullOrWhiteSpace(fileId))
+                return false;
+
+            // Check for path traversal characters
+            if (fileId.Contains("..") || fileId.Contains("/") || fileId.Contains("\\"))
+                return false;
+
+            // Check for invalid filename characters
+            char[] invalidChars = Path.GetInvalidFileNameChars();
+            if (fileId.IndexOfAny(invalidChars) >= 0)
+                return false;
+
+            // Additional security checks - only allow alphanumeric, dash, underscore
+            return fileId.All(c => char.IsLetterOrDigit(c) || c == '-' || c == '_');
+        }
+
+        /// <summary>
+        /// Validates that a file extension is safe to use
+        /// </summary>
+        private static bool IsValidFileExtension(string extension)
+        {
+            if (string.IsNullOrEmpty(extension))
+                return true; // Empty extension is allowed
+
+            if (!extension.StartsWith("."))
+                return false;
+
+            // Check for path traversal in extension
+            if (extension.Contains("..") || extension.Contains("/") || extension.Contains("\\"))
+                return false;
+
+            // Check for invalid filename characters in extension
+            char[] invalidChars = Path.GetInvalidFileNameChars();
+            if (extension.IndexOfAny(invalidChars) >= 0)
+                return false;
+
+            // Only allow reasonable extension lengths
+            return extension.Length <= 10;
+        }
+
+        /// <summary>
+        /// Validates that a file path is within allowed directories
+        /// </summary>
+        private static bool IsValidFilePath(string filePath, string allowedDirectory)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                return false;
+
+            try
+            {
+                string fullPath = Path.GetFullPath(filePath);
+                string fullAllowedPath = Path.GetFullPath(allowedDirectory);
+                
+                // Ensure the file path is within the allowed directory
+                return fullPath.StartsWith(fullAllowedPath, StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         private IDatabase GetWritableDatabase()
         {
             if (_redis == null)
@@ -182,7 +249,22 @@ namespace WorkoutTrackerWeb.Services
                 throw new ArgumentNullException(nameof(fileStream));
             }
 
+            // Validate file extension for security
+            if (!IsValidFileExtension(fileExtension))
+            {
+                _logger.LogError("Invalid file extension provided: {FileExtension}", fileExtension);
+                throw new ArgumentException("Invalid file extension.", nameof(fileExtension));
+            }
+
             string fileId = Guid.NewGuid().ToString();
+            
+            // Validate the generated fileId (should always be valid, but for extra safety)
+            if (!IsValidFileId(fileId))
+            {
+                _logger.LogError("Generated file ID is invalid: {FileId}", fileId);
+                throw new InvalidOperationException("Failed to generate a valid file ID.");
+            }
+            
             string fileKey = _keyService.CreateFileKey(fileId);
             string metaKey = _keyService.CreateFileKey(fileId, "meta");
             
@@ -202,9 +284,31 @@ namespace WorkoutTrackerWeb.Services
             if (db == null && _redis == null)
             {
                 _logger.LogWarning("Redis is not configured, falling back to local filesystem storage");
+                
+                // Validate fileId for security
+                if (!IsValidFileId(fileId))
+                {
+                    _logger.LogError("Invalid file ID provided: {FileId}", fileId);
+                    throw new ArgumentException("Invalid file ID. File IDs must contain only alphanumeric characters, dashes, and underscores.", nameof(fileId));
+                }
+                
+                // Validate file extension for security
+                if (!IsValidFileExtension(fileExtension))
+                {
+                    _logger.LogError("Invalid file extension provided: {FileExtension}", fileExtension);
+                    throw new ArgumentException("Invalid file extension.", nameof(fileExtension));
+                }
+                
                 string tempDir = Path.GetTempPath();
                 string tempFileName = $"{fileId}{fileExtension}";
                 string tempFilePath = Path.Combine(tempDir, tempFileName);
+                
+                // Additional security check - ensure the final path is within temp directory
+                if (!IsValidFilePath(tempFilePath, tempDir))
+                {
+                    _logger.LogError("File path traversal attempt detected: {TempFilePath}", tempFilePath);
+                    throw new ArgumentException("Invalid file path detected.", nameof(fileId));
+                }
                 
                 try
                 {
@@ -360,14 +464,26 @@ namespace WorkoutTrackerWeb.Services
                 throw new ArgumentNullException(nameof(filePath));
             }
 
-            if (!File.Exists(filePath))
+            // Security validation: Get the full path to prevent path traversal
+            string fullPath;
+            try
             {
-                throw new FileNotFoundException($"File not found: {filePath}");
+                fullPath = Path.GetFullPath(filePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Invalid file path provided: {FilePath}", filePath);
+                throw new ArgumentException("Invalid file path provided.", nameof(filePath));
             }
 
-            string fileExtension = Path.GetExtension(filePath);
+            if (!File.Exists(fullPath))
+            {
+                throw new FileNotFoundException($"File not found: {fullPath}");
+            }
+
+            string fileExtension = Path.GetExtension(fullPath);
             
-            using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+            using (var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read))
             {
                 return await StoreFileAsync(fileStream, fileExtension, expiry);
             }
@@ -380,9 +496,24 @@ namespace WorkoutTrackerWeb.Services
                 throw new ArgumentNullException(nameof(fileId));
             }
 
+            // Validate fileId for security
+            if (!IsValidFileId(fileId))
+            {
+                _logger.LogError("Invalid file ID provided for retrieval: {FileId}", fileId);
+                throw new ArgumentException("Invalid file ID. File IDs must contain only alphanumeric characters, dashes, and underscores.", nameof(fileId));
+            }
+
             if (_redis == null)
             {
                 _logger.LogWarning("Redis is not configured, using local filesystem storage for file retrieval");
+                
+                // Validate fileId for security
+                if (!IsValidFileId(fileId))
+                {
+                    _logger.LogError("Invalid file ID provided for retrieval: {FileId}", fileId);
+                    throw new ArgumentException("Invalid file ID. File IDs must contain only alphanumeric characters, dashes, and underscores.", nameof(fileId));
+                }
+                
                 string tempDir = Path.GetTempPath();
                 
                 try
@@ -391,6 +522,14 @@ namespace WorkoutTrackerWeb.Services
                     if (possibleFiles.Length > 0)
                     {
                         string filePath = possibleFiles[0];
+                        
+                        // Security check: ensure the file is within the temp directory
+                        if (!IsValidFilePath(filePath, tempDir))
+                        {
+                            _logger.LogError("Path traversal attempt detected in file retrieval: {FilePath}", filePath);
+                            throw new UnauthorizedAccessException("Invalid file path detected.");
+                        }
+                        
                         string extension = Path.GetExtension(filePath);
                         var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
                         
@@ -403,7 +542,7 @@ namespace WorkoutTrackerWeb.Services
                     _logger.LogWarning("File not found in local filesystem: {FileId}", fileId);
                     throw new FileNotFoundException($"File not found in local filesystem: {fileId}");
                 }
-                catch (Exception ex) when (!(ex is FileNotFoundException))
+                catch (Exception ex) when (!(ex is FileNotFoundException) && !(ex is UnauthorizedAccessException))
                 {
                     _logger.LogError(ex, "Error retrieving file from local filesystem: {FileId}", fileId);
                     throw;
@@ -479,6 +618,13 @@ namespace WorkoutTrackerWeb.Services
                 throw new ArgumentNullException(nameof(fileId));
             }
 
+            // Validate fileId for security
+            if (!IsValidFileId(fileId))
+            {
+                _logger.LogError("Invalid file ID provided for path retrieval: {FileId}", fileId);
+                throw new ArgumentException("Invalid file ID. File IDs must contain only alphanumeric characters, dashes, and underscores.", nameof(fileId));
+            }
+
             try
             {
                 var (fileStream, extension) = await RetrieveFileAsync(fileId);
@@ -511,9 +657,24 @@ namespace WorkoutTrackerWeb.Services
                 throw new ArgumentNullException(nameof(fileId));
             }
 
+            // Validate fileId for security
+            if (!IsValidFileId(fileId))
+            {
+                _logger.LogError("Invalid file ID provided for deletion: {FileId}", fileId);
+                throw new ArgumentException("Invalid file ID. File IDs must contain only alphanumeric characters, dashes, and underscores.", nameof(fileId));
+            }
+
             if (_redis == null)
             {
                 _logger.LogWarning("Redis is not configured, attempting to delete from local filesystem: {FileId}", fileId);
+                
+                // Validate fileId for security
+                if (!IsValidFileId(fileId))
+                {
+                    _logger.LogError("Invalid file ID provided for deletion: {FileId}", fileId);
+                    throw new ArgumentException("Invalid file ID. File IDs must contain only alphanumeric characters, dashes, and underscores.", nameof(fileId));
+                }
+                
                 string tempDir = Path.GetTempPath();
                 try
                 {
@@ -522,6 +683,13 @@ namespace WorkoutTrackerWeb.Services
                     
                     foreach (string filePath in possibleFiles)
                     {
+                        // Security check: ensure the file is within the temp directory
+                        if (!IsValidFilePath(filePath, tempDir))
+                        {
+                            _logger.LogWarning("Path traversal attempt detected in file deletion, skipping: {FilePath}", filePath);
+                            continue;
+                        }
+                        
                         try
                         {
                             File.Delete(filePath);
@@ -572,14 +740,43 @@ namespace WorkoutTrackerWeb.Services
                 return false;
             }
 
+            // Validate fileId for security
+            if (!IsValidFileId(fileId))
+            {
+                _logger.LogError("Invalid file ID provided for existence check: {FileId}", fileId);
+                return false;
+            }
+
             if (_redis == null)
             {
                 _logger.LogWarning("Redis is not configured, checking local filesystem for file: {FileId}", fileId);
+                
+                // Validate fileId for security
+                if (!IsValidFileId(fileId))
+                {
+                    _logger.LogError("Invalid file ID provided for existence check: {FileId}", fileId);
+                    return false;
+                }
+                
                 string tempDir = Path.GetTempPath();
                 try
                 {
                     string[] possibleFiles = Directory.GetFiles(tempDir, $"{fileId}*");
-                    bool exists = possibleFiles.Length > 0;
+                    
+                    // Additional security check: ensure all found files are within temp directory
+                    bool exists = false;
+                    foreach (string filePath in possibleFiles)
+                    {
+                        if (IsValidFilePath(filePath, tempDir))
+                        {
+                            exists = true;
+                            break;
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Path traversal attempt detected in file existence check, ignoring: {FilePath}", filePath);
+                        }
+                    }
                     
                     _logger.LogInformation("File existence check in local filesystem: {FileId}, exists: {Exists}", fileId, exists);
                     return exists;
