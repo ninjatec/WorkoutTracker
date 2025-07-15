@@ -42,23 +42,25 @@ class RotationHealthChecker:
         self.sql_server = sql_server
         self.issues = []
         self.warnings = []
-        
-    def redact_sensitive_data(self, message: str) -> str:
-        """Redact sensitive data such as secret paths or tokens from a message."""
-        redacted_message = re.sub(r'--vault-token\s+\S+', '--vault-token [REDACTED]', message)
-        redacted_message = re.sub(r'--secret-path\s+\S+', '--secret-path [REDACTED]', redacted_message)
-        return redacted_message
+
+        self.redacted_values = {
+            self.secret_path: "[REDACTED]",
+            self.vault_token: "[REDACTED]",
+            self.sql_server: "[REDACTED]",
+        }
         
     def add_issue(self, issue: str):
         """Add a critical issue"""
-        sanitized_issue = self.redact_sensitive_data(issue)
+        sanitized_issue = self._sanitize_message(issue)
         self.issues.append(sanitized_issue)
         logger.error(f"ISSUE: {sanitized_issue}")
         
     def add_warning(self, warning: str):
         """Add a warning"""
-        self.warnings.append(warning)
-        logger.warning(f"WARNING: {warning}")
+
+        sanitized_warning = self._sanitize_message(warning)
+        self.warnings.append(sanitized_warning)
+        logger.warning(f"WARNING: {sanitized_warning}")
         
     def check_vault_connectivity(self) -> bool:
         """Check if Vault is accessible and token is valid"""
