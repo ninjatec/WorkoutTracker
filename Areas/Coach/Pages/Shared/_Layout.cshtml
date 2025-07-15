@@ -79,8 +79,15 @@
 
     <footer class="border-top footer text-muted mt-4">
         <div class="container-fluid text-center py-2">
-            <a href="https://app.aikido.dev/audit-report/external/FBRjB7WTVGoNty5LMKo30sld/request" target="_blank" rel="noopener noreferrer">
-                <img src="https://app.aikido.dev/assets/badges/full-light-theme.svg" alt="Aikido Security Audit Report" height="30" class="aikido-security-badge" />    
+            <a href="https://app.aikido.dev/audit-report/external/FBRjB7WTVGoNty5LMKo30sld/request" target="_blank" rel="noopener noreferrer" class="aikido-badge-link">
+                <img src="https://app.aikido.dev/audit-report/external/FBRjB7WTVGoNty5LMKo30sld/badge" 
+                     alt="Aikido Security Audit Report" 
+                     height="30" 
+                     class="aikido-security-badge"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" />
+                <span class="aikido-badge-fallback" style="display: none;">
+                    <i class="bi bi-shield-check"></i> Security Audit
+                </span>
             </a>
         </div>
     </footer>
