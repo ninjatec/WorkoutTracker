@@ -183,8 +183,7 @@
                         <img src="https://app.aikido.dev/audit-report/external/FBRjB7WTVGoNty5LMKo30sld/badge" 
                              alt="Aikido Security Audit Report" 
                              height="30" 
-                             class="aikido-security-badge"
-                             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-block';" />
+                             class="aikido-security-badge" />
                         <span class="aikido-badge-fallback" style="display: none;">
                             <i class="bi bi-shield-check"></i> Security Audit
                         </span>
@@ -223,6 +222,7 @@
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/ui-enhancements.js" asp-append-version="true"></script>
     <script src="~/js/form-enhancements.js" asp-append-version="true"></script>
+    <script src="~/js/aikido-badge.js" asp-append-version="true"></script>
     
     @await RenderSectionAsync("Scripts", required: false)
 </body>
