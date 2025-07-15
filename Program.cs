@@ -1044,34 +1044,8 @@ namespace WorkoutTrackerWeb
 
             app.UseInvitationRedirect();
 
-            app.Use(async (context, next) =>
-            {
-                context.Response.Headers["Content-Security-Policy"] = 
-                    "default-src 'self'; " +
-                    "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com 'unsafe-inline'; " + 
-                    "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css 'unsafe-inline'; " + 
-                    "img-src 'self' data: https://cdn.jsdelivr.net; " + 
-                    "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
-                    "connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online " +
-                                     "wss://wot.ninjatec.co.uk wss://workouttracker.online wss://www.workouttracker.online " +
-                                     "ws://wot.ninjatec.co.uk ws://workouttracker.online ws://www.workouttracker.online wss://* ws://*; " +
-                    "frame-src 'self'; " +
-                    "frame-ancestors 'self' https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online; " + 
-                    "form-action 'self' https://wot.ninjatec.co.uk https://workouttracker.online https://www.workouttracker.online; " +
-                    "base-uri 'self'; " +
-                    "object-src 'none'";
-                
-                context.Response.Headers["Permissions-Policy"] = 
-                    "camera=(), microphone=(), geolocation=()";
-                
-                context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-                
-                context.Response.Headers["X-Frame-Options"] = "SAMEORIGIN";
-                
-                context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-                
-                await next();
-            });
+            // Add Content Security Policy and other security headers
+            app.UseContentSecurityPolicy();
 
             app.UseRedisResilience();
 
