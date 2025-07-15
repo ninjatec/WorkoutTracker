@@ -50,7 +50,7 @@
       "destination": "wwwroot/lib/chartjs-adapter-date-fns"
     },
     {
-      "library": "tinymce@6.7.0",
+      "library": "tinymce@7.6.0",
       "destination": "wwwroot/lib/tinymce",
       "files": [
         "tinymce.min.js",
