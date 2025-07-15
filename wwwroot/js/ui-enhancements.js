@@ -4,6 +4,21 @@
  */
 
 /**
+ * Escape HTML characters to prevent XSS attacks
+ * @param {string} text - The text to escape
+ * @returns {string} The escaped text
+ */
+function escapeHtml(text) {
+    if (typeof text !== 'string') {
+        return String(text);
+    }
+    
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
  * Initialize all UI enhancement features
  */
 document.addEventListener('DOMContentLoaded', function() {
@@ -223,8 +238,12 @@ function showToast(message, type = 'info', duration = 5000) {
     const container = document.querySelector('.toast-container');
     if (!container) return;
     
+    // Validate and sanitize the type parameter to prevent XSS
+    const validTypes = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'];
+    const safeType = validTypes.includes(type) ? type : 'info';
+    
     const toast = document.createElement('div');
-    toast.className = `toast align-items-center border-0 bg-${type} text-white`;
+    toast.className = `toast align-items-center border-0 bg-${safeType} text-white`;
     toast.setAttribute('role', 'alert');
     toast.setAttribute('aria-live', 'assertive');
     toast.setAttribute('aria-atomic', 'true');
@@ -233,7 +252,7 @@ function showToast(message, type = 'info', duration = 5000) {
     toast.innerHTML = `
         <div class="d-flex">
             <div class="toast-body">
-                ${message}
+                ${escapeHtml(message)}
             </div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>

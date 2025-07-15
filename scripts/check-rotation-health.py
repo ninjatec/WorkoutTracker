@@ -42,6 +42,7 @@ class RotationHealthChecker:
         self.sql_server = sql_server
         self.issues = []
         self.warnings = []
+
         self.redacted_values = {
             self.secret_path: "[REDACTED]",
             self.vault_token: "[REDACTED]",
@@ -56,6 +57,7 @@ class RotationHealthChecker:
         
     def add_warning(self, warning: str):
         """Add a warning"""
+
         sanitized_warning = self._sanitize_message(warning)
         self.warnings.append(sanitized_warning)
         logger.warning(f"WARNING: {sanitized_warning}")

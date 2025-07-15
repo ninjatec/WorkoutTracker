@@ -7,6 +7,22 @@
  * - Session navigation shortcuts
  * - Haptic feedback for interactive elements
  */
+
+/**
+ * Escape HTML characters to prevent XSS attacks
+ * @param {string} text - The text to escape
+ * @returns {string} The escaped text
+ */
+function escapeHtml(text) {
+    if (typeof text !== 'string') {
+        return String(text);
+    }
+    
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     initMobileNavigation();
     initContextNavigation();
@@ -49,7 +65,12 @@ function initContextNavigation() {
         
         // Empty or root path shows just home
         if (pathSegments.length === 0 || (pathSegments.length === 1 && pathSegments[0] === 'index')) {
-            contextLink.innerHTML = '<i class="bi bi-house"></i> Home';
+            contextLink.textContent = ''; // Clear existing content
+            const homeIcon = document.createElement('i');
+            homeIcon.className = 'bi bi-house';
+            const homeText = document.createTextNode(' Home');
+            contextLink.appendChild(homeIcon);
+            contextLink.appendChild(homeText);
             contextLink.href = '/';
             contextLink.classList.add('active');
             return;
@@ -77,14 +98,19 @@ function initContextNavigation() {
             displayName = 'Feedback';
             icon = 'bi-chat-dots';
         } else {
-            // Default for unknown paths
-            displayName = pathSegments[0].charAt(0).toUpperCase() + pathSegments[0].slice(1);
+            // Default for unknown paths - escape the path segment for display
+            displayName = escapeHtml(pathSegments[0]).charAt(0).toUpperCase() + escapeHtml(pathSegments[0]).slice(1);
             icon = 'bi-folder';
         }
         
-        // Update context navigation
-        contextLink.innerHTML = `<i class="bi ${icon}"></i> ${displayName}`;
-        contextLink.href = '/' + pathSegments[0];
+        // Update context navigation safely using DOM methods to prevent XSS
+        contextLink.textContent = ''; // Clear existing content
+        const iconElement = document.createElement('i');
+        iconElement.className = `bi ${icon}`; // icon is controlled, safe to use directly
+        const textNode = document.createTextNode(` ${displayName}`);
+        contextLink.appendChild(iconElement);
+        contextLink.appendChild(textNode);
+        contextLink.href = '/' + encodeURIComponent(pathSegments[0]);
         
         // Add additional context items for deeper paths
         if (pathSegments.length > 1 && pathSegments[1] !== 'index') {
@@ -93,21 +119,33 @@ function initContextNavigation() {
                 // This is likely a numeric ID, show appropriate label
                 const idName = pathSegments[pathSegments.length - 1];
                 const actionName = pathSegments.length > 2 ? 
-                    pathSegments[pathSegments.length - 2].charAt(0).toUpperCase() + pathSegments[pathSegments.length - 2].slice(1) :
+                    escapeHtml(pathSegments[pathSegments.length - 2]).charAt(0).toUpperCase() + escapeHtml(pathSegments[pathSegments.length - 2]).slice(1) :
                     'Details';
                 
+                // Create detail item safely using DOM methods
                 const detailItem = document.createElement('a');
                 detailItem.classList.add('mobile-context-nav-item', 'active');
-                detailItem.innerHTML = `<i class="bi bi-card-text"></i> ${actionName} #${idName}`;
-                detailItem.href = path;
+                
+                const detailIcon = document.createElement('i');
+                detailIcon.className = 'bi bi-card-text';
+                const detailText = document.createTextNode(` ${actionName} #${idName}`);
+                
+                detailItem.appendChild(detailIcon);
+                detailItem.appendChild(detailText);
+                detailItem.href = encodeURI(path);
                 contextNav.appendChild(detailItem);
             } else {
-                // Action name (Edit, Create, etc.)
-                const actionName = pathSegments[1].charAt(0).toUpperCase() + pathSegments[1].slice(1);
+                // Create action item safely using DOM methods
                 const actionItem = document.createElement('a');
                 actionItem.classList.add('mobile-context-nav-item', 'active');
-                actionItem.innerHTML = `<i class="bi bi-pencil"></i> ${actionName}`;
-                actionItem.href = path;
+                
+                const actionIcon = document.createElement('i');
+                actionIcon.className = 'bi bi-pencil';
+                const actionText = document.createTextNode(` ${actionName}`);
+                
+                actionItem.appendChild(actionIcon);
+                actionItem.appendChild(actionText);
+                actionItem.href = encodeURI(path);
                 contextNav.appendChild(actionItem);
             }
         } else {
@@ -189,9 +227,13 @@ function enableSwipeActionsOnListItems() {
                 if (!item.querySelector('.swipe-action-indicator')) {
                     const indicator = document.createElement('div');
                     indicator.className = 'swipe-action-indicator';
-                    indicator.innerHTML = deleteButton ? 
-                        '<i class="bi bi-trash"></i> Delete' : 
-                        '<i class="bi bi-pencil"></i> Edit';
+                    
+                    const icon = document.createElement('i');
+                    const text = document.createTextNode(deleteButton ? ' Delete' : ' Edit');
+                    icon.className = deleteButton ? 'bi bi-trash' : 'bi bi-pencil';
+                    
+                    indicator.appendChild(icon);
+                    indicator.appendChild(text);
                     item.appendChild(indicator);
                 }
             } else {
@@ -276,9 +318,13 @@ function enableSwipeActionsOnTableRows() {
                 if (!row.querySelector('.swipe-action-indicator')) {
                     const indicator = document.createElement('div');
                     indicator.className = 'swipe-action-indicator';
-                    indicator.innerHTML = deleteButton ? 
-                        '<i class="bi bi-trash"></i> Delete' : 
-                        '<i class="bi bi-pencil"></i> Edit';
+                    
+                    const icon = document.createElement('i');
+                    const text = document.createTextNode(deleteButton ? ' Delete' : ' Edit');
+                    icon.className = deleteButton ? 'bi bi-trash' : 'bi bi-pencil';
+                    
+                    indicator.appendChild(icon);
+                    indicator.appendChild(text);
                     row.appendChild(indicator);
                 }
             } else {
@@ -339,7 +385,18 @@ function initPullToRefresh() {
         
         refreshIndicator = document.createElement('div');
         refreshIndicator.className = 'pull-refresh-indicator';
-        refreshIndicator.innerHTML = '<div class="spinner"><i class="bi bi-arrow-clockwise"></i></div><span>Pull to refresh</span>';
+        
+        const spinnerDiv = document.createElement('div');
+        spinnerDiv.className = 'spinner';
+        const spinnerIcon = document.createElement('i');
+        spinnerIcon.className = 'bi bi-arrow-clockwise';
+        spinnerDiv.appendChild(spinnerIcon);
+        
+        const textSpan = document.createElement('span');
+        textSpan.textContent = 'Pull to refresh';
+        
+        refreshIndicator.appendChild(spinnerDiv);
+        refreshIndicator.appendChild(textSpan);
         document.body.appendChild(refreshIndicator);
     }
     
