@@ -49,6 +49,8 @@ This document maintains an up-to-date inventory of all features, components, and
   - Privilege escalation prevention with explicit restrictions
   - Seccomp security profiles enabled at pod and container level
   - Process namespace isolation for security
+  - Read-only root filesystem with memory-backed writable volumes
+  - In-memory temporary storage for enhanced security
 - Output Caching with Redis Backplane
 
 ### Application Components
@@ -748,3 +750,19 @@ This document maintains an up-to-date inventory of all features, components, and
 - **Status**: All OpenTelemetry packages are at their latest available versions
 - **Note**: This is common in the OpenTelemetry ecosystem - core libraries stabilize first, instrumentation packages follow later
 - Build compilation successful with all current package versions
+
+## 2025-07-15: Read-Only Root Filesystem Security Enhancement
+- **Security Improvement**: Enabled read-only root filesystem for all containers
+- **Changes Made**:
+  - Updated `readOnlyRootFilesystem: true` in both main deployment and Hangfire worker
+  - Added in-memory volume mounts for writable directories:
+    - `/app/logs` - 100Mi memory limit for application logs
+    - `/app/temp` - 200Mi memory limit for temporary files  
+    - `/tmp` - 100Mi memory limit for system temp files
+  - Configured `TMPDIR=/app/temp` environment variable
+- **Security Benefits**:
+  - Prevents malicious file system modifications
+  - Reduces attack surface for container breakout attempts
+  - Ensures temporary data is cleared on container restart
+  - Memory-backed storage prevents persistence of sensitive data
+- **Impact**: Enhanced container security posture while maintaining full application functionality
