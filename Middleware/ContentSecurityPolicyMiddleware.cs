@@ -46,8 +46,8 @@ namespace WorkoutTrackerWeb.Middleware
             {
                 "default-src 'self'",
                 
-                // Script sources - refactored to remove unsafe-inline by replacing inline event handlers with addEventListener
-                "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com 'unsafe-eval'",
+                // Script sources - including Google Analytics and inline scripts
+                "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com 'unsafe-eval' 'unsafe-inline'",
                 
                 // Style sources - use nonces where possible
                 "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://fonts.googleapis.com 'unsafe-inline'",
@@ -58,8 +58,8 @@ namespace WorkoutTrackerWeb.Middleware
                 // Font sources
                 "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com data:",
                 
-                // Connection sources - restrict wildcards
-                $"connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net {GetAllowedDomains()} https://challenges.cloudflare.com {GetWebSocketUrls()}",
+                // Connection sources - restrict wildcards, include Google Analytics
+                $"connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://www.google-analytics.com https://analytics.google.com https://app.aikido.dev {GetAllowedDomains()} https://challenges.cloudflare.com {GetWebSocketUrls()}",
                 
                 // Frame sources
                 "frame-src 'self' https://challenges.cloudflare.com https://www.youtube.com",
@@ -144,10 +144,10 @@ namespace WorkoutTrackerWeb.Middleware
                     response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload";
                 }
 
-                // Add Cross-Origin-Embedder-Policy for enhanced security
+                // Add Cross-Origin-Embedder-Policy for enhanced security (relaxed for external badges)
                 if (!response.Headers.ContainsKey("Cross-Origin-Embedder-Policy"))
                 {
-                    response.Headers["Cross-Origin-Embedder-Policy"] = "require-corp";
+                    response.Headers["Cross-Origin-Embedder-Policy"] = "credentialless";
                 }
 
                 // Add Cross-Origin-Opener-Policy
