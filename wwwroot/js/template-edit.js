@@ -1,6 +1,22 @@
 /**
  * Script for handling Template edit functionality
  */
+
+/**
+ * Escape HTML characters to prevent XSS attacks
+ * @param {string} text - The text to escape
+ * @returns {string} The escaped text
+ */
+function escapeHtml(text) {
+    if (typeof text !== 'string') {
+        return String(text);
+    }
+    
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     // Set up event handlers for all set add forms
     setupSetFormHandlers();
@@ -116,29 +132,29 @@ function updateSetsTable(exerciseId, sets) {
     sets.forEach(set => {
         html += `
             <tr>
-                <td>${set.sequenceNum}</td>
-                <td>${set.type}</td>
-                <td>${set.reps}</td>
-                <td>${set.weight} kg</td>
+                <td>${escapeHtml(set.sequenceNum)}</td>
+                <td>${escapeHtml(set.type)}</td>
+                <td>${escapeHtml(set.reps)}</td>
+                <td>${escapeHtml(set.weight)} kg</td>
                 <td>
                     <div class="btn-group" role="group">
                         <button type="button" class="btn btn-sm btn-outline-primary" 
-                                data-bs-toggle="collapse" data-bs-target="#editSet-${set.id}" 
-                                aria-expanded="false" aria-controls="editSet-${set.id}">
+                                data-bs-toggle="collapse" data-bs-target="#editSet-${escapeHtml(set.id)}" 
+                                aria-expanded="false" aria-controls="editSet-${escapeHtml(set.id)}">
                             <i class="bi bi-pencil"></i>
                         </button>
                         <form method="post" action="?handler=CloneSet" class="d-inline">
-                            <input type="hidden" name="TemplateId" value="${document.querySelector('[name="TemplateId"]').value}" />
-                            <input type="hidden" name="SetId" value="${set.id}" />
-                            ${window.antiForgeryToken ? `<input type="hidden" name="__RequestVerificationToken" value="${window.antiForgeryToken}" />` : ''}
+                            <input type="hidden" name="TemplateId" value="${escapeHtml(document.querySelector('[name="TemplateId"]').value)}" />
+                            <input type="hidden" name="SetId" value="${escapeHtml(set.id)}" />
+                            ${window.antiForgeryToken ? `<input type="hidden" name="__RequestVerificationToken" value="${escapeHtml(window.antiForgeryToken)}" />` : ''}
                             <button type="submit" class="btn btn-sm btn-outline-secondary" title="Clone this set">
                                 <i class="bi bi-files"></i>
                             </button>
                         </form>
                         <form method="post" action="?handler=DeleteSet" class="d-inline">
-                            <input type="hidden" name="TemplateId" value="${document.querySelector('[name="TemplateId"]').value}" />
-                            <input type="hidden" name="SetId" value="${set.id}" />
-                            ${window.antiForgeryToken ? `<input type="hidden" name="__RequestVerificationToken" value="${window.antiForgeryToken}" />` : ''}
+                            <input type="hidden" name="TemplateId" value="${escapeHtml(document.querySelector('[name="TemplateId"]').value)}" />
+                            <input type="hidden" name="SetId" value="${escapeHtml(set.id)}" />
+                            ${window.antiForgeryToken ? `<input type="hidden" name="__RequestVerificationToken" value="${escapeHtml(window.antiForgeryToken)}" />` : ''}
                             <button type="submit" class="btn btn-sm btn-outline-danger">
                                 <i class="bi bi-trash"></i>
                             </button>
@@ -148,49 +164,49 @@ function updateSetsTable(exerciseId, sets) {
             </tr>
             <tr>
                 <td colspan="5" class="p-0">
-                    <div class="collapse" id="editSet-${set.id}">
+                    <div class="collapse" id="editSet-${escapeHtml(set.id)}">
                         <div class="card card-body border-primary m-2">
                             <h6 class="card-title">Edit Set</h6>
                             <form method="post" action="?handler=EditSet">
-                                <input type="hidden" name="TemplateId" value="${document.querySelector('[name="TemplateId"]').value}" />
-                                <input type="hidden" name="SetId" value="${set.id}" />
-                                ${window.antiForgeryToken ? `<input type="hidden" name="__RequestVerificationToken" value="${window.antiForgeryToken}" />` : ''}
+                                <input type="hidden" name="TemplateId" value="${escapeHtml(document.querySelector('[name="TemplateId"]').value)}" />
+                                <input type="hidden" name="SetId" value="${escapeHtml(set.id)}" />
+                                ${window.antiForgeryToken ? `<input type="hidden" name="__RequestVerificationToken" value="${escapeHtml(window.antiForgeryToken)}" />` : ''}
                                 
                                 <div class="mb-2">
-                                    <label for="editSettypeId-${set.id}" class="form-label">Set Type</label>
-                                    <select id="editSettypeId-${set.id}" name="SettypeId" class="form-select form-select-sm" required>
+                                    <label for="editSettypeId-${escapeHtml(set.id)}" class="form-label">Set Type</label>
+                                    <select id="editSettypeId-${escapeHtml(set.id)}" name="SettypeId" class="form-select form-select-sm" required>
                                         ${getSetTypeOptions(set.settypeId)}
                                     </select>
                                 </div>
                                 
                                 <div class="row mb-2">
                                     <div class="col">
-                                        <label for="editDefaultReps-${set.id}" class="form-label">Reps</label>
-                                        <input type="number" id="editDefaultReps-${set.id}" name="DefaultReps" 
-                                               class="form-control form-control-sm" value="${set.reps}" min="0" required />
+                                        <label for="editDefaultReps-${escapeHtml(set.id)}" class="form-label">Reps</label>
+                                        <input type="number" id="editDefaultReps-${escapeHtml(set.id)}" name="DefaultReps" 
+                                               class="form-control form-control-sm" value="${escapeHtml(set.reps)}" min="0" required />
                                     </div>
                                     <div class="col">
-                                        <label for="editDefaultWeight-${set.id}" class="form-label">Weight (kg)</label>
-                                        <input type="number" id="editDefaultWeight-${set.id}" name="DefaultWeight" 
-                                               class="form-control form-control-sm" value="${set.weight}" min="0" step="0.5" required />
+                                        <label for="editDefaultWeight-${escapeHtml(set.id)}" class="form-label">Weight (kg)</label>
+                                        <input type="number" id="editDefaultWeight-${escapeHtml(set.id)}" name="DefaultWeight" 
+                                               class="form-control form-control-sm" value="${escapeHtml(set.weight)}" min="0" step="0.5" required />
                                     </div>
                                 </div>
                                 
                                 <div class="mb-2">
-                                    <label for="editSequenceNum-${set.id}" class="form-label">Sequence #</label>
-                                    <input type="number" id="editSequenceNum-${set.id}" name="SequenceNum" 
-                                           class="form-control form-control-sm" value="${set.sequenceNum}" min="1" required />
+                                    <label for="editSequenceNum-${escapeHtml(set.id)}" class="form-label">Sequence #</label>
+                                    <input type="number" id="editSequenceNum-${escapeHtml(set.id)}" name="SequenceNum" 
+                                           class="form-control form-control-sm" value="${escapeHtml(set.sequenceNum)}" min="1" required />
                                 </div>
                                 
                                 <div class="mb-2">
-                                    <label for="editDescription-${set.id}" class="form-label">Description</label>
-                                    <input type="text" id="editDescription-${set.id}" name="Description" 
-                                           class="form-control form-control-sm" value="${set.description || ''}" />
+                                    <label for="editDescription-${escapeHtml(set.id)}" class="form-label">Description</label>
+                                    <input type="text" id="editDescription-${escapeHtml(set.id)}" name="Description" 
+                                           class="form-control form-control-sm" value="${escapeHtml(set.description || '')}" />
                                 </div>
                                 
                                 <div class="d-flex justify-content-end">
                                     <button type="button" class="btn btn-sm btn-secondary me-2" 
-                                            data-bs-toggle="collapse" data-bs-target="#editSet-${set.id}">
+                                            data-bs-toggle="collapse" data-bs-target="#editSet-${escapeHtml(set.id)}">
                                         Cancel
                                     </button>
                                     <button type="submit" class="btn btn-sm btn-primary">Save Changes</button>
@@ -257,7 +273,7 @@ function showToast(title, message, type = 'info') {
     toast.innerHTML = `
         <div class="d-flex">
             <div class="toast-body">
-                <strong>${title}</strong>: ${message}
+                <strong>${escapeHtml(title)}</strong>: ${escapeHtml(message)}
             </div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>

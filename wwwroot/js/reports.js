@@ -1,3 +1,18 @@
+/**
+ * Escape HTML characters to prevent XSS attacks
+ * @param {string} text - The text to escape
+ * @returns {string} The escaped text
+ */
+function escapeHtml(text) {
+    if (typeof text !== 'string') {
+        return String(text);
+    }
+    
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Reports page chart loading with IntersectionObserver for lazy loading
 document.addEventListener('DOMContentLoaded', function() {
     // Store global charts for reference
@@ -206,7 +221,7 @@ function initializeCharts() {
             <div class="d-flex align-items-center">
                 <i class="bi bi-exclamation-triangle-fill me-2"></i>
                 <div>
-                    ${message}
+                    ${escapeHtml(message)}
                     <button class="btn btn-sm btn-outline-secondary ms-3 retry-button">Retry</button>
                 </div>
             </div>
@@ -655,19 +670,4 @@ function initializeCharts() {
         const urlParams = new URLSearchParams(window.location.search);
         return parseInt(urlParams.get('period')) || 90; // Default to 90 days
     }
-    
-    // Initialize any visible charts on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        // Attach listeners to accordion sections
-        const volumeSection = document.getElementById('collapseVolume');
-        if (volumeSection && volumeSection.classList.contains('show') && window.createVolumeChart) {
-            window.createVolumeChart();
-        }
-        
-        const caloriesSection = document.getElementById('collapseCalories');
-        if (caloriesSection && caloriesSection.classList.contains('show')) {
-            if (window.createCaloriesChart) window.createCaloriesChart();
-            if (window.createCaloriesPieChart) window.createCaloriesPieChart();
-        }
-    });
 }

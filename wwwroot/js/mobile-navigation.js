@@ -7,6 +7,22 @@
  * - Session navigation shortcuts
  * - Haptic feedback for interactive elements
  */
+
+/**
+ * Escape HTML characters to prevent XSS attacks
+ * @param {string} text - The text to escape
+ * @returns {string} The escaped text
+ */
+function escapeHtml(text) {
+    if (typeof text !== 'string') {
+        return String(text);
+    }
+    
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     initMobileNavigation();
     initContextNavigation();
@@ -83,7 +99,7 @@ function initContextNavigation() {
         }
         
         // Update context navigation
-        contextLink.innerHTML = `<i class="bi ${icon}"></i> ${displayName}`;
+        contextLink.innerHTML = `<i class="bi ${escapeHtml(icon)}"></i> ${escapeHtml(displayName)}`;
         contextLink.href = '/' + pathSegments[0];
         
         // Add additional context items for deeper paths
@@ -98,7 +114,7 @@ function initContextNavigation() {
                 
                 const detailItem = document.createElement('a');
                 detailItem.classList.add('mobile-context-nav-item', 'active');
-                detailItem.innerHTML = `<i class="bi bi-card-text"></i> ${actionName} #${idName}`;
+                detailItem.innerHTML = `<i class="bi bi-card-text"></i> ${escapeHtml(actionName)} #${escapeHtml(idName)}`;
                 detailItem.href = path;
                 contextNav.appendChild(detailItem);
             } else {
@@ -106,7 +122,7 @@ function initContextNavigation() {
                 const actionName = pathSegments[1].charAt(0).toUpperCase() + pathSegments[1].slice(1);
                 const actionItem = document.createElement('a');
                 actionItem.classList.add('mobile-context-nav-item', 'active');
-                actionItem.innerHTML = `<i class="bi bi-pencil"></i> ${actionName}`;
+                actionItem.innerHTML = `<i class="bi bi-pencil"></i> ${escapeHtml(actionName)}`;
                 actionItem.href = path;
                 contextNav.appendChild(actionItem);
             }
