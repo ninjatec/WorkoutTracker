@@ -23,6 +23,7 @@ using WorkoutTrackerWeb.Utilities;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Aikido.Zen.DotNetCore;
+using Aikido.Zen;
 using System.IO;
 using System.IO.Compression;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -1201,7 +1202,24 @@ namespace WorkoutTrackerWeb
 
             app.UseRouting();
 
-            // Add Zen Firewall middleware - placed after UseRouting() as recommended
+            // Set user context for Zen Firewall - needs to be before UseZenFirewall()
+            app.Use(async (context, next) =>
+            {
+                if (context.User?.Identity?.IsAuthenticated == true)
+                {
+                    var userId = context.User.GetUserId();
+                    var userName = context.User.Identity.Name;
+                    
+                    if (!string.IsNullOrEmpty(userId))
+                    {
+                        Zen.SetUser(userId, userName ?? "Anonymous", context);
+                    }
+                }
+                
+                await next();
+            });
+
+            // Add Zen Firewall middleware - placed after UseRouting() and user context setup
             app.UseZenFirewall();
 
             app.UseOutputCache();
