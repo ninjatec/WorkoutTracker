@@ -238,8 +238,12 @@ function showToast(message, type = 'info', duration = 5000) {
     const container = document.querySelector('.toast-container');
     if (!container) return;
     
+    // Validate and sanitize the type parameter to prevent XSS
+    const validTypes = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'];
+    const safeType = validTypes.includes(type) ? type : 'info';
+    
     const toast = document.createElement('div');
-    toast.className = `toast align-items-center border-0 bg-${type} text-white`;
+    toast.className = `toast align-items-center border-0 bg-${safeType} text-white`;
     toast.setAttribute('role', 'alert');
     toast.setAttribute('aria-live', 'assertive');
     toast.setAttribute('aria-atomic', 'true');

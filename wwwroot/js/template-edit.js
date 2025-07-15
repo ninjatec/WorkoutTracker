@@ -51,9 +51,17 @@ function handleSetFormSubmit(e) {
     
     // Show loading indicator
     const submitBtn = form.querySelector('button[type="submit"]');
-    const originalBtnText = submitBtn.innerHTML;
+    const originalBtnContent = Array.from(submitBtn.childNodes);
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adding...';
+    
+    // Clear button and add spinner
+    submitBtn.textContent = '';
+    const spinner = document.createElement('span');
+    spinner.className = 'spinner-border spinner-border-sm';
+    spinner.setAttribute('role', 'status');
+    spinner.setAttribute('aria-hidden', 'true');
+    submitBtn.appendChild(spinner);
+    submitBtn.appendChild(document.createTextNode(' Adding...'));
 
     fetch(url, {
         method: 'POST',
@@ -97,7 +105,10 @@ function handleSetFormSubmit(e) {
     .finally(() => {
         // Reset button state
         submitBtn.disabled = false;
-        submitBtn.innerHTML = originalBtnText;
+        submitBtn.textContent = '';
+        originalBtnContent.forEach(node => {
+            submitBtn.appendChild(node.cloneNode(true));
+        });
     });
 }
 
@@ -110,139 +121,423 @@ function updateSetsTable(exerciseId, sets) {
     const setsTableContainer = document.getElementById('sets-table-' + exerciseId);
     if (!setsTableContainer) return;
     
+    // Clear existing content
+    setsTableContainer.textContent = '';
+    
     if (sets.length === 0) {
-        setsTableContainer.innerHTML = '<p class="text-muted">No sets defined for this exercise.</p>';
+        const noSetsMsg = document.createElement('p');
+        noSetsMsg.className = 'text-muted';
+        noSetsMsg.textContent = 'No sets defined for this exercise.';
+        setsTableContainer.appendChild(noSetsMsg);
         return;
     }
     
-    let html = `
-        <table class="table table-sm">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Type</th>
-                    <th>Reps</th>
-                    <th>Weight</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
+    // Create table structure using DOM methods
+    const table = document.createElement('table');
+    table.className = 'table table-sm';
     
-    sets.forEach(set => {
-        html += `
-            <tr>
-                <td>${escapeHtml(set.sequenceNum)}</td>
-                <td>${escapeHtml(set.type)}</td>
-                <td>${escapeHtml(set.reps)}</td>
-                <td>${escapeHtml(set.weight)} kg</td>
-                <td>
-                    <div class="btn-group" role="group">
-                        <button type="button" class="btn btn-sm btn-outline-primary" 
-                                data-bs-toggle="collapse" data-bs-target="#editSet-${escapeHtml(set.id)}" 
-                                aria-expanded="false" aria-controls="editSet-${escapeHtml(set.id)}">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                        <form method="post" action="?handler=CloneSet" class="d-inline">
-                            <input type="hidden" name="TemplateId" value="${escapeHtml(document.querySelector('[name="TemplateId"]').value)}" />
-                            <input type="hidden" name="SetId" value="${escapeHtml(set.id)}" />
-                            ${window.antiForgeryToken ? `<input type="hidden" name="__RequestVerificationToken" value="${escapeHtml(window.antiForgeryToken)}" />` : ''}
-                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Clone this set">
-                                <i class="bi bi-files"></i>
-                            </button>
-                        </form>
-                        <form method="post" action="?handler=DeleteSet" class="d-inline">
-                            <input type="hidden" name="TemplateId" value="${escapeHtml(document.querySelector('[name="TemplateId"]').value)}" />
-                            <input type="hidden" name="SetId" value="${escapeHtml(set.id)}" />
-                            ${window.antiForgeryToken ? `<input type="hidden" name="__RequestVerificationToken" value="${escapeHtml(window.antiForgeryToken)}" />` : ''}
-                            <button type="submit" class="btn btn-sm btn-outline-danger">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </form>
-                    </div>
-                </td>
-            </tr>
-            <tr>
-                <td colspan="5" class="p-0">
-                    <div class="collapse" id="editSet-${escapeHtml(set.id)}">
-                        <div class="card card-body border-primary m-2">
-                            <h6 class="card-title">Edit Set</h6>
-                            <form method="post" action="?handler=EditSet">
-                                <input type="hidden" name="TemplateId" value="${escapeHtml(document.querySelector('[name="TemplateId"]').value)}" />
-                                <input type="hidden" name="SetId" value="${escapeHtml(set.id)}" />
-                                ${window.antiForgeryToken ? `<input type="hidden" name="__RequestVerificationToken" value="${escapeHtml(window.antiForgeryToken)}" />` : ''}
-                                
-                                <div class="mb-2">
-                                    <label for="editSettypeId-${escapeHtml(set.id)}" class="form-label">Set Type</label>
-                                    <select id="editSettypeId-${escapeHtml(set.id)}" name="SettypeId" class="form-select form-select-sm" required>
-                                        ${getSetTypeOptions(set.settypeId)}
-                                    </select>
-                                </div>
-                                
-                                <div class="row mb-2">
-                                    <div class="col">
-                                        <label for="editDefaultReps-${escapeHtml(set.id)}" class="form-label">Reps</label>
-                                        <input type="number" id="editDefaultReps-${escapeHtml(set.id)}" name="DefaultReps" 
-                                               class="form-control form-control-sm" value="${escapeHtml(set.reps)}" min="0" required />
-                                    </div>
-                                    <div class="col">
-                                        <label for="editDefaultWeight-${escapeHtml(set.id)}" class="form-label">Weight (kg)</label>
-                                        <input type="number" id="editDefaultWeight-${escapeHtml(set.id)}" name="DefaultWeight" 
-                                               class="form-control form-control-sm" value="${escapeHtml(set.weight)}" min="0" step="0.5" required />
-                                    </div>
-                                </div>
-                                
-                                <div class="mb-2">
-                                    <label for="editSequenceNum-${escapeHtml(set.id)}" class="form-label">Sequence #</label>
-                                    <input type="number" id="editSequenceNum-${escapeHtml(set.id)}" name="SequenceNum" 
-                                           class="form-control form-control-sm" value="${escapeHtml(set.sequenceNum)}" min="1" required />
-                                </div>
-                                
-                                <div class="mb-2">
-                                    <label for="editDescription-${escapeHtml(set.id)}" class="form-label">Description</label>
-                                    <input type="text" id="editDescription-${escapeHtml(set.id)}" name="Description" 
-                                           class="form-control form-control-sm" value="${escapeHtml(set.description || '')}" />
-                                </div>
-                                
-                                <div class="d-flex justify-content-end">
-                                    <button type="button" class="btn btn-sm btn-secondary me-2" 
-                                            data-bs-toggle="collapse" data-bs-target="#editSet-${escapeHtml(set.id)}">
-                                        Cancel
-                                    </button>
-                                    <button type="submit" class="btn btn-sm btn-primary">Save Changes</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </td>
-            </tr>
-        `;
+    // Create table header
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    
+    const headers = ['#', 'Type', 'Reps', 'Weight', 'Actions'];
+    headers.forEach(headerText => {
+        const th = document.createElement('th');
+        th.textContent = headerText;
+        headerRow.appendChild(th);
     });
     
-    html += `
-            </tbody>
-        </table>
-    `;
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
     
-    setsTableContainer.innerHTML = html;
+    // Create table body
+    const tbody = document.createElement('tbody');
+    
+    sets.forEach(set => {
+        // Create main row
+        const mainRow = document.createElement('tr');
+        
+        // Sequence number
+        const seqCell = document.createElement('td');
+        seqCell.textContent = set.sequenceNum;
+        mainRow.appendChild(seqCell);
+        
+        // Type
+        const typeCell = document.createElement('td');
+        typeCell.textContent = set.type;
+        mainRow.appendChild(typeCell);
+        
+        // Reps
+        const repsCell = document.createElement('td');
+        repsCell.textContent = set.reps;
+        mainRow.appendChild(repsCell);
+        
+        // Weight
+        const weightCell = document.createElement('td');
+        weightCell.textContent = set.weight + ' kg';
+        mainRow.appendChild(weightCell);
+        
+        // Actions
+        const actionsCell = document.createElement('td');
+        actionsCell.appendChild(createActionsButtonGroup(set));
+        mainRow.appendChild(actionsCell);
+        
+        tbody.appendChild(mainRow);
+        
+        // Create edit row
+        const editRow = document.createElement('tr');
+        const editCell = document.createElement('td');
+        editCell.colSpan = 5;
+        editCell.className = 'p-0';
+        editCell.appendChild(createEditForm(set));
+        editRow.appendChild(editCell);
+        
+        tbody.appendChild(editRow);
+    });
+    
+    table.appendChild(tbody);
+    setsTableContainer.appendChild(table);
 }
 
 /**
- * Get the HTML for set type options
- * @param {number} selectedId - The selected set type ID
- * @returns {string} HTML options for the set types
+ * Create the actions button group for a set
+ * @param {Object} set - The set data
+ * @returns {HTMLElement} The button group element
  */
-function getSetTypeOptions(selectedId) {
+function createActionsButtonGroup(set) {
+    const buttonGroup = document.createElement('div');
+    buttonGroup.className = 'btn-group';
+    buttonGroup.setAttribute('role', 'group');
+    
+    // Edit button
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'btn btn-sm btn-outline-primary';
+    editBtn.setAttribute('data-bs-toggle', 'collapse');
+    editBtn.setAttribute('data-bs-target', '#editSet-' + set.id);
+    editBtn.setAttribute('aria-expanded', 'false');
+    editBtn.setAttribute('aria-controls', 'editSet-' + set.id);
+    
+    const editIcon = document.createElement('i');
+    editIcon.className = 'bi bi-pencil';
+    editBtn.appendChild(editIcon);
+    
+    buttonGroup.appendChild(editBtn);
+    
+    // Clone form
+    const cloneForm = createCloneForm(set);
+    buttonGroup.appendChild(cloneForm);
+    
+    // Delete form
+    const deleteForm = createDeleteForm(set);
+    buttonGroup.appendChild(deleteForm);
+    
+    return buttonGroup;
+}
+
+/**
+ * Create the clone form for a set
+ * @param {Object} set - The set data
+ * @returns {HTMLFormElement} The clone form element
+ */
+function createCloneForm(set) {
+    const form = document.createElement('form');
+    form.method = 'post';
+    form.action = '?handler=CloneSet';
+    form.className = 'd-inline';
+    
+    // Template ID hidden field
+    const templateIdInput = document.createElement('input');
+    templateIdInput.type = 'hidden';
+    templateIdInput.name = 'TemplateId';
+    templateIdInput.value = document.querySelector('[name="TemplateId"]').value;
+    form.appendChild(templateIdInput);
+    
+    // Set ID hidden field
+    const setIdInput = document.createElement('input');
+    setIdInput.type = 'hidden';
+    setIdInput.name = 'SetId';
+    setIdInput.value = set.id;
+    form.appendChild(setIdInput);
+    
+    // Anti-forgery token
+    if (window.antiForgeryToken) {
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = '__RequestVerificationToken';
+        tokenInput.value = window.antiForgeryToken;
+        form.appendChild(tokenInput);
+    }
+    
+    // Submit button
+    const submitBtn = document.createElement('button');
+    submitBtn.type = 'submit';
+    submitBtn.className = 'btn btn-sm btn-outline-secondary';
+    submitBtn.title = 'Clone this set';
+    
+    const icon = document.createElement('i');
+    icon.className = 'bi bi-files';
+    submitBtn.appendChild(icon);
+    
+    form.appendChild(submitBtn);
+    
+    return form;
+}
+
+/**
+ * Create the delete form for a set
+ * @param {Object} set - The set data
+ * @returns {HTMLFormElement} The delete form element
+ */
+function createDeleteForm(set) {
+    const form = document.createElement('form');
+    form.method = 'post';
+    form.action = '?handler=DeleteSet';
+    form.className = 'd-inline';
+    
+    // Template ID hidden field
+    const templateIdInput = document.createElement('input');
+    templateIdInput.type = 'hidden';
+    templateIdInput.name = 'TemplateId';
+    templateIdInput.value = document.querySelector('[name="TemplateId"]').value;
+    form.appendChild(templateIdInput);
+    
+    // Set ID hidden field
+    const setIdInput = document.createElement('input');
+    setIdInput.type = 'hidden';
+    setIdInput.name = 'SetId';
+    setIdInput.value = set.id;
+    form.appendChild(setIdInput);
+    
+    // Anti-forgery token
+    if (window.antiForgeryToken) {
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = '__RequestVerificationToken';
+        tokenInput.value = window.antiForgeryToken;
+        form.appendChild(tokenInput);
+    }
+    
+    // Submit button
+    const submitBtn = document.createElement('button');
+    submitBtn.type = 'submit';
+    submitBtn.className = 'btn btn-sm btn-outline-danger';
+    
+    const icon = document.createElement('i');
+    icon.className = 'bi bi-trash';
+    submitBtn.appendChild(icon);
+    
+    form.appendChild(submitBtn);
+    
+    return form;
+}
+
+/**
+ * Create the edit form for a set
+ * @param {Object} set - The set data
+ * @returns {HTMLElement} The edit form container
+ */
+function createEditForm(set) {
+    const collapseDiv = document.createElement('div');
+    collapseDiv.className = 'collapse';
+    collapseDiv.id = 'editSet-' + set.id;
+    
+    const cardDiv = document.createElement('div');
+    cardDiv.className = 'card card-body border-primary m-2';
+    
+    const cardTitle = document.createElement('h6');
+    cardTitle.className = 'card-title';
+    cardTitle.textContent = 'Edit Set';
+    cardDiv.appendChild(cardTitle);
+    
+    const form = document.createElement('form');
+    form.method = 'post';
+    form.action = '?handler=EditSet';
+    
+    // Hidden fields
+    const templateIdInput = document.createElement('input');
+    templateIdInput.type = 'hidden';
+    templateIdInput.name = 'TemplateId';
+    templateIdInput.value = document.querySelector('[name="TemplateId"]').value;
+    form.appendChild(templateIdInput);
+    
+    const setIdInput = document.createElement('input');
+    setIdInput.type = 'hidden';
+    setIdInput.name = 'SetId';
+    setIdInput.value = set.id;
+    form.appendChild(setIdInput);
+    
+    if (window.antiForgeryToken) {
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = '__RequestVerificationToken';
+        tokenInput.value = window.antiForgeryToken;
+        form.appendChild(tokenInput);
+    }
+    
+    // Set Type field
+    const setTypeDiv = document.createElement('div');
+    setTypeDiv.className = 'mb-2';
+    
+    const setTypeLabel = document.createElement('label');
+    setTypeLabel.htmlFor = 'editSettypeId-' + set.id;
+    setTypeLabel.className = 'form-label';
+    setTypeLabel.textContent = 'Set Type';
+    setTypeDiv.appendChild(setTypeLabel);
+    
+    const setTypeSelect = document.createElement('select');
+    setTypeSelect.id = 'editSettypeId-' + set.id;
+    setTypeSelect.name = 'SettypeId';
+    setTypeSelect.className = 'form-select form-select-sm';
+    setTypeSelect.required = true;
+    populateSetTypeOptions(setTypeSelect, set.settypeId);
+    setTypeDiv.appendChild(setTypeSelect);
+    
+    form.appendChild(setTypeDiv);
+    
+    // Reps and Weight row
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'row mb-2';
+    
+    // Reps field
+    const repsColDiv = document.createElement('div');
+    repsColDiv.className = 'col';
+    
+    const repsLabel = document.createElement('label');
+    repsLabel.htmlFor = 'editDefaultReps-' + set.id;
+    repsLabel.className = 'form-label';
+    repsLabel.textContent = 'Reps';
+    repsColDiv.appendChild(repsLabel);
+    
+    const repsInput = document.createElement('input');
+    repsInput.type = 'number';
+    repsInput.id = 'editDefaultReps-' + set.id;
+    repsInput.name = 'DefaultReps';
+    repsInput.className = 'form-control form-control-sm';
+    repsInput.value = set.reps;
+    repsInput.min = '0';
+    repsInput.required = true;
+    repsColDiv.appendChild(repsInput);
+    
+    rowDiv.appendChild(repsColDiv);
+    
+    // Weight field
+    const weightColDiv = document.createElement('div');
+    weightColDiv.className = 'col';
+    
+    const weightLabel = document.createElement('label');
+    weightLabel.htmlFor = 'editDefaultWeight-' + set.id;
+    weightLabel.className = 'form-label';
+    weightLabel.textContent = 'Weight (kg)';
+    weightColDiv.appendChild(weightLabel);
+    
+    const weightInput = document.createElement('input');
+    weightInput.type = 'number';
+    weightInput.id = 'editDefaultWeight-' + set.id;
+    weightInput.name = 'DefaultWeight';
+    weightInput.className = 'form-control form-control-sm';
+    weightInput.value = set.weight;
+    weightInput.min = '0';
+    weightInput.step = '0.5';
+    weightInput.required = true;
+    weightColDiv.appendChild(weightInput);
+    
+    rowDiv.appendChild(weightColDiv);
+    form.appendChild(rowDiv);
+    
+    // Sequence field
+    const sequenceDiv = document.createElement('div');
+    sequenceDiv.className = 'mb-2';
+    
+    const sequenceLabel = document.createElement('label');
+    sequenceLabel.htmlFor = 'editSequenceNum-' + set.id;
+    sequenceLabel.className = 'form-label';
+    sequenceLabel.textContent = 'Sequence #';
+    sequenceDiv.appendChild(sequenceLabel);
+    
+    const sequenceInput = document.createElement('input');
+    sequenceInput.type = 'number';
+    sequenceInput.id = 'editSequenceNum-' + set.id;
+    sequenceInput.name = 'SequenceNum';
+    sequenceInput.className = 'form-control form-control-sm';
+    sequenceInput.value = set.sequenceNum;
+    sequenceInput.min = '1';
+    sequenceInput.required = true;
+    sequenceDiv.appendChild(sequenceInput);
+    
+    form.appendChild(sequenceDiv);
+    
+    // Description field
+    const descDiv = document.createElement('div');
+    descDiv.className = 'mb-2';
+    
+    const descLabel = document.createElement('label');
+    descLabel.htmlFor = 'editDescription-' + set.id;
+    descLabel.className = 'form-label';
+    descLabel.textContent = 'Description';
+    descDiv.appendChild(descLabel);
+    
+    const descInput = document.createElement('input');
+    descInput.type = 'text';
+    descInput.id = 'editDescription-' + set.id;
+    descInput.name = 'Description';
+    descInput.className = 'form-control form-control-sm';
+    descInput.value = set.description || '';
+    descDiv.appendChild(descInput);
+    
+    form.appendChild(descDiv);
+    
+    // Buttons
+    const buttonsDiv = document.createElement('div');
+    buttonsDiv.className = 'd-flex justify-content-end';
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn btn-sm btn-secondary me-2';
+    cancelBtn.setAttribute('data-bs-toggle', 'collapse');
+    cancelBtn.setAttribute('data-bs-target', '#editSet-' + set.id);
+    cancelBtn.textContent = 'Cancel';
+    buttonsDiv.appendChild(cancelBtn);
+    
+    const saveBtn = document.createElement('button');
+    saveBtn.type = 'submit';
+    saveBtn.className = 'btn btn-sm btn-primary';
+    saveBtn.textContent = 'Save Changes';
+    buttonsDiv.appendChild(saveBtn);
+    
+    form.appendChild(buttonsDiv);
+    cardDiv.appendChild(form);
+    collapseDiv.appendChild(cardDiv);
+    
+    return collapseDiv;
+}
+
+/**
+ * Populate set type options for a select element
+ * @param {HTMLSelectElement} selectElement - The select element to populate
+ * @param {number} selectedId - The selected set type ID
+ */
+function populateSetTypeOptions(selectElement, selectedId) {
+    // Clear existing options
+    selectElement.innerHTML = '';
+    
     // Dynamically extract set types from the page
     const setTypeSelects = document.querySelectorAll('select[name="SettypeId"]');
-    if (setTypeSelects.length === 0) return '';
+    if (setTypeSelects.length === 0) return;
     
-    const options = Array.from(setTypeSelects[0].options);
+    const sourceOptions = Array.from(setTypeSelects[0].options);
     
-    return options.map(option => {
-        const isSelected = parseInt(option.value) === selectedId ? 'selected' : '';
-        return `<option value="${option.value}" ${isSelected}>${option.text}</option>`;
-    }).join('');
+    sourceOptions.forEach(sourceOption => {
+        const option = document.createElement('option');
+        option.value = sourceOption.value;
+        option.textContent = sourceOption.text;
+        
+        if (parseInt(sourceOption.value) === selectedId) {
+            option.selected = true;
+        }
+        
+        selectElement.appendChild(option);
+    });
 }
 
 /**
@@ -261,23 +556,41 @@ function showToast(title, message, type = 'info') {
         document.body.appendChild(toastContainer);
     }
     
-    // Create toast element
+    // Validate and sanitize the type parameter to prevent XSS
+    const validTypes = ['primary', 'secondary', 'success', 'danger', 'warning', 'info', 'light', 'dark'];
+    const safeType = validTypes.includes(type) ? type : 'info';
+    
+    // Create toast element using DOM methods
     const toastId = 'toast-' + Date.now();
     const toast = document.createElement('div');
     toast.id = toastId;
-    toast.className = `toast align-items-center border-0 text-white bg-${type}`;
+    toast.className = `toast align-items-center border-0 text-white bg-${safeType}`;
     toast.setAttribute('role', 'alert');
     toast.setAttribute('aria-live', 'assertive');
     toast.setAttribute('aria-atomic', 'true');
     
-    toast.innerHTML = `
-        <div class="d-flex">
-            <div class="toast-body">
-                <strong>${escapeHtml(title)}</strong>: ${escapeHtml(message)}
-            </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-    `;
+    // Create toast content using DOM methods
+    const flexDiv = document.createElement('div');
+    flexDiv.className = 'd-flex';
+    
+    const toastBody = document.createElement('div');
+    toastBody.className = 'toast-body';
+    
+    const titleStrong = document.createElement('strong');
+    titleStrong.textContent = title;
+    toastBody.appendChild(titleStrong);
+    
+    toastBody.appendChild(document.createTextNode(': ' + message));
+    
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn-close btn-close-white me-2 m-auto';
+    closeBtn.setAttribute('data-bs-dismiss', 'toast');
+    closeBtn.setAttribute('aria-label', 'Close');
+    
+    flexDiv.appendChild(toastBody);
+    flexDiv.appendChild(closeBtn);
+    toast.appendChild(flexDiv);
     
     toastContainer.appendChild(toast);
     
