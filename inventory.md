@@ -702,3 +702,10 @@ This document maintains an up-to-date inventory of all features, components, and
 - All layouts now include consistent G-FPNTMYLWPW tracking implementation
 - Verified build compilation succeeds with changes
 - Analytics should now be detected across all site sections
+
+## 2025-07-15: MessagePack Security Update
+- Updated MessagePack from 2.5.187 to 3.0.300 to address security vulnerabilities
+- Updated MessagePack.Annotations from 2.5.187 to 3.0.300 for compatibility
+- Added explicit package references to ensure consistent versions across all dependencies
+- Verified build compilation succeeds with updated packages
+- Confirmed no vulnerable packages remain in the project dependencies
