@@ -529,8 +529,12 @@ The application provides comprehensive data portability features:
   - Updated Microsoft.Data.SqlClient from 5.2.2 to 6.0.2
   - Updated OpenTelemetry.Instrumentation.EntityFrameworkCore from 1.10.0-beta.1 to 1.12.0-beta.2
   - Updated Polly from 8.6.0 to 8.6.1
-  - Updated SixLabors.ImageSharp from 3.1.9 to 3.1.10
   - All packages successfully compiled and tested
+
+- **Package Removal (July 15, 2025)**:
+  - Removed SixLabors.ImageSharp dependency as it was unused
+  - Removed ResponsiveImageTagHelper which was the only consumer of SixLabors.ImageSharp
+  - This change reduces licensing concerns and application footprint
 
 - **Enhanced Entity Framework Core Relationships**:
   - Fixed foreign key attribute conflicts between WorkoutSchedule and WorkoutSession

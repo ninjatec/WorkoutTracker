@@ -74,7 +74,6 @@
     <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" />
     <PackageReference Include="Serilog.Enrichers.Span" Version="3.1.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.10" />
     <PackageReference Include="StackExchange.Redis" Version="2.8.41" />
     <PackageReference Include="UAParser" Version="3.1.47" />
   </ItemGroup>
