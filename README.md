@@ -469,6 +469,7 @@ The application implements comprehensive security contexts with minimal privileg
 **Container-level Security Context:**
 - `allowPrivilegeEscalation: false` - Prevents privilege escalation
 - `privileged: false` - Explicitly denies privileged container mode
+
 - `readOnlyRootFilesystem: true` - Enables read-only root filesystem with writable memory volumes
 - `capabilities.drop: [ALL]` - Drops all Linux capabilities
 - `capabilities.add: [NET_BIND_SERVICE]` - Adds only required capability for port binding
@@ -479,21 +480,6 @@ The application implements comprehensive security contexts with minimal privileg
 - `/app/logs` - In-memory volume for application logs (100Mi limit)
 - `/app/temp` - In-memory volume for temporary files (200Mi limit)  
 - `/tmp` - In-memory volume for system temp files (100Mi limit)
-
-**Host System Isolation:**
-- Complete isolation from host networking, processes, and IPC
-- No access to host filesystem beyond mounted volumes
-- Restricted system call access via seccomp profiles
-- Zero privileged access to underlying Kubernetes node
-
-These security contexts protect against:
-- Network traffic eavesdropping via capability abuse
-- Host system access and privilege escalation
-- Container breakout attacks
-- Process namespace pollution
-- Unauthorized system call execution
-- Malicious file system modifications via read-only root filesystem
-- Resource exhaustion via memory-limited writable volumes
 
 ### SQL Server Credential Rotation
 
