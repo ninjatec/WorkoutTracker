@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
+using WorkoutTrackerWeb.Models.Identity;
 using WorkoutTrackerWeb.Services.Alerting;
 
 namespace WorkoutTrackerWeb.ViewComponents
@@ -9,11 +10,11 @@ namespace WorkoutTrackerWeb.ViewComponents
     public class NotificationBadgeViewComponent : ViewComponent
     {
         private readonly IAlertingService _alertingService;
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<AppUser> _userManager;
 
         public NotificationBadgeViewComponent(
             IAlertingService alertingService,
-            UserManager<IdentityUser> userManager)
+            UserManager<AppUser> userManager)
         {
             _alertingService = alertingService;
             _userManager = userManager;

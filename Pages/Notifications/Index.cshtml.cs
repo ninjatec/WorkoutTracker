@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Models.Alerting;
+using WorkoutTrackerWeb.Models.Identity;
 using WorkoutTrackerWeb.Services.Alerting;
 
 namespace WorkoutTrackerWeb.Pages.Notifications
@@ -15,12 +16,12 @@ namespace WorkoutTrackerWeb.Pages.Notifications
     public class IndexModel : PageModel
     {
         private readonly IAlertingService _alertingService;
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<AppUser> _userManager;
         private readonly ILogger<IndexModel> _logger;
 
         public IndexModel(
             IAlertingService alertingService,
-            UserManager<IdentityUser> userManager,
+            UserManager<AppUser> userManager,
             ILogger<IndexModel> logger)
         {
             _alertingService = alertingService;
