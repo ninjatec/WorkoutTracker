@@ -31,6 +31,14 @@ DAST tools identified that the CSRF token cookie has `HttpOnly = false`, which i
 - **Prefix**: `__Host-` in production - Enhanced security requirements
 - **Expiration**: 12 hours - Minimizes exposure window
 
+#### TempData Cookie (`__Host-WorkoutTracker.TempData`)
+- **HttpOnly**: `true` - Prevents JavaScript access (XSS protection)
+- **SameSite**: `Strict` - Prevents CSRF attacks
+- **Secure**: `Always` in all environments - Requires HTTPS
+- **Prefix**: `__Host-` in production - Enhanced security requirements
+- **Expiration**: 20 minutes - Short-lived for temporary data
+- **IsEssential**: `true` - Required for application functionality
+
 ### 2. Cookie Prefix Security
 
 The `__Host-` prefix provides additional security guarantees:

@@ -38,6 +38,7 @@ using Serilog.Events;
 using Serilog.Context;
 using Serilog.Enrichers.Span;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.ResponseCompression;
@@ -794,7 +795,32 @@ namespace WorkoutTrackerWeb
 
             builder.Services.AddRedisConfiguration(builder.Configuration);
 
-            builder.Services.AddAntiforgery(options => 
+            // Configure TempData cookie for security
+            builder.Services.Configure<CookieTempDataProviderOptions>(options =>
+            {
+                // Use __Host- prefix for enhanced security in production
+                options.Cookie.Name = builder.Environment.IsProduction() ? "__Host-WorkoutTracker.TempData" : "WorkoutTracker.TempData";
+                
+                // TempData cookies should be HttpOnly to prevent XSS attacks
+                options.Cookie.HttpOnly = true;
+                
+                // Use Strict SameSite to prevent CSRF attacks
+                options.Cookie.SameSite = SameSiteMode.Strict;
+                
+                // Always require secure cookies in all environments for security
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                
+                // Essential for application functionality
+                options.Cookie.IsEssential = true;
+                
+                // Restrict path for security
+                options.Cookie.Path = "/";
+                
+                // Short expiration to minimize exposure
+                options.Cookie.Expiration = TimeSpan.FromMinutes(20);
+            });
+
+            builder.Services.AddAntiforgery(options =>
             {
                 options.HeaderName = "X-CSRF-TOKEN";
                 // Use __Host- prefix for enhanced security (requires HTTPS and secure flag)
