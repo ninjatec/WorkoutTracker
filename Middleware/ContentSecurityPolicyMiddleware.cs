@@ -47,8 +47,10 @@ namespace WorkoutTrackerWeb.Middleware
             {
                 "default-src 'self'",
                 
-                // Script sources - including Google Analytics and inline scripts
-                "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://googletagmanager.com https://ssl.google-analytics.com https://tagmanager.google.com 'unsafe-eval' 'unsafe-inline'",
+                // Script sources - including Google Analytics and inline scripts 
+                // Note: 'unsafe-eval' has been removed for security (blocks eval() usage)
+                // If JavaScript functionality breaks, consider nonce-based CSP or library updates
+                "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://googletagmanager.com https://ssl.google-analytics.com https://tagmanager.google.com 'unsafe-inline'",
 
                 
                 // Style sources - use nonces where possible
@@ -161,7 +163,7 @@ namespace WorkoutTrackerWeb.Middleware
                 // Add custom headers to verify this middleware is running
                 response.Headers["X-CSP-Applied"] = "true";
                 response.Headers["X-CSP-Source"] = "WorkoutTracker-Middleware";
-                response.Headers["X-CSP-Version"] = "2.0";
+                response.Headers["X-CSP-Version"] = "2.1"; // Updated: Removed unsafe-eval for security
 
                 return Task.CompletedTask;
             });

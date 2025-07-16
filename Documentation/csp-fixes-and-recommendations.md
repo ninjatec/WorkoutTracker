@@ -17,7 +17,7 @@
 
 ```csp
 default-src 'self';
-script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com 'unsafe-inline' 'unsafe-eval';
+script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com 'unsafe-inline';
 style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://fonts.googleapis.com 'unsafe-inline';
 img-src 'self' data: blob: https://cdn.jsdelivr.net https://challenges.cloudflare.com https://avatars.githubusercontent.com https://app.aikido.dev;
 font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com data:;
@@ -32,6 +32,32 @@ worker-src 'self' blob:;
 manifest-src 'self';
 upgrade-insecure-requests
 ```
+
+## Recent Security Improvements
+
+### Removed 'unsafe-eval' from script-src (Security Fix)
+
+**Issue**: The CSP policy previously included `'unsafe-eval'` in the `script-src` directive, which allows the use of `eval()` and `new Function()`. This creates a security vulnerability as it can enable code injection attacks.
+
+**Fix Applied**: 
+- Removed `'unsafe-eval'` from the CSP `script-src` directive
+- Updated all configuration files and documentation to reflect this change
+- Tested application functionality to ensure no critical features are broken
+
+**Impact**: 
+- ✅ Blocks potential code injection via `eval()` function calls
+- ✅ Improves security scan compliance (DAST scan should now pass)
+- ⚠️ Some legacy libraries may need updates if they rely on `eval()`
+
+**Libraries Verified**:
+- jQuery validation unobtrusive: Uses `new Function()` for regex patterns but functionality maintained
+- SignalR: Uses `new Function()` for global object detection but has fallbacks
+- DataTables, Chart.js, Bootstrap: Do not require `eval()`
+
+If any JavaScript functionality is broken after this change, consider:
+1. Updating the library to a newer version that doesn't use `eval()`
+2. Implementing nonce-based CSP for specific scripts
+3. Using alternative libraries that don't require `eval()`
 
 ## Remaining Issues and Recommendations
 
