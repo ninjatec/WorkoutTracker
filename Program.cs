@@ -322,8 +322,12 @@ namespace WorkoutTrackerWeb
             builder.Services.Configure<CookiePolicyOptions>(options =>
             {
                 options.CheckConsentNeeded = context => true;
-                options.MinimumSameSitePolicy = SameSiteMode.None;
+                // Require strict SameSite policy for better CSRF protection
+                options.MinimumSameSitePolicy = SameSiteMode.Strict;
+                // Always require secure cookies to prevent transmission over unencrypted connections
                 options.Secure = CookieSecurePolicy.Always;
+                // Only allow HttpOnly cookies by default to prevent XSS attacks
+                options.HttpOnly = Microsoft.AspNetCore.CookiePolicy.HttpOnlyPolicy.Always;
             });
 
             builder.Services.AddMemoryCache();
@@ -342,10 +346,8 @@ namespace WorkoutTrackerWeb
                 // Use __Host- prefix for enhanced security in production
                 options.Cookie.Name = builder.Environment.IsProduction() ? "__Host-WorkoutTracker.Session" : "WorkoutTracker.Session";
                 
-                // Always require secure cookies in production
-                options.Cookie.SecurePolicy = builder.Environment.IsProduction() 
-                    ? CookieSecurePolicy.Always 
-                    : CookieSecurePolicy.SameAsRequest;
+                // Always require secure cookies in all environments for security
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                     
                 // Restrict path for security
                 options.Cookie.Path = "/";
@@ -798,14 +800,14 @@ namespace WorkoutTrackerWeb
                 // This is a necessary security trade-off for anti-forgery protection
                 options.Cookie.HttpOnly = false;
                 
-                // Always require secure cookies in production
+                // Always require secure cookies in all environments for security
                 if (builder.Environment.IsProduction())
                 {
                     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                 }
                 else if (builder.Environment.IsDevelopment())
                 {
-                    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                 }
                 else
                 {
@@ -900,14 +902,8 @@ namespace WorkoutTrackerWeb
                 // Use Strict SameSite to prevent CSRF attacks
                 options.Cookie.SameSite = SameSiteMode.Strict;
                 
-                if (builder.Environment.IsDevelopment())
-                {
-                    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-                }
-                else
-                {
-                    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-                }
+                // Always require secure cookies in all environments for security
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                 
                 options.ExpireTimeSpan = TimeSpan.FromDays(14);
                 options.SlidingExpiration = true;
