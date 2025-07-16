@@ -2,11 +2,78 @@
 @model WorkoutTrackerWeb.Pages.Errors.ServerErrorModel
 @{
     ViewData["Title"] = "Server Error";
+    Layout = "_Layout";
 }
 
-<div class="text-center mt-5">
-    <h1 class="display-1">500</h1>
-    <h2>Internal Server Error</h2>
-    <p class="lead">Something went wrong on our servers. We're working to fix the issue.</p>
-    <a href="/" class="btn btn-primary">Return to Home Page</a>
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="text-center mt-5">
+                <div class="mb-4">
+                    <i class="fas fa-server fa-5x text-danger"></i>
+                </div>
+                
+                <h1 class="display-1 text-danger">500</h1>
+                <h2 class="mb-4">Internal Server Error</h2>
+                
+                <div class="alert alert-warning" role="alert">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Something went wrong on our servers. Our technical team has been notified and is working to resolve the issue.
+                </div>
+                
+                @if (!string.IsNullOrEmpty(Model.RequestId))
+                {
+                    <p class="small text-muted mb-4">
+                        <strong>Reference ID:</strong> @Model.RequestId<br>
+                        <small>Please include this reference ID when contacting support.</small>
+                    </p>
+                }
+                
+                <div class="mt-4">
+                    <a href="/" class="btn btn-primary me-2">
+                        <i class="fas fa-home"></i> Return to Home
+                    </a>
+                    <button onclick="location.reload()" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-redo"></i> Try Again
+                    </button>
+                    <a href="/Feedback/Create" class="btn btn-outline-secondary">
+                        <i class="fas fa-bug"></i> Report Issue
+                    </a>
+                </div>
+                
+                <div class="mt-5">
+                    <h5>What can you do?</h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-clock fa-2x text-primary mb-2"></i>
+                                    <h6>Wait a moment</h6>
+                                    <small>The issue might be temporary. Try refreshing the page in a few minutes.</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-home fa-2x text-success mb-2"></i>
+                                    <h6>Go to homepage</h6>
+                                    <small>Return to the main page and try navigating from there.</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-envelope fa-2x text-info mb-2"></i>
+                                    <h6>Contact support</h6>
+                                    <small>If the problem persists, please let us know using the feedback form.</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>

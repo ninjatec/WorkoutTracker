@@ -296,6 +296,10 @@ namespace WorkoutTrackerWeb
             // Add diagnostic trace service to help troubleshoot OpenTelemetry issues
             builder.Services.AddHostedService<WorkoutTrackerWeb.Services.Telemetry.DiagnosticTraceService>();
 
+            // Add Secure Error Logging Service for DAST compliance
+            builder.Services.AddScoped<WorkoutTrackerWeb.Services.Logging.ISecureErrorLoggingService, 
+                                     WorkoutTrackerWeb.Services.Logging.SecureErrorLoggingService>();
+
             // Add Zen Firewall
             builder.Services.AddZenFirewall();
             Log.Information("Zen Firewall configured successfully");
@@ -1074,8 +1078,15 @@ namespace WorkoutTrackerWeb
             }
             else
             {
-                app.UseExceptionHandler("/Error");
+                // Use secure exception handling middleware to prevent information disclosure
+                app.UseSecureExceptionHandling();
+                
+                // Use custom exception handler that doesn't expose sensitive information
+                app.UseExceptionHandler("/Errors/Error");
                 app.UseHsts();
+                
+                // Add status code pages with re-execution to handle all HTTP error status codes
+                app.UseStatusCodePagesWithReExecute("/Errors/Error", "?statusCode={0}");
             }
 
             app.UseForwardedHeaders();
