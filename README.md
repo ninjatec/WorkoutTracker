@@ -663,7 +663,7 @@ The CSP is implemented using a dedicated middleware (`ContentSecurityPolicyMiddl
 
 ```csp
 default-src 'self';
-script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com 'unsafe-inline' 'unsafe-eval';
+script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com 'unsafe-inline';
 style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css 'unsafe-inline';
 img-src 'self' data: blob: https://cdn.jsdelivr.net https://challenges.cloudflare.com;
 font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com data:;

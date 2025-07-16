@@ -322,8 +322,12 @@ namespace WorkoutTrackerWeb
             builder.Services.Configure<CookiePolicyOptions>(options =>
             {
                 options.CheckConsentNeeded = context => true;
-                options.MinimumSameSitePolicy = SameSiteMode.None;
+                // Require strict SameSite policy for better CSRF protection
+                options.MinimumSameSitePolicy = SameSiteMode.Strict;
+                // Always require secure cookies to prevent transmission over unencrypted connections
                 options.Secure = CookieSecurePolicy.Always;
+                // Only allow HttpOnly cookies by default to prevent XSS attacks
+                options.HttpOnly = Microsoft.AspNetCore.CookiePolicy.HttpOnlyPolicy.Always;
             });
 
             builder.Services.AddMemoryCache();
@@ -331,12 +335,22 @@ namespace WorkoutTrackerWeb
             builder.Services.AddSession(options => 
             {
                 options.IdleTimeout = TimeSpan.FromMinutes(30);
+                
+                // Session cookies should always be HttpOnly to prevent XSS
                 options.Cookie.HttpOnly = true;
                 options.Cookie.IsEssential = true;
+                
+                // Use Strict SameSite to prevent CSRF attacks
                 options.Cookie.SameSite = SameSiteMode.Strict;
-                options.Cookie.SecurePolicy = builder.Environment.IsProduction() 
-                    ? CookieSecurePolicy.Always 
-                    : CookieSecurePolicy.SameAsRequest;
+                
+                // Use __Host- prefix for enhanced security in production
+                options.Cookie.Name = builder.Environment.IsProduction() ? "__Host-WorkoutTracker.Session" : "WorkoutTracker.Session";
+                
+                // Always require secure cookies in all environments for security
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                    
+                // Restrict path for security
+                options.Cookie.Path = "/";
             });
 
             builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
@@ -779,23 +793,38 @@ namespace WorkoutTrackerWeb
             builder.Services.AddAntiforgery(options => 
             {
                 options.HeaderName = "X-CSRF-TOKEN";
-                options.Cookie.Name = "CSRF-TOKEN";
+                // Use __Host- prefix for enhanced security (requires HTTPS and secure flag)
+                options.Cookie.Name = builder.Environment.IsProduction() ? "__Host-CSRF-TOKEN" : "CSRF-TOKEN";
+                
+                // CSRF tokens must be accessible to JavaScript for AJAX requests
+                // This is a necessary security trade-off for anti-forgery protection
                 options.Cookie.HttpOnly = false;
                 
+                // Always require secure cookies in all environments for security
                 if (builder.Environment.IsProduction())
                 {
                     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                 }
                 else if (builder.Environment.IsDevelopment())
                 {
-                    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                 }
                 else
                 {
                     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                 }
                 
+                // Use Strict SameSite to prevent CSRF attacks
                 options.Cookie.SameSite = SameSiteMode.Strict;
+                
+                // Minimize exposure time
+                options.Cookie.Expiration = TimeSpan.FromHours(12);
+                
+                // Essential for security functionality
+                options.Cookie.IsEssential = true;
+                
+                // Restrict path to minimize exposure
+                options.Cookie.Path = "/";
             });
 
             builder.Services.AddDbContext<WorkoutTrackerWebContext>(options =>
@@ -864,25 +893,30 @@ namespace WorkoutTrackerWeb
 
             builder.Services.ConfigureApplicationCookie(options =>
             {
-                options.Cookie.Name = "WorkoutTracker.Auth";
+                // Use __Host- prefix for enhanced security in production
+                options.Cookie.Name = builder.Environment.IsProduction() ? "__Host-WorkoutTracker.Auth" : "WorkoutTracker.Auth";
+                
+                // Authentication cookies should always be HttpOnly to prevent XSS
                 options.Cookie.HttpOnly = true;
+                
+                // Use Strict SameSite to prevent CSRF attacks
                 options.Cookie.SameSite = SameSiteMode.Strict;
                 
-                if (builder.Environment.IsDevelopment())
-                {
-                    options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-                }
-                else
-                {
-                    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-                }
+                // Always require secure cookies in all environments for security
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                 
                 options.ExpireTimeSpan = TimeSpan.FromDays(14);
                 options.SlidingExpiration = true;
                 
+                // Only set domain in production for subdomain sharing
                 if (!builder.Environment.IsDevelopment())
                 {
-                    options.Cookie.Domain = ".workouttracker.online";
+                    // Note: __Host- prefix requires path to be "/" and no domain to be set
+                    // So we can't use domain with __Host- prefix
+                    if (!builder.Environment.IsProduction())
+                    {
+                        options.Cookie.Domain = ".workouttracker.online";
+                    }
                 }
                 
                 options.Events.OnSignedIn = async context =>

@@ -1,27 +1,80 @@
 # Content Security Policy (CSP) Fixes and Recommendations
 
-## Issues Fixed
+## Critical Security Fix: Removed 'unsafe-inline' for Scripts
 
-### 1. Aikido Security Badge Image Loading
-**Issue**: The Zen Security/Aikido badge image from `https://app.aikido.dev/` was blocked by CSP.
-**Fix**: Added `https://app.aikido.dev` to the `img-src` directive in `ContentSecurityPolicyMiddleware.cs`.
+### 🔒 **DAST Security Issue Fixed**: CSP now blocks inline JavaScript
 
-### 2. Inline Event Handlers (onerror)
-**Issue**: The Aikido badge had an `onerror` inline event handler that violated CSP.
-**Fix**: 
-- Removed `onerror` attributes from all Aikido badge images in layout files
-- Created `aikido-badge.js` with CSP-compliant error handling using `addEventListener`
-- Added the script to all layout files
+**Previous Vulnerability**: The CSP configuration allowed `'unsafe-inline'` in `script-src`, which permitted arbitrary inline JavaScript execution and created a significant security risk.
 
-## Current CSP Configuration
+**Fix Applied** (July 2025):
+1. **Removed `'unsafe-inline'` from all script-src directives**:
+   - `appsettings.json`
+   - `appsettings.Production.json` 
+   - `SecurityTestController.cs`
 
+2. **Implemented nonce-based CSP**:
+   - Created `ScriptNonceTagHelper` for automatic nonce addition
+   - Added `Html.GetScriptNonce()` extension method
+   - Updated `ContentSecurityPolicyMiddleware.cs` to generate unique nonces per request
+
+3. **Updated critical inline scripts**:
+   - Google Analytics initialization script in `_Layout.cshtml`
+   - jQuery fallback script in `_Layout.cshtml`
+   - Charts initialization in `Reports/Index.cshtml`
+
+### How to Add Nonces to New Inline Scripts
+
+**Method 1: Using Extension Method (Recommended)**
+```html
+<script nonce="@Html.GetScriptNonce()">
+    // Your JavaScript code here
+    console.log('This script uses CSP nonce');
+</script>
+```
+
+**Method 2: Using TagHelper**
+```html
+<script add-nonce="true">
+    // Your JavaScript code here
+    console.log('This script uses CSP nonce via TagHelper');
+</script>
+```
+
+**Method 3: For developers - direct access**
+```html
+<script nonce="@Context.Items["CSP-Script-Nonce"]">
+    // Your JavaScript code here
+</script>
+```
+
+### For Existing Inline Scripts
+
+**⚠️ Action Required**: All remaining inline scripts in the application need to be updated with nonces. Search for:
+- `<script>` tags without nonce attributes
+- `onclick=`, `onload=`, and other inline event handlers
+- `javascript:` URLs in href attributes
+
+**Find inline scripts**: Use this command:
+```bash
+grep -r "<script>" --include="*.cshtml" Pages/ Views/ Areas/
+grep -r "onclick=" --include="*.cshtml" Pages/ Views/ Areas/
+```
+
+## Current CSP Configuration (Secure)
+
+**Script Sources** (no more 'unsafe-inline'):
+```csp
+script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://googletagmanager.com https://ssl.google-analytics.com https://tagmanager.google.com 'nonce-{GENERATED_NONCE}'
+```
+
+**Complete CSP Header**:
 ```csp
 default-src 'self';
-script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com 'unsafe-inline' 'unsafe-eval';
-style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://fonts.googleapis.com 'unsafe-inline';
-img-src 'self' data: blob: https://cdn.jsdelivr.net https://challenges.cloudflare.com https://avatars.githubusercontent.com https://app.aikido.dev;
+script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com 'nonce-{GENERATED_NONCE}';
+style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://fonts.googleapis.com 'nonce-{GENERATED_NONCE}';
+img-src 'self' data: blob: https://cdn.jsdelivr.net https://challenges.cloudflare.com https://avatars.githubusercontent.com https://app.aikido.dev https://www.google-analytics.com https://ssl.google-analytics.com https://stats.g.doubleclick.net;
 font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com data:;
-connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net [allowed domains] https://challenges.cloudflare.com [websocket urls];
+connect-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://www.google-analytics.com https://analytics.google.com https://region1.google-analytics.com [allowed domains] https://challenges.cloudflare.com [websocket urls];
 frame-src 'self' https://challenges.cloudflare.com https://www.youtube.com;
 frame-ancestors 'self' [allowed domains];
 form-action 'self' [allowed domains] https://challenges.cloudflare.com;
@@ -32,6 +85,32 @@ worker-src 'self' blob:;
 manifest-src 'self';
 upgrade-insecure-requests
 ```
+
+## Recent Security Improvements
+
+### Removed 'unsafe-eval' from script-src (Security Fix)
+
+**Issue**: The CSP policy previously included `'unsafe-eval'` in the `script-src` directive, which allows the use of `eval()` and `new Function()`. This creates a security vulnerability as it can enable code injection attacks.
+
+**Fix Applied**: 
+- Removed `'unsafe-eval'` from the CSP `script-src` directive
+- Updated all configuration files and documentation to reflect this change
+- Tested application functionality to ensure no critical features are broken
+
+**Impact**: 
+- ✅ Blocks potential code injection via `eval()` function calls
+- ✅ Improves security scan compliance (DAST scan should now pass)
+- ⚠️ Some legacy libraries may need updates if they rely on `eval()`
+
+**Libraries Verified**:
+- jQuery validation unobtrusive: Uses `new Function()` for regex patterns but functionality maintained
+- SignalR: Uses `new Function()` for global object detection but has fallbacks
+- DataTables, Chart.js, Bootstrap: Do not require `eval()`
+
+If any JavaScript functionality is broken after this change, consider:
+1. Updating the library to a newer version that doesn't use `eval()`
+2. Implementing nonce-based CSP for specific scripts
+3. Using alternative libraries that don't require `eval()`
 
 ## Remaining Issues and Recommendations
 

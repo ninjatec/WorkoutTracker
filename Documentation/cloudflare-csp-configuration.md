@@ -89,7 +89,7 @@ Use these endpoints to test:
 
 ### 6. **Common Security Scan Issues Resolved**
 
-✅ **Unsafe CSP directives** - Minimized unsafe-inline and unsafe-eval usage
+✅ **Unsafe CSP directives** - Removed unsafe-eval and minimized unsafe-inline usage
 ✅ **Missing security headers** - Added HSTS, COEP, COOP
 ✅ **Wildcard sources** - Removed WebSocket wildcards
 ✅ **Missing CSP directives** - Added worker-src, manifest-src, media-src
