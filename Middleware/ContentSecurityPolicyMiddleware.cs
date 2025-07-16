@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 
 namespace WorkoutTrackerWeb.Middleware
 {
@@ -14,7 +15,6 @@ namespace WorkoutTrackerWeb.Middleware
         private readonly RequestDelegate _next;
         private readonly ILogger<ContentSecurityPolicyMiddleware> _logger;
         private readonly IConfiguration _configuration;
-        private readonly string _cspHeader;
         private readonly string _permissionsPolicyHeader;
 
         public ContentSecurityPolicyMiddleware(RequestDelegate next, ILogger<ContentSecurityPolicyMiddleware> logger, IConfiguration configuration)
@@ -22,13 +22,20 @@ namespace WorkoutTrackerWeb.Middleware
             _next = next;
             _logger = logger;
             _configuration = configuration;
-
-            // Build CSP header with Cloudflare optimization
-            _cspHeader = BuildCspHeader();
             _permissionsPolicyHeader = "camera=(), microphone=(), geolocation=()";
         }
 
-        private string BuildCspHeader()
+        private string GenerateNonce()
+        {
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                var nonceBytes = new byte[16];
+                rng.GetBytes(nonceBytes);
+                return Convert.ToBase64String(nonceBytes);
+            }
+        }
+
+        private string BuildCspHeader(string styleNonce, string scriptNonce)
         {
             // Check if CSP is enabled in configuration
             var cspEnabled = _configuration.GetValue<bool>("Security:ContentSecurityPolicy:Enabled", true);
@@ -47,14 +54,14 @@ namespace WorkoutTrackerWeb.Middleware
             {
                 "default-src 'self'",
                 
-                // Script sources - including Google Analytics and inline scripts 
+                // Script sources - including Google Analytics and inline scripts with nonce
                 // Note: 'unsafe-eval' has been removed for security (blocks eval() usage)
                 // If JavaScript functionality breaks, consider nonce-based CSP or library updates
-                "script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://googletagmanager.com https://ssl.google-analytics.com https://tagmanager.google.com 'unsafe-inline'",
+                $"script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://static.cloudflareinsights.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://googletagmanager.com https://ssl.google-analytics.com https://tagmanager.google.com 'nonce-{scriptNonce}'",
 
                 
-                // Style sources - use nonces where possible
-                "style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://fonts.googleapis.com 'unsafe-inline'",
+                // Style sources - use nonces instead of unsafe-inline for better security
+                $"style-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.datatables.net https://fonts.googleapis.com 'nonce-{styleNonce}'",
                 
                 // Image sources
                 "img-src 'self' data: blob: https://cdn.jsdelivr.net https://challenges.cloudflare.com https://avatars.githubusercontent.com https://app.aikido.dev https://www.google-analytics.com https://ssl.google-analytics.com https://stats.g.doubleclick.net",
@@ -101,24 +108,39 @@ namespace WorkoutTrackerWeb.Middleware
 
         public async Task InvokeAsync(HttpContext context)
         {
+            // Generate nonces for this request
+            var styleNonce = GenerateNonce();
+            var scriptNonce = GenerateNonce();
+            
+            // Make nonces available to views through HttpContext.Items
+            context.Items["CSP-Style-Nonce"] = styleNonce;
+            context.Items["CSP-Script-Nonce"] = scriptNonce;
+
             // Add security headers before processing the request
             context.Response.OnStarting(() =>
             {
                 var response = context.Response;
 
-                // Add CSP header if not already present and CSP is not empty
-                if (!string.IsNullOrEmpty(_cspHeader) && !response.Headers.ContainsKey("Content-Security-Policy"))
+                // Check if CSP is enabled in configuration
+                var cspEnabled = _configuration.GetValue<bool>("Security:ContentSecurityPolicy:Enabled", true);
+                if (cspEnabled)
                 {
-                    // Add CSP reporting endpoint if configured
-                    var cspWithReporting = _cspHeader;
-                    var reportUri = _configuration.GetValue<string>("Security:ContentSecurityPolicy:ReportUri");
-                    if (!string.IsNullOrEmpty(reportUri))
+                    // Build CSP header with generated nonces
+                    var cspHeader = BuildCspHeader(styleNonce, scriptNonce);
+                    
+                    if (!string.IsNullOrEmpty(cspHeader) && !response.Headers.ContainsKey("Content-Security-Policy"))
                     {
-                        cspWithReporting += $"; report-uri {reportUri}";
-                    }
+                        // Add CSP reporting endpoint if configured
+                        var cspWithReporting = cspHeader;
+                        var reportUri = _configuration.GetValue<string>("Security:ContentSecurityPolicy:ReportUri");
+                        if (!string.IsNullOrEmpty(reportUri))
+                        {
+                            cspWithReporting += $"; report-uri {reportUri}";
+                        }
 
-                    response.Headers["Content-Security-Policy"] = cspWithReporting;
-                    _logger.LogDebug("Added Content-Security-Policy header to response for {Path}", context.Request.Path);
+                        response.Headers["Content-Security-Policy"] = cspWithReporting;
+                        _logger.LogDebug("Added Content-Security-Policy header with nonces to response for {Path}", context.Request.Path);
+                    }
                 }
 
                 // Add other security headers with enhanced protection
