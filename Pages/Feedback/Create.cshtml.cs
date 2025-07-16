@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Extensions.Logging;
 using WorkoutTrackerWeb.Data;
 using WorkoutTrackerWeb.Models;
+using WorkoutTrackerWeb.Models.Identity;
 using WorkoutTrackerWeb.Services;
 using WorkoutTrackerWeb.Services.Email;
 using WorkoutTrackerWeb.Services.Logging;
@@ -19,14 +20,14 @@ namespace WorkoutTrackerWeb.Pages.Feedback
         private readonly UserService _userService;
         private readonly IEmailService _emailService;
         private readonly ILogger<CreateModel> _logger;
-        private readonly UserManager<IdentityUser> _userManager;
+        private readonly UserManager<AppUser> _userManager;
         private readonly ISecureErrorLoggingService _secureErrorLogging;
 
         public CreateModel(WorkoutTrackerWebContext context, 
                           UserService userService,
                           IEmailService emailService,
                           ILogger<CreateModel> logger,
-                          UserManager<IdentityUser> userManager,
+                          UserManager<AppUser> userManager,
                           ISecureErrorLoggingService secureErrorLogging)
         {
             _context = context;
