@@ -160,10 +160,36 @@ namespace WorkoutTrackerWeb.Middleware
                     response.Headers["Cross-Origin-Opener-Policy"] = "same-origin";
                 }
 
+                // Add X-XSS-Protection for legacy browser protection
+                if (!response.Headers.ContainsKey("X-XSS-Protection"))
+                {
+                    response.Headers["X-XSS-Protection"] = "1; mode=block";
+                }
+
+                // Add Cross-Origin-Resource-Policy
+                if (!response.Headers.ContainsKey("Cross-Origin-Resource-Policy"))
+                {
+                    response.Headers["Cross-Origin-Resource-Policy"] = "same-origin";
+                }
+                
+                // Add security headers specifically to mitigate CSRF cookie exposure
+                // These headers help protect against XSS attacks that could steal the CSRF token
+                if (!response.Headers.ContainsKey("Cache-Control"))
+                {
+                    // Prevent caching of potentially sensitive responses
+                    var path = context.Request.Path.Value?.ToLowerInvariant() ?? "";
+                    if (path.Contains("login") || path.Contains("register") || path.Contains("account"))
+                    {
+                        response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private";
+                        response.Headers["Pragma"] = "no-cache";
+                        response.Headers["Expires"] = "0";
+                    }
+                }
+
                 // Add custom headers to verify this middleware is running
                 response.Headers["X-CSP-Applied"] = "true";
                 response.Headers["X-CSP-Source"] = "WorkoutTracker-Middleware";
-                response.Headers["X-CSP-Version"] = "2.1"; // Updated: Removed unsafe-eval for security
+                response.Headers["X-CSP-Version"] = "2.2"; // Updated: Enhanced cookie security
 
                 return Task.CompletedTask;
             });
