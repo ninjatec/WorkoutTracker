@@ -9,11 +9,38 @@ using Microsoft.AspNetCore.Mvc.ViewEngines;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Html;
 
 namespace WorkoutTrackerWeb.Extensions
 {
     public static class PartialViewExtensions
     {
+        /// <summary>
+        /// Gets the CSP script nonce for the current request
+        /// </summary>
+        public static string GetScriptNonce(this IHtmlHelper htmlHelper)
+        {
+            return htmlHelper.ViewContext.HttpContext.Items["CSP-Script-Nonce"]?.ToString() ?? "";
+        }
+
+        /// <summary>
+        /// Gets the CSP style nonce for the current request
+        /// </summary>
+        public static string GetStyleNonce(this IHtmlHelper htmlHelper)
+        {
+            return htmlHelper.ViewContext.HttpContext.Items["CSP-Style-Nonce"]?.ToString() ?? "";
+        }
+
+        /// <summary>
+        /// Creates a script tag with the appropriate CSP nonce
+        /// </summary>
+        public static HtmlString ScriptWithNonce(this IHtmlHelper htmlHelper, string scriptContent)
+        {
+            var nonce = htmlHelper.GetScriptNonce();
+            var nonceAttr = !string.IsNullOrEmpty(nonce) ? $" nonce=\"{nonce}\"" : "";
+            return new HtmlString($"<script{nonceAttr}>{scriptContent}</script>");
+        }
+
         public static async Task<string> RenderPartialToStringAsync<TModel>(
             this Controller controller,
             string partialName,
