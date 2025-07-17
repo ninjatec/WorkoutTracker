@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>aspnet-WorkoutTrackerWeb-9e87d476-9b38-425e-8de1-18d836571a09</UserSecretsId>
     <ContainerRegistry>registry.hub.docker.com</ContainerRegistry>
+    <ContainerBaseImage>mcr.microsoft.com/dotnet/aspnet:9.0.7</ContainerBaseImage>
     <ContainerRepository>ninjatec/workout-tracker</ContainerRepository>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <ContainerImageTag>latest</ContainerImageTag>
