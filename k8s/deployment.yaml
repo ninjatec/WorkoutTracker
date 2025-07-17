@@ -41,7 +41,7 @@ spec:
       - name: regcred
       containers:
       - name: workout-tracker
-        image: ninjatec/workout-tracker:2.4.4.5
+        image: ninjatec/workout-tracker:2.4.4.6
         imagePullPolicy: Always
         securityContext:
           allowPrivilegeEscalation: false
