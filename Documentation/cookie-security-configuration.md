@@ -25,7 +25,7 @@ DAST tools identified that the CSRF token cookie has `HttpOnly = false`, which i
 - **Prefix**: `__Host-` in production - Enhanced security requirements
 
 #### CSRF Token Cookie (`__Host-CSRF-TOKEN`)
-- **HttpOnly**: `false` - **Required for JavaScript access in AJAX requests**
+- **HttpOnly**: `true` - Prevents JavaScript access for enhanced XSS protection
 - **SameSite**: `Strict` - Prevents CSRF attacks
 - **Secure**: `Always` in production - Requires HTTPS
 - **Prefix**: `__Host-` in production - Enhanced security requirements
@@ -77,50 +77,42 @@ The rate limiting cookie is properly secured:
 
 ## Risk Assessment
 
-### Remaining Risk: CSRF Token JavaScript Access
+### CSRF Token Security Enhancement
 
-**Risk**: The CSRF token cookie is accessible via JavaScript (`HttpOnly = false`)
-**Justification**: Required for anti-forgery protection in AJAX requests
-**Mitigations**:
-1. Strict Content Security Policy prevents malicious script execution
-2. SameSite=Strict prevents cross-site request forgery
-3. Secure flag ensures HTTPS-only transmission
-4. Short expiration (12 hours) minimizes exposure window
-5. `__Host-` prefix provides additional security guarantees
+**Update**: The CSRF token cookie now has `HttpOnly = true` to prevent JavaScript access
+**Implementation**: All AJAX requests retrieve the token from hidden form fields (`__RequestVerificationToken`) rather than cookies
+**Security Benefits**:
+1. Enhanced protection against XSS attacks
+2. Maintains robust anti-forgery protection
+3. Complies with security best practices
+4. Eliminates need for security trade-off
+5. Additional protections remain in place:
+   - Strict Content Security Policy
+   - SameSite=Strict to prevent cross-site request forgery
+   - Secure flag for HTTPS-only transmission
+   - Short expiration (12 hours) minimizes exposure window
+   - `__Host-` prefix provides additional security guarantees
 
-### Security Trade-off Analysis
-
-The decision to keep `HttpOnly = false` for CSRF tokens is a calculated security trade-off:
-
-**Benefits**:
-- Enables robust anti-forgery protection for AJAX requests
-- Prevents CSRF attacks (more common and easier to exploit)
-- Maintains application functionality
-
-**Costs**:
-- Potential XSS exploitation of CSRF token
-- Requires multiple mitigating controls
-
-**Conclusion**: The anti-forgery protection benefits outweigh the XSS risks, especially with comprehensive mitigations in place.
+**Conclusion**: The application has been updated to follow security best practices while maintaining full functionality.
 
 ## Compliance Notes
 
-### DAST Tool Findings
+### DAST Tool Findings Resolution
 
-DAST tools may continue to flag the CSRF token cookie as missing HttpOnly. This is expected and acceptable given:
+The CSRF token cookie now has the HttpOnly flag set, which resolves the security finding previously reported by DAST tools. This change:
 
-1. The security requirement for JavaScript access
-2. Comprehensive mitigating controls
-3. Industry-standard practice for CSRF protection
-4. Overall security posture improvement
+1. Eliminates the XSS risk previously associated with the CSRF token cookie
+2. Maintains full application functionality by using form fields for token access
+3. Follows security best practices for cookie configuration
+4. Improves overall security posture
 
 ### Security Review Recommendations
 
-When reviewing DAST findings:
-1. Acknowledge the CSRF token cookie limitation
-2. Verify all mitigating controls are in place
-3. Confirm other cookies are properly secured
-4. Document the security trade-off rationale
+When reviewing security findings:
+1. Verify all cookies have HttpOnly flag set where appropriate
+2. Confirm all mitigating controls remain in place
+3. Ensure other cookies maintain proper security configuration
+4. Document security improvements and their impact on application functionality
 
 ## Configuration Verification
 

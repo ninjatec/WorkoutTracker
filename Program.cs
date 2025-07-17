@@ -826,9 +826,10 @@ namespace WorkoutTrackerWeb
                 // Use __Host- prefix for enhanced security (requires HTTPS and secure flag)
                 options.Cookie.Name = builder.Environment.IsProduction() ? "__Host-CSRF-TOKEN" : "CSRF-TOKEN";
                 
-                // CSRF tokens must be accessible to JavaScript for AJAX requests
-                // This is a necessary security trade-off for anti-forgery protection
-                options.Cookie.HttpOnly = false;
+                // Enable HttpOnly flag for CSRF tokens to prevent JavaScript access
+                // This enhances security against XSS attacks without impacting functionality
+                // since all AJAX requests use the form field token, not the cookie directly
+                options.Cookie.HttpOnly = true;
                 
                 // Always require secure cookies in all environments for security
                 if (builder.Environment.IsProduction())
