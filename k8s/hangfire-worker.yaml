@@ -155,6 +155,11 @@ spec:
             secretKeyRef:
               name: workouttracker-secrets
               key: OTEL_AUTH_BEARER
+        - name: AIKIDO_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: workouttracker-secrets
+              key: AIKIDO_TOKEN
       volumes:
       - name: logs-volume
         emptyDir:
