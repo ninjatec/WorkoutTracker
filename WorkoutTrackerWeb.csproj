@@ -24,7 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Aikido.Zen.DotNetCore" Version="1.2.15" />
+    <PackageReference Include="Aikido.Zen.DotNetCore" Version="1.2.16" />
     <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
     <PackageReference Include="AspNetCore.HealthChecks.SqlServer" Version="9.0.0" />
     <PackageReference Include="AspNetCore.HealthChecks.System" Version="9.0.0" />
